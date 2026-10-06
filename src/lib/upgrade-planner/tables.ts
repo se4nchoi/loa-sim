@@ -82,9 +82,6 @@ function dealerCoreCurve(info: CoreInfo, weaponPower: number): number[] {
 /** Highest breakpoint each grade can activate. */
 const GRADE_CAP: Record<CoreGrade, number> = { heroic: 10, legendary: 14, relic: 20, ancient: 20 };
 
-/** Willpower a core supplies by grade [agl getDefaultCoreEnergy]. */
-export const CORE_WILLPOWER: Record<CoreGrade, number> = { heroic: 9, legendary: 12, relic: 15, ancient: 17 };
-
 /** Dealer battle points for a core at `points`. */
 export function coreValue(info: CoreInfo, points: number, weaponPower: number): number {
 	const curve = dealerCoreCurve(info, weaponPower);
