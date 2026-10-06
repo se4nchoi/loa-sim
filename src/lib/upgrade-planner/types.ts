@@ -2,9 +2,14 @@
 // that the upgrade planner reads. Field names match bible's page data one-to-one, so the
 // component can be handed bible's loadout object as-is.
 
-export type BattlePointPart =
-	| ({ type: number } & { value: number } & Record<string, unknown>)
-	| ({ type: number } & { min: number; max: number } & Record<string, unknown>);
+/** A part has either `value`, or a `min`/`max` range (pet specialty). Other fields vary by type. */
+export interface BattlePointPart {
+	type: number;
+	value?: number;
+	min?: number;
+	max?: number;
+	[field: string]: unknown;
+}
 
 export interface BattlePoint {
 	parts: BattlePointPart[];

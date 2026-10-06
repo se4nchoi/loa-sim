@@ -101,7 +101,7 @@ describe('upgrades', () => {
 
 	it('scores a new ability stone net of the one it replaces', () => {
 		// Current stone: Cursed Doll Lv. 2 (2075), Raid Captain Lv. 3 (2448); others at Lv. 0.
-		const stone = upgrades.find((u) => u.title.startsWith('Ability stone:') && u.title.includes('Lv. 4 +') && u.title.endsWith('Lv. 3'))!;
+		const stone = upgrades.find((u) => u.title.startsWith('Stone:') && / 4 \/ /.test(u.title) && u.title.endsWith(' 3'))!;
 		expect(stone).toBeDefined();
 		const s = stone.title;
 		// Recompute by hand from the engraving tables for whichever pair was chosen.
@@ -112,7 +112,7 @@ describe('upgrades', () => {
 		for (const id of Object.keys(values).map(Number)) {
 			const table = engravingTable(id)!;
 			const col = table[stones[id]].indexOf(values[id]);
-			const level = s.includes(`${names[id]} Lv. 4`) ? 4 : s.includes(`${names[id]} Lv. 3`) ? 3 : 0;
+			const level = s.includes(`${names[id]} 4`) ? 4 : s.includes(`${names[id]} 3`) ? 3 : 0;
 			ratio *= (1e4 + table[level][col]) / (1e4 + values[id]);
 		}
 		expect(stone.gainPct).toBeCloseTo((ratio - 1) * 100, 6);
@@ -126,6 +126,13 @@ describe('upgrades', () => {
 	it('values a ring Crit Rate mid → high', () => {
 		const u = find('accessory:finger1:crit_rate')!;
 		expect(u.gainPct).toBeCloseTo(((1e4 + 155 * 0.7742) / (1e4 + 95 * 0.7742) - 1) * 100, 6);
+	});
+
+	it('copes with a sparse loadout (no ark grid, gems, items or engravings)', () => {
+		const base = parts.find((p) => p.type === PartType.BaseAttack)!;
+		const sparse = { type: 'ark_passive', classId: 'x', itemLevel: 1700, battlePoint: { isSupport: false, parts: [base] } } as Loadout;
+		expect(buildUpgrades(sparse)).toEqual([]);
+		expect(coreStates(sparse)).toEqual([]);
 	});
 
 	it('returns nothing for supports (not modelled yet)', () => {

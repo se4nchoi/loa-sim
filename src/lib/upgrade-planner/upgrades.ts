@@ -37,7 +37,22 @@ export interface Upgrade {
 	count: number;
 	/** True when the value relies on an assumption rather than an exact table. */
 	approximate: boolean;
+	/** Alternatives that exclude each other (e.g. ability stone patterns) share a group. */
+	group?: string;
 }
+
+/** Best row per group, for compact views like the sidebar card. */
+export const topDistinct = (upgrades: Upgrade[], limit: number) => {
+	const seen = new Set<string>();
+	return upgrades
+		.filter((u) => {
+			const g = u.group ?? u.key;
+			if (seen.has(g)) return false;
+			seen.add(g);
+			return true;
+		})
+		.slice(0, limit);
+};
 
 export const CATEGORY_LABELS: Record<UpgradeCategory, string> = {
 	gem: 'Gems',
@@ -147,7 +162,7 @@ function coreUpgrades(l: Loadout): Upgrade[] {
 			{
 				key: `core:${c.id}:${next}`,
 				category: 'core' as const,
-				title: `${c.label} core ${c.points}P → ${next}P`,
+				title: `${c.label} core → ${next}P`,
 				detail: `Needs ${next - c.points} more core point${next - c.points > 1 ? 's' : ''} from its astrogems.`,
 				gainPct: gain(c.value, to),
 				count: 1,
@@ -184,6 +199,7 @@ export function astrogemOptionGain(t: AstrogemTotals, optionId: number, delta: n
 }
 
 function astrogemUpgrades(l: Loadout): Upgrade[] {
+	if (!l.arkGridCores?.some((c) => c.gems.length)) return [];
 	const t = astrogemTotals(l);
 	return Object.keys(ASTROGEM_COEFF).map((k) => {
 		const id = Number(k);
@@ -321,7 +337,7 @@ function abilityStoneUpgrades(l: Loadout): Upgrade[] {
 				if (!best || gainPct > best.gainPct)
 					best = {
 						gainPct,
-						title: `Ability stone: ${x.name} Lv. ${a} + ${y.name} Lv. ${b}`,
+						title: `Stone: ${x.name} ${a} / ${y.name} ${b}`,
 						key: `stone:${x.id}:${a}:${y.id}:${b}`
 					};
 			}
@@ -329,7 +345,8 @@ function abilityStoneUpgrades(l: Loadout): Upgrade[] {
 			out.push({
 				...best,
 				category: 'engraving',
-				detail: `A ${STONE_NODES[a]}/${STONE_NODES[b]} stone. Replaces your current stone (${currentLabel}).`,
+				group: 'ability-stone',
+				detail: `A ${STONE_NODES[a]}/${STONE_NODES[b]} ability stone (engraving levels ${a} and ${b}). Replaces your current stone (${currentLabel}).`,
 				count: 1,
 				approximate: false
 			});
@@ -389,6 +406,7 @@ function accessoryUpgrades(l: Loadout): Upgrade[] {
 				key: `accessory:${item.slot}:${line.key}`,
 				category: 'accessory',
 				title: `${SLOT_LABEL[item.slot]}: ${line.name} ${from} → high`,
+				group: `accessory:${item.slot}`,
 				detail:
 					current === 0
 						? `Replace a non-damage line with ${line.name} +${line.values.high / 100}% (new accessory).`
@@ -409,7 +427,7 @@ function karmaUpgrades(l: Loadout): Upgrade[] {
 	const evo = partsOf(l, PartType.KarmaEvolutionRank)[0];
 	const evoValue = evo ? partHigh(evo) : 0;
 	const rank = Math.round(evoValue / KARMA_EVOLUTION_PER_RANK);
-	if (rank < KARMA_EVOLUTION_MAX_RANK)
+	if (evo && rank < KARMA_EVOLUTION_MAX_RANK)
 		out.push({
 			key: `karma:evolution:${rank + 1}`,
 			category: 'karma',
@@ -422,7 +440,7 @@ function karmaUpgrades(l: Loadout): Upgrade[] {
 	const leap = partsOf(l, PartType.KarmaLeapLevel)[0];
 	const leapValue = leap ? partHigh(leap) : 0;
 	const level = Math.round(leapValue / KARMA_LEAP_PER_LEVEL);
-	if (level < KARMA_LEAP_MAX_LEVEL)
+	if (leap && level < KARMA_LEAP_MAX_LEVEL)
 		out.push({
 			key: `karma:leap:${level + 1}`,
 			category: 'karma',

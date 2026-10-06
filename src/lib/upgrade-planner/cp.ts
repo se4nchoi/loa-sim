@@ -51,8 +51,8 @@ const DEFENSE_TYPES = new Set<number>([
 ]);
 
 export const isDefensePart = (p: BattlePointPart) => DEFENSE_TYPES.has(p.type);
-export const partLow = (p: BattlePointPart) => ('value' in p ? p.value : p.min);
-export const partHigh = (p: BattlePointPart) => ('value' in p ? p.value : p.max);
+export const partLow = (p: BattlePointPart): number => p.value ?? p.min ?? 0;
+export const partHigh = (p: BattlePointPart): number => p.value ?? p.max ?? 0;
 
 /**
  * Dealer combat power, same as lostark.bible's client:
