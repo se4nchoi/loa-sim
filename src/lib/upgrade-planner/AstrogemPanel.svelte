@@ -33,23 +33,31 @@
 	let coreIndex = $state(-1);
 	let replaceIdx = $state<string>('');
 	let points = $state(5);
-	let optA = $state<number>(AstrogemOption.BossDamage);
-	let lvlA = $state(5);
-	let optB = $state<number>(AstrogemOption.AdditionalDamage);
-	let lvlB = $state(5);
+	let opts = $state([
+		{ id: AstrogemOption.BossDamage as number, level: 5 },
+		{ id: AstrogemOption.AdditionalDamage as number, level: 5 }
+	]);
 
 	$effect.pre(() => {
 		if (coreIndex === -1 && cores.length) coreIndex = cores[0].index;
 	});
 	const selectedCore = $derived(cores.find((c) => c.index === coreIndex));
+
+	/** Default "Replaces" for a core: an empty socket if it has one, else its weakest astrogem. */
+	function defaultReplace(core: typeof selectedCore) {
+		if (!core || core.gems.length < 4) return '';
+		const weakestHere = core.gems.toSorted((a, b) => contribution(core.index, a.idx) - contribution(core.index, b.idx))[0];
+		return String(weakestHere.idx);
+	}
+	$effect.pre(() => {
+		replaceIdx = defaultReplace(selectedCore);
+	});
+
 	const result = $derived(
 		selectedCore
 			? evaluateAstrogemSwap(loadout, coreIndex, replaceIdx === '' ? null : Number(replaceIdx), {
 					corePoints: points,
-					opts: [
-						{ id: optA, level: lvlA },
-						{ id: optB, level: lvlB }
-					]
+					opts
 				})
 			: null
 	);
@@ -113,7 +121,7 @@
 </span>
 <div class="mt-1 grid grid-cols-[max-content_1fr] items-center gap-x-3 gap-y-1.5">
 	<label class="text-sm text-surface-300" for="ag-core">Core</label>
-	<select id="ag-core" class={selectClass} bind:value={coreIndex} onchange={() => (replaceIdx = '')}>
+	<select id="ag-core" class={selectClass} bind:value={coreIndex}>
 		{#each cores as c (c.id)}<option value={c.index}>{c.label} ({c.points}P)</option>{/each}
 	</select>
 	<label class="text-sm text-surface-300" for="ag-replace">Replaces</label>
@@ -127,24 +135,15 @@
 	<select id="ag-points" class={selectClass} bind:value={points}>
 		{#each [1, 2, 3, 4, 5] as p (p)}<option value={p}>{p}</option>{/each}
 	</select>
-	{#each [{ label: 'Option 1', id: 'a' }, { label: 'Option 2', id: 'b' }] as row (row.id)}
-		<span class="text-sm text-surface-300">{row.label}</span>
+	{#each opts as opt, i (i)}
+		<span class="text-sm text-surface-300">Option {i + 1}</span>
 		<div class="flex flex-row gap-2">
-			{#if row.id === 'a'}
-				<select class="{selectClass} flex-1" bind:value={optA} aria-label="Option 1 type">
-					{#each Object.entries(ASTROGEM_OPTION_NAMES) as [id, name] (id)}<option value={Number(id)}>{name}</option>{/each}
-				</select>
-				<select class={selectClass} bind:value={lvlA} aria-label="Option 1 level">
-					{#each [1, 2, 3, 4, 5] as v (v)}<option value={v}>Lv. {v}</option>{/each}
-				</select>
-			{:else}
-				<select class="{selectClass} flex-1" bind:value={optB} aria-label="Option 2 type">
-					{#each Object.entries(ASTROGEM_OPTION_NAMES) as [id, name] (id)}<option value={Number(id)}>{name}</option>{/each}
-				</select>
-				<select class={selectClass} bind:value={lvlB} aria-label="Option 2 level">
-					{#each [1, 2, 3, 4, 5] as v (v)}<option value={v}>Lv. {v}</option>{/each}
-				</select>
-			{/if}
+			<select class="{selectClass} flex-1" bind:value={opt.id} aria-label={`Option ${i + 1} type`}>
+				{#each Object.entries(ASTROGEM_OPTION_NAMES) as [id, name] (id)}<option value={Number(id)}>{name}</option>{/each}
+			</select>
+			<select class={selectClass} bind:value={opt.level} aria-label={`Option ${i + 1} level`}>
+				{#each [1, 2, 3, 4, 5] as v (v)}<option value={v}>Lv. {v}</option>{/each}
+			</select>
 		</div>
 	{/each}
 </div>
