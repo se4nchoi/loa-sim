@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NA CP Simulator</title>
+<style>
+  :root { --bg:#111317; --panel:#1a1d23; --line:#2a2e36; --text:#e6e8eb; --muted:#8b919c; --up:#3ecf8e; --down:#ef6461; --accent:#f5b84a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:15px; margin:28px 0 8px; color:var(--accent); }
+  .muted { color:var(--muted); font-size:13px; }
+  .bar { display:flex; gap:24px; flex-wrap:wrap; align-items:baseline; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 18px; margin:16px 0; position:sticky; top:0; z-index:2; }
+  .stat b { font-size:22px; font-variant-numeric:tabular-nums; } .stat span { display:block; color:var(--muted); font-size:12px; }
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  th, td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; font-size:12px; } td.num, th.num { text-align:right; }
+  input[type=number], input[type=text], select { background:#0d0f12; color:var(--text); border:1px solid var(--line); border-radius:4px; padding:3px 6px; width:100px; font:inherit; }
+  input[type=text] { width:220px; } input.changed { border-color:var(--accent); }
+  .up { color:var(--up); } .down { color:var(--down); }
+  button { background:#262a32; color:var(--text); border:1px solid var(--line); border-radius:4px; padding:4px 10px; cursor:pointer; font:inherit; }
+  button:hover { background:#30353f; }
+  .drop { border:2px dashed var(--line); border-radius:8px; padding:28px; text-align:center; color:var(--muted); }
+  .wrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>NA Combat Power Simulator</h1>
+  <div class="muted">Reproduces lostark.bible's combat power exactly from its battlePoint parts. Edit any value to see the new CP. Defense parts are listed but don't affect DPS CP.</div>
+
+  <div id="loader" class="drop">
+    Load a character JSON produced by <code>node fetch-character.mjs NA &lt;name&gt;</code> (in <code>out/</code>)<br><br>
+    <input type="file" id="file" accept=".json">
+  </div>
+
+  <div id="app" hidden>
+    <div class="bar">
+      <div class="stat"><span>Current CP (bible)</span><b id="cpNow"></b></div>
+      <div class="stat"><span>Simulated CP</span><b id="cpSim"></b></div>
+      <div class="stat"><span>Change</span><b id="cpDelta"></b></div>
+      <div style="margin-left:auto"><button id="reset">Reset edits</button></div>
+    </div>
+
+    <h2>Base attack (honing, stats, attack %)</h2>
+    <div class="muted">Base part = 2.88 × √(main stat × weapon power ÷ 6) × (1 + attack % ÷ 100). Enter post-upgrade numbers from the in-game tooltip.</div>
+    <table><tbody id="baseRows"></tbody></table>
+
+    <h2>Components</h2>
+    <div class="muted">Each row multiplies CP by (1 + value ÷ 10000). "Worth" is that multiplier, e.g. +6.40% for a 640 gem.</div>
+    <div class="wrap"><table>
+      <thead><tr><th>Component</th><th>Detail</th><th class="num">Value</th><th class="num">Worth</th><th class="num">Simulated</th><th class="num">Δ CP</th></tr></thead>
+      <tbody id="partRows"></tbody>
+    </table></div>
+
+    <h2>Upgrade efficiency (gold → CP)</h2>
+    <div class="muted">NA has no market API, so enter prices yourself. Pick a component, enter its value after the upgrade and the gold cost; rows rank by CP % per 100k gold.</div>
+    <div class="wrap"><table>
+      <thead><tr><th>Upgrade</th><th>Component</th><th class="num">New value</th><th class="num">Gold</th><th class="num">CP %</th><th class="num">% / 100k g</th><th></th></tr></thead>
+      <tbody id="roiRows"></tbody>
+    </table></div>
+    <p><button id="addRoi">+ Add upgrade</button></p>
+  </div>
+</main>
+
+<script>
+const PART_TYPES = {
+  1:'Base attack power',2:'Base HP',3:'Character level',4:'Weapon quality',5:'Ark Passive: Evolution',6:'Ark Passive: Enlightenment',
+  7:'Ark Passive: Leap',8:'Karma: Evolution rank',9:'Karma: Leap level',10:'Engraving',11:'Engraving (defense)',12:'Elixir set',
+  13:'Elixir (attack)',14:'Elixir (defense)',15:'Accessory roll',16:'Accessory roll (defense)',17:'Accessory roll (combat effect)',
+  18:'Accessory roll (combat effect, defense)',19:'Bracelet stat type',20:'Bracelet effect',21:'Bracelet effect (defense)',22:'Gem',
+  23:'Esther weapon',24:'Transcendence (armor)',25:'Transcendence (bonus)',26:'Combat stats',27:'Card set',28:'Pet specialty',
+  29:'Ark Grid core',30:'Ark Grid core (defense)',31:'Ark Grid gem',32:'Ark Grid gem (defense)',33:'Paradise orb',34:'Paradise orb (defense)',
+};
+const DEFENSE = new Set([2,11,14,16,18,21,30,32,34]);
+const fmt = (n, d = 2) => n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+const pct = n => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+const cls = n => (n > 1e-9 ? 'up' : n < -1e-9 ? 'down' : '');
+const hi = p => ('value' in p ? p.value : p.max);
+
+let character, parts, sim, base, roi = [];
+
+function detail(p) {
+  const bits = [];
+  if (p.slot) bits.push(p.slot);
+  if (p.grade) bits.push(p.grade.replace('engrave_grade0', 'grade '));
+  if (p.stonePoints) bits.push(`stone ${p.stonePoints}`);
+  if (p.quality != null) bits.push(`quality ${p.quality}`);
+  if (p.pointsSpent != null) bits.push(`${p.pointsSpent} pts`);
+  if (p.level != null && p.type === 3) bits.push(`Lv ${p.level}`);
+  if (p.rank != null) bits.push(`rank ${p.rank}`);
+  if (p.points != null) bits.push(`${p.points} pts`);
+  if (p.totalLevel != null) bits.push(`total Lv ${p.totalLevel}`);
+  if (p.total != null) bits.push(`stats ${p.total}`);
+  if (p.id != null) bits.push(`#${p.id}`);
+  if ('min' in p) bits.push(`range ${p.min}–${p.max}`);
+  return bits.join(' · ');
+}
+
+function baseValue(b) { return 2.88 * Math.sqrt(b.mainStat * b.weaponPower / 6) * (1 + b.attackPowerMultiplier / 100); }
+
+function cp(values) {
+  let total = values[0] / 1e4;
+  parts.forEach((p, i) => { if (i > 0 && !DEFENSE.has(p.type) && p.type !== 1) total *= 1 + values[i] / 1e4; });
+  return total;
+}
+
+function currentValues() { return parts.map(hi); }
+
+function load(data) {
+  character = data;
+  const bp = data.loadout.battlePoint;
+  // Base attack first so index 0 is always the base part.
+  parts = [bp.parts.find(p => p.type === 1), ...bp.parts.filter(p => p.type !== 1)];
+  base = { ...parts[0] };
+  sim = currentValues();
+  roi = [];
+  document.getElementById('loader').hidden = true;
+  document.getElementById('app').hidden = false;
+  renderBase(); renderParts(); renderRoi(); update();
+}
+
+function renderBase() {
+  const rows = [['mainStat', 'Main stat'], ['weaponPower', 'Weapon power'], ['attackPowerMultiplier', 'Attack % (incl. buffs counted by CP)']];
+  document.getElementById('baseRows').innerHTML = rows.map(([k, label]) =>
+    `<tr><td>${label}</td><td><input type="number" step="any" data-base="${k}" value="${base[k]}"></td></tr>`).join('');
+  document.querySelectorAll('[data-base]').forEach(el => el.oninput = () => {
+    base[el.dataset.base] = Number(el.value);
+    el.classList.toggle('changed', base[el.dataset.base] !== parts[0][el.dataset.base]);
+    sim[0] = hi(parts[0]) * baseValue(base) / baseValue(parts[0]);
+    update();
+  });
+}
+
+function renderParts() {
+  document.getElementById('partRows').innerHTML = parts.map((p, i) => {
+    if (i === 0) return '';
+    const label = PART_TYPES[p.type] ?? `Type ${p.type}`;
+    const def = DEFENSE.has(p.type);
+    return `<tr${def ? ' class="muted"' : ''}><td>${label}</td><td class="muted">${detail(p)}</td>
+      <td class="num">${'value' in p ? fmt(p.value, 0) : `${p.min}–${p.max}`}</td>
+      <td class="num">${def ? '—' : pct(hi(p) / 100)}</td>
+      <td class="num"><input type="number" step="any" data-i="${i}" value="${sim[i]}" ${def ? 'disabled' : ''}></td>
+      <td class="num" data-delta="${i}"></td></tr>`;
+  }).join('');
+  document.querySelectorAll('[data-i]').forEach(el => el.oninput = () => { sim[+el.dataset.i] = Number(el.value); update(); });
+}
+
+function renderRoi() {
+  const opts = parts.map((p, i) => (i === 0 || DEFENSE.has(p.type)) ? '' :
+    `<option value="${i}">${PART_TYPES[p.type]} ${detail(p)}</option>`).join('');
+  document.getElementById('roiRows').innerHTML = roi.map((r, k) => `<tr>
+      <td><input type="text" data-r="${k}" data-f="name" value="${r.name}" placeholder="e.g. Gem lv9 → lv10"></td>
+      <td><select data-r="${k}" data-f="part">${opts}</select></td>
+      <td class="num"><input type="number" step="any" data-r="${k}" data-f="value" value="${r.value}"></td>
+      <td class="num"><input type="number" step="any" data-r="${k}" data-f="gold" value="${r.gold}"></td>
+      <td class="num" data-roi-gain="${k}"></td><td class="num" data-roi-eff="${k}"></td>
+      <td><button data-del="${k}">✕</button></td></tr>`).join('');
+  roi.forEach((r, k) => { document.querySelector(`select[data-r="${k}"]`).value = r.part; });
+  document.querySelectorAll('[data-r]').forEach(el => el.oninput = () => {
+    const r = roi[+el.dataset.r];
+    r[el.dataset.f] = el.dataset.f === 'name' ? el.value : Number(el.value);
+    if (el.dataset.f === 'part') { r.value = hi(parts[r.part]); renderRoi(); }
+    updateRoi();
+  });
+  document.querySelectorAll('[data-del]').forEach(el => el.onclick = () => { roi.splice(+el.dataset.del, 1); renderRoi(); });
+  updateRoi();
+}
+
+function updateRoi() {
+  roi.forEach((r, k) => {
+    const p = parts[r.part];
+    const gain = ((1 + r.value / 1e4) / (1 + hi(p) / 1e4) - 1) * 100;
+    const eff = r.gold > 0 ? gain / r.gold * 1e5 : NaN;
+    const g = document.querySelector(`[data-roi-gain="${k}"]`), e = document.querySelector(`[data-roi-eff="${k}"]`);
+    g.textContent = pct(gain); g.className = `num ${cls(gain)}`;
+    e.textContent = isNaN(eff) ? '—' : eff.toFixed(4);
+  });
+}
+
+function update() {
+  const now = cp(currentValues()), s = cp(sim), d = (s / now - 1) * 100;
+  document.getElementById('cpNow').textContent = fmt(character.loadout.combatPower?.score ?? now);
+  document.getElementById('cpSim').textContent = fmt(s);
+  const del = document.getElementById('cpDelta'); del.textContent = pct(d); del.className = cls(d);
+  parts.forEach((p, i) => {
+    const cell = document.querySelector(`[data-delta="${i}"]`); if (!cell) return;
+    const dd = ((1 + sim[i] / 1e4) / (1 + hi(p) / 1e4) - 1) * 100;
+    cell.textContent = Math.abs(dd) < 1e-9 ? '' : pct(dd); cell.className = `num ${cls(dd)}`;
+    document.querySelector(`[data-i="${i}"]`)?.classList.toggle('changed', sim[i] !== hi(p));
+  });
+}
+
+document.getElementById('file').onchange = async e => load(JSON.parse(await e.target.files[0].text()));
+document.getElementById('reset').onclick = () => load(character);
+document.getElementById('addRoi').onclick = () => {
+  const first = parts.findIndex((p, i) => i > 0 && !DEFENSE.has(p.type));
+  roi.push({ name: '', part: first, value: hi(parts[first]), gold: 0 }); renderRoi();
+};
+</script>
+</body>
+</html>

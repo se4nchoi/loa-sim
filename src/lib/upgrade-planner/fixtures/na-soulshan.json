@@ -1,0 +1,1548 @@
+{
+ "type": "ark_passive",
+ "classId": "soul_eater",
+ "itemLevel": 1784.1661,
+ "combatPower": {
+  "id": 1,
+  "score": 6785.48
+ },
+ "battlePoint": {
+  "parts": [
+   {
+    "type": 1,
+    "value": 583349.9849317516,
+    "mainStat": 764203,
+    "weaponPower": 253611,
+    "attackPowerMultiplier": 12.7,
+    "baseAttackPower": 202552.07810130264
+   },
+   {
+    "type": 2,
+    "value": 0,
+    "maxHp": 355693
+   },
+   {
+    "type": 3,
+    "value": 2945,
+    "level": 70
+   },
+   {
+    "type": 4,
+    "value": 3000,
+    "quality": 100
+   },
+   {
+    "type": 5,
+    "value": 7500,
+    "pointsSpent": 100
+   },
+   {
+    "type": 6,
+    "value": 7000,
+    "pointsSpent": 100
+   },
+   {
+    "type": 7,
+    "value": 1400,
+    "pointsSpent": 70
+   },
+   {
+    "type": 8,
+    "value": 360
+   },
+   {
+    "type": 9,
+    "value": 56
+   },
+   {
+    "type": 10,
+    "value": 1940,
+    "id": 1299,
+    "grade": "engrave_grade05",
+    "gemProgress": 0,
+    "stonePoints": 0
+   },
+   {
+    "type": 10,
+    "value": 2075,
+    "id": 1247,
+    "grade": "engrave_grade05",
+    "gemProgress": 0,
+    "stonePoints": 2
+   },
+   {
+    "type": 10,
+    "value": 2448,
+    "id": 1254,
+    "grade": "engrave_grade05",
+    "gemProgress": 0,
+    "stonePoints": 3
+   },
+   {
+    "type": 10,
+    "value": 1736,
+    "id": 1141,
+    "grade": "engrave_grade05",
+    "gemProgress": 0,
+    "stonePoints": 0
+   },
+   {
+    "type": 10,
+    "value": 2100,
+    "id": 1118,
+    "grade": "engrave_grade05",
+    "gemProgress": 0,
+    "stonePoints": 0
+   },
+   {
+    "type": 15,
+    "value": 199.992,
+    "slot": "neck",
+    "itemGrade": 6,
+    "stat": {
+     "type": 2,
+     "index": 50,
+     "id": 6009,
+     "value": 260
+    },
+    "affectsBaseStats": false
+   },
+   {
+    "type": 15,
+    "value": 155,
+    "slot": "ear1",
+    "itemGrade": 6,
+    "stat": {
+     "type": 2,
+     "index": 49,
+     "id": 6109,
+     "value": 155
+    },
+    "affectsBaseStats": false
+   },
+   {
+    "type": 15,
+    "value": 0,
+    "slot": "ear1",
+    "itemGrade": 6,
+    "stat": {
+     "type": 2,
+     "index": 152,
+     "id": 6109,
+     "value": 180
+    },
+    "affectsBaseStats": true
+   },
+   {
+    "type": 15,
+    "value": 95,
+    "slot": "ear2",
+    "itemGrade": 6,
+    "stat": {
+     "type": 2,
+     "index": 49,
+     "id": 6109,
+     "value": 95
+    },
+    "affectsBaseStats": false
+   },
+   {
+    "type": 15,
+    "value": 0,
+    "slot": "ear2",
+    "itemGrade": 6,
+    "stat": {
+     "type": 2,
+     "index": 152,
+     "id": 6109,
+     "value": 300
+    },
+    "affectsBaseStats": true
+   },
+   {
+    "type": 15,
+    "value": 5.6000000000000005,
+    "slot": "ear2",
+    "itemGrade": 6,
+    "stat": {
+     "type": 2,
+     "index": 124,
+     "id": 6109,
+     "value": 80
+    },
+    "affectsBaseStats": false
+   },
+   {
+    "type": 15,
+    "value": 120,
+    "slot": "finger1",
+    "itemGrade": 6,
+    "stat": {
+     "type": 2,
+     "index": 76,
+     "id": 6209,
+     "value": 400
+    },
+    "affectsBaseStats": false
+   },
+   {
+    "type": 15,
+    "value": 73.54899999999999,
+    "slot": "finger1",
+    "itemGrade": 6,
+    "stat": {
+     "type": 2,
+     "index": 74,
+     "id": 6209,
+     "value": 95
+    },
+    "affectsBaseStats": false
+   },
+   {
+    "type": 15,
+    "value": 120,
+    "slot": "finger2",
+    "itemGrade": 6,
+    "stat": {
+     "type": 2,
+     "index": 76,
+     "id": 6209,
+     "value": 400
+    },
+    "affectsBaseStats": false
+   },
+   {
+    "type": 15,
+    "value": 73.54899999999999,
+    "slot": "finger2",
+    "itemGrade": 6,
+    "stat": {
+     "type": 2,
+     "index": 74,
+     "id": 6209,
+     "value": 95
+    },
+    "affectsBaseStats": false
+   },
+   {
+    "type": 17,
+    "value": 120,
+    "slot": "neck",
+    "itemGrade": 6,
+    "stat": {
+     "type": 4,
+     "index": 621000001,
+     "id": 6009,
+     "value": 0
+    },
+    "affectsBaseStats": false
+   },
+   {
+    "type": 20,
+    "value": 250,
+    "itemGrade": 6,
+    "stat": {
+     "type": 4,
+     "index": 605100173,
+     "id": 213400023,
+     "value": 0
+    },
+    "affectsBaseStats": false
+   },
+   {
+    "type": 20,
+    "value": 350,
+    "itemGrade": 6,
+    "stat": {
+     "type": 3,
+     "index": 11043,
+     "id": 213400023,
+     "value": 5
+    },
+    "affectsBaseStats": false
+   },
+   {
+    "type": 20,
+    "value": 450,
+    "itemGrade": 6,
+    "stat": {
+     "type": 3,
+     "index": 11051,
+     "id": 213400023,
+     "value": 5
+    },
+    "affectsBaseStats": false
+   },
+   {
+    "type": 22,
+    "value": 640,
+    "id": 65031090
+   },
+   {
+    "type": 22,
+    "value": 640,
+    "id": 65031090
+   },
+   {
+    "type": 22,
+    "value": 640,
+    "id": 65031090
+   },
+   {
+    "type": 22,
+    "value": 640,
+    "id": 65031090
+   },
+   {
+    "type": 22,
+    "value": 640,
+    "id": 65032090
+   },
+   {
+    "type": 22,
+    "value": 704,
+    "id": 65031100
+   },
+   {
+    "type": 22,
+    "value": 640,
+    "id": 65032090
+   },
+   {
+    "type": 22,
+    "value": 640,
+    "id": 65032090
+   },
+   {
+    "type": 22,
+    "value": 640,
+    "id": 65032090
+   },
+   {
+    "type": 22,
+    "value": 640,
+    "id": 65032090
+   },
+   {
+    "type": 22,
+    "value": 640,
+    "id": 65032090
+   },
+   {
+    "type": 26,
+    "value": 7653,
+    "total": 2551
+   },
+   {
+    "type": 27,
+    "value": 1500,
+    "id": 1015,
+    "rank": 6
+   },
+   {
+    "type": 28,
+    "min": 0,
+    "max": 77
+   },
+   {
+    "type": 29,
+    "value": 850,
+    "id": 673004436,
+    "points": 17
+   },
+   {
+    "type": 29,
+    "value": 800,
+    "id": 673014435,
+    "points": 20
+   },
+   {
+    "type": 29,
+    "value": 600,
+    "id": 673024436,
+    "points": 20
+   },
+   {
+    "type": 29,
+    "value": 367,
+    "id": 673100006,
+    "points": 18
+   },
+   {
+    "type": 29,
+    "value": 300,
+    "id": 673111006,
+    "points": 20
+   },
+   {
+    "type": 29,
+    "value": 267,
+    "id": 673120005,
+    "points": 18
+   },
+   {
+    "type": 31,
+    "value": 153,
+    "id": 2001,
+    "totalLevel": 46
+   },
+   {
+    "type": 31,
+    "value": 385,
+    "id": 2002,
+    "totalLevel": 66
+   },
+   {
+    "type": 31,
+    "value": 408,
+    "id": 2003,
+    "totalLevel": 49
+   },
+   {
+    "type": 33,
+    "value": 340.58736,
+    "id": 657820001,
+    "paradisePoints": 31558736
+   }
+  ],
+  "isSupport": false
+ },
+ "items": [
+  {
+   "id": 134621440,
+   "slot": "weapon",
+   "data": {
+    "type": "equipment",
+    "stats": [
+     {
+      "type": 2,
+      "index": 50,
+      "base": true,
+      "id": 10144000,
+      "value": 3000
+     }
+    ],
+    "honing": 24,
+    "advancedHoning": 40
+   }
+  },
+  {
+   "id": 134621441,
+   "slot": "head",
+   "data": {
+    "type": "equipment",
+    "stats": [
+     {
+      "type": 2,
+      "index": 137,
+      "base": true,
+      "id": 10144001,
+      "value": 1345
+     }
+    ],
+    "honing": 21,
+    "advancedHoning": 40
+   }
+  },
+  {
+   "id": 134621442,
+   "slot": "upper_body",
+   "data": {
+    "type": "equipment",
+    "stats": [
+     {
+      "type": 2,
+      "index": 137,
+      "base": true,
+      "id": 10144001,
+      "value": 1400
+     }
+    ],
+    "honing": 21,
+    "advancedHoning": 40
+   }
+  },
+  {
+   "id": 134621443,
+   "slot": "lower_body",
+   "data": {
+    "type": "equipment",
+    "stats": [
+     {
+      "type": 2,
+      "index": 137,
+      "base": true,
+      "id": 10144001,
+      "value": 1345
+     }
+    ],
+    "honing": 21,
+    "advancedHoning": 40
+   }
+  },
+  {
+   "id": 134621444,
+   "slot": "hand",
+   "data": {
+    "type": "equipment",
+    "stats": [
+     {
+      "type": 2,
+      "index": 137,
+      "base": true,
+      "id": 10144001,
+      "value": 1291
+     }
+    ],
+    "honing": 22,
+    "advancedHoning": 40
+   }
+  },
+  {
+   "id": 134621445,
+   "slot": "shoulder",
+   "data": {
+    "type": "equipment",
+    "stats": [
+     {
+      "type": 2,
+      "index": 137,
+      "base": true,
+      "id": 10144001,
+      "value": 1345
+     }
+    ],
+    "honing": 22,
+    "advancedHoning": 40
+   }
+  },
+  {
+   "id": 213400220,
+   "slot": "neck",
+   "data": {
+    "type": "tier4_accessory",
+    "stats": [
+     {
+      "type": 57,
+      "index": 1,
+      "base": true,
+      "id": 6013,
+      "value": 13
+     },
+     {
+      "type": 2,
+      "index": 6,
+      "base": true,
+      "id": 6013,
+      "value": 4083
+     },
+     {
+      "type": 2,
+      "index": 4,
+      "base": true,
+      "id": 6013,
+      "value": 17670
+     },
+     {
+      "type": 2,
+      "index": 3,
+      "base": true,
+      "id": 6013,
+      "value": 17670
+     },
+     {
+      "type": 2,
+      "index": 5,
+      "base": true,
+      "id": 6013,
+      "value": 17670
+     },
+     {
+      "type": 2,
+      "index": 50,
+      "base": false,
+      "id": 6009,
+      "value": 260
+     },
+     {
+      "type": 4,
+      "index": 621000001,
+      "base": false,
+      "id": 6009,
+      "value": 0
+     },
+     {
+      "type": 2,
+      "index": 46,
+      "base": false,
+      "id": 6009,
+      "value": 215
+     }
+    ]
+   }
+  },
+  {
+   "id": 213400221,
+   "slot": "ear1",
+   "data": {
+    "type": "tier4_accessory",
+    "stats": [
+     {
+      "type": 57,
+      "index": 1,
+      "base": true,
+      "id": 6113,
+      "value": 12
+     },
+     {
+      "type": 2,
+      "index": 6,
+      "base": true,
+      "id": 6113,
+      "value": 2745
+     },
+     {
+      "type": 2,
+      "index": 3,
+      "base": true,
+      "id": 6113,
+      "value": 13556
+     },
+     {
+      "type": 2,
+      "index": 4,
+      "base": true,
+      "id": 6113,
+      "value": 13556
+     },
+     {
+      "type": 2,
+      "index": 5,
+      "base": true,
+      "id": 6113,
+      "value": 13556
+     },
+     {
+      "type": 2,
+      "index": 49,
+      "base": false,
+      "id": 6109,
+      "value": 155
+     },
+     {
+      "type": 51,
+      "index": 0,
+      "base": false,
+      "id": 6109,
+      "value": 210
+     },
+     {
+      "type": 2,
+      "index": 152,
+      "base": false,
+      "id": 6109,
+      "value": 180
+     }
+    ]
+   }
+  },
+  {
+   "id": 213400221,
+   "slot": "ear2",
+   "data": {
+    "type": "tier4_accessory",
+    "stats": [
+     {
+      "type": 57,
+      "index": 1,
+      "base": true,
+      "id": 6113,
+      "value": 12
+     },
+     {
+      "type": 2,
+      "index": 6,
+      "base": true,
+      "id": 6113,
+      "value": 2800
+     },
+     {
+      "type": 2,
+      "index": 4,
+      "base": true,
+      "id": 6113,
+      "value": 13723
+     },
+     {
+      "type": 2,
+      "index": 3,
+      "base": true,
+      "id": 6113,
+      "value": 13723
+     },
+     {
+      "type": 2,
+      "index": 5,
+      "base": true,
+      "id": 6113,
+      "value": 13723
+     },
+     {
+      "type": 2,
+      "index": 49,
+      "base": false,
+      "id": 6109,
+      "value": 95
+     },
+     {
+      "type": 2,
+      "index": 152,
+      "base": false,
+      "id": 6109,
+      "value": 300
+     },
+     {
+      "type": 2,
+      "index": 124,
+      "base": false,
+      "id": 6109,
+      "value": 80
+     }
+    ]
+   }
+  },
+  {
+   "id": 224400012,
+   "slot": "finger1",
+   "data": {
+    "type": "tier4_accessory",
+    "stats": [
+     {
+      "type": 57,
+      "index": 1,
+      "base": true,
+      "id": 6223,
+      "value": 12
+     },
+     {
+      "type": 2,
+      "index": 6,
+      "base": true,
+      "id": 6223,
+      "value": 2326
+     },
+     {
+      "type": 2,
+      "index": 3,
+      "base": true,
+      "id": 6223,
+      "value": 12220
+     },
+     {
+      "type": 2,
+      "index": 4,
+      "base": true,
+      "id": 6223,
+      "value": 12220
+     },
+     {
+      "type": 2,
+      "index": 5,
+      "base": true,
+      "id": 6223,
+      "value": 12220
+     },
+     {
+      "type": 2,
+      "index": 76,
+      "base": false,
+      "id": 6209,
+      "value": 400
+     },
+     {
+      "type": 59,
+      "index": 16000001,
+      "base": false,
+      "id": 6209,
+      "value": 450
+     },
+     {
+      "type": 2,
+      "index": 74,
+      "base": false,
+      "id": 6209,
+      "value": 95
+     }
+    ]
+   }
+  },
+  {
+   "id": 213400222,
+   "slot": "finger2",
+   "data": {
+    "type": "tier4_accessory",
+    "stats": [
+     {
+      "type": 57,
+      "index": 1,
+      "base": true,
+      "id": 6213,
+      "value": 12
+     },
+     {
+      "type": 2,
+      "index": 6,
+      "base": true,
+      "id": 6213,
+      "value": 2246
+     },
+     {
+      "type": 2,
+      "index": 4,
+      "base": true,
+      "id": 6213,
+      "value": 12452
+     },
+     {
+      "type": 2,
+      "index": 3,
+      "base": true,
+      "id": 6213,
+      "value": 12452
+     },
+     {
+      "type": 2,
+      "index": 5,
+      "base": true,
+      "id": 6213,
+      "value": 12452
+     },
+     {
+      "type": 2,
+      "index": 76,
+      "base": false,
+      "id": 6209,
+      "value": 400
+     },
+     {
+      "type": 54,
+      "index": 0,
+      "base": false,
+      "id": 6209,
+      "value": 135
+     },
+     {
+      "type": 2,
+      "index": 74,
+      "base": false,
+      "id": 6209,
+      "value": 95
+     }
+    ]
+   }
+  },
+  {
+   "id": 9104550,
+   "slot": "ability_stone",
+   "data": {
+    "engravings": [
+     {
+      "id": 247,
+      "nodes": 7
+     },
+     {
+      "id": 254,
+      "nodes": 9
+     },
+     {
+      "id": 802,
+      "nodes": 4
+     }
+    ],
+    "type": "ability_stone"
+   }
+  },
+  {
+   "id": 213400033,
+   "slot": "bracelet",
+   "data": {
+    "type": "bracelet",
+    "stats": [
+     {
+      "type": 2,
+      "index": 15,
+      "id": 213400023,
+      "value": 86,
+      "fixed": true
+     },
+     {
+      "type": 2,
+      "index": 16,
+      "id": 213400023,
+      "value": 77,
+      "fixed": true
+     },
+     {
+      "type": 4,
+      "index": 605100173,
+      "id": 213400023,
+      "value": 0,
+      "fixed": false
+     },
+     {
+      "type": 3,
+      "index": 11043,
+      "id": 213400023,
+      "value": 5,
+      "fixed": false
+     },
+     {
+      "type": 3,
+      "index": 11051,
+      "id": 213400023,
+      "value": 5,
+      "fixed": false
+     }
+    ],
+    "numRerolls": 4,
+    "numTicketRerolls": 3
+   }
+  },
+  {
+   "id": 657820001,
+   "slot": "trinity_core"
+  }
+ ],
+ "gems": [
+  {
+   "slot": 0,
+   "id": 65031090,
+   "effects": [
+    {
+     "type": 5,
+     "id": 46500,
+     "value": 4000
+    },
+    {
+     "type": 2,
+     "id": 150,
+     "value": 100
+    }
+   ]
+  },
+  {
+   "slot": 1,
+   "id": 65031090,
+   "effects": [
+    {
+     "type": 5,
+     "id": 46400,
+     "value": 4000
+    },
+    {
+     "type": 2,
+     "id": 150,
+     "value": 100
+    }
+   ]
+  },
+  {
+   "slot": 2,
+   "id": 65031090,
+   "effects": [
+    {
+     "type": 5,
+     "id": 46530,
+     "value": 4000
+    },
+    {
+     "type": 2,
+     "id": 150,
+     "value": 100
+    }
+   ]
+  },
+  {
+   "slot": 3,
+   "id": 65031090,
+   "effects": [
+    {
+     "type": 5,
+     "id": 46520,
+     "value": 4000
+    },
+    {
+     "type": 2,
+     "id": 150,
+     "value": 100
+    }
+   ]
+  },
+  {
+   "slot": 4,
+   "id": 65032090,
+   "effects": [
+    {
+     "type": 27,
+     "id": 46430,
+     "value": 2200
+    },
+    {
+     "type": 2,
+     "id": 150,
+     "value": 100
+    }
+   ]
+  },
+  {
+   "slot": 5,
+   "id": 65031100,
+   "effects": [
+    {
+     "type": 5,
+     "id": 46430,
+     "value": 4400
+    },
+    {
+     "type": 2,
+     "id": 150,
+     "value": 120
+    }
+   ]
+  },
+  {
+   "slot": 6,
+   "id": 65032090,
+   "effects": [
+    {
+     "type": 27,
+     "id": 46530,
+     "value": 2200
+    },
+    {
+     "type": 2,
+     "id": 150,
+     "value": 100
+    }
+   ]
+  },
+  {
+   "slot": 7,
+   "id": 65032090,
+   "effects": [
+    {
+     "type": 27,
+     "id": 46450,
+     "value": 2200
+    },
+    {
+     "type": 2,
+     "id": 150,
+     "value": 100
+    }
+   ]
+  },
+  {
+   "slot": 8,
+   "id": 65032090,
+   "effects": [
+    {
+     "type": 27,
+     "id": 46400,
+     "value": 2200
+    },
+    {
+     "type": 2,
+     "id": 150,
+     "value": 100
+    }
+   ]
+  },
+  {
+   "slot": 9,
+   "id": 65032090,
+   "effects": [
+    {
+     "type": 27,
+     "id": 46410,
+     "value": 2200
+    },
+    {
+     "type": 2,
+     "id": 150,
+     "value": 100
+    }
+   ]
+  },
+  {
+   "slot": 10,
+   "id": 65032090,
+   "effects": [
+    {
+     "type": 27,
+     "id": 46440,
+     "value": 2200
+    },
+    {
+     "type": 2,
+     "id": 150,
+     "value": 100
+    }
+   ]
+  }
+ ],
+ "arkGridCores": [
+  {
+   "id": 673004436,
+   "base": 10001,
+   "gems": [
+    {
+     "id": 67401125,
+     "idx": 0,
+     "costReduc": 5,
+     "corePoints": 4,
+     "opts": [
+      {
+       "id": 2001,
+       "level": 3
+      },
+      {
+       "id": 2003,
+       "level": 5
+      }
+     ]
+    },
+    {
+     "id": 67401126,
+     "idx": 1,
+     "costReduc": 5,
+     "corePoints": 4,
+     "opts": [
+      {
+       "id": 2011,
+       "level": 5
+      },
+      {
+       "id": 2003,
+       "level": 5
+      }
+     ]
+    },
+    {
+     "id": 67401025,
+     "idx": 2,
+     "costReduc": 4,
+     "corePoints": 4,
+     "opts": [
+      {
+       "id": 2002,
+       "level": 5
+      },
+      {
+       "id": 2001,
+       "level": 4
+      }
+     ]
+    },
+    {
+     "id": 67401125,
+     "idx": 3,
+     "costReduc": 4,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2003,
+       "level": 5
+      },
+      {
+       "id": 2013,
+       "level": 2
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": 673014435,
+   "base": 10002,
+   "gems": [
+    {
+     "id": 67401024,
+     "idx": 0,
+     "costReduc": 5,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2012,
+       "level": 1
+      },
+      {
+       "id": 2002,
+       "level": 4
+      }
+     ]
+    },
+    {
+     "id": 40621173,
+     "idx": 1,
+     "costReduc": 5,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2001,
+       "level": 5
+      },
+      {
+       "id": 2002,
+       "level": 5
+      }
+     ]
+    },
+    {
+     "id": 67401026,
+     "idx": 2,
+     "costReduc": 5,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2002,
+       "level": 5
+      },
+      {
+       "id": 2001,
+       "level": 5
+      }
+     ]
+    },
+    {
+     "id": 67401125,
+     "idx": 3,
+     "costReduc": 3,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2001,
+       "level": 3
+      },
+      {
+       "id": 2003,
+       "level": 5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": 673024436,
+   "base": 10003,
+   "gems": [
+    {
+     "id": 67401026,
+     "idx": 0,
+     "costReduc": 5,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2002,
+       "level": 4
+      },
+      {
+       "id": 2012,
+       "level": 5
+      }
+     ]
+    },
+    {
+     "id": 67401024,
+     "idx": 1,
+     "costReduc": 4,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2002,
+       "level": 5
+      },
+      {
+       "id": 2001,
+       "level": 1
+      }
+     ]
+    },
+    {
+     "id": 67401025,
+     "idx": 2,
+     "costReduc": 4,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2002,
+       "level": 5
+      },
+      {
+       "id": 2001,
+       "level": 3
+      }
+     ]
+    },
+    {
+     "id": 67401225,
+     "idx": 3,
+     "costReduc": 4,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2002,
+       "level": 4
+      },
+      {
+       "id": 2003,
+       "level": 3
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": 673100006,
+   "base": 10004,
+   "gems": [
+    {
+     "id": 67411324,
+     "idx": 0,
+     "costReduc": 5,
+     "corePoints": 4,
+     "opts": [
+      {
+       "id": 2002,
+       "level": 4
+      },
+      {
+       "id": 2001,
+       "level": 2
+      }
+     ]
+    },
+    {
+     "id": 67411425,
+     "idx": 1,
+     "costReduc": 5,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2001,
+       "level": 2
+      },
+      {
+       "id": 2003,
+       "level": 5
+      }
+     ]
+    },
+    {
+     "id": 67411324,
+     "idx": 2,
+     "costReduc": 4,
+     "corePoints": 4,
+     "opts": [
+      {
+       "id": 2002,
+       "level": 3
+      },
+      {
+       "id": 2001,
+       "level": 4
+      }
+     ]
+    },
+    {
+     "id": 67411526,
+     "idx": 3,
+     "costReduc": 4,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2013,
+       "level": 5
+      },
+      {
+       "id": 2003,
+       "level": 5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": 673111006,
+   "base": 10005,
+   "gems": [
+    {
+     "id": 67411324,
+     "idx": 0,
+     "costReduc": 4,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2012,
+       "level": 1
+      },
+      {
+       "id": 2002,
+       "level": 5
+      }
+     ]
+    },
+    {
+     "id": 67411425,
+     "idx": 1,
+     "costReduc": 5,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2003,
+       "level": 5
+      },
+      {
+       "id": 2001,
+       "level": 2
+      }
+     ]
+    },
+    {
+     "id": 67411325,
+     "idx": 2,
+     "costReduc": 4,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2002,
+       "level": 5
+      },
+      {
+       "id": 2011,
+       "level": 2
+      }
+     ]
+    },
+    {
+     "id": 67411424,
+     "idx": 3,
+     "costReduc": 4,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2003,
+       "level": 1
+      },
+      {
+       "id": 2001,
+       "level": 3
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": 673120005,
+   "base": 10006,
+   "gems": [
+    {
+     "id": 67411325,
+     "idx": 0,
+     "costReduc": 5,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2001,
+       "level": 3
+      },
+      {
+       "id": 2002,
+       "level": 4
+      }
+     ]
+    },
+    {
+     "id": 67411325,
+     "idx": 1,
+     "costReduc": 5,
+     "corePoints": 4,
+     "opts": [
+      {
+       "id": 2001,
+       "level": 4
+      },
+      {
+       "id": 2002,
+       "level": 4
+      }
+     ]
+    },
+    {
+     "id": 67411425,
+     "idx": 2,
+     "costReduc": 5,
+     "corePoints": 5,
+     "opts": [
+      {
+       "id": 2001,
+       "level": 2
+      },
+      {
+       "id": 2003,
+       "level": 5
+      }
+     ]
+    },
+    {
+     "id": 67411525,
+     "idx": 3,
+     "costReduc": 5,
+     "corePoints": 4,
+     "opts": [
+      {
+       "id": 2002,
+       "level": 4
+      },
+      {
+       "id": 2003,
+       "level": 5
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "engravings": [
+  {
+   "grade": "engrave_grade05",
+   "id": 1299,
+   "progress": 0
+  },
+  {
+   "grade": "engrave_grade05",
+   "id": 1247,
+   "progress": 0
+  },
+  {
+   "grade": "engrave_grade05",
+   "id": 1254,
+   "progress": 0
+  },
+  {
+   "grade": "engrave_grade05",
+   "id": 1141,
+   "progress": 0
+  },
+  {
+   "grade": "engrave_grade05",
+   "id": 1118,
+   "progress": 0
+  }
+ ],
+ "karma": {
+  "evolution": 23,
+  "enlightenment": 29,
+  "leap": 28
+ }
+}
