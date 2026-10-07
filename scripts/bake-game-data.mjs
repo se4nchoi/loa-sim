@@ -85,11 +85,12 @@ for (const [id, v] of Object.entries(stats.engraving)) if (Number(id) >= 1000 &&
 
 // ------------------------------------------------------------------------------------------- skills & gem effects
 
-// Skills a gem can target: class combat skills (max level 20, a real type and category).
+// Every class skill with a name and icon, so any gem's skill can be named (e.g. Guardian Knight incarnation
+// skills). The last field marks regular combat skills (max level 20), offered when reassigning a gem.
 const gemSkills = {};
 for (const [id, v] of Object.entries(skills))
-	if (v.class && v.icon && v.name && v.maxLevel === 20 && v.type > 0 && v.category > 0 && Number(id) < 9_000_000)
-		gemSkills[id] = [v.name, v.icon, v.class];
+	if (v.class && v.icon && v.name && Number(id) < 9_000_000)
+		gemSkills[id] = [v.name, v.icon, v.class, v.maxLevel === 20 && v.type > 0 && v.category > 0 ? 1 : 0];
 
 // Skill effect per gem level (1–10), in 1/100 %: damage gems raise skill damage, cooldown gems cut cooldown.
 const gemEffect = (base) =>
@@ -135,8 +136,8 @@ export const ASTROGEM_KINDS: Record<number, { name: string; attr: 'order' | 'cha
 /** Astrogem item id → arkGem kind id. */
 export const ASTROGEM_ITEMS: Record<number, number> = ${JSON.stringify(astrogemItems)};
 
-/** Skill id → [name, icon, class key] for every skill a gem can target. */
-export const GEM_SKILLS: Record<number, [name: string, icon: string, classKey: string]> = ${JSON.stringify(gemSkills)};
+/** Skill id → [name, icon, class key, regular combat skill (1) or not (0)] for every class skill. */
+export const GEM_SKILLS: Record<number, [name: string, icon: string, classKey: string, regular: 0 | 1]> = ${JSON.stringify(gemSkills)};
 
 /** Gem skill effect by level (index 0 = Lv. 1), in 1/100 %: damage % for damage gems, cooldown % for cooldown gems. */
 export const GEM_EFFECTS: Record<'T4' | 'T3', { damage: number[]; cooldown: number[] }> = ${JSON.stringify(gemEffects)};

@@ -53,7 +53,8 @@
 	const classKey = $derived(sim.gems.map((g) => (g.skill ? GEM_SKILLS[g.skill]?.[2] : undefined)).find(Boolean));
 	const SKILL_OPTIONS = $derived<MenuOption<number>[]>(
 		Object.entries(GEM_SKILLS)
-			.filter(([, s]) => s[2] === classKey)
+			// Regular combat skills, plus any skill a gem already sits on (e.g. incarnation skills).
+			.filter(([id, s]) => s[2] === classKey && (s[3] === 1 || base.gems.some((g) => g.skill === Number(id))))
 			.map(([id, s]) => ({ value: Number(id), label: s[0], iconUrl: iconUrl(s[1]) }))
 	);
 	const skillName = (id: number | null) => (id ? (GEM_SKILLS[id]?.[0] ?? `Skill ${id}`) : 'Unknown skill');
