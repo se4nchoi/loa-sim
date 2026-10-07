@@ -384,7 +384,7 @@ function accessoryUpgrades(l: Loadout): Upgrade[] {
 		const family = SLOT_FAMILY[item.slot];
 		if (!family) continue;
 		const lines = (item.data.stats ?? []).filter((s) => !s.base);
-		for (const line of ACCESSORY_LINES.filter((x) => x.slots.includes(family))) {
+		for (const line of ACCESSORY_LINES.filter((x) => x.primary && x.slots.includes(family))) {
 			let current = lines.find((s) => line.match(s))?.value ?? 0;
 			if (line.key === 'outgoing_dmg') {
 				// Combat-effect lines carry no value in item stats; bible's battle point equals the % × 100.

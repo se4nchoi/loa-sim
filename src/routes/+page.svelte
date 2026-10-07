@@ -5,13 +5,13 @@
 	let name = $state('');
 </script>
 
-<svelte:head><title>Upgrade Planner demo</title></svelte:head>
+<svelte:head><title>Combat Power Simulator demo</title></svelte:head>
 
 <div class="mx-auto flex max-w-xl flex-col gap-4 py-10">
-	<h1 class="text-3xl font-bold">Upgrade Planner</h1>
+	<h1 class="text-3xl font-bold">Combat Power Simulator</h1>
 	<p class="text-surface-300">
-		A "Next Upgrades" panel for lostark.bible character pages: what to improve next (gems, astrogems, cores,
-		ability stones, accessories, karma) and how much Combat Power each step adds.
+		Load an NA or CE character, then change honing, accessory lines, gems, engravings, ark grid and karma and
+		see what each change does to Combat Power.
 	</p>
 	<form
 		class="flex flex-row gap-2"

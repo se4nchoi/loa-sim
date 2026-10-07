@@ -169,6 +169,8 @@ export const ENGRAVING_NAMES: Record<number, string> = {
 export type Tier = 'low' | 'mid' | 'high';
 export const TIERS: Tier[] = ['low', 'mid', 'high'];
 
+export type AccessoryFamily = 'neck' | 'ear' | 'finger';
+
 export interface AccessoryLine {
 	key: string;
 	name: string;
@@ -176,21 +178,34 @@ export interface AccessoryLine {
 	match: (s: { type: number; index: number }) => boolean;
 	/** [game] value at low / mid / high. */
 	values: Record<Tier, number>;
-	/** Battle points for a line value; null = changes base attack instead (see weapon %). */
-	toBattlePoints: ((v: number) => number) | null;
-	slots: ('neck' | 'ear' | 'finger')[];
+	/** Battle points for a line value. Absent when the line changes Weapon Power (and so base attack) instead. */
+	toBattlePoints?: (v: number) => number;
+	/** Lines that raise Weapon Power, which feeds base attack rather than a battle point part. */
+	weapon?: 'percent' | 'flat';
+	slots: AccessoryFamily[];
+	/** The slot's two main DPS lines; the suggestions list only proposes these. */
+	primary: boolean;
+	/** Shown as a combat effect (type 17 part) rather than a grinding stat (type 15). */
+	combatEffect?: boolean;
 }
 
 // Coefficients reproduce bible's numbers: neck Additional Damage 260 → 199.992, ring Crit Rate 95 → 73.549,
 // ring Crit Damage 400 → 120, earring Atk. Power % 155 → 155, flat Atk. Power 80 → 5.6 [inven].
 export const ACCESSORY_LINES: AccessoryLine[] = [
-	{ key: 'add_dmg', name: 'Additional Damage', match: (s) => s.type === 2 && s.index === 50, values: { low: 70, mid: 160, high: 260 }, toBattlePoints: (v) => v * 0.7692, slots: ['neck'] },
-	{ key: 'outgoing_dmg', name: 'Outgoing Damage', match: (s) => s.type === 4, values: { low: 55, mid: 120, high: 200 }, toBattlePoints: (v) => v, slots: ['neck'] },
-	{ key: 'atk_pct', name: 'Atk. Power %', match: (s) => s.type === 2 && s.index === 49, values: { low: 40, mid: 95, high: 155 }, toBattlePoints: (v) => v, slots: ['ear'] },
-	{ key: 'weapon_pct', name: 'Weapon Power %', match: (s) => s.type === 2 && s.index === 152, values: { low: 80, mid: 180, high: 300 }, toBattlePoints: null, slots: ['ear'] },
-	{ key: 'crit_rate', name: 'Crit Rate', match: (s) => s.type === 2 && s.index === 74, values: { low: 40, mid: 95, high: 155 }, toBattlePoints: (v) => v * 0.7742, slots: ['finger'] },
-	{ key: 'crit_dmg', name: 'Crit Damage', match: (s) => s.type === 2 && s.index === 76, values: { low: 110, mid: 240, high: 400 }, toBattlePoints: (v) => v * 0.3, slots: ['finger'] }
+	{ key: 'add_dmg', name: 'Additional Damage', match: (s) => s.type === 2 && s.index === 50, values: { low: 70, mid: 160, high: 260 }, toBattlePoints: (v) => v * 0.7692, slots: ['neck'], primary: true },
+	{ key: 'outgoing_dmg', name: 'Outgoing Damage', match: (s) => s.type === 4, values: { low: 55, mid: 120, high: 200 }, toBattlePoints: (v) => v, slots: ['neck'], primary: true, combatEffect: true },
+	{ key: 'atk_pct', name: 'Atk. Power %', match: (s) => s.type === 2 && s.index === 49, values: { low: 40, mid: 95, high: 155 }, toBattlePoints: (v) => v, slots: ['ear'], primary: true },
+	{ key: 'weapon_pct', name: 'Weapon Power %', match: (s) => s.type === 2 && s.index === 152, values: { low: 80, mid: 180, high: 300 }, weapon: 'percent', slots: ['ear'], primary: true },
+	{ key: 'crit_rate', name: 'Crit Rate', match: (s) => s.type === 2 && s.index === 74, values: { low: 40, mid: 95, high: 155 }, toBattlePoints: (v) => v * 0.7742, slots: ['finger'], primary: true },
+	{ key: 'crit_dmg', name: 'Crit Damage', match: (s) => s.type === 2 && s.index === 76, values: { low: 110, mid: 240, high: 400 }, toBattlePoints: (v) => v * 0.3, slots: ['finger'], primary: true },
+	// Flat lines can roll on any accessory. Values here are whole numbers, not 1/100 %.
+	{ key: 'atk_flat', name: 'Atk. Power', match: (s) => s.type === 2 && s.index === 124, values: { low: 80, mid: 195, high: 390 }, toBattlePoints: (v) => v * 0.07, slots: ['neck', 'ear', 'finger'], primary: false },
+	{ key: 'weapon_flat', name: 'Weapon Power', match: (s) => s.type === 2 && s.index === 151, values: { low: 195, mid: 480, high: 960 }, weapon: 'flat', slots: ['neck', 'ear', 'finger'], primary: false }
 ];
+
+/** How a line's value reads in the UI. */
+export const formatLineValue = (line: AccessoryLine, v: number) =>
+	line.key === 'atk_flat' || line.key === 'weapon_flat' ? `+${v}` : `+${Number((v / 100).toFixed(2))}%`;
 
 // ---------------------------------------------------------------------------------------------
 // Karma [inven]

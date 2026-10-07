@@ -1,11 +1,11 @@
-# Integrating the Upgrade Planner into lostark.bible
+# Integrating the Combat Power Simulator into lostark.bible
 
-This adds a **Next Upgrades** card under the Combat Power card on the character page. It ranks what a
-player can improve next (gems, ability stones, accessory lines, ark grid cores, astrogem options,
-karma) by how much Combat Power each step adds. It also opens a planner dialog with the full list,
-an astrogem evaluator and a honing what-if.
+This adds a lo4.app-style **Combat Power simulator** to the character page. The player changes honing,
+accessory lines, gem levels, engravings, ark grid and karma, and sees simulated CP, item level and each
+section's share update live. It starts from the site's exact current score. There is also an optional
+**Next Upgrades** card that ranks one-step upgrades.
 
-It reads only the loadout object the character page already has. There are no new endpoints,
+Both read only the loadout object the character page already has. There are no new endpoints,
 requests or dependencies.
 
 ## What to copy
@@ -14,6 +14,9 @@ requests or dependencies.
 
 | File | Purpose |
 |---|---|
+| `Simulator.svelte`, `sim/*.svelte` | The simulator: editable sections plus a sticky Combat Power summary. |
+| `simulate.ts` | `initSimState(loadout)` reads gear into editable state; `simulate(loadout, state)` rebuilds the battle point parts. |
+| `honing-data.ts` | Main stat / Weapon Power by honing and advanced honing level (T4 1675 gear), baked by `scripts/bake-honing.mjs`. |
 | `cp.ts` | The CP formula. It's the same calculation as the site's existing `attackTotalMax` aggregation over `battlePoint.parts`. |
 | `tables.ts` | Battle-point tables: T3/T4 gems, ark grid cores, astrogem options, engravings × ability stone × relic books, accessory lines, karma. |
 | `upgrades.ts` | Builds the ranked list from a loadout; astrogem swap evaluation. |
@@ -28,24 +31,36 @@ Combat Power Breakdown dialog (`rounded-xs bg-surface-900 shadow-sm shadow-neutr
 `divide-neutral-950`, `bg-black/10` headers, `grid-cols-subgrid` rows, `text-surface-300` labels).
 The dialog is a native `<dialog>`; swapping it for the site's melt-ui dialog is a mechanical change.
 
-## Wiring (character page sidebar)
+## Wiring
 
-Wherever the Combat Power card renders for the ark passive loadout:
+As a "Simulator" tab (or toggle) on the character page, for the ark passive loadout:
 
 ```svelte
 <script lang="ts">
-	import { UpgradePlanner } from '$lib/upgrade-planner';
+	import { Simulator, UpgradePlanner } from '$lib/upgrade-planner';
 </script>
 
 {#if loadout.type === 'ark_passive' && loadout.battlePoint}
-	<CombatPower {classId} {combatPowerDistribution} {loadout} />
-	<UpgradePlanner {loadout} />
+	<Simulator {loadout}>
+		{#snippet sidebar()}
+			<UpgradePlanner {loadout} />
+		{/snippet}
+	</Simulator>
 {/if}
 ```
 
-Support loadouts (`battlePoint.isSupport`) show a short "DPS only for now" note.
+`Simulator` lays out its own two columns (editors on the left, a sticky summary on the right; stacked below `lg`).
+The optional `sidebar` snippet renders under the summary. `UpgradePlanner` also works on its own as a
+sidebar card under the existing Combat Power card. Support loadouts show a "DPS only for now" note.
 
 ## How values are computed
+
+- **Simulator:** an unedited state reproduces the site's parts exactly. Edits rewrite only the parts they touch,
+  and the headline is `current score × simulated / baseline`, so it never drifts from the in-game number.
+- **Honing:** armor adds `Δ(honing + advanced honing stat) × 1.02` main stat; the 1.02 matches advanced
+  honing's stat bonus and fits the site's main stat to 0.05%. The weapon scales Weapon Power by the table
+  ratio, since the site's Weapon Power already includes % bonuses that aren't broken out. Only T4 1675 gear
+  (item ids 134621xxx) is editable.
 
 - **Every candidate is anchored on the site's own battle-point value for that part**, then moved by the
   table delta. So even if a table is off by a constant somewhere, the *difference* stays right, and the
@@ -64,7 +79,8 @@ Support loadouts (`battlePoint.isSupport`) show a short "DPS only for now" note.
 ## Known gaps
 
 - Supports aren't modelled (different score, `combatPower.id === 2`).
-- Bracelets, elixirs, transcendence, cards, and honing tables aren't listed as candidates.
+- Bracelets, elixirs, transcendence and cards aren't editable yet; honing covers T4 1675 gear only.
+- Honing results are marked ≈ (see above). Accessory Weapon Power lines are estimated the same way.
 - The chaos star "Weapon" core and earring Weapon Power % lines are estimates. bible exposes total weapon
   power but not the flat/% split, so they're marked ≈.
 - T3 gems and non-relic engravings are supported by the tables but weren't checked against a live character.

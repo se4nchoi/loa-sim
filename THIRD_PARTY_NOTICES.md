@@ -22,6 +22,10 @@ All game-related assets are property of their respective owners.
 
 ## Other data
 
+- Honing tables (`src/lib/upgrade-planner/honing-data.ts`): main stat / Weapon Power by honing and advanced
+  honing level for T4 1675 gear, from the game's item tables as published in Maxroll's planner data feed
+  (`assets-ng.maxroll.gg/laplanner/game/stats.json`). Regenerate with `node scripts/bake-honing.mjs`.
+
 - Gem, engraving, accessory and karma battle-point values: "딜러 전투력 로직 분석 (25년 7월 9일 패치 반영)",
   https://www.inven.co.kr/board/lostark/4821/106546. Values are game facts, cross-checked against lostark.bible.
 - Accessory option values per grade: as shown in game.
