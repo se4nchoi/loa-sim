@@ -97,18 +97,16 @@
 	{#snippet actions()}
 		<button type="button" class={btnAccent} onclick={() => slots.forEach(maxDps)}>All max DPS lines</button>
 	{/snippet}
-	<div class="flex flex-col gap-3">
+	<div class="flex flex-col gap-2">
 		{#each slots as slot (slot)}
 			{@const look = itemLook(itemIds[slot])}
 			{@const range = ACCESSORY_MAIN_STAT_RANGE[familyOf(slot)]}
-			<div class="flex flex-row gap-3 rounded-xs bg-black/15 p-2.5 max-sm:flex-col">
-				<div class="flex w-20 shrink-0 flex-col items-center gap-1.5 max-sm:w-full max-sm:flex-row">
-					<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="enlightenment" size="size-12" />
-					<span class="text-sm font-semibold">{LABELS[slot]}</span>
-					<button type="button" class="{btn} w-full max-sm:ml-auto max-sm:w-auto" onclick={() => maxDps(slot)}>Max DPS</button>
-					<button type="button" class="text-xs text-surface-400 hover:text-surface-100" onclick={() => resetSlot(slot)}>Reset</button>
+			<div class="flex flex-row gap-2.5 rounded-xs bg-black/15 p-2">
+				<div class="flex w-14 shrink-0 flex-col items-center gap-1 pt-1">
+					<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="enlightenment" />
+					<span class="text-[11px] font-semibold text-surface-300">{LABELS[slot]}</span>
 				</div>
-				<div class="flex min-w-0 flex-1 flex-col gap-1.5">
+				<div class="flex min-w-0 flex-1 flex-col gap-1">
 					{#each sim.accessories[slot]! as ln, i (i)}
 						{@const before = base.accessories[slot]?.[i]}
 						<div class="flex flex-row items-center gap-2">
@@ -127,22 +125,25 @@
 								disabled={isOtherLine(ln)}
 								label={`${LABELS[slot]} line ${i + 1} grade`}
 								onselect={(t) => !isOtherLine(ln) && (sim.accessories[slot]![i] = { key: ln.key, tier: t })}
-								size="h-9 min-w-12 px-2 text-sm max-sm:min-w-10"
+								size="h-8 min-w-10 px-1.5 text-xs"
 							/>
 							{#if before && !same(before, ln)}<span class="size-1.5 shrink-0 rounded-full bg-accent-400" title="Changed"></span>{/if}
 						</div>
 					{/each}
-					{#if sim.accessoryStats[slot] !== undefined}
-						<div class="mt-1 flex flex-row">
+					<div class="mt-0.5 flex flex-row items-center gap-1.5">
+						{#if sim.accessoryStats[slot] !== undefined}
 							<RangeInput
 								bind:value={sim.accessoryStats[slot]!}
 								min={range.min}
 								max={range.max}
 								label={mainStatName}
 								changed={sim.accessoryStats[slot] !== base.accessoryStats[slot]}
+								compact
 							/>
-						</div>
-					{/if}
+						{/if}
+						<button type="button" class={btn} onclick={() => maxDps(slot)} title="Both main DPS lines at High">Max DPS</button>
+						<button type="button" class={btn} onclick={() => resetSlot(slot)}>Reset</button>
+					</div>
 				</div>
 			</div>
 		{/each}

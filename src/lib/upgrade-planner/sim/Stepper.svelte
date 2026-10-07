@@ -33,7 +33,10 @@
 	aria-label={label}
 >
 	<button type="button" class={btn} aria-label={`${label}: decrease`} disabled={value <= min} onclick={() => (value = clamp(value - step))}>−</button>
-	<label class="flex items-center justify-center border-x border-surface-800 px-1.5 text-sm font-semibold tabular-nums">
+	<label
+		class="flex cursor-text items-center justify-center border-x border-surface-700 bg-surface-800/80 px-1.5 text-sm font-semibold tabular-nums transition hover:bg-surface-700/80 focus-within:bg-surface-700 focus-within:ring-1 focus-within:ring-accent-500 focus-within:ring-inset"
+		title="Click to type a value"
+	>
 		{#if prefix}<span class="text-surface-300">{prefix}</span>{/if}
 		<input
 			type="number"

@@ -48,3 +48,18 @@ export const GRADE_COLORS = [ROLL_COLORS.high, ROLL_COLORS.mid, ROLL_COLORS.low,
 
 /** CP change (percent) of a hypothetical edit, given by the simulator. */
 export type PreviewEdit = (mutate: (s: SimState) => void) => number;
+
+export interface MenuOption<V> {
+	value: V;
+	label: string;
+	/** Image shown before the label (e.g. a skill icon). */
+	iconUrl?: string;
+	/** Built-in mark shown before the label. */
+	glyph?: 'relic' | 'stone';
+	color?: string;
+	muted?: boolean;
+}
+
+/** Text colors matching the engraving marks: relic orange and ability-stone cyan. */
+export const RELIC_COLOR = '#ff8a2a';
+export const STONE_COLOR = '#5fdcf5';

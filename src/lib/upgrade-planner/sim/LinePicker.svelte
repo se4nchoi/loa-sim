@@ -47,7 +47,7 @@
 <div class="relative min-w-0 flex-1" bind:this={root}>
 	<button
 		type="button"
-		class="flex h-9 w-full min-w-0 flex-row items-center gap-2 rounded-xs border bg-surface-950 pr-2 text-left transition hover:border-surface-500 {changed
+		class="flex h-8 w-full min-w-0 flex-row items-center gap-2 rounded-xs border bg-surface-800/60 pr-2 text-left transition hover:border-accent-500 hover:bg-surface-800 {changed
 			? 'border-accent-500 bg-accent-500/10'
 			: 'border-surface-700'}"
 		aria-haspopup="listbox"
@@ -55,7 +55,7 @@
 		aria-label={label}
 		onclick={() => (open = !open)}
 	>
-		<span class="ml-1.5 min-w-0 flex-1 truncate border-l-2 pl-2 text-sm" style:border-color={current?.color ?? '#575757'}>
+		<span class="ml-1.5 min-w-0 flex-1 truncate border-l-2 pl-2 text-sm" style:border-color={current?.color ?? '#575757'} title={current?.label}>
 			{current?.label ?? 'Unknown'}
 		</span>
 		<svg class="size-3.5 shrink-0 text-surface-400" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>

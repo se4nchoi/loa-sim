@@ -121,17 +121,22 @@
 {#if loadout.battlePoint.isSupport}
 	<p class="text-sm text-surface-300">The simulator supports DPS loadouts only for now.</p>
 {:else}
-	<div class="grid grid-cols-[1fr_300px] items-start gap-2 max-lg:grid-cols-1">
+	<div class="grid grid-cols-[1fr_280px] items-start gap-2 max-lg:grid-cols-1">
+		<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
 		<div class="flex min-w-0 flex-col gap-2">
-			<SimGear bind:sim {base} {itemIds} delta={sections.gear} />
-			<SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} />
-			<SimGems bind:sim {base} {gems} delta={sections.gems} />
 			<div class="grid grid-cols-2 items-start gap-2 max-xl:grid-cols-1">
-				<SimEngravings bind:sim {base} delta={sections.engravings} />
-				<SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} />
+				<div class="flex min-w-0 flex-col gap-2">
+					<SimGear bind:sim {base} {itemIds} delta={sections.gear} />
+					<SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} />
+				</div>
+				<div class="flex min-w-0 flex-col gap-2">
+					<SimGems bind:sim {base} {gems} delta={sections.gems} />
+					<SimEngravings bind:sim {base} {preview} delta={sections.engravings} />
+					<SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} />
+					<SimKarma bind:sim {base} delta={sections.karma} />
+				</div>
 			</div>
-			<SimArkGrid bind:sim {base} {cores} {loadout} delta={sections.arkGrid} />
-			<SimKarma bind:sim {base} delta={sections.karma} />
+			<SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} />
 		</div>
 		<div class="flex flex-col gap-2 lg:sticky lg:top-16">
 			<SimSummary
