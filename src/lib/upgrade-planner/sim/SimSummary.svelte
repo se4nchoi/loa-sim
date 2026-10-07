@@ -11,6 +11,7 @@
 		ilvlAfter,
 		sections,
 		standings = [],
+		standingKey = $bindable(null),
 		className = '',
 		onreset,
 		onundo,
@@ -24,6 +25,7 @@
 		ilvlAfter: number | null;
 		sections: Record<SimSection, SectionDelta>;
 		standings?: CpStanding[];
+		standingKey?: string | null;
 		className?: string;
 		onreset: () => void;
 		onundo: () => void;
@@ -41,6 +43,7 @@
 		arkGrid: 'Ark Grid',
 		karma: 'Karma'
 	};
+	const standing = $derived(standings.find((s) => s.key === standingKey) ?? standings[0]);
 	const delta = $derived((simulated / current - 1) * 100);
 	const changed = $derived((Object.entries(sections) as [SimSection, SectionDelta][]).filter(([, d]) => Math.abs(d.pct) > 0.00005));
 	const color = (v: number) => (v > 0 ? 'text-green-400' : v < 0 ? 'text-red-400' : 'text-surface-300');
@@ -70,22 +73,27 @@
 			</span>
 		{/if}
 	</div>
-	{#if standings.length}
+	{#if standing}
+		{@const now = standing.top(current)}
+		{@const after = standing.top(simulated)}
 		<div class="flex flex-col gap-1 p-2">
-			<span class="text-xs text-surface-400" title="From lostark.bible's Combat Power distribution for your class">Standing among {className}s</span>
-			{#each standings as s (s.label)}
-				{@const now = s.top(current)}
-				{@const after = s.top(simulated)}
-				<div class="flex flex-row items-baseline justify-between gap-2 text-sm">
-					<span class="text-surface-300" title={`${s.count.toLocaleString()} characters`}>{s.label === 'all' ? 'All item levels' : `Item Level ${s.label}`}</span>
-					<span class="tabular-nums">
-						<span class="text-surface-200">{formatTop(now)}</span>
-						{#if formatTop(after) !== formatTop(now)}
-							→ <span class="font-semibold {after < now ? 'text-green-400' : 'text-red-400'}">{formatTop(after)}</span>
-						{/if}
-					</span>
-				</div>
-			{/each}
+			<select
+				class="h-7 w-full rounded-xs border border-surface-700 bg-surface-950 px-1.5 text-xs text-surface-200 focus:border-accent-500 focus:outline-none"
+				aria-label="Item level range to compare with"
+				title={`${className}s on lostark.bible in this item level range`}
+				bind:value={standingKey}
+			>
+				{#each standings as s (s.key)}
+					<option value={s.key}>{s.key.endsWith('-all') ? '' : 'Item Level '}{s.label} ({s.count.toLocaleString()} {className}s)</option>
+				{/each}
+			</select>
+			<div class="flex flex-row items-baseline gap-1.5 text-sm whitespace-nowrap tabular-nums">
+				<span class="text-surface-200">{formatTop(now)}</span>
+				{#if formatTop(after) !== formatTop(now)}
+					<span class="text-surface-400">→</span>
+					<span class="font-semibold {after < now ? 'text-green-400' : 'text-red-400'}">{formatTop(after)}</span>
+				{/if}
+			</div>
 		</div>
 	{/if}
 	{#if changed.length}

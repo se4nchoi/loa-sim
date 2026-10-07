@@ -8,6 +8,7 @@
 	import { formatPct } from './format';
 	import type { Loadout } from './types';
 	import UpgradeDialog from './UpgradeDialog.svelte';
+	import UpgradeTitle from './UpgradeTitle.svelte';
 	import { CATEGORY_LABELS, buildUpgrades, topDistinct } from './upgrades';
 
 	let { loadout, limit = 5 }: { loadout: Loadout; limit?: number } = $props();
@@ -30,16 +31,14 @@
 		<div class="grid grid-cols-[1fr_max-content] gap-x-2 p-1">
 			{#each topDistinct(upgrades, limit) as u (u.key)}
 				<div
-					class="col-span-full grid grid-cols-subgrid items-center rounded-xs px-1 py-0.5 transition duration-75 hover:bg-black/20"
+					class="col-span-full grid grid-cols-subgrid items-center rounded-xs px-1.5 py-1 transition duration-75 hover:bg-black/20"
 					title={u.detail}
 				>
 					<div class="flex min-w-0 flex-col">
-						<span class="line-clamp-2 text-sm text-surface-200">
-							{u.title}{#if u.count > 1}<span class="ml-1 text-xs text-surface-400">×{u.count}</span>{/if}
-						</span>
-						<span class="text-xs text-surface-400">{CATEGORY_LABELS[u.category]}</span>
+						<UpgradeTitle {u} />
+						{#if !u.subject}<span class="text-xs text-surface-500">{CATEGORY_LABELS[u.category]}</span>{/if}
 					</div>
-					<span class="text-right text-green-400">
+					<span class="text-right whitespace-nowrap text-green-400 tabular-nums">
 						{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span>
 					</span>
 				</div>

@@ -6,7 +6,7 @@
 <script lang="ts">
 	import { setContext, untrack, type Snippet } from 'svelte';
 	import { className as classNameOf } from './class-names';
-	import { cpStandings, type CpDistribution } from './cp-distribution';
+	import { cpStandings, defaultStanding, type CpDistribution } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
 	import SimArkGrid from './sim/SimArkGrid.svelte';
 	import SimBracelet from './sim/SimBracelet.svelte';
@@ -64,7 +64,12 @@
 	// Pickers show a preview's raw CP next to its percent.
 	setContext('loa-sim:cp', () => simulated);
 
-	const standings = $derived(cpDistribution ? cpStandings(cpDistribution, loadout.itemLevel ?? null) : []);
+	const standings = $derived(cpDistribution ? cpStandings(cpDistribution) : []);
+	// Compare with the character's own item level range until the player picks another.
+	let standingKey = $state<string | null>(null);
+	$effect.pre(() => {
+		standingKey = defaultStanding(standings, loadout.itemLevel ?? null)?.key ?? null;
+	});
 	const className = $derived(classNameOf(loadout.classId));
 
 	const gems = $derived(gemParts(loadout));
@@ -140,6 +145,7 @@
 		ilvlAfter={itemLevel(sim)}
 		{sections}
 		{standings}
+		bind:standingKey
 		{className}
 		onreset={reset}
 		onundo={undo}
@@ -154,7 +160,7 @@
 {:else}
 	<!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
 	<MobileSummaryBar {current} {simulated}>{@render summary()}</MobileSummaryBar>
-	<div class="grid grid-cols-[1fr_280px] items-start gap-2 max-lg:grid-cols-1">
+	<div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
 		<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
 		<div class="flex min-w-0 flex-col gap-2">
 			<div class="grid grid-cols-2 items-start gap-2 max-xl:grid-cols-1">

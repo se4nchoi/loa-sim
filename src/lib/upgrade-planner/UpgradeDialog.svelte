@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { formatCp, formatPct } from './format';
+	import UpgradeTitle from './UpgradeTitle.svelte';
 	import { CATEGORY_LABELS, type Upgrade, type UpgradeCategory } from './upgrades';
 
 	let { upgrades, cp, onclose }: { upgrades: Upgrade[]; cp: number; onclose: () => void } = $props();
@@ -39,7 +40,7 @@
 					{#each best as u, i (u.key)}
 						<div class="flex flex-col gap-0.5 rounded-xs border border-surface-700 bg-black/20 p-2.5">
 							<span class="text-[11px] font-semibold tracking-wide text-surface-400 uppercase">#{i + 1} · {CATEGORY_LABELS[u.category]}</span>
-							<span class="text-sm font-semibold text-surface-100">{u.title}</span>
+								<UpgradeTitle {u} />
 							<span class="text-lg font-bold text-green-400">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%</span>
 						</div>
 					{/each}
@@ -51,9 +52,7 @@
 					{#each g.list as u (u.key)}
 						<div class="flex flex-row items-center gap-3 border-t border-neutral-950 py-2">
 							<div class="flex min-w-0 flex-1 flex-col">
-								<span class="text-sm text-surface-100">
-									{u.title}{#if u.count > 1}<span class="ml-1 text-xs text-surface-400">×{u.count}</span>{/if}
-								</span>
+									<UpgradeTitle {u} />
 								<span class="text-xs text-surface-400">{u.detail}</span>
 							</div>
 							<div class="flex shrink-0 flex-col text-right">

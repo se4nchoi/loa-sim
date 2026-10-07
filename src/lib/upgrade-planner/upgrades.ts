@@ -31,6 +31,10 @@ export interface Upgrade {
 	category: UpgradeCategory;
 	title: string;
 	detail: string;
+	/** What the upgrade applies to, shown above the title (e.g. "Earring 2"). */
+	subject?: string;
+	/** Accessory roll change, shown in the roll colors (from: low / mid / none or a percent). */
+	roll?: { from: string; to: string };
 	/** Combat power gained, in percent of current CP. */
 	gainPct: number;
 	/** How many identical upgrades this row stands for (e.g. ten Lv. 9 gems). Gain is per one. */
@@ -365,7 +369,9 @@ function accessoryUpgrades(l: Loadout): Upgrade[] {
 			out.push({
 				key: `accessory:${item.slot}:${line.key}`,
 				category: 'accessory',
-				title: `${SLOT_LABEL[item.slot]}: ${line.name} ${from} → high`,
+				title: line.name,
+				subject: SLOT_LABEL[item.slot],
+				roll: { from, to: 'high' },
 				group: `accessory:${item.slot}`,
 				detail:
 					current === 0

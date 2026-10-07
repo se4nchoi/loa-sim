@@ -37,30 +37,33 @@ export function digestCdf(d: CpDigest, x: number): number {
 }
 
 export interface CpStanding {
-	/** e.g. "1780+" or "all". */
+	/** Digest key ("1-1780", "1-all"). */
+	key: string;
+	/** "1780–1789" or "All item levels". */
 	label: string;
 	count: number;
 	/** Percent of characters at or above the score ("top 12%"). */
 	top: (cp: number) => number;
 }
 
-const digestKey = (digests: Record<string, CpDigest>, suffix: string) =>
-	Object.keys(digests).find((k) => k.endsWith(`-${suffix}`));
+/** Every item-level bracket with data, highest first, then the whole class. */
+export function cpStandings(dist: CpDistribution): CpStanding[] {
+	const entries = Object.entries(dist.digests).filter(([, d]) => d?.count);
+	const bracketOf = (k: string) => Number(k.split('-').at(-1));
+	const brackets = entries.filter(([k]) => !Number.isNaN(bracketOf(k))).sort(([a], [b]) => bracketOf(b) - bracketOf(a));
+	const all = entries.filter(([k]) => k.endsWith('-all'));
+	return [...brackets, ...all].map(([key, d]) => ({
+		key,
+		label: key.endsWith('-all') ? 'All item levels' : `${bracketOf(key)}–${bracketOf(key) + 9}`,
+		count: d.count,
+		top: (cp) => (1 - digestCdf(d, cp)) * 100
+	}));
+}
 
-/** Standings for a score: within the character's 10-item-level bracket, and across the whole class. */
-export function cpStandings(dist: CpDistribution, itemLevel: number | null): CpStanding[] {
-	const out: CpStanding[] = [];
-	const add = (suffix: string, label: string) => {
-		const key = digestKey(dist.digests, suffix);
-		const d = key ? dist.digests[key] : undefined;
-		if (d?.count) out.push({ label, count: d.count, top: (cp) => (1 - digestCdf(d, cp)) * 100 });
-	};
-	if (itemLevel) {
-		const bracket = Math.floor(itemLevel / 10) * 10;
-		add(String(bracket), `${bracket}–${bracket + 9}`);
-	}
-	add('all', 'all');
-	return out;
+/** The character's own bracket, or the whole class when its bracket has no data. */
+export function defaultStanding(list: CpStanding[], itemLevel: number | null): CpStanding | undefined {
+	const bracket = itemLevel ? Math.floor(itemLevel / 10) * 10 : null;
+	return list.find((s) => bracket !== null && s.key.endsWith(`-${bracket}`)) ?? list.find((s) => s.key.endsWith('-all')) ?? list[0];
 }
 
 /** "Top 12%", "Top 3.1%", "Top 0.85%": two significant digits near the top. */

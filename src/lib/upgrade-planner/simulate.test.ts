@@ -224,10 +224,10 @@ describe('core type swap', () => {
 	const core = (id: number) => coreStates(l).find((c) => c.id === id)!;
 	const ratio = (from: number, to: number) => (1e4 + to) / (1e4 + from);
 
-	it('chaos second tier → top tier (Absorbing → Smoldering) adds the curve difference', () => {
+	it('chaos second option → top option (Absorbing → Smoldering) adds the curve difference', () => {
 		const c = core(673111006);
 		expect(c.info.tier).toBe(1);
-		const after = cpOf((s) => (s.arkGrid.find((x) => x.id === c.id)!.tier = 0));
+		const after = cpOf((s) => (s.arkGrid.find((x) => x.id === c.id)!.variant = 0));
 		const to = coreValue({ ...c.info, tier: 0 }, c.points, weaponPowerOf(l));
 		expect(after / simulate(l, base, base).cp).toBeCloseTo(ratio(c.value, to), 10);
 	});
@@ -243,8 +243,11 @@ describe('core type swap', () => {
 
 	it('picking the equipped type again changes nothing', () => {
 		const c = core(673120005);
-		expect(simCoreInfo(c.info, { id: c.id, gems: [], grade: c.info.grade, tier: c.info.tier })).toBe(c.info);
-		expect(simCoreInfo(c.info, { id: c.id, gems: [], tier: 1 }).weaponCore).toBe(true);
+		expect(simCoreInfo(c.info, { id: c.id, gems: [], grade: c.info.grade, variant: 0 })).toBe(c.info);
+		expect(simCoreInfo(c.info, { id: c.id, gems: [], variant: 1 }).weaponCore).toBe(true);
+		// Absorbing → Crushing: same second-tier curve, so nothing changes.
+		const moon = core(673111006);
+		expect(simCoreInfo(moon.info, { id: moon.id, gems: [], variant: 2 })).toBe(moon.info);
 	});
 });
 

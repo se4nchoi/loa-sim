@@ -104,17 +104,21 @@ export interface SimAstrogem {
 export interface SimCore {
 	id: number;
 	gems: SimAstrogem[];
-	/** Swapped core type: another grade, or (chaos) the other option tier. Unset = the equipped core. */
+	/** Swapped core type: another grade, or (chaos) another option (id variant digit). Unset = the equipped core. */
 	grade?: CoreGrade;
-	tier?: number;
+	variant?: number;
 }
+
+/** The id's option variant digit (chaos: sun 0 Flashy / 1 Stable / 2 Swift, moon 0 Smoldering / 1 Absorbing / 2 Crushing, star 0 Attack / 1 Weapon). */
+export const coreVariant = (coreId: number) => Number(String(coreId)[5]);
 
 /** The core type a simulated core has: the equipped one unless it was swapped. */
 export function simCoreInfo(info: CoreInfo, core?: SimCore): CoreInfo {
 	const grade = core?.grade ?? info.grade;
-	const tier = core?.tier ?? info.tier;
+	// Both second-tier options of a sun / moon share one curve.
+	const tier = core?.variant !== undefined ? (core.variant === 0 ? 0 : 1) : info.tier;
 	if (grade === info.grade && tier === info.tier) return info;
-	// The chaos star's second tier is the Weapon core.
+	// The chaos star's second option is the Weapon core.
 	return { ...info, grade, tier, weaponCore: info.attr === 'chaos' && info.shape === 'star' && tier === 1 };
 }
 

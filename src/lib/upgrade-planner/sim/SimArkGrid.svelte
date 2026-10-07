@@ -3,7 +3,7 @@
 	import { formatPct } from '../format';
 	import { ASTROGEM_ITEMS, ASTROGEM_KINDS } from '../game-data';
 	import { coreLook, itemLook } from '../icons';
-	import { simCoreInfo, simCorePoints, type SimAstrogem, type SimState } from '../simulate';
+	import { coreVariant, simCoreInfo, simCorePoints, type SimAstrogem, type SimState } from '../simulate';
 	import {
 		ASTROGEM_OPTION_NAMES,
 		ASTROGEM_OPTION_SHORT,
@@ -43,48 +43,50 @@
 			.filter((r) => r.ci >= 0)
 	);
 	const columns = $derived([
-		{ title: 'Order', rows: rows.filter((r) => r.core.info.attr === 'order') },
-		{ title: 'Chaos', rows: rows.filter((r) => r.core.info.attr === 'chaos') }
+		{ title: 'Order', rows: byShape(rows.filter((r) => r.core.info.attr === 'order')) },
+		{ title: 'Chaos', rows: byShape(rows.filter((r) => r.core.info.attr === 'chaos')) }
 	]);
+
+	function byShape<T extends { core: CoreState }>(list: T[]) {
+		return list.toSorted((a, b) => SHAPE_ORDER.indexOf(a.core.info.shape) - SHAPE_ORDER.indexOf(b.core.info.shape));
+	}
 
 	const kindOf = (g: SimAstrogem) => ASTROGEM_KINDS[ASTROGEM_ITEMS[g.itemId]];
 	const reached = (points: number) => CORE_BREAKPOINTS.filter((bp) => points >= bp).at(-1);
 
-	// Core type picker: another grade, and for chaos cores the other option tier (Swift → Flashy, Weapon → Attack).
+	// Core type picker: another grade, and for chaos cores another option (Swift → Flashy, Absorbing → Crushing,
+	// Weapon → Attack). Sun and moon have three dealer options (the second and third share a curve), star two.
 	const GRADES: CoreGrade[] = ['ancient', 'relic', 'legendary', 'heroic'];
 	const GRADE_NAME: Record<CoreGrade, string> = { ancient: 'Ancient', relic: 'Relic', legendary: 'Legendary', heroic: 'Heroic' };
-	/** Chaos option names per shape: the top tier, then the second tier by the id's variant digit. */
-	const CHAOS_NAMES: Record<CoreInfo['shape'], [string, Record<number, string>]> = {
-		sun: ['Flashy Attack', { 1: 'Stable Attack', 2: 'Swift Attack' }],
-		moon: ['Smoldering Strike', { 1: 'Absorbing Strike', 2: 'Crushing Strike' }],
-		star: ['Attack', { 1: 'Weapon' }]
+	/** Chaos options per shape, by the id's variant digit. */
+	const CHAOS_OPTIONS: Record<CoreInfo['shape'], string[]> = {
+		sun: ['Flashy Attack', 'Stable Attack', 'Swift Attack'],
+		moon: ['Smoldering Strike', 'Absorbing Strike', 'Crushing Strike'],
+		star: ['Attack', 'Weapon']
 	};
-	const tierName = (core: CoreState, tier: number) => {
-		const [top, second] = CHAOS_NAMES[core.info.shape];
-		if (tier === 0) return top;
-		// The equipped core's own second-tier name when it has one; otherwise the common dealer pick.
-		const variant = Number(String(core.id)[5]);
-		return (core.info.tier === 1 && second[variant]) || Object.values(second).at(-1)!;
-	};
+	const SHAPE_ORDER: CoreInfo['shape'][] = ['sun', 'moon', 'star'];
+	const variantOf = (ci: number) => sim.arkGrid[ci].variant ?? coreVariant(sim.arkGrid[ci].id);
 	// The column already says Order / Chaos.
-	const typeName = (core: CoreState, info: CoreInfo) => {
+	const typeName = (info: CoreInfo, variant: number) => {
 		const name = coreLabel(info).replace(/ (Order|Chaos) /, ' ');
-		return info.attr === 'chaos' ? `${name} · ${tierName(core, info.tier)}` : name;
+		return info.attr === 'chaos' ? `${name} · ${CHAOS_OPTIONS[info.shape][variant] ?? ''}` : name;
 	};
 	const typeChoices = (core: CoreState): MenuOption<string>[] =>
 		core.info.attr === 'chaos'
-			? GRADES.flatMap((g) => [0, 1].map((t) => ({ value: `${g}:${t}`, label: tierName(core, t).split(' ')[0], row: GRADE_NAME[g] })))
+			? GRADES.flatMap((g) =>
+					CHAOS_OPTIONS[core.info.shape].map((name, v) => ({ value: `${g}:${v}`, label: name.split(' ')[0], row: GRADE_NAME[g] }))
+				)
 			: GRADES.map((g) => ({ value: `${g}:0`, label: GRADE_NAME[g] }));
 	const decodeType = (v: string) => {
-		const [grade, tier] = v.split(':');
-		return { grade: grade as CoreGrade, tier: Number(tier) };
+		const [grade, variant] = v.split(':');
+		return { grade: grade as CoreGrade, variant: Number(variant) };
 	};
 	function setType(ci: number, v: string) {
-		const { grade, tier } = decodeType(v);
+		const { grade, variant } = decodeType(v);
 		const core = sim.arkGrid[ci];
 		const orig = cores.find((c) => c.id === core.id)!.info;
 		core.grade = grade === orig.grade ? undefined : grade;
-		core.tier = tier === orig.tier ? undefined : tier;
+		core.variant = variant === coreVariant(core.id) ? undefined : variant;
 	}
 
 	// Option picker: one row per option type, levels 1–5 as cells. Value encodes "id:level".
@@ -134,8 +136,8 @@
 	info="Core points and option totals add up from the astrogems. Click a core's name to try another grade or chaos option. Greyed options don't count for DPS Combat Power."
 >
 	{#snippet actions()}
-		<button type="button" class={btn} onclick={optimize} title="Find the best placement of your equipped astrogems for Combat Power">
-			Optimize arrangement
+		<button type="button" class={btn} onclick={optimize} title="Moves your equipped astrogems between cores for the most Combat Power. bible doesn't show unequipped astrogems, so only the equipped ones are considered.">
+			Optimize placement
 		</button>
 		<button type="button" class={btn} onclick={() => ((sim.arkGrid = structuredClone($state.snapshot(base.arkGrid))), (suggestion = null))}>Reset</button>
 	{/snippet}
@@ -153,7 +155,10 @@
 					{/if}
 					<button type="button" class="{btnAccent} ml-auto" onclick={apply}>Apply</button>
 				{:else}
-					<span class="text-surface-200">Already the best arrangement for Combat Power.</span>
+					<span class="text-surface-200">
+						Your equipped astrogems are already in their best cores. Only equipped astrogems are considered, so this mostly helps
+						after you edit core points or swap a core.
+					</span>
 				{/if}
 				<button type="button" class="{btn} {suggestion.gainPct > 0.0005 ? '' : 'ml-auto'}" onclick={() => (suggestion = null)}>Dismiss</button>
 			</div>
@@ -163,7 +168,7 @@
 			<div class="grid grid-cols-1 gap-3 @3xl:grid-cols-2">
 				{#each columns as col (col.title)}
 					<div class="flex flex-col gap-2">
-						<span class="text-xs font-semibold tracking-wide uppercase max-sm:text-center {col.title === 'Order' ? 'text-amber-300' : 'text-sky-300'}">{col.title}</span>
+						<span class="text-xs font-semibold tracking-wide uppercase {col.title === 'Order' ? 'text-amber-300' : 'text-sky-300'}">{col.title}</span>
 						{#each col.rows as { core, ci } (core.id)}
 							{@const info = simCoreInfo(core.info, sim.arkGrid[ci])}
 							{@const look = coreLook(info)}
@@ -175,15 +180,15 @@
 									<ItemIcon src={look.icon} grade={look.grade} size="size-9" />
 									<div class="flex min-w-0 flex-1 flex-col items-start gap-0.5">
 										<MenuPicker
-											value={`${info.grade}:${info.tier}`}
+											value={`${info.grade}:${variantOf(ci)}`}
 											options={typeChoices(core)}
 											label="Core type"
-											changed={info !== core.info}
+											changed={info.grade !== core.info.grade || variantOf(ci) !== coreVariant(core.id)}
 											onpick={(v) => setType(ci, v)}
 											preview={(v) => preview((s) => Object.assign(s.arkGrid[ci], decodeType(v)))}
 										>
 											{#snippet trigger()}
-												<span class="min-w-0 truncate text-left text-sm font-semibold" title={typeName(core, info)}>{typeName(core, info)}</span>
+												<span class="min-w-0 truncate text-left text-sm font-semibold" title={typeName(info, variantOf(ci))}>{typeName(info, variantOf(ci))}</span>
 											{/snippet}
 										</MenuPicker>
 										<span class="flex flex-row flex-wrap items-center gap-x-1.5 text-xs text-surface-400">
@@ -204,7 +209,7 @@
 									{@const before = base.arkGrid[ci]?.gems[gi]}
 									{@const isWeakest = weakest?.ci === ci && weakest?.gi === gi}
 									<div
-										class="flex w-fit max-w-full flex-row items-center gap-2 rounded-xs p-1 max-sm:self-center {isWeakest ? 'bg-amber-500/10 ring-1 ring-amber-400/70' : ''}"
+										class="flex w-fit max-w-full flex-row items-center gap-2 rounded-xs p-1 {isWeakest ? 'bg-amber-500/10 ring-1 ring-amber-400/70' : ''}"
 										title={isWeakest ? `Weakest astrogem: its options add ${formatPct(weakest!.pct)}% CP` : undefined}
 									>
 										<!-- Narrow cores (small phones) drop the icon; the kind name stays. -->
