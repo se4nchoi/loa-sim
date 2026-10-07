@@ -12,7 +12,7 @@ describe('ark grid optimizer', () => {
 	const cpOf = (s: ReturnType<typeof initSimState>) => simulate(loadout, s, base).cp;
 
 	it('never does worse than the current arrangement, and respects willpower and sockets', () => {
-		const a = optimizeArkGrid(loadout, base);
+		const a = optimizeArkGrid(loadout, base, base);
 		const after = withArrangement(base, a);
 		expect(cpOf(after)).toBeGreaterThanOrEqual(cpOf(base) - 1e-9);
 		for (const core of after.arkGrid) {
@@ -33,7 +33,7 @@ describe('ark grid optimizer', () => {
 		const i4 = sun.gems.findIndex((g) => g.corePoints === 4);
 		const i5 = moon.gems.findIndex((g) => g.corePoints === 5);
 		[sun.gems[i4], moon.gems[i5]] = [moon.gems[i5], sun.gems[i4]];
-		const fixed = withArrangement(bad, optimizeArkGrid(loadout, bad));
+		const fixed = withArrangement(bad, optimizeArkGrid(loadout, bad, base));
 		expect(cpOf(fixed)).toBeGreaterThanOrEqual(cpOf(base) - 1e-9);
 		expect(cpOf(fixed)).toBeGreaterThan(cpOf(bad));
 	});

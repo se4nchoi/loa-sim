@@ -58,6 +58,8 @@ export interface MenuOption<V> {
 	glyph?: 'relic' | 'stone';
 	color?: string;
 	muted?: boolean;
+	/** Options sharing a row label are laid out as one row (e.g. astrogem option type × level 1–5). */
+	row?: string;
 }
 
 /** Text colors matching the engraving marks: relic orange and ability-stone cyan. */
