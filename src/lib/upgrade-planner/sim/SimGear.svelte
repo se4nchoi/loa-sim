@@ -37,16 +37,18 @@
 	{#snippet actions()}
 		<button type="button" class={btn} onclick={() => bumpAll(-1)}>All −1</button>
 		<button type="button" class={btn} onclick={() => bumpAll(1)}>All +1</button>
+		<button type="button" class={btn} onclick={() => (sim.gear = structuredClone($state.snapshot(base.gear)))}>Reset</button>
 	{/snippet}
 	{#if slots.length === 0}
 		<p class="text-sm text-surface-400">No T4 1675-tier gear found; honing can't be simulated for this loadout.</p>
 	{:else}
-		<div class="grid w-fit grid-cols-[max-content_minmax(4rem,8rem)_max-content_max-content_max-content] items-center gap-x-4 gap-y-3.5 max-sm:w-full max-sm:grid-cols-[max-content_minmax(0,1fr)_max-content_max-content] max-sm:gap-x-2">
+		<div class="grid w-fit grid-cols-[max-content_minmax(4rem,8rem)_max-content_max-content_max-content_1.5rem] items-center gap-x-4 gap-y-3.5 max-sm:w-full max-sm:grid-cols-[max-content_minmax(0,1fr)_max-content_max-content_1.5rem] max-sm:gap-x-2">
 			<span></span>
 			<span class="text-xs text-surface-400">Piece</span>
 			<span class="text-center text-xs text-surface-400">Honing</span>
 			<span class="text-center text-xs text-surface-400">Advanced</span>
 			<span class="text-right text-xs text-surface-400 max-sm:hidden">Item Lv.</span>
+			<span></span>
 			{#each slots as slot (slot)}
 				{@const g = sim.gear[slot]!}
 				{@const b = base.gear[slot]!}
@@ -56,6 +58,15 @@
 				<Stepper bind:value={g.honing} min={0} max={25} prefix="+" changed={g.honing !== b.honing} label={`${LABELS[slot]} honing`} width="w-7" />
 				<Stepper bind:value={g.advanced} min={0} max={40} changed={g.advanced !== b.advanced} label={`${LABELS[slot]} advanced honing`} width="w-7" />
 				<span class="text-right text-sm tabular-nums max-sm:hidden {g.honing !== b.honing ? 'text-accent-300' : 'text-surface-300'}">{1675 + 5 * g.honing}</span>
+				{#if g.honing !== b.honing || g.advanced !== b.advanced}
+					<button
+						type="button"
+						class="flex size-6 items-center justify-center rounded-xs text-surface-400 hover:bg-surface-800 hover:text-surface-50"
+						title={`Reset ${LABELS[slot]}`}
+						aria-label={`Reset ${LABELS[slot]}`}
+						onclick={() => (sim.gear[slot] = { ...b })}>↺</button
+					>
+				{:else}<span></span>{/if}
 			{/each}
 		</div>
 	{/if}

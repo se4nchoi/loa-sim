@@ -19,6 +19,7 @@ import {
 	karmaRank,
 	TIERS,
 	astrogemOptionValue,
+	engravingTable,
 	type AccessoryFamily,
 	type AccessoryLine,
 	type Tier
@@ -51,7 +52,7 @@ export interface SimState {
 	/** Optional damage share per skill id, in percent of total damage; enables the DPS estimate. */
 	skillShares: Record<number, number>;
 	/** Per engraving id: relic book step (0–4 → 0/5/10/15/20 books) and ability stone level (0–4). */
-	engravings: Record<number, { books: number; stone: number }>;
+	engravings: Record<number, { books: number; stone: number; /** Swapped to another engraving (its id). */ as?: number }>;
 	/** Main stat (Str/Dex/Int) on each accessory. */
 	accessoryStats: Partial<Record<AccessorySlot, number>>;
 	/** Ark grid cores with their astrogems; core points and option totals are derived from these. */
@@ -336,8 +337,10 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	// --- Engravings
 	for (const e of engravingStates(l)) {
 		const s = state.engravings[e.id];
-		if (s && (s.stone !== e.stone || s.books !== e.col))
-			set(PartType.Engraving, (p) => p.id === e.id, e.table[s.stone][s.books]);
+		const swapped = s?.as !== undefined && s.as !== e.id;
+		const table = swapped ? (engravingTable(s.as!) ?? e.table) : e.table;
+		if (s && (swapped || s.stone !== e.stone || s.books !== e.col))
+			set(PartType.Engraving, (p) => p.id === e.id, table[s.stone][s.books]);
 	}
 
 	// --- Accessories: rebuild the grinding (15) and combat effect (17) parts of every edited slot.

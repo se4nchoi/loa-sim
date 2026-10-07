@@ -6,7 +6,7 @@
 	import LinePicker from './LinePicker.svelte';
 	import SimCard from './SimCard.svelte';
 	import Stepper from './Stepper.svelte';
-	import { GRADE_COLORS, ROLL_COLORS, selectClass, type PickOption, type PreviewEdit, type SectionDelta } from './ui';
+	import { GRADE_COLORS, ROLL_COLORS, btn, selectClass, type PickOption, type PreviewEdit, type SectionDelta } from './ui';
 
 	let {
 		sim = $bindable(),
@@ -57,6 +57,9 @@
 
 {#if sim.bracelet}
 	<SimCard title="Bracelet" {delta}>
+		{#snippet actions()}
+			<button type="button" class={btn} onclick={() => (sim.bracelet = structuredClone($state.snapshot(base.bracelet)))}>Reset</button>
+		{/snippet}
 		<div class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-2 rounded-xs bg-black/15 p-2.5">
 			<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="leap" size="size-12" />
 			<div class="flex min-w-0 flex-col gap-2">

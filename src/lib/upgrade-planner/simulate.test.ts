@@ -143,6 +143,11 @@ describe('simulate', () => {
 		expect(pct(edit((s) => (s.engravings[1118].stone = 4)))).toBeCloseTo((12700 / 12100 - 1) * 100, 6);
 	});
 
+	it('swapping an engraving scores it with the new engraving table', () => {
+		// Cursed Doll (stone Lv. 2, 20 books: 20.75%) → Grudge at the same stone/books: 24.75%
+		expect(pct(edit((s) => (s.engravings[1247].as = 1118)))).toBeCloseTo((12475 / 12075 - 1) * 100, 6);
+	});
+
 	it('astrogem core points move the core along its curve', () => {
 		// Ancient order sun at 17P; three gems +1 point each → 20P: 850 → 900
 		const cp = edit((s) => s.arkGrid[0].gems.slice(0, 3).forEach((g) => (g.corePoints += 1)));

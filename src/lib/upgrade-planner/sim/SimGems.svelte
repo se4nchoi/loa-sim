@@ -20,6 +20,12 @@
 	}: { sim: SimState; base: SimState; gems: GemPart[]; delta: SectionDelta; characterName?: string } = $props();
 
 	const KINDS: GemKind[] = ['damage', 'cooldown'];
+	const GEM_INFO = [
+		`Combat Power counts every gem the same. The DPS estimate weighs each gem by its skill:`,
+		`• DPS gain = skill damage share × gem effect. Damage gems raise the skill's damage; cooldown gems count every second saved as extra casts.`,
+		`• Enter damage shares by hand from your logs or a combat analyzer, or load your LOA Logs database to use your average shares.`,
+		`• Logs can include older builds or settings (e.g. Night's Edge before switching to Full Moon Harvester), so pick a range that matches your current build.`
+	].join('\n');
 	const editable = $derived(gems.map((g, i) => ({ g, i })).filter(({ g }) => g.table));
 
 	/**
@@ -85,7 +91,11 @@
 	</div>
 {/snippet}
 
-<SimCard title="Gems" {delta} info="Combat Power counts every gem the same. Add damage shares to also estimate DPS by skill.">
+<SimCard
+	title="Gems"
+	{delta}
+	info={GEM_INFO}
+>
 	{#snippet actions()}
 		<button type="button" class={btn} onclick={() => (showShares = !showShares)} aria-pressed={showShares}>
 			{showShares ? 'Hide' : 'Add'} damage shares

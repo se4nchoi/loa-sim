@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { engravingIcon } from '../icons';
 	import type { SimState } from '../simulate';
-	import { ENGRAVING_BOOK_STEPS, ENGRAVING_NAMES } from '../tables';
+	import { ENGRAVING_BOOK_STEPS, ENGRAVING_NAMES, engravingIds } from '../tables';
 	import Glyph from './Glyph.svelte';
 	import ItemIcon from './ItemIcon.svelte';
 	import MenuPicker from './MenuPicker.svelte';
 	import SimCard from './SimCard.svelte';
-	import { RELIC_COLOR, STONE_COLOR, type MenuOption, type PreviewEdit, type SectionDelta } from './ui';
+	import { RELIC_COLOR, STONE_COLOR, btn, type MenuOption, type PreviewEdit, type SectionDelta } from './ui';
 
 	let {
 		sim = $bindable(),
@@ -25,6 +25,15 @@
 		color: col > 0 ? RELIC_COLOR : undefined,
 		muted: col === 0
 	}));
+	const shown = (id: number) => sim.engravings[id].as ?? id;
+	/** Engravings this slot can become: any with a DPS table not already used by another slot. */
+	const swapOptions = (id: number): MenuOption<number>[] => {
+		const taken = new Set(ids.filter((x) => x !== id).map(shown));
+		return engravingIds()
+			.filter((e) => !taken.has(e))
+			.map((e) => ({ value: e, label: ENGRAVING_NAMES[e] ?? String(e), iconUrl: engravingIcon(e) }))
+			.sort((a, b) => a.label.localeCompare(b.label));
+	};
 	const STONE: MenuOption<number>[] = [0, 1, 2, 3, 4].map((lv) => ({
 		value: lv,
 		label: lv === 0 ? 'No stone level' : `Lv. ${lv}`,
@@ -35,6 +44,10 @@
 </script>
 
 <SimCard title="Engravings" {delta}>
+	{#snippet actions()}
+		<button type="button" class={btn} onclick={() => ids.forEach((id) => (sim.engravings[id].books = ENGRAVING_BOOK_STEPS.length - 1))}>All max</button>
+		<button type="button" class={btn} onclick={() => (sim.engravings = structuredClone($state.snapshot(base.engravings)))}>Reset</button>
+	{/snippet}
 	{#if ids.length === 0}
 		<p class="text-sm text-surface-400">No supported engravings found.</p>
 	{:else}
@@ -43,8 +56,19 @@
 				{@const e = sim.engravings[id]}
 				{@const b = base.engravings[id]}
 				<div class="flex flex-row flex-wrap items-center gap-x-2.5 gap-y-1.5 py-1.5 first:pt-0 last:pb-0">
-					<ItemIcon src={engravingIcon(id)} grade={5} size="size-8" />
-					<span class="min-w-24 flex-1 text-sm font-semibold">{ENGRAVING_NAMES[id] ?? id}</span>
+					<ItemIcon src={engravingIcon(shown(id))} grade={5} size="size-8" />
+					<div class="min-w-24 flex-1">
+						<MenuPicker
+							value={shown(id)}
+							options={swapOptions(id)}
+							label={`Swap ${ENGRAVING_NAMES[id]}`}
+							changed={shown(id) !== id}
+							onpick={(v) => (e.as = v === id ? undefined : v)}
+							preview={(v) => preview((s) => (s.engravings[id].as = v === id ? undefined : v))}
+						>
+							{#snippet trigger()}<span class="max-w-40 truncate text-sm font-semibold">{ENGRAVING_NAMES[shown(id)] ?? id}</span>{/snippet}
+						</MenuPicker>
+					</div>
 					<MenuPicker
 						value={e.books}
 						options={BOOKS}

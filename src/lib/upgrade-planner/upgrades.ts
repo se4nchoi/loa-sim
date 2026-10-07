@@ -307,53 +307,6 @@ function engravingUpgrades(l: Loadout): Upgrade[] {
 	);
 }
 
-/** Facets needed per engraving level on a 10-node ability stone. */
-const STONE_NODES = ['0', '6', '7', '9', '10'];
-
-/**
- * A stone carries two engravings, so a new stone is scored as a whole: the gain on the two
- * engravings it boosts, net of the levels the current stone gave. One row per level pattern
- * (10/10, 10/9, 9/9, 10/7), using the best pair of equipped engravings for that pattern.
- */
-function abilityStoneUpgrades(l: Loadout): Upgrade[] {
-	const es = engravingStates(l);
-	if (es.length < 2) return [];
-	const current = es.filter((e) => e.stone > 0);
-	const currentLabel = current.length
-		? current.map((e) => `${e.name} Lv. ${e.stone}`).join(', ')
-		: 'no engraving levels';
-	const out: Upgrade[] = [];
-	for (const [a, b] of [[4, 4], [4, 3], [3, 3], [4, 2]] as const) {
-		let best: { gainPct: number; title: string; key: string } | null = null;
-		for (const x of es)
-			for (const y of es) {
-				if (x === y || (a === b && x.id > y.id)) continue;
-				let ratio = 1;
-				for (const e of es) {
-					const level = e === x ? a : e === y ? b : 0;
-					ratio *= partRatio(e.value, e.table[level][e.col]);
-				}
-				const gainPct = ratioToPct(ratio);
-				if (!best || gainPct > best.gainPct)
-					best = {
-						gainPct,
-						title: `Stone: ${x.name} ${a} / ${y.name} ${b}`,
-						key: `stone:${x.id}:${a}:${y.id}:${b}`
-					};
-			}
-		if (best && best.gainPct > 0)
-			out.push({
-				...best,
-				category: 'engraving',
-				group: 'ability-stone',
-				detail: `A ${STONE_NODES[a]}/${STONE_NODES[b]} ability stone (engraving levels ${a} and ${b}). Replaces your current stone (${currentLabel}).`,
-				count: 1,
-				approximate: false
-			});
-	}
-	return out;
-}
-
 // --------------------------------------------------------------------------------------------- accessories
 
 const SLOT_FAMILY: Record<string, 'neck' | 'ear' | 'finger'> = {
@@ -463,7 +416,6 @@ export function buildUpgrades(l: Loadout): Upgrade[] {
 		...coreUpgrades(l),
 		...astrogemUpgrades(l),
 		...engravingUpgrades(l),
-		...abilityStoneUpgrades(l),
 		...accessoryUpgrades(l),
 		...karmaUpgrades(l)
 	]

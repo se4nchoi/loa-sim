@@ -130,7 +130,9 @@
 				runs <span class="text-surface-500">(0 = all)</span>
 			</label>
 		</div>
-		<div class="text-xs text-surface-400">{selected.length} run{selected.length === 1 ? '' : 's'} selected</div>
+		<div class="text-xs text-surface-400">
+			{selected.length} run{selected.length === 1 ? '' : 's'} selected · pick a range after your last build change
+		</div>
 		{#if result && result.runs}
 			<div class="grid grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-0.5">
 				{#each result.shares.slice(0, 12) as s (s.id)}

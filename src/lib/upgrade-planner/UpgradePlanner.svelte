@@ -59,5 +59,5 @@
 </div>
 
 {#if dialogOpen}
-	<UpgradeDialog {loadout} {upgrades} {cp} onclose={() => (dialogOpen = false)} />
+	<UpgradeDialog {upgrades} {cp} onclose={() => (dialogOpen = false)} />
 {/if}

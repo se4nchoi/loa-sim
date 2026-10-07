@@ -166,6 +166,8 @@ const SHARED_14 = [row(14, 14.75, 15.5, 16.25, 17), row(17, 17.75, 18.5, 19.25, 
 for (const id of [1238, 1253, 1111, 1247, 1297]) ENGRAVING_TABLE[id] = SHARED_14; // Master's Tenacity, Barricade, Stabilized Status, Cursed Doll, Hit Master
 
 export const engravingTable = (id: number): number[][] | undefined => ENGRAVING_TABLE[id];
+/** Every engraving with a DPS table (the ones a swap can pick). */
+export const engravingIds = () => Object.keys(ENGRAVING_TABLE).map(Number);
 
 export const ENGRAVING_NAMES: Record<number, string> = {
 	1118: 'Grudge', 1299: 'Adrenaline', 1254: 'Raid Captain', 1295: 'Mass Increase', 1288: 'Master Brawler',

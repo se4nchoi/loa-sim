@@ -99,24 +99,8 @@ describe('upgrades', () => {
 		expect(sun.gainPct).toBeCloseTo((10867 / 10850 - 1) * 100, 6);
 	});
 
-	it('scores a new ability stone net of the one it replaces', () => {
-		// Current stone: Cursed Doll Lv. 2 (2075), Raid Captain Lv. 3 (2448); others at Lv. 0.
-		const stone = upgrades.find((u) => u.title.startsWith('Stone:') && / 4 \/ /.test(u.title) && u.title.endsWith(' 3'))!;
-		expect(stone).toBeDefined();
-		const s = stone.title;
-		// Recompute by hand from the engraving tables for whichever pair was chosen.
-		const values: Record<number, number> = { 1299: 1940, 1247: 2075, 1254: 2448, 1141: 1736, 1118: 2100 };
-		const stones: Record<number, number> = { 1299: 0, 1247: 2, 1254: 3, 1141: 0, 1118: 0 };
-		const names: Record<number, string> = { 1299: 'Adrenaline', 1247: 'Cursed Doll', 1254: 'Raid Captain', 1141: 'Keen Blunt Weapon', 1118: 'Grudge' };
-		let ratio = 1;
-		for (const id of Object.keys(values).map(Number)) {
-			const table = engravingTable(id)!;
-			const col = table[stones[id]].indexOf(values[id]);
-			const level = s.includes(`${names[id]} 4`) ? 4 : s.includes(`${names[id]} 3`) ? 3 : 0;
-			ratio *= (1e4 + table[level][col]) / (1e4 + values[id]);
-		}
-		expect(stone.gainPct).toBeCloseTo((ratio - 1) * 100, 6);
-		expect(stone.detail).toContain('Cursed Doll Lv. 2, Raid Captain Lv. 3');
+	it('leaves ability stones out (not a practical upgrade)', () => {
+		expect(upgrades.some((u) => u.key.startsWith('stone:'))).toBe(false);
 	});
 
 	it('skips relic book steps when already at 20 books', () => {
