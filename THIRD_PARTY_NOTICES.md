@@ -32,3 +32,8 @@ All game-related assets are property of their respective owners.
 - Gem, engraving, accessory and karma battle-point values: "딜러 전투력 로직 분석 (25년 7월 9일 패치 반영)",
   https://www.inven.co.kr/board/lostark/4821/106546. Values are game facts, cross-checked against lostark.bible.
 - Accessory option values per grade: as shown in game.
+
+## UI frames
+
+- `static/frames/*.png` (ark passive frames and the inherited-gear border) are game UI assets, as used by
+  lostark.bible (served there under `/i/`). All game assets belong to Smilegate RPG / Amazon Games.

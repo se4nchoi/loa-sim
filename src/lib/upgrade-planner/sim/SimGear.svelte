@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { HONING_SLOTS, type HoningSlot } from '../honing-data';
-	import { itemLook } from '../icons';
-	import ItemIcon from './ItemIcon.svelte';
+	import { isInheritedGear, itemLook } from '../icons';
 	import type { SimState } from '../simulate';
+	import ItemIcon from './ItemIcon.svelte';
 	import SimCard from './SimCard.svelte';
-	import { linkButtonClass, range, selectClass, type SectionDelta } from './ui';
+	import Stepper from './Stepper.svelte';
+	import { btn, type SectionDelta } from './ui';
 
 	let {
 		sim = $bindable(),
@@ -34,33 +35,30 @@
 
 <SimCard title="Equipment" {delta}>
 	{#snippet actions()}
-		<button type="button" class={linkButtonClass} onclick={() => bumpAll(1)}>All +1</button>
+		<button type="button" class={btn} onclick={() => bumpAll(-1)}>All −1</button>
+		<button type="button" class={btn} onclick={() => bumpAll(1)}>All +1</button>
 	{/snippet}
 	{#if slots.length === 0}
 		<p class="text-sm text-surface-400">No T4 1675-tier gear found; honing can't be simulated for this loadout.</p>
 	{:else}
-		<div class="grid w-fit grid-cols-[max-content_7rem_max-content_max-content_max-content] items-center gap-x-3 gap-y-1">
+		<div class="grid w-fit grid-cols-[max-content_minmax(4rem,8rem)_max-content_max-content_max-content] items-center gap-x-4 gap-y-3.5 max-sm:w-full max-sm:grid-cols-[max-content_minmax(0,1fr)_max-content_max-content] max-sm:gap-x-2">
 			<span></span>
 			<span class="text-xs text-surface-400">Piece</span>
-			<span class="text-xs text-surface-400">Honing</span>
-			<span class="text-xs text-surface-400">Advanced</span>
-			<span class="text-right text-xs text-surface-400">Item Lv.</span>
+			<span class="text-center text-xs text-surface-400">Honing</span>
+			<span class="text-center text-xs text-surface-400">Advanced</span>
+			<span class="text-right text-xs text-surface-400 max-sm:hidden">Item Lv.</span>
 			{#each slots as slot (slot)}
 				{@const g = sim.gear[slot]!}
 				{@const b = base.gear[slot]!}
 				{@const look = itemLook(itemIds[slot])}
-				<ItemIcon src={look.icon} grade={look.grade} size="size-8" title={look.name} />
-				<span class="text-sm text-surface-200">{LABELS[slot]}</span>
-				<select class={selectClass(g.honing !== b.honing)} bind:value={g.honing} aria-label={`${LABELS[slot]} honing`}>
-					{#each range(0, 25) as h (h)}<option value={h}>+{h}</option>{/each}
-				</select>
-				<select class={selectClass(g.advanced !== b.advanced)} bind:value={g.advanced} aria-label={`${LABELS[slot]} advanced honing`}>
-					{#each range(0, 40) as a (a)}<option value={a}>{a}</option>{/each}
-				</select>
-				<span class="text-right text-sm text-surface-300">{1675 + 5 * g.honing}</span>
+				<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="evolution" inherited={isInheritedGear(itemIds[slot])} />
+				<span class="min-w-0 truncate text-sm font-semibold text-surface-100">{LABELS[slot]}</span>
+				<Stepper bind:value={g.honing} min={0} max={25} prefix="+" changed={g.honing !== b.honing} label={`${LABELS[slot]} honing`} width="w-7" />
+				<Stepper bind:value={g.advanced} min={0} max={40} changed={g.advanced !== b.advanced} label={`${LABELS[slot]} advanced honing`} width="w-7" />
+				<span class="text-right text-sm tabular-nums max-sm:hidden {g.honing !== b.honing ? 'text-accent-300' : 'text-surface-300'}">{1675 + 5 * g.honing}</span>
 			{/each}
 		</div>
-		<p class="mt-2 text-xs text-surface-400">
+		<p class="mt-3 text-xs text-surface-400">
 			≈ Stats from the game's T4 1675 honing tables. Armor adds main stat; the weapon scales Weapon Power.
 		</p>
 	{/if}

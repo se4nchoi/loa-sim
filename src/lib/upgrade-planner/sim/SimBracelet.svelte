@@ -5,6 +5,7 @@
 	import ItemIcon from './ItemIcon.svelte';
 	import LinePicker from './LinePicker.svelte';
 	import SimCard from './SimCard.svelte';
+	import Stepper from './Stepper.svelte';
 	import { GRADE_COLORS, ROLL_COLORS, selectClass, type PickOption, type PreviewEdit, type SectionDelta } from './ui';
 
 	let {
@@ -56,8 +57,8 @@
 
 {#if sim.bracelet}
 	<SimCard title="Bracelet" {delta}>
-		<div class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-2">
-			<ItemIcon src={look.icon} grade={look.grade} title={look.name} />
+		<div class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-2 rounded-xs bg-black/15 p-2.5">
+			<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="leap" size="size-12" />
 			<div class="flex min-w-0 flex-col gap-2">
 				<div class="flex flex-row flex-wrap gap-2">
 					{#each sim.bracelet.stats as st, i (i)}
@@ -70,13 +71,9 @@
 							>
 								{#each [...new Set([st.index, ...statChoices])] as idx (idx)}<option value={idx}>{statName(idx)}</option>{/each}
 							</select>
-							<input
-								type="number"
-								min="0"
-								class="{selectClass(before?.value !== st.value)} -ml-px w-20 rounded-l-none text-right"
-								bind:value={st.value}
-								aria-label={`${statName(st.index)} value`}
-							/>
+							<span class="-ml-px">
+								<Stepper bind:value={st.value} min={0} max={9999} changed={before?.value !== st.value} label={`${statName(st.index)} value`} width="w-10" />
+							</span>
 						</span>
 					{/each}
 				</div>

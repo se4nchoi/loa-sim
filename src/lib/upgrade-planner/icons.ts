@@ -4,6 +4,10 @@ import { ENGRAVING_ICONS, ITEMS } from './game-data';
 import type { CoreInfo } from './tables';
 
 const CDN = 'https://cdn-lostark.game.onstove.com/efui_iconatlas';
+/** Where the ark passive frame / inherited border overlays live (lostark.bible serves the same files at /i). */
+export const FRAME_BASE = '/frames';
+/** T4 1675 gear is inherited (succession) gear and gets the blue border. */
+export const isInheritedGear = (itemId: number | undefined) => !!itemId && Math.floor(itemId / 1000) === 134621;
 
 /** "SE_Item_01_166" → …/se_item/se_item_01_166.png (the folder is the name without its number suffix). */
 export function iconUrl(icon: string | undefined): string | undefined {

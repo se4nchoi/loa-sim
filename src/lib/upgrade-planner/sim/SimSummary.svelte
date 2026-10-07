@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { formatCp } from '../format';
 	import Delta from './Delta.svelte';
-	import type { SectionDelta, SimSection } from './ui';
+	import { btn, type SectionDelta, type SimSection } from './ui';
 
 	let {
 		current,
@@ -9,7 +9,11 @@
 		ilvlBefore,
 		ilvlAfter,
 		sections,
-		onreset
+		onreset,
+		onundo,
+		onredo,
+		canUndo,
+		canRedo
 	}: {
 		current: number;
 		simulated: number;
@@ -17,6 +21,10 @@
 		ilvlAfter: number | null;
 		sections: Record<SimSection, SectionDelta>;
 		onreset: () => void;
+		onundo: () => void;
+		onredo: () => void;
+		canUndo: boolean;
+		canRedo: boolean;
 	} = $props();
 
 	const LABELS: Record<SimSection, string> = {
@@ -36,7 +44,11 @@
 <div class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 	<div class="flex flex-row items-center bg-black/10 px-3 py-2 font-bold">
 		<span>Combat Power Simulator</span>
-		<button type="button" class="ml-auto text-xs font-normal text-surface-300 underline hover:text-surface-50" onclick={onreset}>Reset</button>
+	</div>
+	<div class="flex flex-row gap-1.5 px-2 py-2">
+		<button type="button" class="{btn} flex-1 disabled:opacity-40" disabled={!canUndo} onclick={onundo} title="Undo (Ctrl+Z)">↶ Undo</button>
+		<button type="button" class="{btn} flex-1 disabled:opacity-40" disabled={!canRedo} onclick={onredo} title="Redo (Ctrl+Y)">↷ Redo</button>
+		<button type="button" class="{btn} flex-1" onclick={onreset}>Reset</button>
 	</div>
 	<div class="flex flex-col gap-1 p-2">
 		<span class="text-xs text-surface-400">Current</span>

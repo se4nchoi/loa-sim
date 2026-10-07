@@ -61,7 +61,62 @@
 	function reset() {
 		sim = initSimState(loadout);
 	}
+
+	// Undo / redo: snapshots of the edit state. Changes within HISTORY_MERGE_MS (a slider drag, quick clicks)
+	// merge into one step.
+	const HISTORY_MERGE_MS = 400;
+	let past = $state<string[]>([]);
+	let future = $state<string[]>([]);
+	let last = untrack(() => JSON.stringify($state.snapshot(sim)));
+	let lastAt = 0;
+	let restoring = false;
+	$effect(() => {
+		const now = JSON.stringify($state.snapshot(sim));
+		untrack(() => {
+			if (now === last) return;
+			if (restoring) restoring = false;
+			else {
+				if (Date.now() - lastAt > HISTORY_MERGE_MS) past = [...past.slice(-99), last];
+				future = [];
+				lastAt = Date.now();
+			}
+			last = now;
+		});
+	});
+	$effect.pre(() => {
+		void loadout;
+		untrack(() => {
+			past = [];
+			future = [];
+			last = JSON.stringify($state.snapshot(sim));
+		});
+	});
+	function restore(json: string) {
+		restoring = true;
+		sim = JSON.parse(json);
+	}
+	function undo() {
+		const prev = past.at(-1);
+		if (prev === undefined) return;
+		past = past.slice(0, -1);
+		future = [...future, last];
+		restore(prev);
+	}
+	function redo() {
+		const next = future.at(-1);
+		if (next === undefined) return;
+		future = future.slice(0, -1);
+		past = [...past, last];
+		restore(next);
+	}
+	function onkeydown(e: KeyboardEvent) {
+		if (!(e.ctrlKey || e.metaKey) || (e.target as HTMLElement)?.tagName === 'INPUT') return;
+		if (e.key.toLowerCase() === 'z' && !e.shiftKey) (e.preventDefault(), undo());
+		else if (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey)) (e.preventDefault(), redo());
+	}
 </script>
+
+<svelte:window {onkeydown} />
 
 {#if loadout.battlePoint.isSupport}
 	<p class="text-sm text-surface-300">The simulator supports DPS loadouts only for now.</p>
@@ -70,14 +125,27 @@
 		<div class="flex min-w-0 flex-col gap-2">
 			<SimGear bind:sim {base} {itemIds} delta={sections.gear} />
 			<SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} />
-			<SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} />
 			<SimGems bind:sim {base} {gems} delta={sections.gems} />
-			<SimEngravings bind:sim {base} delta={sections.engravings} />
+			<div class="grid grid-cols-2 items-start gap-2 max-xl:grid-cols-1">
+				<SimEngravings bind:sim {base} delta={sections.engravings} />
+				<SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} />
+			</div>
 			<SimArkGrid bind:sim {base} {cores} {loadout} delta={sections.arkGrid} />
 			<SimKarma bind:sim {base} delta={sections.karma} />
 		</div>
 		<div class="flex flex-col gap-2 lg:sticky lg:top-16">
-			<SimSummary {current} {simulated} ilvlBefore={itemLevel(base)} ilvlAfter={itemLevel(sim)} {sections} onreset={reset} />
+			<SimSummary
+				{current}
+				{simulated}
+				ilvlBefore={itemLevel(base)}
+				ilvlAfter={itemLevel(sim)}
+				{sections}
+				onreset={reset}
+				onundo={undo}
+				onredo={redo}
+				canUndo={past.length > 0}
+				canRedo={future.length > 0}
+			/>
 			{@render sidebar?.()}
 		</div>
 	</div>

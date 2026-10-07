@@ -8,6 +8,7 @@
 
 	let {
 		value,
+		display,
 		options,
 		onpick,
 		preview,
@@ -15,6 +16,8 @@
 		changed = false
 	}: {
 		value: string;
+		/** What the closed picker shows; defaults to the selected option's label. */
+		display?: { label: string; color: string };
 		options: PickOption[];
 		onpick: (value: string) => void;
 		/** CP change in percent if this option were picked (relative to the current simulation). */
@@ -25,7 +28,7 @@
 
 	let open = $state(false);
 	let root: HTMLDivElement;
-	const current = $derived(options.find((o) => o.value === value));
+	const current = $derived(display ?? options.find((o) => o.value === value));
 	const groups = $derived([...new Set(options.map((o) => o.group ?? ''))]);
 	const previews = $derived(open && preview ? Object.fromEntries(options.map((o) => [o.value, preview(o.value)])) : {});
 
@@ -41,39 +44,43 @@
 	onkeydown={(e) => open && e.key === 'Escape' && (open = false)}
 />
 
-<div class="relative min-w-0" bind:this={root}>
+<div class="relative min-w-0 flex-1" bind:this={root}>
 	<button
 		type="button"
-		class="flex w-full min-w-0 flex-row items-center gap-1 rounded-xs py-0.5 pr-1 text-left transition hover:bg-black/20 {changed ? 'bg-accent-500/10 ring-1 ring-accent-500' : ''}"
+		class="flex h-9 w-full min-w-0 flex-row items-center gap-2 rounded-xs border bg-surface-950 pr-2 text-left transition hover:border-surface-500 {changed
+			? 'border-accent-500 bg-accent-500/10'
+			: 'border-surface-700'}"
 		aria-haspopup="listbox"
 		aria-expanded={open}
 		aria-label={label}
 		onclick={() => (open = !open)}
 	>
-		<span class="min-w-0 flex-1 truncate border-l-2 pl-2 text-xs sm:text-sm" style:border-color={current?.color ?? '#575757'}>
+		<span class="ml-1.5 min-w-0 flex-1 truncate border-l-2 pl-2 text-sm" style:border-color={current?.color ?? '#575757'}>
 			{current?.label ?? 'Unknown'}
 		</span>
-		<svg class="size-3 shrink-0 text-surface-400" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>
+		<svg class="size-3.5 shrink-0 text-surface-400" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>
 	</button>
 	{#if open}
 		<div
 			role="listbox"
 			aria-label={label}
-			class="absolute top-full left-0 z-30 mt-1 max-h-80 w-max max-w-[min(26rem,90vw)] min-w-full overflow-y-auto rounded-xs border border-surface-700 bg-surface-900 py-1 shadow-lg shadow-black/60"
+			class="absolute top-full left-0 z-40 mt-1 max-h-96 w-max max-w-[min(30rem,92vw)] min-w-full overflow-y-auto rounded-xs border border-surface-600 bg-surface-900 py-1 shadow-xl shadow-black/70"
 		>
 			{#each groups as g (g)}
-				{#if g}<div class="px-2 pt-1.5 pb-0.5 text-[11px] font-semibold tracking-wide text-surface-400 uppercase">{g}</div>{/if}
+				{#if g}<div class="px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-surface-400 uppercase">{g}</div>{/if}
 				{#each options.filter((o) => (o.group ?? '') === g) as o (o.value)}
 					<button
 						type="button"
 						role="option"
 						aria-selected={o.value === value}
-						class="flex w-full flex-row items-center gap-3 px-2 py-1 text-left hover:bg-black/30 {o.value === value ? 'bg-black/20' : ''}"
+						class="flex w-full flex-row items-center gap-3 px-3 py-2 text-left hover:bg-surface-800 {o.value === value ? 'bg-surface-800/70' : ''}"
 						onclick={() => pick(o.value)}
 					>
-						<span class="flex-1 border-l-2 pl-2 text-xs sm:text-sm" style:border-color={o.color}>{o.label}</span>
-						{#if previews[o.value] !== undefined && o.value !== value}
-							<span class="text-xs whitespace-nowrap {previewClass(previews[o.value])}">{formatPct(previews[o.value])}%</span>
+						<span class="flex-1 border-l-2 pl-2 text-sm" style:border-color={o.color}>{o.label}</span>
+						{#if o.value === value}
+							<span class="text-xs text-surface-400">current</span>
+						{:else if previews[o.value] !== undefined}
+							<span class="text-sm font-semibold whitespace-nowrap tabular-nums {previewClass(previews[o.value])}">{formatPct(previews[o.value])}%</span>
 						{/if}
 					</button>
 				{/each}

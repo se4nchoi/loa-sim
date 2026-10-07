@@ -4,8 +4,10 @@
 	import { ACCESSORY_LINES, ACCESSORY_MAIN_STAT_RANGE, TIERS, formatLineValue, type Tier } from '../tables';
 	import ItemIcon from './ItemIcon.svelte';
 	import LinePicker from './LinePicker.svelte';
+	import RangeInput from './RangeInput.svelte';
+	import Segmented from './Segmented.svelte';
 	import SimCard from './SimCard.svelte';
-	import { ROLL_COLORS, linkButtonClass, selectClass, type PickOption, type PreviewEdit, type SectionDelta } from './ui';
+	import { ROLL_COLORS, btn, btnAccent, type PickOption, type PreviewEdit, type SectionDelta } from './ui';
 
 	let {
 		sim = $bindable(),
@@ -30,28 +32,25 @@
 		finger1: 'Ring',
 		finger2: 'Ring'
 	};
-	const TIER_LABEL: Record<Tier, string> = { low: 'Low', mid: 'Mid', high: 'High' };
+	const TIER_OPTIONS = TIERS.toReversed().map((t) => ({
+		value: t,
+		label: { high: 'High', mid: 'Mid', low: 'Low' }[t],
+		color: ROLL_COLORS[t]
+	}));
 	const slots = $derived(ACCESSORY_SLOTS.filter((s) => sim.accessories[s]));
+	const lineOf = (key: string) => ACCESSORY_LINES.find((l) => l.key === key);
+	const same = (a: SimLine | undefined, b: SimLine) => JSON.stringify(a) === JSON.stringify(b);
 
-	const encode = (ln: SimLine) => (isOtherLine(ln) ? 'other' : `${ln.key}:${ln.tier}`);
-	const decode = (v: string, previous: SimLine): SimLine => {
-		if (v === 'other') return isOtherLine(previous) ? previous : { key: 'other', label: 'Other (no DPS value)' };
-		const [key, tier] = v.split(':');
-		return { key, tier: tier as Tier };
-	};
-
-	/** Lines this slot can roll, minus types already on its other lines (a type can't appear twice). */
+	/** Line types this slot can roll, minus types already on its other lines (a type can't appear twice). */
 	function optionsFor(slot: AccessorySlot, current: SimLine, index: number): PickOption[] {
 		const taken = new Set(sim.accessories[slot]!.filter((ln, i) => i !== index && !isOtherLine(ln)).map((ln) => ln.key));
-		const out: PickOption[] = [];
-		for (const line of ACCESSORY_LINES.filter((l) => l.slots.includes(familyOf(slot)) && !taken.has(l.key)))
-			for (const t of TIERS.toReversed())
-				out.push({
-					value: `${line.key}:${t}`,
-					label: `${line.name} ${formatLineValue(line, line.values[t])}`,
-					color: ROLL_COLORS[t],
-					group: line.primary ? 'DPS lines' : 'Any accessory'
-				});
+		const tier: Tier = isOtherLine(current) ? 'high' : current.tier;
+		const out: PickOption[] = ACCESSORY_LINES.filter((l) => l.slots.includes(familyOf(slot)) && !taken.has(l.key)).map((l) => ({
+			value: l.key,
+			label: `${l.name} ${formatLineValue(l, l.values[tier])}`,
+			color: ROLL_COLORS[tier],
+			group: l.primary ? 'DPS lines' : 'Any accessory'
+		}));
 		out.push({
 			value: 'other',
 			label: isOtherLine(current) ? current.label : 'Other (no DPS value)',
@@ -60,6 +59,20 @@
 		});
 		return out;
 	}
+
+	/** Picking a new line type keeps the line's grade (or High when it was a non-DPS line). */
+	const withKey = (ln: SimLine, key: string): SimLine =>
+		key === 'other'
+			? isOtherLine(ln)
+				? ln
+				: { key: 'other', label: 'Other (no DPS value)' }
+			: { key, tier: isOtherLine(ln) ? 'high' : ln.tier };
+
+	const display = (ln: SimLine) => {
+		if (isOtherLine(ln)) return { label: ln.label, color: ROLL_COLORS.none };
+		const l = lineOf(ln.key)!;
+		return { label: `${l.name} ${formatLineValue(l, l.values[ln.tier])}`, color: ROLL_COLORS[ln.tier] };
+	};
 
 	/** Both main DPS lines at High, replacing non-DPS or flat lines first. */
 	function maxDps(slot: AccessorySlot) {
@@ -70,59 +83,73 @@
 				lines[existing] = { key: p.key, tier: 'high' };
 				continue;
 			}
-			const replace = lines.findIndex((ln) => isOtherLine(ln) || !ACCESSORY_LINES.find((l) => l.key === ln.key)?.primary);
+			const replace = lines.findIndex((ln) => isOtherLine(ln) || !lineOf(ln.key)?.primary);
 			if (replace >= 0) lines[replace] = { key: p.key, tier: 'high' };
 		}
 	}
-	const tierWord = (ln: SimLine) => (isOtherLine(ln) ? 'no DPS value' : TIER_LABEL[ln.tier]);
+	function resetSlot(slot: AccessorySlot) {
+		sim.accessories[slot] = structuredClone($state.snapshot(base.accessories[slot]!));
+		sim.accessoryStats[slot] = base.accessoryStats[slot];
+	}
 </script>
 
 <SimCard title="Accessories" {delta}>
-	<div class="flex flex-col divide-y divide-neutral-950">
+	{#snippet actions()}
+		<button type="button" class={btnAccent} onclick={() => slots.forEach(maxDps)}>All max DPS lines</button>
+	{/snippet}
+	<div class="flex flex-col gap-3">
 		{#each slots as slot (slot)}
 			{@const look = itemLook(itemIds[slot])}
 			{@const range = ACCESSORY_MAIN_STAT_RANGE[familyOf(slot)]}
-			<div class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 py-2 first:pt-0 last:pb-0">
-				<ItemIcon src={look.icon} grade={look.grade} title={look.name} />
-				<div class="flex min-w-0 flex-col gap-1">
-					<div class="flex flex-row flex-wrap items-center gap-x-3 gap-y-1">
-						<span class="text-sm font-semibold">{LABELS[slot]}</span>
-						{#if sim.accessoryStats[slot] !== undefined}
-							<label class="flex flex-row items-center gap-1 text-xs text-surface-300">
-								{mainStatName}
-								<input
-									type="number"
-									min={range.min}
-									max={range.max}
-									step="1"
-									class="{selectClass(sim.accessoryStats[slot] !== base.accessoryStats[slot])} w-24 text-right"
-									bind:value={sim.accessoryStats[slot]}
-								/>
-								<span class="text-surface-500">{range.min.toLocaleString()}–{range.max.toLocaleString()}</span>
-							</label>
-						{/if}
-						<button type="button" class="ml-auto text-xs {linkButtonClass}" onclick={() => maxDps(slot)}>Max DPS lines</button>
-					</div>
-					<div class="grid grid-cols-3 gap-x-2 max-md:grid-cols-1">
-						{#each sim.accessories[slot]! as ln, i (i)}
-							{@const before = base.accessories[slot]?.[i]}
+			<div class="flex flex-row gap-3 rounded-xs bg-black/15 p-2.5 max-sm:flex-col">
+				<div class="flex w-20 shrink-0 flex-col items-center gap-1.5 max-sm:w-full max-sm:flex-row">
+					<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="enlightenment" size="size-12" />
+					<span class="text-sm font-semibold">{LABELS[slot]}</span>
+					<button type="button" class="{btn} w-full max-sm:ml-auto max-sm:w-auto" onclick={() => maxDps(slot)}>Max DPS</button>
+					<button type="button" class="text-xs text-surface-400 hover:text-surface-100" onclick={() => resetSlot(slot)}>Reset</button>
+				</div>
+				<div class="flex min-w-0 flex-1 flex-col gap-1.5">
+					{#each sim.accessories[slot]! as ln, i (i)}
+						{@const before = base.accessories[slot]?.[i]}
+						<div class="flex flex-row items-center gap-2">
 							<LinePicker
-								value={encode(ln)}
+								value={ln.key}
+								display={display(ln)}
 								options={optionsFor(slot, ln, i)}
-								label={`${LABELS[slot]} line ${i + 1}: ${tierWord(ln)}`}
-								changed={!before || encode(before) !== encode(ln)}
-								onpick={(v) => (sim.accessories[slot]![i] = decode(v, ln))}
-								preview={(v) => preview((s) => (s.accessories[slot]![i] = decode(v, ln)))}
+								label={`${LABELS[slot]} line ${i + 1}`}
+								changed={!before || before.key !== ln.key}
+								onpick={(key) => (sim.accessories[slot]![i] = withKey(ln, key))}
+								preview={(key) => preview((s) => (s.accessories[slot]![i] = withKey(ln, key)))}
 							/>
-						{/each}
-					</div>
+							<Segmented
+								value={isOtherLine(ln) ? null : ln.tier}
+								options={TIER_OPTIONS}
+								disabled={isOtherLine(ln)}
+								label={`${LABELS[slot]} line ${i + 1} grade`}
+								onselect={(t) => !isOtherLine(ln) && (sim.accessories[slot]![i] = { key: ln.key, tier: t })}
+								size="h-9 min-w-12 px-2 text-sm max-sm:min-w-10"
+							/>
+							{#if before && !same(before, ln)}<span class="size-1.5 shrink-0 rounded-full bg-accent-400" title="Changed"></span>{/if}
+						</div>
+					{/each}
+					{#if sim.accessoryStats[slot] !== undefined}
+						<div class="mt-1 flex flex-row">
+							<RangeInput
+								bind:value={sim.accessoryStats[slot]!}
+								min={range.min}
+								max={range.max}
+								label={mainStatName}
+								changed={sim.accessoryStats[slot] !== base.accessoryStats[slot]}
+							/>
+						</div>
+					{/if}
 				</div>
 			</div>
 		{/each}
 	</div>
-	<p class="mt-2 text-xs text-surface-400">
-		Line colors follow lostark.bible: <span style:color={ROLL_COLORS.high}>High</span>,
-		<span style:color={ROLL_COLORS.mid}>Mid</span>, <span style:color={ROLL_COLORS.low}>Low</span>. Open a line to see
-		what each alternative would do to your CP. ≈ Weapon Power lines are estimated.
+	<p class="mt-3 text-xs text-surface-400">
+		Open a line to see what every alternative would do to your CP. Grades follow lostark.bible's colors:
+		<span style:color={ROLL_COLORS.high}>High</span>, <span style:color={ROLL_COLORS.mid}>Mid</span>,
+		<span style:color={ROLL_COLORS.low}>Low</span>. ≈ Weapon Power lines are estimated.
 	</p>
 </SimCard>

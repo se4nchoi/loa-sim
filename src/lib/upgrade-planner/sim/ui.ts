@@ -1,11 +1,18 @@
 import type { SimState } from '../simulate';
 
 export const selectClass = (changed: boolean) =>
-	`rounded-xs border bg-surface-950 px-1.5 py-0.5 text-sm text-surface-100 focus:outline-none focus:border-accent-500 ${
+	`h-8 rounded-xs border bg-surface-950 px-2 text-sm text-surface-100 focus:outline-none focus:border-accent-500 ${
 		changed ? 'border-accent-500 bg-accent-500/10' : 'border-surface-700'
 	}`;
 
 export const linkButtonClass = 'text-surface-300 underline hover:text-surface-50';
+
+/** Solid compact button (section actions like "All Lv. 10"). */
+export const btn =
+	'inline-flex h-7 items-center justify-center rounded-xs border border-surface-700 bg-surface-800 px-2.5 text-xs font-semibold text-surface-100 transition hover:border-surface-500 hover:bg-surface-700 active:bg-surface-600';
+/** Accent variant for the main action in a group. */
+export const btnAccent =
+	'inline-flex h-7 items-center justify-center rounded-xs border border-accent-700 bg-accent-700/30 px-2.5 text-xs font-semibold text-accent-100 transition hover:bg-accent-700/50';
 
 export const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
 
