@@ -44,8 +44,10 @@ export const isOtherLine = (ln: SimLine): ln is OtherLine => ln.key === 'other';
 export interface SimState {
 	gear: Partial<Record<HoningSlot, { honing: number; advanced: number }>>;
 	accessories: Partial<Record<AccessorySlot, SimLine[]>>;
-	/** Level of each gem, in the order of the loadout's gem parts. */
-	gems: number[];
+	/** Each gem, in the order of the loadout's gem parts. Only `level` affects Combat Power. */
+	gems: SimGem[];
+	/** Optional damage share per skill id, in percent of total damage; enables the DPS estimate. */
+	skillShares: Record<number, number>;
 	/** Per engraving id: relic book step (0–4 → 0/5/10/15/20 books) and ability stone level (0–4). */
 	engravings: Record<number, { books: number; stone: number }>;
 	/** Main stat (Str/Dex/Int) on each accessory. */
@@ -54,6 +56,33 @@ export interface SimState {
 	arkGrid: SimCore[];
 	bracelet: SimBracelet | null;
 	karma: { evolution: number | null; leap: number | null };
+}
+
+export type GemKind = 'damage' | 'cooldown';
+
+export interface SimGem {
+	level: number;
+	kind: GemKind;
+	/** Skill the gem applies to, or null when unknown. */
+	skill: number | null;
+}
+
+/** Bible's gem effect types: 5 = skill damage, 27 = skill cooldown. */
+const GEM_EFFECT_TYPE: Record<number, GemKind> = { 5: 'damage', 27: 'cooldown' };
+
+function readGems(l: Loadout): SimGem[] {
+	const pool = [...(l.gems ?? [])];
+	return gemParts(l).map((g) => {
+		// Gem parts follow the gems' slot order; fall back to the first unused gem with the same id.
+		const at = pool.findIndex((x) => x.id === g.id);
+		const gem = at >= 0 ? pool.splice(at, 1)[0] : undefined;
+		const effect = gem?.effects?.find((e) => GEM_EFFECT_TYPE[e.type]);
+		return {
+			level: g.level,
+			kind: effect ? GEM_EFFECT_TYPE[effect.type] : g.kind === 'cooldown' ? 'cooldown' : 'damage',
+			skill: effect?.id ?? null
+		};
+	});
 }
 
 export interface SimAstrogem {
@@ -170,7 +199,8 @@ export function initSimState(l: Loadout): SimState {
 	return {
 		gear,
 		accessories,
-		gems: gemParts(l).map((g) => g.level),
+		gems: readGems(l),
+		skillShares: {},
 		engravings: Object.fromEntries(engravingStates(l).map((e) => [e.id, { books: e.col, stone: e.stone }])),
 		accessoryStats,
 		arkGrid: (l.arkGridCores ?? []).map((c) => ({
@@ -294,7 +324,7 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	// --- Gems (gemParts keeps the loadout's part order, so the k-th gem part lines up with state.gems[k])
 	const gemIndices = parts.flatMap((p, i) => (p.type === PartType.Gem && typeof p.id === 'number' ? [i] : []));
 	gemParts(l).forEach((g, k) => {
-		const level = state.gems[k];
+		const level = state.gems[k]?.level;
 		if (g.table && level && level !== g.level) parts[gemIndices[k]].value = g.table[level - 1];
 	});
 

@@ -19,7 +19,7 @@
 	/** Same gem at another level: the level sits in the id's tens/hundreds digits (6503[1][09][0]). */
 	const gemAt = (id: number, level: number) => Math.floor(id / 1000) * 1000 + level * 10 + (id % 10);
 	const setAll = (fn: (current: number) => number) =>
-		editable.forEach(({ i }) => (sim.gems[i] = Math.min(10, Math.max(1, fn(sim.gems[i])))));
+		editable.forEach(({ i }) => (sim.gems[i].level = Math.min(10, Math.max(1, fn(sim.gems[i].level)))));
 </script>
 
 <SimCard title="Gems" {delta}>
@@ -34,18 +34,18 @@
 			<span class="mx-1 h-5 w-px bg-surface-700"></span>
 			<button type="button" class={btn} onclick={() => setAll((v) => v - 1)}>All −1</button>
 			<button type="button" class={btn} onclick={() => setAll((v) => v + 1)}>All +1</button>
-			<button type="button" class={btn} onclick={() => editable.forEach(({ i }) => (sim.gems[i] = base.gems[i]))}>Reset</button>
+			<button type="button" class={btn} onclick={() => editable.forEach(({ i }) => (sim.gems[i] = structuredClone($state.snapshot(base.gems[i]))))}>Reset</button>
 		</div>
 		<div class="grid grid-cols-[repeat(auto-fill,minmax(6.75rem,1fr))] gap-2">
 			{#each editable as { g, i } (i)}
-				{@const look = itemLook(gemAt(g.id, sim.gems[i]))}
+				{@const look = itemLook(gemAt(g.id, sim.gems[i].level))}
 				<div
-					class="flex flex-col items-center gap-1.5 rounded-xs p-2 {sim.gems[i] !== base.gems[i] ? 'bg-accent-500/10 ring-1 ring-accent-500' : 'bg-black/15'}"
+					class="flex flex-col items-center gap-1.5 rounded-xs p-2 {sim.gems[i].level !== base.gems[i].level ? 'bg-accent-500/10 ring-1 ring-accent-500' : 'bg-black/15'}"
 					title={look.name}
 				>
-					<ItemIcon src={look.icon} grade={look.grade} size="size-12" badge={sim.gems[i]} />
+					<ItemIcon src={look.icon} grade={look.grade} size="size-12" badge={sim.gems[i].level} />
 					<span class="text-xs text-surface-400">{g.tier} {KIND[g.kind]}</span>
-					<Stepper bind:value={sim.gems[i]} min={1} max={10} label={`${KIND[g.kind]} gem ${i + 1} level`} width="w-6" />
+					<Stepper bind:value={sim.gems[i].level} min={1} max={10} label={`${KIND[g.kind]} gem ${i + 1} level`} width="w-6" />
 				</div>
 			{/each}
 		</div>

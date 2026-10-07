@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { PartType } from './cp';
 import soulshan from './fixtures/na-soulshan.json';
 import { HONING_TABLE } from './honing-data';
-import { initSimState, itemLevel, mainStatIndex, optionLevel, simCorePoints, simulate, type SimState } from './simulate';
+import { gemDpsGainPct } from './dps';
+import { gemParts, initSimState, itemLevel, mainStatIndex, optionLevel, simCorePoints, simulate, type SimState } from './simulate';
 import type { Loadout } from './types';
 
 const loadout = soulshan as unknown as Loadout;
@@ -41,7 +42,9 @@ describe('initSimState', () => {
 	});
 
 	it('reads gems, engravings, astrogems and karma', () => {
-		expect(s.gems).toEqual([9, 9, 9, 9, 9, 10, 9, 9, 9, 9, 9]);
+		expect(s.gems.map((g) => g.level)).toEqual([9, 9, 9, 9, 9, 10, 9, 9, 9, 9, 9]);
+		expect(s.gems[0]).toEqual({ level: 9, kind: 'damage', skill: 46500 }); // Reaper's Scythe
+		expect(s.gems[4]).toEqual({ level: 9, kind: 'cooldown', skill: 46430 }); // Astaros
 		expect(s.engravings[1254]).toEqual({ books: 4, stone: 3 });
 		expect(s.arkGrid).toHaveLength(6);
 		expect(s.arkGrid[0].gems).toHaveLength(4);
@@ -63,13 +66,46 @@ describe('initSimState', () => {
 	});
 });
 
+describe('gem DPS estimate', () => {
+	const parts = gemParts(loadout);
+
+	it('is null until a damage share is entered', () => {
+		expect(gemDpsGainPct(fresh().gems, fresh().gems, parts, {})).toBeNull();
+	});
+
+	it('scales a damage gem by its skill share', () => {
+		const before = fresh().gems;
+		const after = structuredClone(before);
+		after[0].level = 10; // Reaper's Scythe damage 40% → 44%
+		const gain = gemDpsGainPct(before, after, parts, { 46500: 25 })!;
+		expect(gain).toBeCloseTo(25 * (1.44 / 1.4 - 1), 9);
+		// The same upgrade on a skill doing 2% of the damage is worth 1/12.5 as much.
+		expect(gemDpsGainPct(before, after, parts, { 46500: 2 })!).toBeCloseTo(gain / 12.5, 9);
+	});
+
+	it('treats cooldown gems as more casts', () => {
+		const before = fresh().gems;
+		const after = structuredClone(before);
+		after[4].level = 10; // Astaros cooldown 22% → 24%; Astaros also has a Lv. 10 damage gem
+		expect(gemDpsGainPct(before, after, parts, { 46430: 20 })!).toBeCloseTo(20 * (0.78 / 0.76 - 1), 9);
+	});
+
+	it('moving a gem to another skill shifts the gain to that skill', () => {
+		const before = fresh().gems;
+		const after = structuredClone(before);
+		after[0].skill = 46450; // Reaper's Scythe's damage gem moved to Death Yard
+		const gain = gemDpsGainPct(before, after, parts, { 46500: 20, 46450: 2 })!;
+		expect(gain).toBeCloseTo(20 * (1 / 1.4 - 1) + 2 * (1.4 - 1), 9);
+	});
+});
+
 describe('simulate', () => {
 	it('reproduces the current CP exactly when nothing is edited', () => {
 		expect(CP).toBeCloseTo(loadout.combatPower!.score, 2);
 	});
 
 	it('one gem Lv. 9 → 10', () => {
-		expect(pct(edit((s) => (s.gems[0] = 10)))).toBeCloseTo((10704 / 10640 - 1) * 100, 6);
+		expect(pct(edit((s) => (s.gems[0].level = 10)))).toBeCloseTo((10704 / 10640 - 1) * 100, 6);
 	});
 
 	it('necklace Outgoing Damage mid → high', () => {
@@ -148,7 +184,7 @@ describe('simulate', () => {
 
 	it('combines edits multiplicatively', () => {
 		const both = edit((s) => {
-			s.gems[0] = 10;
+			s.gems[0].level = 10;
 			s.karma.leap = 30;
 		});
 		expect(both / CP).toBeCloseTo((10704 / 10640) * (10060 / 10056), 9);

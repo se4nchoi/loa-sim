@@ -51,7 +51,8 @@ export interface Loadout {
 	combatPower?: { id: number; score: number } | null;
 	battlePoint: BattlePoint;
 	items?: LoadoutItem[];
-	gems?: { slot: number; id: number }[];
+	/** Equipped gems; `effects` carries the skill: type 5 = damage gem, type 27 = cooldown gem (id = skill id). */
+	gems?: { slot: number; id: number; effects?: { type: number; id: number; value: number }[] }[];
 	arkGridCores?: ArkGridCore[];
 	engravings?: { id: number; grade: string; progress: number }[];
 	karma?: { evolution: number; enlightenment: number; leap: number };
