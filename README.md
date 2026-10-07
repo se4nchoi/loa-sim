@@ -40,8 +40,19 @@ npm test
 - `scripts/bake-honing.mjs` regenerates the honing table from the game data.
 - `legacy/` has the first standalone prototype.
 
-## About fetching from lostark.bible
+## Loading a character
 
-lostark.bible's `robots.txt` disallows automated access, and its OAuth API doesn't expose gear. The demo
-therefore fetches one character per user request and caches it for 30 minutes. It never crawls. The
-intended path is for lostark.bible to host the component itself, where no extra fetching is needed.
+Players load their own character on the home page. They enter a name, open a link to their character's
+lostark.bible data, then copy all of it and paste it in. The request comes from the player's own browser (normal
+browsing), the data is decoded client-side, and it's saved in their browser so a return visit opens straight
+into the simulator. Nothing is uploaded.
+
+To capture current gear, the player sets it up in game, goes to character select (or switches characters), then
+presses refresh on their lostark.bible page. In practice that's when a fresh snapshot reaches the site.
+
+### Why not fetch it for them?
+
+lostark.bible's `robots.txt` disallows automated access, its OAuth API doesn't expose gear, and its data has no CORS
+headers. So a public deployment must not proxy it. `/character/<region>/<name>` fetches server-side only when
+`BIBLE_SERVER_FETCH=1` (see `.env.example`). That's meant for local development, or for after the site owner says
+it's fine. Otherwise it redirects to the paste flow with the name filled in.
