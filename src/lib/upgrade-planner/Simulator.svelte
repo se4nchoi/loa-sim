@@ -12,6 +12,7 @@
 	import SimGear from './sim/SimGear.svelte';
 	import SimGems from './sim/SimGems.svelte';
 	import SimKarma from './sim/SimKarma.svelte';
+	import MobileSummaryBar from './sim/MobileSummaryBar.svelte';
 	import SimSummary from './sim/SimSummary.svelte';
 	import { SECTIONS, type PreviewEdit, type SectionDelta, type SimSection } from './sim/ui';
 	import { gemParts, initSimState, itemLevel, mainStatIndex, simulate, type SimState } from './simulate';
@@ -118,9 +119,26 @@
 
 <svelte:window {onkeydown} />
 
+{#snippet summary()}
+	<SimSummary
+		{current}
+		{simulated}
+		ilvlBefore={itemLevel(base)}
+		ilvlAfter={itemLevel(sim)}
+		{sections}
+		onreset={reset}
+		onundo={undo}
+		onredo={redo}
+		canUndo={past.length > 0}
+		canRedo={future.length > 0}
+	/>
+{/snippet}
+
 {#if loadout.battlePoint.isSupport}
 	<p class="text-sm text-surface-300">The simulator supports DPS loadouts only for now.</p>
 {:else}
+	<!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
+	<MobileSummaryBar {current} {simulated}>{@render summary()}</MobileSummaryBar>
 	<div class="grid grid-cols-[1fr_280px] items-start gap-2 max-lg:grid-cols-1">
 		<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
 		<div class="flex min-w-0 flex-col gap-2">
@@ -139,18 +157,7 @@
 			<SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} />
 		</div>
 		<div class="flex flex-col gap-2 lg:sticky lg:top-16">
-			<SimSummary
-				{current}
-				{simulated}
-				ilvlBefore={itemLevel(base)}
-				ilvlAfter={itemLevel(sim)}
-				{sections}
-				onreset={reset}
-				onundo={undo}
-				onredo={redo}
-				canUndo={past.length > 0}
-				canRedo={future.length > 0}
-			/>
+			<div class="max-lg:hidden">{@render summary()}</div>
 			{@render sidebar?.()}
 		</div>
 	</div>

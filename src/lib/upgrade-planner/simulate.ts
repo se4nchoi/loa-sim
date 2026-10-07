@@ -13,8 +13,10 @@ import {
 	ASTROGEM_COEFF,
 	GEM_T3,
 	GEM_T4,
+	KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL,
 	KARMA_EVOLUTION_PER_RANK,
 	KARMA_LEAP_PER_LEVEL,
+	karmaRank,
 	TIERS,
 	astrogemOptionValue,
 	type AccessoryFamily,
@@ -55,7 +57,8 @@ export interface SimState {
 	/** Ark grid cores with their astrogems; core points and option totals are derived from these. */
 	arkGrid: SimCore[];
 	bracelet: SimBracelet | null;
-	karma: { evolution: number | null; leap: number | null };
+	/** Karma levels (0–30) per tree; null when the loadout has no karma data. */
+	karma: { evolution: number | null; enlightenment: number | null; leap: number | null };
 }
 
 export type GemKind = 'damage' | 'cooldown';
@@ -194,7 +197,6 @@ export function initSimState(l: Loadout): SimState {
 				effects: braceletStats.filter((s) => s.type === 3 || s.type === 4).map((s) => `${s.type}:${s.index}`)
 			}
 		: null;
-	const evo = l.battlePoint.parts.find((p) => p.type === PartType.KarmaEvolutionRank);
 	const leap = l.battlePoint.parts.find((p) => p.type === PartType.KarmaLeapLevel);
 	return {
 		gear,
@@ -211,8 +213,9 @@ export function initSimState(l: Loadout): SimState {
 		})),
 		bracelet,
 		karma: {
-			evolution: evo ? Math.round(partHigh(evo) / KARMA_EVOLUTION_PER_RANK) : null,
-			leap: leap ? Math.round(partHigh(leap) / KARMA_LEAP_PER_LEVEL) : null
+			evolution: l.karma?.evolution ?? null,
+			enlightenment: l.karma?.enlightenment ?? null,
+			leap: l.karma?.leap ?? (leap ? Math.round(partHigh(leap) / KARMA_LEAP_PER_LEVEL) : null)
 		}
 	};
 }
@@ -313,8 +316,10 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 		else mainStat += (gearStat(slot, to) - gearStat(slot, from)) * ADVANCED_STAT_BONUS;
 	}
 	// Weapon Power % from accessories multiplies everything else; assume they're the only % source we can change.
-	const pct0 = linesTotal(base.accessories, 'percent') / 100;
-	const pct1 = linesTotal(state.accessories, 'percent') / 100;
+	// Enlightenment karma adds Weapon Power % the same way.
+	const karmaPct = (s: SimState) => (s.karma.enlightenment ?? 0) * KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL;
+	const pct0 = linesTotal(base.accessories, 'percent') / 100 + karmaPct(base);
+	const pct1 = linesTotal(state.accessories, 'percent') / 100 + karmaPct(state);
 	weaponPower += (linesTotal(state.accessories, 'flat') - linesTotal(base.accessories, 'flat')) * (1 + pct0 / 100);
 	weaponPower *= (100 + pct1) / (100 + pct0);
 	if (mainStat0 && weapon0)
@@ -387,8 +392,12 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	}
 
 	// --- Karma
-	if (state.karma.evolution !== null && state.karma.evolution !== base.karma.evolution)
-		set(PartType.KarmaEvolutionRank, () => true, state.karma.evolution * KARMA_EVOLUTION_PER_RANK);
+	// Evolution karma scores by rank (derived from level), anchored on bible's value.
+	if (state.karma.evolution !== null && base.karma.evolution !== null && state.karma.evolution !== base.karma.evolution) {
+		const part = parts.find((p) => p.type === PartType.KarmaEvolutionRank);
+		const rankDelta = karmaRank(state.karma.evolution) - karmaRank(base.karma.evolution);
+		set(PartType.KarmaEvolutionRank, () => true, (part ? partHigh(part) : 0) + rankDelta * KARMA_EVOLUTION_PER_RANK);
+	}
 	if (state.karma.leap !== null && state.karma.leap !== base.karma.leap)
 		set(PartType.KarmaLeapLevel, () => true, state.karma.leap * KARMA_LEAP_PER_LEVEL);
 

@@ -234,3 +234,12 @@ export const KARMA_EVOLUTION_PER_RANK = 60; // max rank 6
 export const KARMA_EVOLUTION_MAX_RANK = 6;
 export const KARMA_LEAP_PER_LEVEL = 2; // max level 30
 export const KARMA_LEAP_MAX_LEVEL = 30;
+
+// [game] Karma trees run levels 1–30; each tree ranks up on reaching these levels (rank 1 from level 1).
+export const KARMA_MAX_LEVEL = 30;
+const KARMA_RANK_UP_AT = [5, 9, 13, 17, 21];
+export const karmaRank = (level: number) => (level <= 0 ? 0 : 1 + KARMA_RANK_UP_AT.filter((l) => level >= l).length);
+/** Evolution karma: +400 Max HP per level. */
+export const KARMA_EVOLUTION_HP_PER_LEVEL = 400;
+/** Enlightenment karma: +0.1% Weapon Power per level. */
+export const KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL = 0.1;

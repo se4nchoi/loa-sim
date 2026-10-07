@@ -50,7 +50,7 @@ describe('initSimState', () => {
 		expect(s.arkGrid[0].gems).toHaveLength(4);
 		expect(simCorePoints(loadout, s, s, 673004436)).toBe(17);
 		expect(optionLevel(s.arkGrid, 2003)).toBe(49);
-		expect(s.karma).toEqual({ evolution: 6, leap: 28 });
+		expect(s.karma).toEqual({ evolution: 23, enlightenment: 29, leap: 28 });
 	});
 
 	it('reads accessory main stat and the bracelet', () => {
@@ -176,6 +176,20 @@ describe('simulate', () => {
 		// Crit +86 → +100: combat stats 7653 → 7695
 		const cp = edit((s) => (s.bracelet!.stats[0].value = 100));
 		expect(pct(cp)).toBeCloseTo(((10000 + 7653 + 14 * 3) / (10000 + 7653) - 1) * 100, 6);
+	});
+
+	it('evolution karma scores by rank: Lv. 23 (rank 6) → Lv. 20 (rank 5) loses 60', () => {
+		expect(pct(edit((s) => (s.karma.evolution = 20)))).toBeCloseTo((10300 / 10360 - 1) * 100, 6);
+		expect(pct(edit((s) => (s.karma.evolution = 25)))).toBeCloseTo(0, 9); // still rank 6
+	});
+
+	it('enlightenment karma adds 0.1% Weapon Power per level', () => {
+		const s = fresh();
+		s.karma.enlightenment = 30; // 29 → 30
+		const r = simulate(loadout, s);
+		const base = loadout.battlePoint.parts.find((p) => p.type === PartType.BaseAttack)! as Record<string, number>;
+		// Weapon % before: earrings 1.8 + 3.0 + karma 2.9 = 7.7; after 7.8.
+		expect(r.weaponPower / base.weaponPower).toBeCloseTo(107.8 / 107.7, 9);
 	});
 
 	it('karma', () => {

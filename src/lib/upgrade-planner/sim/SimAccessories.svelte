@@ -127,7 +127,11 @@
 								onselect={(t) => !isOtherLine(ln) && (sim.accessories[slot]![i] = { key: ln.key, tier: t })}
 								size="h-8 min-w-10 px-1.5 text-xs"
 							/>
-							{#if before && !same(before, ln)}<span class="size-1.5 shrink-0 rounded-full bg-accent-400" title="Changed"></span>{/if}
+							<span
+								class="size-1.5 shrink-0 rounded-full {before && !same(before, ln) ? 'bg-accent-400' : 'invisible'}"
+								title="Changed"
+								aria-hidden="true"
+							></span>
 						</div>
 					{/each}
 					<div class="mt-0.5 flex flex-row items-center gap-1.5">

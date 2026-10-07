@@ -68,16 +68,16 @@
 		<div class="grid grid-cols-2 gap-3 max-lg:grid-cols-1">
 			{#each columns as col (col.title)}
 				<div class="flex flex-col gap-2">
-					<span class="text-xs font-semibold tracking-wide uppercase {col.title === 'Order' ? 'text-amber-300' : 'text-sky-300'}">{col.title}</span>
+					<span class="text-xs font-semibold tracking-wide uppercase max-sm:text-center {col.title === 'Order' ? 'text-amber-300' : 'text-sky-300'}">{col.title}</span>
 					{#each col.rows as { core, ci } (core.id)}
 						{@const look = coreLook(core.info)}
 						{@const points = simCorePoints(loadout, sim, base, core.id)}
 						{@const used = sim.arkGrid[ci].gems.reduce((s, g) => s + willpowerOf(g), 0)}
 						{@const cap = CORE_WILLPOWER[core.info.grade]}
 						<div class="flex flex-col gap-1 rounded-xs bg-black/15 p-2">
-							<div class="flex flex-row items-center gap-2 pb-1">
+							<div class="flex flex-row items-center gap-2 pb-1 max-sm:justify-center">
 								<ItemIcon src={look.icon} grade={look.grade} size="size-9" />
-								<div class="flex min-w-0 flex-1 flex-col">
+								<div class="flex min-w-0 flex-1 flex-col max-sm:flex-none">
 									<span class="truncate text-sm font-semibold">{core.label}</span>
 									<span class="text-xs text-surface-400">
 										<b class={points !== core.points ? 'text-accent-300' : 'text-surface-100'}>{points}P</b>
@@ -91,7 +91,7 @@
 							{#each sim.arkGrid[ci].gems as gem, gi (gi)}
 								{@const gl = itemLook(gem.itemId)}
 								{@const before = base.arkGrid[ci]?.gems[gi]}
-								<div class="flex flex-row flex-wrap items-center gap-1.5">
+								<div class="flex flex-row flex-wrap items-center gap-1.5 max-sm:justify-center">
 									<ItemIcon src={gl.icon} grade={gl.grade} size="size-7" title={`${gl.name} · ${willpowerOf(gem)} willpower`} />
 									<span class="w-16 truncate text-[11px] text-surface-400" title={kindOf(gem)?.name}>{kindOf(gem)?.name ?? 'Astrogem'} · {willpowerOf(gem)}</span>
 									<MenuPicker

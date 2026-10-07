@@ -55,6 +55,7 @@ export interface Loadout {
 	gems?: { slot: number; id: number; effects?: { type: number; id: number; value: number }[] }[];
 	arkGridCores?: ArkGridCore[];
 	engravings?: { id: number; grade: string; progress: number }[];
+	/** Karma levels (1–30) per ark passive tree. */
 	karma?: { evolution: number; enlightenment: number; leap: number };
 	/** Character stat totals; `type` is the stat index (3/4/5 = Str/Dex/Int, 15/16/18 = Crit/Spec/Swift). */
 	stats?: { type: number; value: number }[];
