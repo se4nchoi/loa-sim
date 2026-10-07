@@ -20,6 +20,12 @@ export const bibleDataUrl = (region: string, name: string) =>
 export const bibleCharacterUrl = (region: string, name: string) =>
 	`https://lostark.bible/character/${encodeURIComponent(region)}/${encodeURIComponent(name)}`;
 
+/** Game naming convention: first letter upper case, the rest lower case ("sOULSHAN" → "Soulshan", "élan" → "Élan"). */
+export const normalizeName = (name: string) => {
+	const chars = [...name.trim()];
+	return chars.length ? chars[0].toLocaleUpperCase() + chars.slice(1).join('').toLocaleLowerCase() : '';
+};
+
 /** Accepts "Name", or a lostark.bible character URL (with or without the data suffix). */
 export function parseCharacterInput(input: string, fallbackRegion: Region): { region: Region; name: string } | null {
 	const text = input.trim();
@@ -28,10 +34,10 @@ export function parseCharacterInput(input: string, fallbackRegion: Region): { re
 	if (m) {
 		const region = m[1].toUpperCase();
 		if (!(REGIONS as readonly string[]).includes(region)) return null;
-		return { region: region as Region, name: decodeURIComponent(m[2]) };
+		return { region: region as Region, name: normalizeName(decodeURIComponent(m[2])) };
 	}
 	if (/[/\s]/.test(text)) return null;
-	return { region: fallbackRegion, name: text };
+	return { region: fallbackRegion, name: normalizeName(text) };
 }
 
 /** SvelteKit serializes page data with devalue's flat format: values reference each other by index. */

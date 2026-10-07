@@ -11,10 +11,11 @@
 		current,
 		simulated,
 		children,
-		top = 'top-[49px]'
+		top = 'top-12'
 	}: { current: number; simulated: number; children: Snippet; top?: string } = $props();
 
-	let open = $state(false);
+	// Expanded by default on phones; the bar shrinks to one line when hidden.
+	let open = $state(true);
 	const delta = $derived((simulated / current - 1) * 100);
 </script>
 
@@ -31,8 +32,8 @@
 		<span class="text-surface-500">→</span>
 		<span class="text-base font-bold text-red-400 tabular-nums">{formatCp(simulated)}</span>
 		<Delta pct={delta} cp={simulated - current} class="text-xs font-semibold" />
-		<span class="ml-auto flex items-center gap-1 text-xs text-surface-300">
-			{open ? 'Hide' : 'Details'}
+		<span class="ml-auto flex items-center gap-1 rounded-xs border border-surface-600 bg-surface-800 px-2 py-1 text-xs font-semibold text-surface-100">
+			{open ? 'Hide' : 'Show'}
 			<svg class="size-3 transition {open ? 'rotate-180' : ''}" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>
 		</span>
 	</button>

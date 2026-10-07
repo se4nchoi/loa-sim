@@ -17,6 +17,13 @@ describe('parseCharacterInput', () => {
 		});
 	});
 
+	it('normalizes capitalization the way the game names characters, accents included', () => {
+		expect(parseCharacterInput('sOULSHAN', 'NA')).toEqual({ region: 'NA', name: 'Soulshan' });
+		expect(parseCharacterInput('élÁN', 'CE')).toEqual({ region: 'CE', name: 'Élán' });
+		expect(parseCharacterInput('https://lostark.bible/character/NA/%C3%AFris', 'CE')).toEqual({ region: 'NA', name: 'Ïris' });
+		expect(bibleDataUrl('NA', 'Élán')).toBe('https://lostark.bible/character/NA/%C3%89l%C3%A1n/__data.json?x-sveltekit-invalidated=011');
+	});
+
 	it('rejects junk', () => {
 		expect(parseCharacterInput('', 'NA')).toBeNull();
 		expect(parseCharacterInput('two words', 'NA')).toBeNull();

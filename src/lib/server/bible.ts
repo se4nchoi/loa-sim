@@ -17,7 +17,7 @@ export async function loadCharacter(region: string, name: string, fetchFn: typeo
 	if (hit && Date.now() - hit.at < TTL_MS) return hit.data;
 
 	const res = await fetchFn(bibleDataUrl(region, name), {
-		headers: { 'user-agent': 'loa-eff combat power simulator (single lookups)' }
+		headers: { 'user-agent': 'loa-sim combat power simulator (single lookups)' }
 	});
 	if (!res.ok) throw new Error(`lostark.bible returned ${res.status}`);
 	const data = decodeCharacterData(await res.json(), name, region);

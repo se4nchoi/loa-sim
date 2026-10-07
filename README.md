@@ -1,4 +1,4 @@
-# loa-eff: Combat Power Simulator for lostark.bible
+# loa-sim: Combat Power Simulator for lostark.bible
 
 A lo4.app-style Combat Power simulator for NA/CE Lost Ark characters, built as a drop-in component for
 [lostark.bible](https://lostark.bible). Load a character, then change:

@@ -10,7 +10,7 @@
 	}: { name: string; region: string; subtitle?: string; loadout: Loadout | null } = $props();
 </script>
 
-<svelte:head><title>{name} ({region}) | Combat Power Simulator</title></svelte:head>
+<svelte:head><title>{name} ({region}) | loa-sim</title></svelte:head>
 
 <div class="mb-4 flex flex-col gap-1">
 	<div class="flex flex-row gap-1 text-xs">
