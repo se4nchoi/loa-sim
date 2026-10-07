@@ -114,8 +114,8 @@ export const ASTROGEM_OPTION_NAMES: Record<number, string> = {
 	2002: 'Additional Damage',
 	2003: 'Boss Damage',
 	2011: 'Ally Damage Enh.',
-	2012: 'Ally Atk. Enh.',
-	2013: 'Brand Power'
+	2012: 'Brand Power',
+	2013: 'Ally Atk. Enh.'
 };
 
 // ---------------------------------------------------------------------------------------------
