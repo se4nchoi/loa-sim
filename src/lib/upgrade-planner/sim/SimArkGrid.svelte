@@ -131,9 +131,5 @@
 				</div>
 			{/each}
 		</div>
-		<p class="mt-2 text-xs text-surface-400">
-			Core points and option totals add up from the astrogems. Grey options don't count for DPS Combat Power. The number
-			after an astrogem's kind is its willpower.
-		</p>
 	{/if}
 </SimCard>

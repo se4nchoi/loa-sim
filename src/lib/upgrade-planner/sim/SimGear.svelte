@@ -33,7 +33,7 @@
 	}
 </script>
 
-<SimCard title="Equipment" {delta}>
+<SimCard title="Equipment" {delta} info="Approximate: stats from the game's T4 1675 honing tables. Armor adds main stat; the weapon scales Weapon Power.">
 	{#snippet actions()}
 		<button type="button" class={btn} onclick={() => bumpAll(-1)}>All −1</button>
 		<button type="button" class={btn} onclick={() => bumpAll(1)}>All +1</button>
@@ -58,8 +58,5 @@
 				<span class="text-right text-sm tabular-nums max-sm:hidden {g.honing !== b.honing ? 'text-accent-300' : 'text-surface-300'}">{1675 + 5 * g.honing}</span>
 			{/each}
 		</div>
-		<p class="mt-3 text-xs text-surface-400">
-			≈ Stats from the game's T4 1675 honing tables. Armor adds main stat; the weapon scales Weapon Power.
-		</p>
 	{/if}
 </SimCard>

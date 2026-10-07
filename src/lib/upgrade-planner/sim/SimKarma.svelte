@@ -25,17 +25,17 @@
 		const rank = karmaRank(level);
 		if (tree === 'evolution')
 			return [
-				{ label: `+${((rank * KARMA_EVOLUTION_PER_RANK) / 100).toFixed(2)}% CP`, sub: `rank ${rank}` },
-				{ label: `+${(level * KARMA_EVOLUTION_HP_PER_LEVEL).toLocaleString()} Max HP`, sub: 'matters for supports' }
+				{ label: `+${((rank * KARMA_EVOLUTION_PER_RANK) / 100).toFixed(2)}% CP` },
+				{ label: `+${(level * KARMA_EVOLUTION_HP_PER_LEVEL).toLocaleString()} Max HP` }
 			];
 		if (tree === 'enlightenment')
 			return [
 				{ label: `+${(level * KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL).toFixed(1)}% Weapon Power` },
-				{ label: `+${rank} enlightenment point${rank === 1 ? '' : 's'}`, sub: 'from rank' }
+				{ label: `+${rank} enlightenment point${rank === 1 ? '' : 's'}` }
 			];
 		return [
 			{ label: `+${((level * KARMA_LEAP_PER_LEVEL) / 100).toFixed(2)}% CP` },
-			{ label: `+${rank * 2} leap points`, sub: 'from rank' }
+			{ label: `+${rank * 2} leap points` }
 		];
 	};
 	const trees = $derived(TREES.filter((t) => sim.karma[t.key] !== null));

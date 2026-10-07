@@ -91,9 +91,5 @@
 				</div>
 			</div>
 		</div>
-		<p class="mt-2 text-xs text-surface-400">
-			Effect values are the game's own Combat Power weights. Only {COMBAT_STAT_INDICES.map(statName).join(', ')} count
-			toward Combat Power ({3} per point); the colors show an effect's grade within its family.
-		</p>
 	</SimCard>
 {/if}

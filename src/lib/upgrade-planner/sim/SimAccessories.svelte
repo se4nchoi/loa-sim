@@ -93,7 +93,7 @@
 	}
 </script>
 
-<SimCard title="Accessories" {delta}>
+<SimCard title="Accessories" {delta} info="Open a line to compare every alternative. Weapon Power lines are approximate.">
 	{#snippet actions()}
 		<button type="button" class={btnAccent} onclick={() => slots.forEach(maxDps)}>All max DPS lines</button>
 	{/snippet}
@@ -152,9 +152,4 @@
 			</div>
 		{/each}
 	</div>
-	<p class="mt-3 text-xs text-surface-400">
-		Open a line to see what every alternative would do to your CP. Grades follow lostark.bible's colors:
-		<span style:color={ROLL_COLORS.high}>High</span>, <span style:color={ROLL_COLORS.mid}>Mid</span>,
-		<span style:color={ROLL_COLORS.low}>Low</span>. ≈ Weapon Power lines are estimated.
-	</p>
 </SimCard>

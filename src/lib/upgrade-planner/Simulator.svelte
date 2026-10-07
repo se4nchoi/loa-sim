@@ -146,11 +146,11 @@
 				<div class="flex min-w-0 flex-col gap-2">
 					<SimGear bind:sim {base} {itemIds} delta={sections.gear} />
 					<SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} />
+					<SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} />
 				</div>
 				<div class="flex min-w-0 flex-col gap-2">
 					<SimGems bind:sim {base} {gems} {characterName} delta={sections.gems} />
 					<SimEngravings bind:sim {base} {preview} delta={sections.engravings} />
-					<SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} />
 					<SimKarma bind:sim {base} delta={sections.karma} />
 				</div>
 			</div>
