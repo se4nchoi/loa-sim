@@ -4,11 +4,14 @@ A lo4.app-style Combat Power simulator for NA/CE Lost Ark characters, built as a
 [lostark.bible](https://lostark.bible). Load a character, then change:
 
 - **honing** and advanced honing per armor piece and weapon (e.g. Head +21 → +22);
-- **accessory lines** per necklace, earring and ring (e.g. high-mid → high-high);
+- **accessories:** each line (in lostark.bible's High/Mid/Low colors, with every alternative's CP change shown) and
+  the main stat, to compare against accessories on the market;
+- **bracelet:** combat stats and effects, scored with the game's own weights for all 136 bracelet effects;
 - **gem levels**, **engraving** relic books and ability stone levels;
-- **ark grid** core points and astrogem option levels, and **karma**.
+- **ark grid:** every astrogem's core points and options (willpower is checked), and **karma**.
 
-Simulated CP, item level and each section's share update as you type. The simulator starts from
+Simulated CP, item level and each section's share (in % and raw CP) update as you type. Item icons come from the
+official game CDN. The simulator starts from
 lostark.bible's exact number (Soulshan: 6785.48) and applies each edit as a change on top of it.
 
 A "Next Upgrades" card is also included. It lists the best one-step upgrades and has an astrogem evaluator.
@@ -37,7 +40,7 @@ npm test
   - `upgrades.ts` and `UpgradePlanner.svelte` are the "Next Upgrades" card and dialog.
 - `src/lib/demo/` and `src/routes/` hold a small SvelteKit app that mimics the character page.
 - `src/lib/server/bible.ts` is the demo loader for live characters.
-- `scripts/bake-honing.mjs` regenerates the honing table from the game data.
+- `scripts/bake-game-data.mjs` regenerates the honing table, icons and bracelet catalog from the game data.
 - `legacy/` has the first standalone prototype.
 
 ## Loading a character

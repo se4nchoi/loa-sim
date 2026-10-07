@@ -6,6 +6,7 @@
 // of bible's values, which keeps unknown bonuses (titles, karma, etc.) intact.
 
 import { PartType, baseAttackPoint, combatPower, partHigh } from './cp';
+import { BRACELET_EFFECTS } from './game-data';
 import { HONING_SLOTS, HONING_TABLE, type HoningSlot } from './honing-data';
 import {
 	ACCESSORY_LINES,
@@ -47,17 +48,76 @@ export interface SimState {
 	gems: number[];
 	/** Per engraving id: relic book step (0–4 → 0/5/10/15/20 books) and ability stone level (0–4). */
 	engravings: Record<number, { books: number; stone: number }>;
-	/** Core points per ark grid core id. */
-	cores: Record<number, number>;
-	/** Total level per astrogem option id. */
-	astrogems: Record<number, number>;
+	/** Main stat (Str/Dex/Int) on each accessory. */
+	accessoryStats: Partial<Record<AccessorySlot, number>>;
+	/** Ark grid cores with their astrogems; core points and option totals are derived from these. */
+	arkGrid: SimCore[];
+	bracelet: SimBracelet | null;
 	karma: { evolution: number | null; leap: number | null };
+}
+
+export interface SimAstrogem {
+	/** Item id (kind and grade); kept when edited so the icon and allowed options stay right. */
+	itemId: number;
+	corePoints: number;
+	/** Willpower discount; the gem needs its kind's base willpower minus this. */
+	costReduc: number;
+	opts: { id: number; level: number }[];
+}
+
+export interface SimCore {
+	id: number;
+	gems: SimAstrogem[];
+}
+
+/** Bracelet lines: plain stats (combat stats, main stat, ...) and effects from the battle point catalog. */
+export interface SimBracelet {
+	stats: { index: number; value: number }[];
+	/** Catalog keys ("3:11041", "4:605100173"); unknown effects keep their key and score 0. */
+	effects: string[];
+}
+
+/** Combat stats that count toward Combat Power (Crit, Specialization, Swiftness), x3 each. */
+export const COMBAT_STAT_INDICES = [15, 16, 18];
+const COMBAT_STAT_BP = 3;
+/** Plain % stat lines on bracelets, scored as part 19 (game coefficients per 1e4). */
+const BRACELET_STAT_COEFF: Record<number, number> = { 50: 7692, 74: 7000, 76: 3333 };
+export const MAIN_STAT_INDICES = [3, 4, 5];
+const braceletEffect = (key: string) => BRACELET_EFFECTS.find((e) => e.key === key);
+
+/** Which of Str (3) / Dex (4) / Int (5) is this character's main stat. */
+export function mainStatIndex(l: Loadout): number {
+	const base = l.battlePoint.parts.find((p) => p.type === PartType.BaseAttack);
+	const main = base?.mainStat as number | undefined;
+	const stats = l.stats ?? [];
+	const match = stats.find((s) => MAIN_STAT_INDICES.includes(s.type) && s.value === main);
+	if (match) return match.type;
+	const valueOf = (i: number) => stats.find((s) => s.type === i)?.value ?? 0;
+	return MAIN_STAT_INDICES.reduce((best, i) => (valueOf(i) > valueOf(best) ? i : best));
 }
 
 const lineOf = (key: string) => ACCESSORY_LINES.find((l) => l.key === key);
 const tierOf = (line: AccessoryLine, v: number): Tier | null => TIERS.find((t) => line.values[t] === v) ?? null;
 const nearestTier = (line: AccessoryLine, v: number): Tier =>
 	TIERS.reduce((best, t) => (Math.abs(line.values[t] - v) < Math.abs(line.values[best] - v) ? t : best), 'low' as Tier);
+
+/** Names for accessory lines with no DPS value, keyed by stat type + index (index ignored when "*"). */
+const OTHER_LINE_NAMES: Record<string, [name: string, percent: boolean]> = {
+	'2:46': ['Brand Power', true],
+	'2:27': ['Max HP', false],
+	'2:28': ['Max MP', false],
+	'2:34': ['HP Recovery in Combat', false],
+	'51:*': ['Shield for Party Members', true],
+	'54:*': ['Ally Atk. Power Enhancement Effect', true],
+	'59:*': ['Ally Damage Enhancement Effect', true]
+};
+
+function otherLineLabel(s: { type: number; index: number; value: number }): string {
+	const named = OTHER_LINE_NAMES[`${s.type}:${s.index}`] ?? OTHER_LINE_NAMES[`${s.type}:*`];
+	if (!named) return 'Other (no DPS value)';
+	const [name, percent] = named;
+	return `${name} +${percent ? `${Number((s.value / 100).toFixed(2))}%` : s.value}`;
+}
 
 function readAccessoryLines(l: Loadout, slot: AccessorySlot): SimLine[] | undefined {
 	const item = l.items?.find((i) => i.slot === slot);
@@ -67,7 +127,7 @@ function readAccessoryLines(l: Loadout, slot: AccessorySlot): SimLine[] | undefi
 		.filter((s) => !s.base)
 		.map((s): SimLine => {
 			const line = ACCESSORY_LINES.find((x) => x.slots.includes(family) && x.match(s));
-			if (!line) return { key: 'other', label: 'Other (no DPS value)' };
+			if (!line) return { key: 'other', label: otherLineLabel(s) };
 			if (line.combatEffect) {
 				// Combat effects carry no value in item stats; bible's battle point is the % × 100.
 				const part = l.battlePoint.parts.find((p) => p.type === PartType.AccessoryCombatEffect && p.slot === slot);
@@ -90,6 +150,21 @@ export function initSimState(l: Loadout): SimState {
 		const lines = readAccessoryLines(l, slot);
 		if (lines) accessories[slot] = lines;
 	}
+	const msIndex = mainStatIndex(l);
+	const accessoryStats: SimState['accessoryStats'] = {};
+	for (const slot of ACCESSORY_SLOTS) {
+		const stat = l.items
+			?.find((i) => i.slot === slot)
+			?.data.stats?.find((s) => s.base && s.type === 2 && s.index === msIndex);
+		if (stat) accessoryStats[slot] = stat.value;
+	}
+	const braceletStats = l.items?.find((i) => i.slot === 'bracelet')?.data.stats;
+	const bracelet: SimBracelet | null = braceletStats
+		? {
+				stats: braceletStats.filter((s) => s.type === 2).map((s) => ({ index: s.index, value: s.value })),
+				effects: braceletStats.filter((s) => s.type === 3 || s.type === 4).map((s) => `${s.type}:${s.index}`)
+			}
+		: null;
 	const evo = l.battlePoint.parts.find((p) => p.type === PartType.KarmaEvolutionRank);
 	const leap = l.battlePoint.parts.find((p) => p.type === PartType.KarmaLeapLevel);
 	return {
@@ -97,8 +172,14 @@ export function initSimState(l: Loadout): SimState {
 		accessories,
 		gems: gemParts(l).map((g) => g.level),
 		engravings: Object.fromEntries(engravingStates(l).map((e) => [e.id, { books: e.col, stone: e.stone }])),
-		cores: Object.fromEntries(coreStates(l).map((c) => [c.id, c.points])),
-		astrogems: { ...astrogemTotals(l).levels },
+		accessoryStats,
+		arkGrid: (l.arkGridCores ?? []).map((c) => ({
+			id: c.id,
+			gems: c.gems
+				.toSorted((a, b) => a.idx - b.idx)
+				.map((g) => ({ itemId: g.id, corePoints: g.corePoints, costReduc: g.costReduc, opts: g.opts.map((o) => ({ ...o })) }))
+		})),
+		bracelet,
 		karma: {
 			evolution: evo ? Math.round(partHigh(evo) / KARMA_EVOLUTION_PER_RANK) : null,
 			leap: leap ? Math.round(partHigh(leap) / KARMA_LEAP_PER_LEVEL) : null
@@ -150,6 +231,22 @@ function linesTotal(lines: SimState['accessories'], weapon: 'percent' | 'flat') 
 	return total;
 }
 
+const corePointsOf = (core: SimCore | undefined) => core?.gems.reduce((sum, g) => sum + g.corePoints, 0) ?? 0;
+
+/** Total level of an astrogem option across every core. */
+export const optionLevel = (arkGrid: SimCore[], optionId: number) =>
+	arkGrid.reduce(
+		(sum, c) => sum + c.gems.reduce((s, g) => s + g.opts.filter((o) => o.id === optionId).reduce((a, o) => a + o.level, 0), 0),
+		0
+	);
+
+/** Core points a core has in this state (bible's points, moved by the astrogem edits). */
+export function simCorePoints(l: Loadout, state: SimState, base: SimState, coreId: number): number {
+	const bible = coreStates(l).find((c) => c.id === coreId)?.points ?? 0;
+	const find = (s: SimState) => s.arkGrid.find((c) => c.id === coreId);
+	return bible + corePointsOf(find(state)) - corePointsOf(find(base));
+}
+
 export interface SimResult {
 	parts: BattlePointPart[];
 	cp: number;
@@ -171,6 +268,12 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	const weapon0 = weaponPowerOf(l);
 	const atkPct = (basePart.attackPowerMultiplier as number | undefined) ?? 0;
 	let mainStat = mainStat0;
+	for (const slot of ACCESSORY_SLOTS)
+		mainStat += (Number(state.accessoryStats[slot]) || 0) - (base.accessoryStats[slot] ?? 0);
+	const msIndex = mainStatIndex(l);
+	const braceletStat = (b: SimBracelet | null, pick: (i: number) => boolean) =>
+		(b?.stats ?? []).filter((s) => pick(s.index)).reduce((sum, s) => sum + (Number(s.value) || 0), 0);
+	mainStat += braceletStat(state.bracelet, (i) => i === msIndex) - braceletStat(base.bracelet, (i) => i === msIndex);
 	let weaponPower = weapon0;
 	for (const slot of HONING_SLOTS) {
 		const from = base.gear[slot];
@@ -223,18 +326,34 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 		}
 	}
 
-	// --- Ark grid cores and astrogem options
-	const wp = weapon0;
+	// --- Ark grid: core points and option totals follow the edited astrogems, anchored on bible's values.
 	for (const c of coreStates(l)) {
-		const points = state.cores[c.id];
-		if (points !== undefined && points !== c.points) set(PartType.ArkGridCore, (p) => p.id === c.id, coreValueAt(c, points, wp), { id: c.id });
+		const points = simCorePoints(l, state, base, c.id);
+		if (points !== c.points) set(PartType.ArkGridCore, (p) => p.id === c.id, coreValueAt(c, points, weapon0), { id: c.id });
 	}
 	const t = astrogemTotals(l);
 	for (const id of Object.keys(ASTROGEM_COEFF).map(Number)) {
-		const level = state.astrogems[id];
-		if (typeof level !== 'number' || level === t.levels[id]) continue; // empty input → unchanged
+		const level = t.levels[id] + optionLevel(state.arkGrid, id) - optionLevel(base.arkGrid, id);
+		if (level === t.levels[id]) continue;
 		const value = t.values[id] + astrogemOptionValue(id, level) - astrogemOptionValue(id, t.levels[id]);
 		set(PartType.ArkGridGem, (p) => p.id === id, value, { id });
+	}
+
+	// --- Bracelet: effects come straight from the game's battle point catalog; combat stats feed part 26.
+	if (state.bracelet && JSON.stringify(state.bracelet) !== JSON.stringify(base.bracelet)) {
+		for (let i = parts.length - 1; i >= 0; i--)
+			if (parts[i].type === PartType.BraceletEffect || parts[i].type === PartType.BraceletStatType) parts.splice(i, 1);
+		for (const key of state.bracelet.effects) {
+			const effect = braceletEffect(key);
+			if (effect) parts.push({ type: PartType.BraceletEffect, value: effect.value });
+		}
+		for (const st of state.bracelet.stats)
+			if (BRACELET_STAT_COEFF[st.index])
+				parts.push({ type: PartType.BraceletStatType, value: ((Number(st.value) || 0) * BRACELET_STAT_COEFF[st.index]) / 1e4 });
+		const combat = (b: SimBracelet | null) => braceletStat(b, (i) => COMBAT_STAT_INDICES.includes(i));
+		const dCombat = combat(state.bracelet) - combat(base.bracelet);
+		const stats = parts.find((p) => p.type === PartType.CombatStats);
+		if (dCombat && stats) stats.value = partHigh(stats) + dCombat * COMBAT_STAT_BP;
 	}
 
 	// --- Karma

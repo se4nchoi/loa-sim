@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { SimState } from '../simulate';
+	import { engravingIcon } from '../icons';
 	import { ENGRAVING_BOOK_STEPS, ENGRAVING_NAMES } from '../tables';
+	import ItemIcon from './ItemIcon.svelte';
 	import SimCard from './SimCard.svelte';
 	import { range, selectClass, type SectionDelta } from './ui';
 
@@ -14,13 +16,15 @@
 	{#if ids.length === 0}
 		<p class="text-sm text-surface-400">No supported engravings found.</p>
 	{:else}
-		<div class="grid w-fit grid-cols-[10rem_max-content_max-content] items-center gap-x-4 gap-y-1">
+		<div class="grid w-fit grid-cols-[max-content_10rem_max-content_max-content] items-center gap-x-3 gap-y-1">
+			<span></span>
 			<span class="text-xs text-surface-400">Engraving</span>
 			<span class="text-xs text-surface-400">Relic books</span>
 			<span class="text-xs text-surface-400">Ability stone</span>
 			{#each ids as id (id)}
 				{@const e = sim.engravings[id]}
 				{@const b = base.engravings[id]}
+				<ItemIcon src={engravingIcon(id)} grade={5} size="size-8" />
 				<span class="text-sm text-surface-200">{ENGRAVING_NAMES[id] ?? id}</span>
 				<select class={selectClass(e.books !== b.books)} bind:value={e.books} aria-label={`${ENGRAVING_NAMES[id]} relic books`}>
 					{#each ENGRAVING_BOOK_STEPS as n, col (col)}<option value={col}>{n}/20</option>{/each}

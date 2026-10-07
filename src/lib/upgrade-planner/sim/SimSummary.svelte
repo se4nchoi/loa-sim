@@ -1,34 +1,35 @@
 <script lang="ts">
 	import { formatCp } from '../format';
 	import Delta from './Delta.svelte';
-	import type { SimGroup } from './ui';
+	import type { SectionDelta, SimSection } from './ui';
 
 	let {
 		current,
 		simulated,
 		ilvlBefore,
 		ilvlAfter,
-		groups,
+		sections,
 		onreset
 	}: {
 		current: number;
 		simulated: number;
 		ilvlBefore: number | null;
 		ilvlAfter: number | null;
-		groups: Record<SimGroup, number>;
+		sections: Record<SimSection, SectionDelta>;
 		onreset: () => void;
 	} = $props();
 
-	const LABELS: Record<SimGroup, string> = {
+	const LABELS: Record<SimSection, string> = {
 		gear: 'Equipment',
 		accessories: 'Accessories',
+		bracelet: 'Bracelet',
 		gems: 'Gems',
 		engravings: 'Engravings',
 		arkGrid: 'Ark Grid',
 		karma: 'Karma'
 	};
 	const delta = $derived((simulated / current - 1) * 100);
-	const changed = $derived((Object.entries(groups) as [SimGroup, number][]).filter(([, v]) => Math.abs(v) > 0.00005));
+	const changed = $derived((Object.entries(sections) as [SimSection, SectionDelta][]).filter(([, d]) => Math.abs(d.pct) > 0.00005));
 	const color = (v: number) => (v > 0 ? 'text-green-400' : v < 0 ? 'text-red-400' : 'text-surface-300');
 </script>
 
@@ -54,9 +55,9 @@
 	</div>
 	{#if changed.length}
 		<div class="grid grid-cols-[1fr_max-content] p-2">
-			{#each changed as [g, v] (g)}
+			{#each changed as [g, d] (g)}
 				<span class="text-sm text-surface-300">{LABELS[g]}</span>
-				<Delta pct={v} cp={(current * v) / 100} class="text-right text-sm" />
+				<Delta pct={d.pct} cp={d.cp} class="text-right text-sm" />
 			{/each}
 		</div>
 	{:else}

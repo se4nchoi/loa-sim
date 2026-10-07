@@ -82,6 +82,9 @@ function dealerCoreCurve(info: CoreInfo, weaponPower: number): number[] {
 /** Highest breakpoint each grade can activate. */
 const GRADE_CAP: Record<CoreGrade, number> = { heroic: 10, legendary: 14, relic: 20, ancient: 20 };
 
+/** Willpower a core supplies by grade [agl getDefaultCoreEnergy]; its astrogems' willpower must fit in it. */
+export const CORE_WILLPOWER: Record<CoreGrade, number> = { heroic: 9, legendary: 12, relic: 15, ancient: 17 };
+
 /** Dealer battle points for a core at `points`. */
 export function coreValue(info: CoreInfo, points: number, weaponPower: number): number {
 	const curve = dealerCoreCurve(info, weaponPower);
@@ -108,6 +111,16 @@ export const ASTROGEM_COEFF: Record<number, number> = {
 
 export const astrogemOptionValue = (optionId: number, totalLevel: number) =>
 	Math.floor((totalLevel * (ASTROGEM_COEFF[optionId] ?? 0)) / 120);
+
+/** Compact labels for tight UI. */
+export const ASTROGEM_OPTION_SHORT: Record<number, string> = {
+	2001: 'Atk. Power',
+	2002: 'Add. Dmg',
+	2003: 'Boss Dmg',
+	2011: 'Ally Dmg',
+	2012: 'Brand',
+	2013: 'Ally Atk.'
+};
 
 export const ASTROGEM_OPTION_NAMES: Record<number, string> = {
 	2001: 'Atk. Power',
@@ -202,6 +215,13 @@ export const ACCESSORY_LINES: AccessoryLine[] = [
 	{ key: 'atk_flat', name: 'Atk. Power', match: (s) => s.type === 2 && s.index === 124, values: { low: 80, mid: 195, high: 390 }, toBattlePoints: (v) => v * 0.07, slots: ['neck', 'ear', 'finger'], primary: false },
 	{ key: 'weapon_flat', name: 'Weapon Power', match: (s) => s.type === 2 && s.index === 151, values: { low: 195, mid: 480, high: 960 }, weapon: 'flat', slots: ['neck', 'ear', 'finger'], primary: false }
 ];
+
+/** [game] T4 accessory main stat range across polish levels 0–3 (lowest at 0, highest at 3). */
+export const ACCESSORY_MAIN_STAT_RANGE: Record<AccessoryFamily, { min: number; max: number }> = {
+	neck: { min: 12678, max: 17857 },
+	ear: { min: 9861, max: 13889 },
+	finger: { min: 9156, max: 12897 }
+};
 
 /** How a line's value reads in the UI. */
 export const formatLineValue = (line: AccessoryLine, v: number) =>

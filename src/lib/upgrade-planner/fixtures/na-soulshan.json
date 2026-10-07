@@ -1544,5 +1544,43 @@
   "evolution": 23,
   "enlightenment": 29,
   "leap": 28
- }
+ },
+ "stats": [
+  {
+   "type": 3,
+   "value": 72029
+  },
+  {
+   "type": 4,
+   "value": 764203
+  },
+  {
+   "type": 5,
+   "value": 72029
+  },
+  {
+   "type": 15,
+   "value": 1662
+  },
+  {
+   "type": 16,
+   "value": 312
+  },
+  {
+   "type": 17,
+   "value": 79
+  },
+  {
+   "type": 18,
+   "value": 577
+  },
+  {
+   "type": 19,
+   "value": 71
+  },
+  {
+   "type": 20,
+   "value": 71
+  }
+ ]
 }

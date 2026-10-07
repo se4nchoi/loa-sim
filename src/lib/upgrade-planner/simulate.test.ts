@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PartType } from './cp';
 import soulshan from './fixtures/na-soulshan.json';
 import { HONING_TABLE } from './honing-data';
-import { initSimState, itemLevel, simulate, type SimState } from './simulate';
+import { initSimState, itemLevel, mainStatIndex, optionLevel, simCorePoints, simulate, type SimState } from './simulate';
 import type { Loadout } from './types';
 
 const loadout = soulshan as unknown as Loadout;
@@ -30,8 +30,9 @@ describe('initSimState', () => {
 		expect(s.accessories.neck).toEqual([
 			{ key: 'add_dmg', tier: 'high' },
 			{ key: 'outgoing_dmg', tier: 'mid' },
-			{ key: 'other', label: 'Other (no DPS value)' }
+			{ key: 'other', label: 'Brand Power +2.15%' }
 		]);
+		expect(s.accessories.finger2![1]).toEqual({ key: 'other', label: 'Ally Atk. Power Enhancement Effect +1.35%' });
 		expect(s.accessories.ear2).toEqual([
 			{ key: 'atk_pct', tier: 'mid' },
 			{ key: 'weapon_pct', tier: 'high' },
@@ -39,12 +40,26 @@ describe('initSimState', () => {
 		]);
 	});
 
-	it('reads gems, engravings, cores, astrogems and karma', () => {
+	it('reads gems, engravings, astrogems and karma', () => {
 		expect(s.gems).toEqual([9, 9, 9, 9, 9, 10, 9, 9, 9, 9, 9]);
 		expect(s.engravings[1254]).toEqual({ books: 4, stone: 3 });
-		expect(s.cores[673004436]).toBe(17);
-		expect(s.astrogems[2003]).toBe(49);
+		expect(s.arkGrid).toHaveLength(6);
+		expect(s.arkGrid[0].gems).toHaveLength(4);
+		expect(simCorePoints(loadout, s, s, 673004436)).toBe(17);
+		expect(optionLevel(s.arkGrid, 2003)).toBe(49);
 		expect(s.karma).toEqual({ evolution: 6, leap: 28 });
+	});
+
+	it('reads accessory main stat and the bracelet', () => {
+		expect(mainStatIndex(loadout)).toBe(4); // Dexterity
+		expect(s.accessoryStats).toEqual({ neck: 17670, ear1: 13556, ear2: 13723, finger1: 12220, finger2: 12452 });
+		expect(s.bracelet).toEqual({
+			stats: [
+				{ index: 15, value: 86 },
+				{ index: 16, value: 77 }
+			],
+			effects: ['4:605100173', '3:11043', '3:11051']
+		});
 	});
 });
 
@@ -92,13 +107,39 @@ describe('simulate', () => {
 		expect(pct(edit((s) => (s.engravings[1118].stone = 4)))).toBeCloseTo((12700 / 12100 - 1) * 100, 6);
 	});
 
-	it('core points use the anchored curve', () => {
-		expect(pct(edit((s) => (s.cores[673004436] = 20)))).toBeCloseTo((10900 / 10850 - 1) * 100, 6);
+	it('astrogem core points move the core along its curve', () => {
+		// Ancient order sun at 17P; three gems +1 point each → 20P: 850 → 900
+		const cp = edit((s) => s.arkGrid[0].gems.slice(0, 3).forEach((g) => (g.corePoints += 1)));
+		expect(pct(cp)).toBeCloseTo((10900 / 10850 - 1) * 100, 6);
 	});
 
-	it('astrogem option levels', () => {
-		// Boss Damage 49 → 59: floor(59×1000/120) = 491 vs 408
-		expect(pct(edit((s) => (s.astrogems[2003] = 59)))).toBeCloseTo((10491 / 10408 - 1) * 100, 6);
+	it('astrogem option levels add up across gems', () => {
+		// First gem's Boss Damage Lv. 5 → swap its Atk. Power Lv. 3 for Boss Damage Lv. 5: Boss 49 → 54, Atk 46 → 43
+		const cp = edit((s) => (s.arkGrid[0].gems[0].opts = [{ id: 2003, level: 5 }, { id: 2003, level: 5 }]));
+		const boss = (10000 + Math.floor((54 * 1000) / 120)) / (10000 + 408);
+		const atk = (10000 + Math.floor((43 * 400) / 120)) / (10000 + 153);
+		expect(cp / CP).toBeCloseTo(boss * atk, 9);
+	});
+
+	it('accessory main stat changes base attack', () => {
+		const s = fresh();
+		s.accessoryStats.neck! += 1000;
+		const r = simulate(loadout, s);
+		const base = loadout.battlePoint.parts.find((p) => p.type === PartType.BaseAttack)! as Record<string, number>;
+		expect(r.mainStat - base.mainStat).toBe(1000);
+		expect(pct(r.cp)).toBeCloseTo((Math.sqrt((base.mainStat + 1000) / base.mainStat) - 1) * 100, 6);
+	});
+
+	it('bracelet effects use the game catalog values', () => {
+		// Non-directional 2.5% (250) → 3.5% (350)
+		const cp = edit((s) => (s.bracelet!.effects[0] = '4:605100171'));
+		expect(pct(cp)).toBeCloseTo((10350 / 10250 - 1) * 100, 6);
+	});
+
+	it('bracelet combat stats feed part 26 at 3 per point', () => {
+		// Crit +86 → +100: combat stats 7653 → 7695
+		const cp = edit((s) => (s.bracelet!.stats[0].value = 100));
+		expect(pct(cp)).toBeCloseTo(((10000 + 7653 + 14 * 3) / (10000 + 7653) - 1) * 100, 6);
 	});
 
 	it('karma', () => {

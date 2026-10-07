@@ -16,7 +16,8 @@ requests or dependencies.
 |---|---|
 | `Simulator.svelte`, `sim/*.svelte` | The simulator: editable sections plus a sticky Combat Power summary. |
 | `simulate.ts` | `initSimState(loadout)` reads gear into editable state; `simulate(loadout, state)` rebuilds the battle point parts. |
-| `honing-data.ts` | Main stat / Weapon Power by honing and advanced honing level (T4 1675 gear), baked by `scripts/bake-honing.mjs`. |
+| `honing-data.ts` | Main stat / Weapon Power by honing and advanced honing level (T4 1675 gear), baked by `scripts/bake-game-data.mjs`. |
+| `game-data.ts`, `icons.ts` | Item icons/names (official game CDN), astrogem kinds, and the bracelet effect catalog with the game's CP weights. |
 | `cp.ts` | The CP formula. It's the same calculation as the site's existing `attackTotalMax` aggregation over `battlePoint.parts`. |
 | `tables.ts` | Battle-point tables: T3/T4 gems, ark grid cores, astrogem options, engravings × ability stone × relic books, accessory lines, karma. |
 | `upgrades.ts` | Builds the ranked list from a loadout; astrogem swap evaluation. |

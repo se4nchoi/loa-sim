@@ -1,10 +1,17 @@
 <script lang="ts">
 	import { HONING_SLOTS, type HoningSlot } from '../honing-data';
+	import { itemLook } from '../icons';
+	import ItemIcon from './ItemIcon.svelte';
 	import type { SimState } from '../simulate';
 	import SimCard from './SimCard.svelte';
 	import { linkButtonClass, range, selectClass, type SectionDelta } from './ui';
 
-	let { sim = $bindable(), base, delta }: { sim: SimState; base: SimState; delta: SectionDelta } = $props();
+	let {
+		sim = $bindable(),
+		base,
+		delta,
+		itemIds
+	}: { sim: SimState; base: SimState; delta: SectionDelta; itemIds: Record<string, number> } = $props();
 
 	const LABELS: Record<HoningSlot, string> = {
 		head: 'Head',
@@ -32,7 +39,8 @@
 	{#if slots.length === 0}
 		<p class="text-sm text-surface-400">No T4 1675-tier gear found; honing can't be simulated for this loadout.</p>
 	{:else}
-		<div class="grid w-fit grid-cols-[7rem_max-content_max-content_max-content] items-center gap-x-4 gap-y-1">
+		<div class="grid w-fit grid-cols-[max-content_7rem_max-content_max-content_max-content] items-center gap-x-3 gap-y-1">
+			<span></span>
 			<span class="text-xs text-surface-400">Piece</span>
 			<span class="text-xs text-surface-400">Honing</span>
 			<span class="text-xs text-surface-400">Advanced</span>
@@ -40,6 +48,8 @@
 			{#each slots as slot (slot)}
 				{@const g = sim.gear[slot]!}
 				{@const b = base.gear[slot]!}
+				{@const look = itemLook(itemIds[slot])}
+				<ItemIcon src={look.icon} grade={look.grade} size="size-8" title={look.name} />
 				<span class="text-sm text-surface-200">{LABELS[slot]}</span>
 				<select class={selectClass(g.honing !== b.honing)} bind:value={g.honing} aria-label={`${LABELS[slot]} honing`}>
 					{#each range(0, 25) as h (h)}<option value={h}>+{h}</option>{/each}
