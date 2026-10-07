@@ -3,7 +3,9 @@ import { PartType } from './cp';
 import soulshan from './fixtures/na-soulshan.json';
 import { HONING_TABLE } from './honing-data';
 import { gemDpsGainPct } from './dps';
-import { gemParts, initSimState, itemLevel, mainStatIndex, optionLevel, simCorePoints, simulate, type SimState } from './simulate';
+import { gemParts, initSimState, itemLevel, mainStatIndex, optionLevel, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
+import { coreValue } from './tables';
+import { coreStates, weaponPowerOf } from './upgrades';
 import type { Loadout } from './types';
 
 const loadout = soulshan as unknown as Loadout;
@@ -207,5 +209,40 @@ describe('simulate', () => {
 			s.karma.leap = 30;
 		});
 		expect(both / CP).toBeCloseTo((10704 / 10640) * (10060 / 10056), 9);
+	});
+});
+
+describe('core type swap', () => {
+	const l = soulshan as unknown as Loadout;
+	const base = initSimState(l);
+	const cpOf = (mutate: (s: SimState) => void) => {
+		const s = structuredClone(base);
+		mutate(s);
+		return simulate(l, s, base).cp;
+	};
+	const core = (id: number) => coreStates(l).find((c) => c.id === id)!;
+	const ratio = (from: number, to: number) => (1e4 + to) / (1e4 + from);
+
+	it('chaos second tier → top tier (Absorbing → Smoldering) adds the curve difference', () => {
+		const c = core(673111006);
+		expect(c.info.tier).toBe(1);
+		const after = cpOf((s) => (s.arkGrid.find((x) => x.id === c.id)!.tier = 0));
+		const to = coreValue({ ...c.info, tier: 0 }, c.points, weaponPowerOf(l));
+		expect(after / simulate(l, base, base).cp).toBeCloseTo(ratio(c.value, to), 10);
+	});
+
+	it('relic → ancient adds the ancient bonus from 17P', () => {
+		const c = core(673014435);
+		expect(c.info.grade).toBe('relic');
+		const after = cpOf((s) => (s.arkGrid.find((x) => x.id === c.id)!.grade = 'ancient'));
+		const to = coreValue({ ...c.info, grade: 'ancient' }, c.points, weaponPowerOf(l));
+		expect(to - coreValue(c.info, c.points, weaponPowerOf(l))).toBe(c.points >= 17 ? 100 : 0);
+		expect(after / simulate(l, base, base).cp).toBeCloseTo(ratio(c.value, to), 10);
+	});
+
+	it('picking the equipped type again changes nothing', () => {
+		const c = core(673120005);
+		expect(simCoreInfo(c.info, { id: c.id, gems: [], grade: c.info.grade, tier: c.info.tier })).toBe(c.info);
+		expect(simCoreInfo(c.info, { id: c.id, gems: [], tier: 1 }).weaponCore).toBe(true);
 	});
 });

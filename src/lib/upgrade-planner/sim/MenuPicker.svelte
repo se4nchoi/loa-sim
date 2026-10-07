@@ -3,7 +3,7 @@
 	Used where a full-width line picker would be too big (engraving chips, astrogem options, gem skills).
 -->
 <script lang="ts" generics="T extends string | number">
-	import type { Snippet } from 'svelte';
+	import { getContext, type Snippet } from 'svelte';
 	import { formatPct } from '../format';
 	import Glyph from './Glyph.svelte';
 	import type { MenuOption } from './ui';
@@ -30,6 +30,10 @@
 		columns?: number;
 	} = $props();
 
+	// The simulated score, so a preview can show raw CP next to its percent.
+	const cpNow = getContext<(() => number) | undefined>('loa-sim:cp');
+	const raw = (pct: number) => (cpNow ? formatPct((cpNow() * pct) / 100, 1) : null);
+
 	let open = $state(false);
 	let root: HTMLDivElement;
 	const previews = $derived(open && preview ? new Map(options.map((o) => [o.value, preview(o.value)])) : new Map<T, number>());
@@ -46,10 +50,10 @@
 	onkeydown={(e) => open && e.key === 'Escape' && (open = false)}
 />
 
-<div class="relative inline-flex" bind:this={root}>
+<div class="relative inline-flex max-w-full" bind:this={root}>
 	<button
 		type="button"
-		class="inline-flex h-8 items-center gap-1.5 rounded-xs border bg-surface-800/80 px-2 text-sm transition hover:border-accent-500 hover:bg-surface-700/80 {changed
+		class="inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-xs border bg-surface-800/80 px-2 text-sm transition hover:border-accent-500 hover:bg-surface-700/80 {changed
 			? 'border-accent-500 bg-accent-500/15'
 			: 'border-surface-600'}"
 		aria-haspopup="listbox"
@@ -78,14 +82,15 @@
 								role="option"
 								aria-selected={o.value === value}
 								aria-label={`${r} ${o.label}`}
-								class="flex h-11 w-14 flex-col items-center justify-center rounded-xs text-sm font-semibold hover:bg-surface-800 {o.value === value
+								class="flex h-12 min-w-14 flex-col px-1 items-center justify-center rounded-xs text-sm font-semibold hover:bg-surface-800 {o.value === value
 									? 'bg-accent-500/20 ring-1 ring-accent-500'
 									: 'bg-surface-950'} {o.muted ? 'text-surface-400' : 'text-surface-50'}"
 								onclick={() => pick(o.value)}
 							>
 								{o.label}
 								{#if p !== undefined && o.value !== value}
-									<span class="text-[10px] font-normal tabular-nums {p > 0.005 ? 'text-green-400' : p < -0.005 ? 'text-red-400' : 'text-surface-500'}">{formatPct(p)}%</span>
+									<span class="text-[10px] leading-tight font-normal tabular-nums {p > 0.005 ? 'text-green-400' : p < -0.005 ? 'text-red-400' : 'text-surface-500'}">{formatPct(p)}%</span>
+									{#if raw(p)}<span class="text-[10px] leading-tight font-normal text-surface-400 tabular-nums">{raw(p)}</span>{/if}
 								{/if}
 							</button>
 						{/each}
@@ -114,6 +119,7 @@
 					{#if previews.has(o.value) && o.value !== value}
 						{@const p = previews.get(o.value)!}
 						<span class="text-xs font-semibold tabular-nums {p > 0.005 ? 'text-green-400' : p < -0.005 ? 'text-red-400' : 'text-surface-500'}">{formatPct(p)}%</span>
+						{#if raw(p)}<span class="w-12 text-right text-xs text-surface-400 tabular-nums">{raw(p)}</span>{/if}
 					{/if}
 				</button>
 			{/each}

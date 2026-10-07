@@ -150,6 +150,13 @@ export function coreValueAt(state: CoreState, points: number, weaponPower: numbe
 	return state.value + coreValue(state.info, points, weaponPower) - state.modelValue;
 }
 
+/** Value as another core type (grade / chaos option tier) at `points`; still anchored on bible while it's the same type. */
+export function coreValueAs(state: CoreState, info: CoreInfo, points: number, weaponPower: number) {
+	return info.grade === state.info.grade && info.tier === state.info.tier
+		? coreValueAt(state, points, weaponPower)
+		: coreValue(info, points, weaponPower);
+}
+
 function coreUpgrades(l: Loadout): Upgrade[] {
 	const wp = weaponPowerOf(l);
 	return coreStates(l).flatMap((c) => {

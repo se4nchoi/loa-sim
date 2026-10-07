@@ -3,10 +3,17 @@
 	import { formatPct } from '../format';
 	import { ASTROGEM_ITEMS, ASTROGEM_KINDS } from '../game-data';
 	import { coreLook, itemLook } from '../icons';
-	import { simCorePoints, type SimAstrogem, type SimState } from '../simulate';
-	import { ASTROGEM_OPTION_NAMES, ASTROGEM_OPTION_SHORT, CORE_BREAKPOINTS, CORE_WILLPOWER } from '../tables';
+	import { simCoreInfo, simCorePoints, type SimAstrogem, type SimState } from '../simulate';
+	import {
+		ASTROGEM_OPTION_NAMES,
+		ASTROGEM_OPTION_SHORT,
+		CORE_BREAKPOINTS,
+		CORE_WILLPOWER,
+		type CoreGrade,
+		type CoreInfo
+	} from '../tables';
 	import type { Loadout } from '../types';
-	import type { CoreState } from '../upgrades';
+	import { coreLabel, type CoreState } from '../upgrades';
 	import ItemIcon from './ItemIcon.svelte';
 	import MenuPicker from './MenuPicker.svelte';
 	import SimCard from './SimCard.svelte';
@@ -42,6 +49,43 @@
 
 	const kindOf = (g: SimAstrogem) => ASTROGEM_KINDS[ASTROGEM_ITEMS[g.itemId]];
 	const reached = (points: number) => CORE_BREAKPOINTS.filter((bp) => points >= bp).at(-1);
+
+	// Core type picker: another grade, and for chaos cores the other option tier (Swift → Flashy, Weapon → Attack).
+	const GRADES: CoreGrade[] = ['ancient', 'relic', 'legendary', 'heroic'];
+	const GRADE_NAME: Record<CoreGrade, string> = { ancient: 'Ancient', relic: 'Relic', legendary: 'Legendary', heroic: 'Heroic' };
+	/** Chaos option names per shape: the top tier, then the second tier by the id's variant digit. */
+	const CHAOS_NAMES: Record<CoreInfo['shape'], [string, Record<number, string>]> = {
+		sun: ['Flashy Attack', { 1: 'Stable Attack', 2: 'Swift Attack' }],
+		moon: ['Smoldering Strike', { 1: 'Absorbing Strike', 2: 'Crushing Strike' }],
+		star: ['Attack', { 1: 'Weapon' }]
+	};
+	const tierName = (core: CoreState, tier: number) => {
+		const [top, second] = CHAOS_NAMES[core.info.shape];
+		if (tier === 0) return top;
+		// The equipped core's own second-tier name when it has one; otherwise the common dealer pick.
+		const variant = Number(String(core.id)[5]);
+		return (core.info.tier === 1 && second[variant]) || Object.values(second).at(-1)!;
+	};
+	// The column already says Order / Chaos.
+	const typeName = (core: CoreState, info: CoreInfo) => {
+		const name = coreLabel(info).replace(/ (Order|Chaos) /, ' ');
+		return info.attr === 'chaos' ? `${name} · ${tierName(core, info.tier)}` : name;
+	};
+	const typeChoices = (core: CoreState): MenuOption<string>[] =>
+		core.info.attr === 'chaos'
+			? GRADES.flatMap((g) => [0, 1].map((t) => ({ value: `${g}:${t}`, label: tierName(core, t).split(' ')[0], row: GRADE_NAME[g] })))
+			: GRADES.map((g) => ({ value: `${g}:0`, label: GRADE_NAME[g] }));
+	const decodeType = (v: string) => {
+		const [grade, tier] = v.split(':');
+		return { grade: grade as CoreGrade, tier: Number(tier) };
+	};
+	function setType(ci: number, v: string) {
+		const { grade, tier } = decodeType(v);
+		const core = sim.arkGrid[ci];
+		const orig = cores.find((c) => c.id === core.id)!.info;
+		core.grade = grade === orig.grade ? undefined : grade;
+		core.tier = tier === orig.tier ? undefined : tier;
+	}
 
 	// Option picker: one row per option type, levels 1–5 as cells. Value encodes "id:level".
 	const optionChoices = (g: SimAstrogem): MenuOption<string>[] =>
@@ -84,7 +128,11 @@
 	}
 </script>
 
-<SimCard title="Ark Grid" {delta} info="Core points and option totals add up from the astrogems. Greyed options don't count for DPS Combat Power.">
+<SimCard
+	title="Ark Grid"
+	{delta}
+	info="Core points and option totals add up from the astrogems. Click a core's name to try another grade or chaos option. Greyed options don't count for DPS Combat Power."
+>
 	{#snippet actions()}
 		<button type="button" class={btn} onclick={optimize} title="Find the best placement of your equipped astrogems for Combat Power">
 			Optimize arrangement
@@ -110,75 +158,104 @@
 				<button type="button" class="{btn} {suggestion.gainPct > 0.0005 ? '' : 'ml-auto'}" onclick={() => (suggestion = null)}>Dismiss</button>
 			</div>
 		{/if}
-		<div class="grid grid-cols-2 gap-3 max-lg:grid-cols-1">
-			{#each columns as col (col.title)}
-				<div class="flex flex-col gap-2">
-					<span class="text-xs font-semibold tracking-wide uppercase max-sm:text-center {col.title === 'Order' ? 'text-amber-300' : 'text-sky-300'}">{col.title}</span>
-					{#each col.rows as { core, ci } (core.id)}
-						{@const look = coreLook(core.info)}
-						{@const points = simCorePoints(loadout, sim, base, core.id)}
-						{@const used = sim.arkGrid[ci].gems.reduce((s, g) => s + astrogemWillpower(g), 0)}
-						{@const cap = CORE_WILLPOWER[core.info.grade]}
-						<div class="flex flex-col gap-1 rounded-xs bg-black/15 p-2.5">
-							<div class="flex flex-row items-center gap-2 pb-1 max-sm:justify-center">
-								<ItemIcon src={look.icon} grade={look.grade} size="size-9" />
-								<div class="flex min-w-0 flex-1 flex-col max-sm:flex-none">
-									<span class="truncate text-sm font-semibold">{core.label}</span>
-									<span class="text-xs text-surface-400">
-										<b class={points !== core.points ? 'text-accent-300' : 'text-surface-100'}>{points}P</b>
-										{#if reached(points)}· {reached(points)}P effect{/if}
-									</span>
-								</div>
-								<span class="rounded-xs px-1.5 py-0.5 text-xs tabular-nums {used > cap ? 'bg-red-500/20 text-red-300' : 'bg-surface-800 text-surface-300'}" title="Willpower used / available">
-									WP {used}/{cap}
-								</span>
-							</div>
-							{#each sim.arkGrid[ci].gems as gem, gi (gi)}
-								{@const gl = itemLook(gem.itemId)}
-								{@const before = base.arkGrid[ci]?.gems[gi]}
-								{@const isWeakest = weakest?.ci === ci && weakest?.gi === gi}
-								<div
-									class="flex flex-row flex-wrap items-center gap-1.5 rounded-xs p-0.5 max-sm:justify-center {isWeakest ? 'bg-amber-500/10 ring-1 ring-amber-400/70' : ''}"
-									title={isWeakest ? `Weakest astrogem: its options add ${formatPct(weakest!.pct)}% CP` : undefined}
-								>
-									<ItemIcon src={gl.icon} grade={gl.grade} size="size-7" title={`${kindOf(gem)?.name ?? 'Astrogem'} · ${astrogemWillpower(gem)} willpower`} />
-									<span class="w-8 rounded-xs bg-surface-800 py-0.5 text-center text-[11px] tabular-nums text-surface-300" title="Willpower">{astrogemWillpower(gem)} WP</span>
-									<MenuPicker
-										value={gem.corePoints}
-										options={POINTS}
-										columns={5}
-										label="Core points"
-										changed={before?.corePoints !== gem.corePoints}
-										onpick={(v) => (gem.corePoints = v)}
-										preview={(v) => preview((s) => (s.arkGrid[ci].gems[gi].corePoints = v))}
-									>
-										{#snippet trigger()}<span class="w-6 font-semibold tabular-nums">{gem.corePoints}P</span>{/snippet}
-									</MenuPicker>
-									{#each gem.opts as opt, oi (oi)}
+		<!-- Two columns only when the card itself is wide enough (a container query), so rows never crunch. -->
+		<div class="@container">
+			<div class="grid grid-cols-1 gap-3 @3xl:grid-cols-2">
+				{#each columns as col (col.title)}
+					<div class="flex flex-col gap-2">
+						<span class="text-xs font-semibold tracking-wide uppercase max-sm:text-center {col.title === 'Order' ? 'text-amber-300' : 'text-sky-300'}">{col.title}</span>
+						{#each col.rows as { core, ci } (core.id)}
+							{@const info = simCoreInfo(core.info, sim.arkGrid[ci])}
+							{@const look = coreLook(info)}
+							{@const points = simCorePoints(loadout, sim, base, core.id)}
+							{@const used = sim.arkGrid[ci].gems.reduce((s, g) => s + astrogemWillpower(g), 0)}
+							{@const cap = CORE_WILLPOWER[info.grade]}
+							<div class="@container flex flex-col gap-1.5 rounded-xs bg-black/15 p-2.5">
+								<div class="flex flex-row items-center gap-2 pb-1">
+									<ItemIcon src={look.icon} grade={look.grade} size="size-9" />
+									<div class="flex min-w-0 flex-1 flex-col items-start gap-0.5">
 										<MenuPicker
-											value={`${opt.id}:${opt.level}`}
-											options={optionChoices(gem)}
-											label={`Option ${oi + 1}`}
-											changed={before?.opts[oi]?.id !== opt.id || before?.opts[oi]?.level !== opt.level}
-											onpick={(v) => (gem.opts[oi] = decode(v))}
-											preview={(v) => preview((s) => (s.arkGrid[ci].gems[gi].opts[oi] = decode(v)))}
-											align={oi === 1 ? 'right' : 'left'}
+											value={`${info.grade}:${info.tier}`}
+											options={typeChoices(core)}
+											label="Core type"
+											changed={info !== core.info}
+											onpick={(v) => setType(ci, v)}
+											preview={(v) => preview((s) => Object.assign(s.arkGrid[ci], decodeType(v)))}
 										>
 											{#snippet trigger()}
-												<span class="w-[5.25rem] truncate text-left text-xs {DEALER_OPTIONS.has(opt.id) ? '' : 'text-surface-400'}" title={ASTROGEM_OPTION_NAMES[opt.id]}>
-													{ASTROGEM_OPTION_SHORT[opt.id]} <b class="text-surface-50">{opt.level}</b>
-												</span>
+												<span class="min-w-0 truncate text-left text-sm font-semibold" title={typeName(core, info)}>{typeName(core, info)}</span>
 											{/snippet}
 										</MenuPicker>
-									{/each}
-									{#if isWeakest}<span class="text-[11px] font-semibold text-amber-300">weakest</span>{/if}
+										<span class="flex flex-row flex-wrap items-center gap-x-1.5 text-xs text-surface-400">
+											<b class={points !== core.points ? 'text-accent-300' : 'text-surface-100'}>{points}P</b>
+											{#if reached(points)}<span>· {reached(points)}P effect</span>{/if}
+											<span
+												class="rounded-xs px-1.5 tabular-nums {used > cap ? 'bg-red-500/20 text-red-300' : 'bg-surface-800 text-surface-300'}"
+												title="Willpower used / available"
+											>
+												WP {used}/{cap}
+											</span>
+										</span>
+									</div>
 								</div>
-							{/each}
-							{#if used > cap}<span class="text-xs text-red-400">These astrogems need more willpower than this core has.</span>{/if}
-						</div>
-					{/each}
-				</div>
-			{/each}
+								{#each sim.arkGrid[ci].gems as gem, gi (gi)}
+									{@const gl = itemLook(gem.itemId)}
+									{@const kind = kindOf(gem)}
+									{@const before = base.arkGrid[ci]?.gems[gi]}
+									{@const isWeakest = weakest?.ci === ci && weakest?.gi === gi}
+									<div
+										class="flex w-fit max-w-full flex-row items-center gap-2 rounded-xs p-1 max-sm:self-center {isWeakest ? 'bg-amber-500/10 ring-1 ring-amber-400/70' : ''}"
+										title={isWeakest ? `Weakest astrogem: its options add ${formatPct(weakest!.pct)}% CP` : undefined}
+									>
+										<!-- Narrow cores (small phones) drop the icon; the kind name stays. -->
+										<div class="@max-[20rem]:hidden">
+											<ItemIcon src={gl.icon} grade={gl.grade} size="size-9" title={`${kind?.name ?? 'Astrogem'} · ${astrogemWillpower(gem)} willpower`} />
+										</div>
+										<div class="flex min-w-0 flex-col gap-1">
+											<span class="flex flex-row items-baseline gap-1.5 text-xs">
+												<span class="font-semibold {info.attr === 'order' ? 'text-amber-200' : 'text-sky-200'}">{kind?.name ?? 'Astrogem'}</span>
+												<span class="text-surface-400 tabular-nums" title="Willpower">{astrogemWillpower(gem)} WP</span>
+												{#if isWeakest}<span class="font-semibold text-amber-300">· weakest</span>{/if}
+											</span>
+											<div class="flex flex-row flex-wrap items-center gap-1">
+												<MenuPicker
+													value={gem.corePoints}
+													options={POINTS}
+													columns={5}
+													label="Core points"
+													changed={before?.corePoints !== gem.corePoints}
+													onpick={(v) => (gem.corePoints = v)}
+													preview={(v) => preview((s) => (s.arkGrid[ci].gems[gi].corePoints = v))}
+												>
+													{#snippet trigger()}<span class="w-6 font-semibold tabular-nums">{gem.corePoints}P</span>{/snippet}
+												</MenuPicker>
+												{#each gem.opts as opt, oi (oi)}
+													<MenuPicker
+														value={`${opt.id}:${opt.level}`}
+														options={optionChoices(gem)}
+														label={`Option ${oi + 1}`}
+														changed={before?.opts[oi]?.id !== opt.id || before?.opts[oi]?.level !== opt.level}
+														onpick={(v) => (gem.opts[oi] = decode(v))}
+														preview={(v) => preview((s) => (s.arkGrid[ci].gems[gi].opts[oi] = decode(v)))}
+														align={oi === 1 ? 'right' : 'left'}
+													>
+														{#snippet trigger()}
+															<span class="w-[5.25rem] truncate text-left text-xs @max-[20rem]:w-[4.5rem] {DEALER_OPTIONS.has(opt.id) ? '' : 'text-surface-400'}" title={ASTROGEM_OPTION_NAMES[opt.id]}>
+																{ASTROGEM_OPTION_SHORT[opt.id]} <b class="text-surface-50">{opt.level}</b>
+															</span>
+														{/snippet}
+													</MenuPicker>
+												{/each}
+											</div>
+										</div>
+									</div>
+								{/each}
+								{#if used > cap}<span class="text-xs text-red-400">These astrogems need more willpower than this core has.</span>{/if}
+							</div>
+						{/each}
+					</div>
+				{/each}
+			</div>
 		</div>
 	{/if}
 </SimCard>

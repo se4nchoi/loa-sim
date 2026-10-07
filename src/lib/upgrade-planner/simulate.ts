@@ -22,10 +22,12 @@ import {
 	engravingTable,
 	type AccessoryFamily,
 	type AccessoryLine,
+	type CoreGrade,
+	type CoreInfo,
 	type Tier
 } from './tables';
 import type { BattlePointPart, Loadout } from './types';
-import { astrogemTotals, coreStates, coreValueAt, engravingStates, weaponPowerOf } from './upgrades';
+import { astrogemTotals, coreStates, coreValueAs, engravingStates, weaponPowerOf } from './upgrades';
 
 /** Advanced honing level 30+ adds this much to the item's stats; fits bible's main stat to 0.05%. */
 const ADVANCED_STAT_BONUS = 1.02;
@@ -101,6 +103,18 @@ export interface SimAstrogem {
 export interface SimCore {
 	id: number;
 	gems: SimAstrogem[];
+	/** Swapped core type: another grade, or (chaos) the other option tier. Unset = the equipped core. */
+	grade?: CoreGrade;
+	tier?: number;
+}
+
+/** The core type a simulated core has: the equipped one unless it was swapped. */
+export function simCoreInfo(info: CoreInfo, core?: SimCore): CoreInfo {
+	const grade = core?.grade ?? info.grade;
+	const tier = core?.tier ?? info.tier;
+	if (grade === info.grade && tier === info.tier) return info;
+	// The chaos star's second tier is the Weapon core.
+	return { ...info, grade, tier, weaponCore: info.attr === 'chaos' && info.shape === 'star' && tier === 1 };
 }
 
 /** Bracelet lines: plain stats (combat stats, main stat, ...) and effects from the battle point catalog. */
@@ -367,7 +381,9 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	// --- Ark grid: core points and option totals follow the edited astrogems, anchored on bible's values.
 	for (const c of coreStates(l)) {
 		const points = simCorePoints(l, state, base, c.id);
-		if (points !== c.points) set(PartType.ArkGridCore, (p) => p.id === c.id, coreValueAt(c, points, weapon0), { id: c.id });
+		const info = simCoreInfo(c.info, state.arkGrid.find((x) => x.id === c.id));
+		if (points !== c.points || info !== c.info)
+			set(PartType.ArkGridCore, (p) => p.id === c.id, coreValueAs(c, info, points, weapon0), { id: c.id });
 	}
 	const t = astrogemTotals(l);
 	for (const id of Object.keys(ASTROGEM_COEFF).map(Number)) {

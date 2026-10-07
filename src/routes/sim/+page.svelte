@@ -27,6 +27,6 @@
 
 {#if saved}
 	{#key `${saved.region}/${saved.name}`}
-		<CharacterView name={saved.name} region={saved.region} {subtitle} loadout={saved.loadout} />
+		<CharacterView name={saved.name} region={saved.region} {subtitle} loadout={saved.loadout} cpDistribution={saved.cpDistribution} />
 	{/key}
 {/if}

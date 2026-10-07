@@ -4,7 +4,8 @@
 		<Simulator loadout={loadout}>{#snippet sidebar()}…extra sidebar cards…{/snippet}</Simulator>
 -->
 <script lang="ts">
-	import { untrack, type Snippet } from 'svelte';
+	import { setContext, untrack, type Snippet } from 'svelte';
+	import { cpStandings, type CpDistribution } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
 	import SimArkGrid from './sim/SimArkGrid.svelte';
 	import SimBracelet from './sim/SimBracelet.svelte';
@@ -19,7 +20,12 @@
 	import type { Loadout } from './types';
 	import { coreStates } from './upgrades';
 
-	let { loadout, sidebar, characterName }: { loadout: Loadout; sidebar?: Snippet; characterName?: string } = $props();
+	let {
+		loadout,
+		sidebar,
+		characterName,
+		cpDistribution = null
+	}: { loadout: Loadout; sidebar?: Snippet; characterName?: string; cpDistribution?: CpDistribution | null } = $props();
 
 	const base = $derived(initSimState(loadout));
 	let sim = $state(untrack(() => initSimState(loadout)));
@@ -53,6 +59,12 @@
 		mutate(s);
 		return (simulate(loadout, s, base).cp / result.cp - 1) * 100;
 	};
+
+	// Pickers show a preview's raw CP next to its percent.
+	setContext('loa-sim:cp', () => simulated);
+
+	const standings = $derived(cpDistribution ? cpStandings(cpDistribution, loadout.itemLevel ?? null) : []);
+	const className = $derived(loadout.classId.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '));
 
 	const gems = $derived(gemParts(loadout));
 	const cores = $derived(coreStates(loadout));
@@ -126,6 +138,8 @@
 		ilvlBefore={itemLevel(base)}
 		ilvlAfter={itemLevel(sim)}
 		{sections}
+		{standings}
+		{className}
 		onreset={reset}
 		onundo={undo}
 		onredo={redo}

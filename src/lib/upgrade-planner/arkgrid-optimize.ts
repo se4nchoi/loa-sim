@@ -7,10 +7,10 @@
 // loses its options, which the score accounts for.
 
 import { ASTROGEM_ITEMS, ASTROGEM_KINDS } from './game-data';
-import { initSimState, type SimAstrogem, type SimState } from './simulate';
+import { initSimState, simCoreInfo, type SimAstrogem, type SimState } from './simulate';
 import { ASTROGEM_COEFF, CORE_WILLPOWER, astrogemOptionValue } from './tables';
 import type { Loadout } from './types';
-import { astrogemTotals, coreStates, coreValueAt, weaponPowerOf } from './upgrades';
+import { astrogemTotals, coreStates, coreValueAs, weaponPowerOf } from './upgrades';
 
 const MAX_GEMS_PER_CORE = 4;
 
@@ -42,10 +42,11 @@ export function optimizeArkGrid(l: Loadout, state: SimState, base: SimState = in
 		// Anchor like the simulator: bible's points per core, offset by the points the unedited state places there.
 		const placed = side.map((c) => base.arkGrid.find((x) => x.id === c.id)?.gems.reduce((sum, g) => sum + g.corePoints, 0) ?? 0);
 		// Precomputed per core: CP factor for every point total the search can reach (0–20 placed points).
+		const info = side.map((c, ci) => simCoreInfo(c.info, sideState[ci]));
 		const coreFactor = side.map((c, ci) =>
-			Array.from({ length: 21 }, (_, points) => 1 + coreValueAt(c, c.points - placed[ci] + points, wp) / 1e4)
+			Array.from({ length: 21 }, (_, points) => 1 + coreValueAs(c, info[ci], c.points - placed[ci] + points, wp) / 1e4)
 		);
-		const cap = side.map((c) => CORE_WILLPOWER[c.info.grade]);
+		const cap = info.map((i) => CORE_WILLPOWER[i.grade]);
 		const wpOf = gems.map(astrogemWillpower);
 
 		// Options lost by leaving gems out, as a CP factor (relative to everything equipped).

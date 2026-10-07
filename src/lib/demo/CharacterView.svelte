@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { Simulator, UpgradePlanner } from '$lib/upgrade-planner';
+	import type { CpDistribution } from '$lib/upgrade-planner/cp-distribution';
 	import type { Loadout } from '$lib/upgrade-planner/types';
 
 	let {
 		name,
 		region,
 		subtitle,
-		loadout
-	}: { name: string; region: string; subtitle?: string; loadout: Loadout | null } = $props();
+		loadout,
+		cpDistribution = null
+	}: { name: string; region: string; subtitle?: string; loadout: Loadout | null; cpDistribution?: CpDistribution | null } = $props();
 </script>
 
 <svelte:head><title>{name} ({region}) | loa-sim</title></svelte:head>
@@ -27,7 +29,7 @@
 {#if !loadout}
 	<p class="text-surface-300">This character has no Ark Passive loadout with combat power data yet.</p>
 {:else}
-	<Simulator {loadout} characterName={name}>
+	<Simulator {loadout} {cpDistribution} characterName={name}>
 		{#snippet sidebar()}
 			<UpgradePlanner {loadout} />
 		{/snippet}

@@ -1,6 +1,7 @@
 // Decoding lostark.bible character data (the page's SvelteKit `__data.json`). Shared by the server
 // loader and the browser paste flow; nothing here touches the network.
 
+import type { CpDigest, CpDistribution } from '$lib/upgrade-planner/cp-distribution';
 import type { Loadout } from '$lib/upgrade-planner/types';
 
 export const REGIONS = ['NA', 'CE'] as const;
@@ -11,6 +12,8 @@ export interface CharacterData {
 	region: string;
 	header: { ilvl?: number; class?: string; title?: string; guild?: { name?: string } | null } | null;
 	loadout: Loadout | null;
+	/** The class's Combat Power distribution, for "top X%" (missing on characters saved before it was kept). */
+	cpDistribution?: CpDistribution | null;
 }
 
 /** The URL whose response a player copies into the paste box. Opening it is ordinary browsing. */
@@ -77,14 +80,22 @@ export function decodeCharacterData(body: unknown, name: string, region: string)
 	const nodes = b.nodes.filter((n): n is DataNode & { data: unknown[] } => n?.type === 'data' && Array.isArray(n.data));
 	const pages = nodes.map((n) => unflatten(n.data) as Record<string, unknown>);
 	const layout = pages.find((p) => 'header' in p) as { header?: CharacterData['header'] } | undefined;
-	const page = pages.find((p) => 'loadouts' in p) as { loadouts?: Loadout[] } | undefined;
+	const page = pages.find((p) => 'loadouts' in p) as
+		| { loadouts?: Loadout[]; combatPowerDistribution?: Record<string, Record<string, CpDigest>> }
+		| undefined;
 	if (!page) throw new Error('No character found in that data. Check the name and region, then copy it again.');
 	return {
 		name,
 		region,
 		header: layout?.header ?? null,
-		loadout: page.loadouts?.find((l) => l.type === 'ark_passive' && l.battlePoint) ?? null
+		loadout: page.loadouts?.find((l) => l.type === 'ark_passive' && l.battlePoint) ?? null,
+		cpDistribution: distributionOf(page.combatPowerDistribution)
 	};
+}
+
+function distributionOf(raw: Record<string, Record<string, CpDigest>> | undefined): CpDistribution | null {
+	const [classId, digests] = Object.entries(raw ?? {})[0] ?? [];
+	return classId && digests && typeof digests === 'object' ? { classId, digests } : null;
 }
 
 /** Parses what a player pasted (the raw text of the data link). */

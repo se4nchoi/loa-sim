@@ -7,4 +7,4 @@
 	);
 </script>
 
-<CharacterView name={data.name} region={data.region} {subtitle} loadout={data.loadout} />
+<CharacterView name={data.name} region={data.region} {subtitle} loadout={data.loadout} cpDistribution={data.cpDistribution} />

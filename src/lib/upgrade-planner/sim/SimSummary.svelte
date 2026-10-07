@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatTop, type CpStanding } from '../cp-distribution';
 	import { formatCp } from '../format';
 	import Delta from './Delta.svelte';
 	import { btn, type SectionDelta, type SimSection } from './ui';
@@ -9,6 +10,8 @@
 		ilvlBefore,
 		ilvlAfter,
 		sections,
+		standings = [],
+		className = '',
 		onreset,
 		onundo,
 		onredo,
@@ -20,6 +23,8 @@
 		ilvlBefore: number | null;
 		ilvlAfter: number | null;
 		sections: Record<SimSection, SectionDelta>;
+		standings?: CpStanding[];
+		className?: string;
 		onreset: () => void;
 		onundo: () => void;
 		onredo: () => void;
@@ -65,6 +70,24 @@
 			</span>
 		{/if}
 	</div>
+	{#if standings.length}
+		<div class="flex flex-col gap-1 p-2">
+			<span class="text-xs text-surface-400" title="From lostark.bible's Combat Power distribution for your class">Standing among {className}s</span>
+			{#each standings as s (s.label)}
+				{@const now = s.top(current)}
+				{@const after = s.top(simulated)}
+				<div class="flex flex-row items-baseline justify-between gap-2 text-sm">
+					<span class="text-surface-300" title={`${s.count.toLocaleString()} characters`}>{s.label === 'all' ? 'All item levels' : `Item Level ${s.label}`}</span>
+					<span class="tabular-nums">
+						<span class="text-surface-200">{formatTop(now)}</span>
+						{#if formatTop(after) !== formatTop(now)}
+							→ <span class="font-semibold {after < now ? 'text-green-400' : 'text-red-400'}">{formatTop(after)}</span>
+						{/if}
+					</span>
+				</div>
+			{/each}
+		</div>
+	{/if}
 	{#if changed.length}
 		<div class="grid grid-cols-[1fr_max-content] p-2">
 			{#each changed as [g, d] (g)}
