@@ -37,3 +37,10 @@ All game-related assets are property of their respective owners.
 
 - `static/frames/*.png` (ark passive frames and the inherited-gear border) are game UI assets, as used by
   lostark.bible (served there under `/i/`). All game assets belong to Smilegate RPG / Amazon Games.
+
+## Libraries
+
+- [wa-sqlite](https://github.com/rhashimoto/wa-sqlite) (MIT, © Roy T. Hashimoto): SQLite in WebAssembly, used to read
+  LOA Logs databases locally.
+- The LOA Logs database format follows [snoww/loa-logs](https://github.com/snoww/loa-logs) (GPL-3.0). Only its data
+  format is read; no code is copied.

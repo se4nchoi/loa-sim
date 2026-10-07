@@ -19,7 +19,7 @@
 	import type { Loadout } from './types';
 	import { coreStates } from './upgrades';
 
-	let { loadout, sidebar }: { loadout: Loadout; sidebar?: Snippet } = $props();
+	let { loadout, sidebar, characterName }: { loadout: Loadout; sidebar?: Snippet; characterName?: string } = $props();
 
 	const base = $derived(initSimState(loadout));
 	let sim = $state(untrack(() => initSimState(loadout)));
@@ -148,7 +148,7 @@
 					<SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} />
 				</div>
 				<div class="flex min-w-0 flex-col gap-2">
-					<SimGems bind:sim {base} {gems} delta={sections.gems} />
+					<SimGems bind:sim {base} {gems} {characterName} delta={sections.gems} />
 					<SimEngravings bind:sim {base} {preview} delta={sections.engravings} />
 					<SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} />
 					<SimKarma bind:sim {base} delta={sections.karma} />

@@ -5,6 +5,7 @@
 	import { iconUrl, itemLook } from '../icons';
 	import type { GemKind, GemPart, SimState } from '../simulate';
 	import ItemIcon from './ItemIcon.svelte';
+	import LogsImport from './LogsImport.svelte';
 	import MenuPicker from './MenuPicker.svelte';
 	import Segmented from './Segmented.svelte';
 	import SimCard from './SimCard.svelte';
@@ -15,8 +16,9 @@
 		sim = $bindable(),
 		base,
 		gems,
-		delta
-	}: { sim: SimState; base: SimState; gems: GemPart[]; delta: SectionDelta } = $props();
+		delta,
+		characterName
+	}: { sim: SimState; base: SimState; gems: GemPart[]; delta: SectionDelta; characterName?: string } = $props();
 
 	const editable = $derived(gems.map((g, i) => ({ g, i })).filter(({ g }) => g.table));
 	const KIND_OPTIONS: { value: GemKind; label: string; title: string }[] = [
@@ -83,8 +85,10 @@
 						Gem DPS estimate:
 						<span class="font-bold {dps > 0 ? 'text-green-400' : dps < 0 ? 'text-red-400' : 'text-surface-200'}">{formatPct(dps)}%</span>
 						<span class="text-surface-400">({sharedTotal.toFixed(0)}% of damage covered)</span>
+						<button type="button" class="ml-2 text-surface-400 underline hover:text-surface-100" onclick={() => (sim.skillShares = {})}>Clear</button>
 					</div>
 				{/if}
+				<div class="mt-2"><LogsImport {characterName} onapply={(shares) => (sim.skillShares = shares)} /></div>
 			</div>
 		{/if}
 		<div class="grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-2">

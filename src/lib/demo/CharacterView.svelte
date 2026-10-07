@@ -27,7 +27,7 @@
 {#if !loadout}
 	<p class="text-surface-300">This character has no Ark Passive loadout with combat power data yet.</p>
 {:else}
-	<Simulator {loadout}>
+	<Simulator {loadout} characterName={name}>
 		{#snippet sidebar()}
 			<UpgradePlanner {loadout} />
 		{/snippet}
