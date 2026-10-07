@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { gemDpsGainPct } from '../dps';
 	import { formatPct } from '../format';
-	import { GEM_SKILLS } from '../game-data';
+	import { GEM_SKILL_GROUPS, GEM_SKILLS, ITEMS } from '../game-data';
 	import { iconUrl, itemLook } from '../icons';
 	import type { GemKind, GemPart, SimState } from '../simulate';
 	import ItemIcon from './ItemIcon.svelte';
@@ -51,18 +51,47 @@
 		);
 	});
 
-	/** Gem item id for a tier/kind/level: 650[3|2][1 dmg|2 cd][level 2 digits][bound digit]. */
-	const gemId = (id: number, kind: GemKind, level: number) =>
-		Math.floor(id / 10000) * 10000 + (kind === 'damage' ? 1 : 2) * 1000 + level * 10 + (id % 10);
+	/**
+	 * Gem item id for a tier/kind/level: 650[tier][1 dmg|2 cd][level 2 digits][bound digit]. Brilliant gems (6504)
+	 * don't encode the kind; their icon is the same either way. Falls back to the unbound id when the bound one
+	 * isn't in the item table.
+	 */
+	const gemId = (id: number, kind: GemKind, level: number) => {
+		const brilliant = Math.floor(id / 10000) % 10 === 4;
+		const kindDigit = brilliant ? Math.floor(id / 1000) % 10 : kind === 'damage' ? 1 : 2;
+		const unbound = Math.floor(id / 10000) * 10000 + kindDigit * 1000 + level * 10;
+		return ITEMS[unbound + (id % 10)] ? unbound + (id % 10) : unbound;
+	};
 
 	// The character's class is whatever class its gem skills belong to.
 	const classKey = $derived(sim.gems.map((g) => (g.skill ? GEM_SKILLS[g.skill]?.[2] : undefined)).find(Boolean));
-	const SKILL_OPTIONS = $derived<MenuOption<number>[]>(
-		Object.entries(GEM_SKILLS)
+	const SKILL_OPTIONS = $derived.by<MenuOption<number>[]>(() => {
+		const inUse = new Set(base.gems.map((g) => g.skill));
+		const byName = new Map<string, MenuOption<number>>();
+		for (const [id, s] of Object.entries(GEM_SKILLS)) {
 			// Regular combat skills, plus any skill a gem already sits on (e.g. incarnation skills).
-			.filter(([id, s]) => s[2] === classKey && (s[3] === 1 || base.gems.some((g) => g.skill === Number(id))))
-			.map(([id, s]) => ({ value: Number(id), label: s[0], iconUrl: iconUrl(s[1]) }))
-	);
+			if (s[2] !== classKey || !(s[3] === 1 || inUse.has(Number(id)))) continue;
+			// One entry per name (some skills have several ids); keep the id the gems use.
+			const prev = byName.get(s[0]);
+			if (prev && (inUse.has(prev.value) || !inUse.has(Number(id)))) continue;
+			byName.set(s[0], { value: Number(id), label: s[0], iconUrl: iconUrl(s[1]) });
+		}
+		return [...byName.values()];
+	});
+	/** The picker entry for a skill: the one with the same name. */
+	const optionOf = (id: number | null) =>
+		SKILL_OPTIONS.find((o) => o.value === id || (id !== null && o.label === GEM_SKILLS[id]?.[0]))?.value ?? 0;
+	/** Shares from logs are per skill; a gem on a skill group gets the sum of the group's skills. */
+	const withGroups = (shares: Record<number, number>) => {
+		const out = { ...shares };
+		for (const g of sim.gems) {
+			const members = g.skill !== null ? GEM_SKILL_GROUPS[g.skill] : undefined;
+			if (!members || out[g.skill!]) continue;
+			const sum = members.reduce((a, m) => a + (shares[m] ?? 0), 0);
+			if (sum > 0) out[g.skill!] = Number(sum.toFixed(2));
+		}
+		return out;
+	};
 	const skillName = (id: number | null) => (id ? (GEM_SKILLS[id]?.[0] ?? `Skill ${id}`) : 'Unknown skill');
 
 	const rowGems = (r: (typeof rows)[number]) => [r.slots.damage, r.slots.cooldown, ...r.extra].filter((i): i is number => i !== undefined);
@@ -124,7 +153,7 @@
 						<button type="button" class="ml-1 text-xs text-surface-400 underline hover:text-surface-100" onclick={() => (sim.skillShares = {})}>Clear</button>
 					</div>
 				{/if}
-				<LogsImport {characterName} onapply={(shares) => (sim.skillShares = shares)} />
+				<LogsImport {characterName} onapply={(shares) => (sim.skillShares = withGroups(shares))} />
 			</div>
 		{/if}
 
@@ -137,7 +166,7 @@
 				{@const skill = r.slots.damage !== undefined ? sim.gems[r.slots.damage].skill : r.slots.cooldown !== undefined ? sim.gems[r.slots.cooldown].skill : r.skill}
 				<div class="col-span-full grid grid-cols-subgrid items-center border-t border-neutral-950 py-1">
 					<MenuPicker
-						value={skill ?? 0}
+						value={optionOf(skill)}
 						options={SKILL_OPTIONS}
 						label={`${skillName(skill)} gems: skill`}
 						changed={skill !== r.skill}

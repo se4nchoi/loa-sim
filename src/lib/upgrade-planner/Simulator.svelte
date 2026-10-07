@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { setContext, untrack, type Snippet } from 'svelte';
+	import { className as classNameOf } from './class-names';
 	import { cpStandings, type CpDistribution } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
 	import SimArkGrid from './sim/SimArkGrid.svelte';
@@ -64,7 +65,7 @@
 	setContext('loa-sim:cp', () => simulated);
 
 	const standings = $derived(cpDistribution ? cpStandings(cpDistribution, loadout.itemLevel ?? null) : []);
-	const className = $derived(loadout.classId.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '));
+	const className = $derived(classNameOf(loadout.classId));
 
 	const gems = $derived(gemParts(loadout));
 	const cores = $derived(coreStates(loadout));

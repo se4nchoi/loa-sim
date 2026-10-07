@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { className } from '$lib/upgrade-planner/class-names';
 	import { page } from '$app/state';
 	import {
 		REGIONS,
@@ -83,7 +84,7 @@
 					<a href={`/sim?c=${encodeURIComponent(characterKey(c))}`} class="flex min-w-0 flex-1 flex-col hover:text-accent-200">
 						<span class="font-semibold">{c.name} <span class="text-xs font-normal text-surface-400">{c.region}</span></span>
 						<span class="text-xs text-surface-400">
-							{#if c.header?.ilvl}Item Level {c.header.ilvl.toFixed(2)} · {/if}loaded {ago(c.savedAt)}
+							{#if c.loadout?.classId}{className(c.loadout.classId)} · {/if}{#if c.header?.ilvl}Item Level {c.header.ilvl.toFixed(2)} · {/if}loaded {ago(c.savedAt)}
 						</span>
 					</a>
 					<a href={`/sim?c=${encodeURIComponent(characterKey(c))}`} class="rounded-xs bg-accent-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-accent-600">Continue</a>

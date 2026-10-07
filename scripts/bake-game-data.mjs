@@ -91,6 +91,29 @@ const gemSkills = {};
 for (const [id, v] of Object.entries(skills))
 	if (v.class && v.icon && v.name && Number(id) < 9_000_000)
 		gemSkills[id] = [v.name, v.icon, v.class, v.maxLevel === 20 && v.type > 0 && v.category > 0 ? 1 : 0];
+// Some gems name a skill group instead of a skill (effect types 34/35: Guardian Knight skills, Brawl King
+// Twelve Forms). Groups take their class from their skills and count as regular when any of them is.
+const gemSkillGroups = {};
+for (const [id, g] of Object.entries(stats.skillGroup ?? {})) {
+	const members = (g.skills ?? []).filter((s) => gemSkills[s]);
+	if (!g.name || !g.icon || !members.length || gemSkills[id]) continue;
+	gemSkills[id] = [g.name, g.icon, gemSkills[members[0]][2], members.some((s) => gemSkills[s][3]) ? 1 : 0];
+	gemSkillGroups[id] = members.map(Number);
+}
+// A skill's damage and cooldown gems can name different groups (170008 / 170009 Rending Finisher): alias them to
+// one id so they share a row and a damage share. A regular group stands in for its skills in the skill picker.
+const gemSkillAlias = {};
+const canonical = {};
+for (const [id, members] of Object.entries(gemSkillGroups)) {
+	const key = `${gemSkills[id][2]}|${gemSkills[id][0]}`;
+	if (canonical[key]) {
+		gemSkillAlias[id] = Number(canonical[key]);
+		gemSkills[id][3] = 0;
+		continue;
+	}
+	canonical[key] = id;
+	if (gemSkills[id][3]) for (const m of members) gemSkills[m][3] = 0;
+}
 
 // Skill effect per gem level (1–10), in 1/100 %: damage gems raise skill damage, cooldown gems cut cooldown.
 const gemEffect = (base) =>
@@ -138,6 +161,12 @@ export const ASTROGEM_ITEMS: Record<number, number> = ${JSON.stringify(astrogemI
 
 /** Skill id → [name, icon, class key, regular combat skill (1) or not (0)] for every class skill. */
 export const GEM_SKILLS: Record<number, [name: string, icon: string, classKey: string, regular: 0 | 1]> = ${JSON.stringify(gemSkills)};
+
+/** Skill group id → its skills, for gems that name a group (shares from logs add up over the group). */
+export const GEM_SKILL_GROUPS: Record<number, number[]> = ${JSON.stringify(gemSkillGroups)};
+
+/** Duplicate skill group id → the group id used for it (same class and name). */
+export const GEM_SKILL_ALIAS: Record<number, number> = ${JSON.stringify(gemSkillAlias)};
 
 /** Gem skill effect by level (index 0 = Lv. 1), in 1/100 %: damage % for damage gems, cooldown % for cooldown gems. */
 export const GEM_EFFECTS: Record<'T4' | 'T3', { damage: number[]; cooldown: number[] }> = ${JSON.stringify(gemEffects)};

@@ -6,7 +6,7 @@
 // of bible's values, which keeps unknown bonuses (titles, karma, etc.) intact.
 
 import { PartType, baseAttackPoint, combatPower, partHigh } from './cp';
-import { BRACELET_EFFECTS } from './game-data';
+import { BRACELET_EFFECTS, GEM_SKILL_ALIAS } from './game-data';
 import { HONING_SLOTS, HONING_TABLE, type HoningSlot } from './honing-data';
 import {
 	ACCESSORY_LINES,
@@ -74,7 +74,8 @@ export interface SimGem {
 }
 
 /** Bible's gem effect types: 5 = skill damage, 27 = skill cooldown. */
-const GEM_EFFECT_TYPE: Record<number, GemKind> = { 5: 'damage', 27: 'cooldown' };
+// Gem effects: 5 / 27 name a skill; 34 / 35 name a skill group (Guardian Knight skills, Brawl King Twelve Forms).
+const GEM_EFFECT_TYPE: Record<number, GemKind> = { 5: 'damage', 27: 'cooldown', 34: 'damage', 35: 'cooldown' };
 
 function readGems(l: Loadout): SimGem[] {
 	const pool = [...(l.gems ?? [])];
@@ -86,7 +87,7 @@ function readGems(l: Loadout): SimGem[] {
 		return {
 			level: g.level,
 			kind: effect ? GEM_EFFECT_TYPE[effect.type] : g.kind === 'cooldown' ? 'cooldown' : 'damage',
-			skill: effect?.id ?? null
+			skill: effect ? (GEM_SKILL_ALIAS[effect.id] ?? effect.id) : null
 		};
 	});
 }

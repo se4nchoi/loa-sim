@@ -4,6 +4,7 @@ import soulshan from './fixtures/na-soulshan.json';
 import { HONING_TABLE } from './honing-data';
 import { gemDpsGainPct } from './dps';
 import { gemParts, initSimState, itemLevel, mainStatIndex, optionLevel, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
+import { className } from './class-names';
 import { coreValue } from './tables';
 import { coreStates, weaponPowerOf } from './upgrades';
 import type { Loadout } from './types';
@@ -244,5 +245,27 @@ describe('core type swap', () => {
 		const c = core(673120005);
 		expect(simCoreInfo(c.info, { id: c.id, gems: [], grade: c.info.grade, tier: c.info.tier })).toBe(c.info);
 		expect(simCoreInfo(c.info, { id: c.id, gems: [], tier: 1 }).weaponCore).toBe(true);
+	});
+});
+
+describe('gems on skill groups', () => {
+	it('reads brilliant gems naming skill groups (types 34/35) and merges damage/cooldown group ids', () => {
+		const l = structuredClone(soulshan) as unknown as Loadout;
+		// Guardian Knight style: Rending Finisher damage on group 170008, cooldown on 170009.
+		l.gems![0].effects = [{ type: 34, id: 170008, value: 3600 }];
+		l.gems![1].effects = [{ type: 35, id: 170009, value: 2000 }];
+		const [a, b] = initSimState(l).gems;
+		expect(a).toMatchObject({ kind: 'damage', skill: 170008 });
+		expect(b).toMatchObject({ kind: 'cooldown', skill: 170008 });
+	});
+});
+
+describe('class names', () => {
+	it('uses NA names', () => {
+		expect(className('soul_eater')).toBe('Souleater');
+		expect(className('dimension_master')).toBe('Dimensionalist');
+		expect(className('dragon_knight')).toBe('Guardianknight');
+		expect(className('infighter_male')).toBe('Breaker');
+		expect(className('new_class')).toBe('New Class');
 	});
 });
