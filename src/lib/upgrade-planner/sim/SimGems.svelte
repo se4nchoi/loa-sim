@@ -1,14 +1,14 @@
 <script lang="ts">
 	import type { GemPart, SimState } from '../simulate';
 	import SimCard from './SimCard.svelte';
-	import { linkButtonClass, range, selectClass } from './ui';
+	import { linkButtonClass, range, selectClass, type SectionDelta } from './ui';
 
 	let {
 		sim = $bindable(),
 		base,
 		gems,
-		deltaPct
-	}: { sim: SimState; base: SimState; gems: GemPart[]; deltaPct: number } = $props();
+		delta
+	}: { sim: SimState; base: SimState; gems: GemPart[]; delta: SectionDelta } = $props();
 
 	const KIND = { damage: 'Damage', cooldown: 'Cooldown', other: 'Gem' };
 	const editable = $derived(gems.map((g, i) => ({ g, i })).filter(({ g }) => g.table));
@@ -18,7 +18,7 @@
 	}
 </script>
 
-<SimCard title="Gems" {deltaPct}>
+<SimCard title="Gems" {delta}>
 	{#snippet actions()}
 		<button type="button" class={linkButtonClass} onclick={() => editable.forEach(({ i }) => (sim.gems[i] = Math.min(10, sim.gems[i] + 1)))}>All +1</button>
 		<button type="button" class={linkButtonClass} onclick={() => allTo(10)}>All Lv. 10</button>

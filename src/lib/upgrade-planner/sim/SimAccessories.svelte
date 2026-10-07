@@ -2,9 +2,9 @@
 	import { ACCESSORY_SLOTS, familyOf, isOtherLine, type AccessorySlot, type SimLine, type SimState } from '../simulate';
 	import { ACCESSORY_LINES, TIERS, formatLineValue, type Tier } from '../tables';
 	import SimCard from './SimCard.svelte';
-	import { linkButtonClass, selectClass } from './ui';
+	import { linkButtonClass, selectClass, type SectionDelta } from './ui';
 
-	let { sim = $bindable(), base, deltaPct }: { sim: SimState; base: SimState; deltaPct: number } = $props();
+	let { sim = $bindable(), base, delta }: { sim: SimState; base: SimState; delta: SectionDelta } = $props();
 
 	const LABELS: Record<AccessorySlot, string> = {
 		neck: 'Necklace',
@@ -40,7 +40,7 @@
 	}
 </script>
 
-<SimCard title="Accessories" {deltaPct}>
+<SimCard title="Accessories" {delta}>
 	<div class="grid grid-cols-[max-content_1fr] items-center gap-x-3 gap-y-2 max-md:grid-cols-1">
 		{#each slots as slot (slot)}
 			<div class="flex flex-row items-baseline gap-2 md:flex-col md:gap-0">

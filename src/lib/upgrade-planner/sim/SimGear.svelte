@@ -2,9 +2,9 @@
 	import { HONING_SLOTS, type HoningSlot } from '../honing-data';
 	import type { SimState } from '../simulate';
 	import SimCard from './SimCard.svelte';
-	import { linkButtonClass, range, selectClass } from './ui';
+	import { linkButtonClass, range, selectClass, type SectionDelta } from './ui';
 
-	let { sim = $bindable(), base, deltaPct }: { sim: SimState; base: SimState; deltaPct: number } = $props();
+	let { sim = $bindable(), base, delta }: { sim: SimState; base: SimState; delta: SectionDelta } = $props();
 
 	const LABELS: Record<HoningSlot, string> = {
 		head: 'Head',
@@ -25,7 +25,7 @@
 	}
 </script>
 
-<SimCard title="Equipment" {deltaPct}>
+<SimCard title="Equipment" {delta}>
 	{#snippet actions()}
 		<button type="button" class={linkButtonClass} onclick={() => bumpAll(1)}>All +1</button>
 	{/snippet}

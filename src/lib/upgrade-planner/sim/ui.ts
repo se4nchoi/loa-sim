@@ -20,6 +20,12 @@ export const SIM_GROUPS = {
 } as const;
 export type SimGroup = keyof typeof SIM_GROUPS;
 
+/** A section's effect on CP: percent, and raw Combat Power at the current score. */
+export interface SectionDelta {
+	pct: number;
+	cp: number;
+}
+
 const product = (parts: BattlePointPart[], types: readonly number[]) =>
 	parts.reduce((r, p) => (types.includes(p.type) ? r * (p.type === PartType.BaseAttack ? partHigh(p) : 1 + partHigh(p) / 1e4) : r), 1);
 

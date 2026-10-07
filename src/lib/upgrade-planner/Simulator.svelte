@@ -12,7 +12,7 @@
 	import SimGems from './sim/SimGems.svelte';
 	import SimKarma from './sim/SimKarma.svelte';
 	import SimSummary from './sim/SimSummary.svelte';
-	import { groupDeltas } from './sim/ui';
+	import { groupDeltas, type SimGroup } from './sim/ui';
 	import { gemParts, initSimState, itemLevel, simulate } from './simulate';
 	import type { Loadout } from './types';
 	import { coreStates } from './upgrades';
@@ -33,6 +33,7 @@
 	const current = $derived(loadout.combatPower?.score ?? baseline.cp);
 	// Keep the headline number identical to the in-game score; edits apply as a ratio on top.
 	const simulated = $derived(current * (result.cp / baseline.cp));
+	const delta = (g: SimGroup) => ({ pct: groups[g], cp: (current * groups[g]) / 100 });
 
 	function reset() {
 		sim = initSimState(loadout);
@@ -44,12 +45,12 @@
 {:else}
 	<div class="grid grid-cols-[1fr_300px] items-start gap-2 max-lg:grid-cols-1">
 		<div class="flex min-w-0 flex-col gap-2">
-			<SimGear bind:sim {base} deltaPct={groups.gear} />
-			<SimAccessories bind:sim {base} deltaPct={groups.accessories} />
-			<SimGems bind:sim {base} {gems} deltaPct={groups.gems} />
-			<SimEngravings bind:sim {base} deltaPct={groups.engravings} />
-			<SimArkGrid bind:sim {base} {cores} deltaPct={groups.arkGrid} />
-			<SimKarma bind:sim {base} deltaPct={groups.karma} />
+			<SimGear bind:sim {base} delta={delta('gear')} />
+			<SimAccessories bind:sim {base} delta={delta('accessories')} />
+			<SimGems bind:sim {base} {gems} delta={delta('gems')} />
+			<SimEngravings bind:sim {base} delta={delta('engravings')} />
+			<SimArkGrid bind:sim {base} {cores} delta={delta('arkGrid')} />
+			<SimKarma bind:sim {base} delta={delta('karma')} />
 		</div>
 		<div class="flex flex-col gap-2 lg:sticky lg:top-16">
 			<SimSummary

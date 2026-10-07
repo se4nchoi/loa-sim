@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { formatCp, formatPct } from '../format';
+	import { formatCp } from '../format';
+	import Delta from './Delta.svelte';
 	import type { SimGroup } from './ui';
 
 	let {
@@ -42,7 +43,7 @@
 		<span class="mt-1 text-xs text-surface-400">Simulated</span>
 		<div class="flex flex-row items-baseline gap-2">
 			<span class="text-2xl font-bold text-red-400">{formatCp(simulated)}</span>
-			<span class="text-sm font-semibold {color(delta)}">{formatPct(delta)}%</span>
+			<Delta pct={delta} cp={simulated - current} class="text-sm font-semibold" />
 		</div>
 		{#if ilvlBefore !== null && ilvlAfter !== null}
 			<span class="mt-1 text-xs text-surface-400">Item Level</span>
@@ -55,7 +56,7 @@
 		<div class="grid grid-cols-[1fr_max-content] p-2">
 			{#each changed as [g, v] (g)}
 				<span class="text-sm text-surface-300">{LABELS[g]}</span>
-				<span class="text-right text-sm {color(v)}">{formatPct(v)}%</span>
+				<Delta pct={v} cp={(current * v) / 100} class="text-right text-sm" />
 			{/each}
 		</div>
 	{:else}

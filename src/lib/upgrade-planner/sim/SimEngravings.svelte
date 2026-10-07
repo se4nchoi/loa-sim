@@ -2,15 +2,15 @@
 	import type { SimState } from '../simulate';
 	import { ENGRAVING_BOOK_STEPS, ENGRAVING_NAMES } from '../tables';
 	import SimCard from './SimCard.svelte';
-	import { range, selectClass } from './ui';
+	import { range, selectClass, type SectionDelta } from './ui';
 
-	let { sim = $bindable(), base, deltaPct }: { sim: SimState; base: SimState; deltaPct: number } = $props();
+	let { sim = $bindable(), base, delta }: { sim: SimState; base: SimState; delta: SectionDelta } = $props();
 
 	const ids = $derived(Object.keys(sim.engravings).map(Number));
 	const stoned = $derived(ids.filter((id) => sim.engravings[id].stone > 0).length);
 </script>
 
-<SimCard title="Engravings" {deltaPct}>
+<SimCard title="Engravings" {delta}>
 	{#if ids.length === 0}
 		<p class="text-sm text-surface-400">No supported engravings found.</p>
 	{:else}

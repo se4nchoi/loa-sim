@@ -3,21 +3,21 @@
 	import { ASTROGEM_COEFF, ASTROGEM_OPTION_NAMES } from '../tables';
 	import type { CoreState } from '../upgrades';
 	import SimCard from './SimCard.svelte';
-	import { range, selectClass } from './ui';
+	import { range, selectClass, type SectionDelta } from './ui';
 
 	let {
 		sim = $bindable(),
 		base,
 		cores,
-		deltaPct
-	}: { sim: SimState; base: SimState; cores: CoreState[]; deltaPct: number } = $props();
+		delta
+	}: { sim: SimState; base: SimState; cores: CoreState[]; delta: SectionDelta } = $props();
 
 	const dealerCores = $derived(cores.filter((c) => !c.info.supportOnly));
 	const options = Object.keys(ASTROGEM_COEFF).map(Number);
 	const inputClass = (changed: boolean) => `${selectClass(changed)} w-20 text-right`;
 </script>
 
-<SimCard title="Ark Grid" {deltaPct}>
+<SimCard title="Ark Grid" {delta}>
 	{#if dealerCores.length === 0}
 		<p class="text-sm text-surface-400">No ark grid cores equipped.</p>
 	{:else}
