@@ -20,6 +20,18 @@
 	let signedIn = $state(false);
 	let roster = $state<RosterCharacter[] | null>(null);
 	let rosterError = $state<string | null>(null);
+	// Roster characters the player hid (keys), so long rosters stay short. Per browser.
+	const HIDDEN_KEY = 'loa-sim:roster-hidden';
+	let hidden = $state<string[]>([]);
+	let showHidden = $state(false);
+	function setHidden(key: string, hide: boolean) {
+		hidden = hide ? [...hidden, key] : hidden.filter((k) => k !== key);
+		try {
+			localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden));
+		} catch {
+			/* storage blocked: hiding lasts until reload */
+		}
+	}
 	/** Character being loaded ("na/name"), for the button's busy state. */
 	let loading = $state<string | null>(null);
 
@@ -36,6 +48,11 @@
 
 	onMount(async () => {
 		saved = listSavedCharacters();
+		try {
+			hidden = JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? '[]');
+		} catch {
+			hidden = [];
+		}
 		region = preferredRegion(page.url.searchParams.get('region'));
 		saveRegion(region);
 		input = page.url.searchParams.get('name') ?? '';
@@ -53,6 +70,9 @@
 	const rosterKeys = $derived(new Set((roster ?? []).map((c) => characterKey(c))));
 	/** Characters loaded by name (or pasted) that aren't on the synced roster. */
 	const typed = $derived(saved.filter((c) => !rosterKeys.has(characterKey(c))));
+	const hiddenSet = $derived(new Set(hidden));
+	const shownRoster = $derived((roster ?? []).filter((c) => showHidden || !hiddenSet.has(characterKey(c))));
+	const hiddenCount = $derived((roster ?? []).filter((c) => hiddenSet.has(characterKey(c))).length);
 	const openUrl = (c: { region: string; name: string }) => `/sim?c=${encodeURIComponent(characterKey(c))}`;
 
 	/** Loads a character's current bible snapshot via our server, saves it here and opens the simulator. */
@@ -115,7 +135,7 @@
 <svelte:head><title>loa-sim · Combat Power Simulator</title></svelte:head>
 
 <!-- One compact character row: class emblem, name, item level · CP, then its actions. -->
-{#snippet row(c: { region: string; name: string }, classId: string | undefined, ilvl: number | undefined, cp: { score: number; support: boolean } | undefined, note: string | undefined, typedEntry: SavedCharacter | null)}
+{#snippet row(c: { region: string; name: string }, classId: string | undefined, ilvl: number | undefined, cp: { score: number; support: boolean } | undefined, note: string | undefined, dismiss: { label: string; icon: string; run: () => void } | null)}
 	{@const key = characterKey(c)}
 	{@const have = savedByKey.get(key)}
 	<div class="flex flex-row items-center gap-3 px-3 py-2">
@@ -138,8 +158,8 @@
 		{:else}
 			<button type="button" class={primary} disabled={loading !== null} onclick={() => load(c.region, c.name)}>{loading === key ? 'Loading…' : 'Load'}</button>
 		{/if}
-		{#if typedEntry}
-			<button type="button" class="px-1 text-surface-500 hover:text-red-300" onclick={() => remove(typedEntry)} aria-label={`Remove ${c.name}`} title="Remove">✕</button>
+		{#if dismiss}
+			<button type="button" class="w-5 text-surface-500 hover:text-surface-100" onclick={dismiss.run} aria-label={`${dismiss.label} ${c.name}`} title={dismiss.label}>{dismiss.icon}</button>
 		{/if}
 	</div>
 {/snippet}
@@ -191,17 +211,25 @@
 		{:else if roster?.length === 0}
 			<p class="px-3 py-3 text-sm text-surface-400">No characters on your linked rosters yet.</p>
 		{:else if roster}
-			{#each roster as c (characterKey(c))}
+			{#each shownRoster as c (characterKey(c))}
 				{@const have = savedByKey.get(characterKey(c))}
+				{@const isHidden = hiddenSet.has(characterKey(c))}
 				{@render row(
 					c,
 					c.classId ?? have?.loadout?.classId,
 					c.ilvl ?? have?.header?.ilvl,
 					c.cp ?? (have?.loadout?.combatPower ? { score: have.loadout.combatPower.score, support: have.loadout.combatPower.id === 2 } : undefined),
-					have ? `loaded ${ago(have.savedAt)}` : undefined,
-					null
+					isHidden ? 'hidden' : have ? `loaded ${ago(have.savedAt)}` : undefined,
+					isHidden
+						? { label: 'Show', icon: '↺', run: () => setHidden(characterKey(c), false) }
+						: { label: 'Hide', icon: '✕', run: () => setHidden(characterKey(c), true) }
 				)}
 			{/each}
+			{#if hiddenCount}
+				<button type="button" class="px-3 py-2 text-left text-xs text-surface-400 hover:text-surface-100" onclick={() => (showHidden = !showHidden)}>
+					{showHidden ? 'Done' : `${hiddenCount} hidden · show`}
+				</button>
+			{/if}
 		{/if}
 		{#if rosterError}<p class="px-3 py-3 text-sm text-red-400">{rosterError}</p>{/if}
 	</section>
@@ -217,7 +245,7 @@
 					c.header?.ilvl,
 					c.loadout?.combatPower ? { score: c.loadout.combatPower.score, support: c.loadout.combatPower.id === 2 } : undefined,
 					`loaded ${ago(c.savedAt)}`,
-					c
+					{ label: 'Remove', icon: '✕', run: () => remove(c) }
 				)}
 			{/each}
 		</section>
