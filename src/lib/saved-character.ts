@@ -5,9 +5,10 @@ import type { CharacterData, LoadoutKind } from '$lib/bible-data';
 
 const KEY = 'loa-sim:characters';
 const LEGACY_KEY = 'loa-eff:character';
-const MAX_SAVED = 12;
-/** The character last shown in the simulator, so the Simulator tab returns to it. */
-const LAST_VIEWED_KEY = 'loa-sim:last-viewed';
+const MAX_SAVED = 24;
+/** Characters last shown in the simulator, newest first: the Simulator tab returns to the first. */
+const RECENT_KEY = 'loa-sim:recent';
+const MAX_RECENT = 6;
 
 export interface SavedCharacter extends CharacterData {
 	savedAt: number;
@@ -56,20 +57,26 @@ export const listSavedCharacters = (): SavedCharacter[] => read().sort((a, b) =>
 export function loadSavedCharacter(key?: string | null): SavedCharacter | null {
 	const list = listSavedCharacters();
 	if (!key) {
-		let last: string | null = null;
-		try {
-			last = localStorage.getItem(LAST_VIEWED_KEY);
-		} catch {
-			/* storage blocked */
-		}
+		const last = recentKeys()[0];
 		return list.find((c) => characterKey(c) === last) ?? list[0] ?? null;
 	}
 	return list.find((c) => characterKey(c) === key.toLowerCase()) ?? null;
 }
 
-export function rememberViewed(key: string) {
+/** Keys of the characters last viewed in the simulator, newest first. */
+export function recentKeys(): string[] {
 	try {
-		localStorage.setItem(LAST_VIEWED_KEY, key.toLowerCase());
+		const v = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
+		return Array.isArray(v) ? v.filter((k): k is string => typeof k === 'string') : [];
+	} catch {
+		return [];
+	}
+}
+
+export function rememberViewed(key: string) {
+	const k = key.toLowerCase();
+	try {
+		localStorage.setItem(RECENT_KEY, JSON.stringify([k, ...recentKeys().filter((x) => x !== k)].slice(0, MAX_RECENT)));
 	} catch {
 		/* storage blocked: the tab falls back to the most recently loaded */
 	}

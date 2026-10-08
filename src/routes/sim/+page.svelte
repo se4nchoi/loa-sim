@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import CharacterSwitcher from '$lib/CharacterSwitcher.svelte';
 	import CharacterView from '$lib/demo/CharacterView.svelte';
 	import type { LoadoutKind } from '$lib/bible-data';
 	import { characterKey, loadSavedCharacter, rememberViewed, setLoadoutKind } from '$lib/saved-character';
@@ -32,6 +33,7 @@
 </script>
 
 {#if saved}
+	<CharacterSwitcher current={characterKey(saved)} />
 	{#key `${saved.region}/${saved.name}`}
 		<CharacterView name={saved.name} region={saved.region} {subtitle} itemLevel={saved.header?.ilvl} loadout={saved.loadout}
 			cpDistribution={saved.cpDistribution}

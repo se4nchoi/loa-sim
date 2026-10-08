@@ -162,6 +162,25 @@ export function parseRosters(body: unknown): RosterCharacter[] {
 }
 
 const ROSTER_KEY = 'loa-sim:bible-roster';
+/** Roster characters the player hid (character keys), so long rosters stay short. Per browser. */
+const HIDDEN_KEY = 'loa-sim:roster-hidden';
+
+export function hiddenRosterKeys(): string[] {
+	try {
+		const v = JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? '[]');
+		return Array.isArray(v) ? v : [];
+	} catch {
+		return [];
+	}
+}
+
+export function saveHiddenRosterKeys(keys: string[]) {
+	try {
+		localStorage.setItem(HIDDEN_KEY, JSON.stringify(keys));
+	} catch {
+		/* storage blocked: hiding lasts until reload */
+	}
+}
 /** How long a cached roster is used before it's fetched again on page load. */
 export const ROSTER_TTL_MS = 60 * 60 * 1000;
 

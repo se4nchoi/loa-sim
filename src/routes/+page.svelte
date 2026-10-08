@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { ROSTER_TTL_MS, bibleToken, cachedRoster, completeSignIn, fetchRoster, signOut, startSignIn, type RosterCharacter } from '$lib/bible-oauth';
+	import { ROSTER_TTL_MS, bibleToken, cachedRoster, completeSignIn, fetchRoster, hiddenRosterKeys, saveHiddenRosterKeys, signOut, startSignIn, type RosterCharacter } from '$lib/bible-oauth';
 	import { REGIONS, bibleDataUrl, parseCharacterInput, parsePastedData, type Region } from '$lib/bible-data';
 	import { preferredRegion, saveRegion } from '$lib/region-preference';
 	import { characterKey, listSavedCharacters, removeSavedCharacter, saveCharacter, type SavedCharacter } from '$lib/saved-character';
 	import { classIconUrl } from '$lib/upgrade-planner/class-icons';
 	import { className } from '$lib/upgrade-planner/class-names';
+	import { loadCharacter } from '$lib/load-character';
 	import { onMount } from 'svelte';
 
 	let region = $state<Region>('NA');
@@ -20,17 +21,12 @@
 	let signedIn = $state(false);
 	let roster = $state<RosterCharacter[] | null>(null);
 	let rosterError = $state<string | null>(null);
-	// Roster characters the player hid (keys), so long rosters stay short. Per browser.
-	const HIDDEN_KEY = 'loa-sim:roster-hidden';
+	// Roster characters the player hid, so long rosters stay short.
 	let hidden = $state<string[]>([]);
 	let showHidden = $state(false);
 	function setHidden(key: string, hide: boolean) {
 		hidden = hide ? [...hidden, key] : hidden.filter((k) => k !== key);
-		try {
-			localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden));
-		} catch {
-			/* storage blocked: hiding lasts until reload */
-		}
+		saveHiddenRosterKeys(hidden);
 	}
 	/** Character being loaded ("na/name"), for the button's busy state. */
 	let loading = $state<string | null>(null);
@@ -54,11 +50,7 @@
 
 	onMount(async () => {
 		saved = listSavedCharacters();
-		try {
-			hidden = JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? '[]');
-		} catch {
-			hidden = [];
-		}
+		hidden = hiddenRosterKeys();
 		region = preferredRegion(page.url.searchParams.get('region'));
 		saveRegion(region);
 		input = page.url.searchParams.get('name') ?? '';
@@ -96,12 +88,7 @@
 		loading = key;
 		error = null;
 		try {
-			const res = await fetch(`/api/character/${encodeURIComponent(r)}/${encodeURIComponent(name)}`);
-			const body = await res.json().catch(() => null);
-			if (!res.ok) throw new Error(body?.message ?? `Loading failed (${res.status})`);
-			if (!body?.loadout) throw new Error(`${name} (${r}) wasn't found on lostark.bible, or has no Ark Passive loadout with Combat Power yet.`);
-			saveCharacter(body);
-			saveRegion(r);
+			const body = await loadCharacter(r, name);
 			if (open) return void goto(openUrl(body));
 			saved = listSavedCharacters();
 			loading = null;

@@ -366,7 +366,7 @@
 											{:else}<span class="text-xs text-surface-500">No stats</span>{/if}
 										</div>
 										<div class="col-span-3 flex flex-wrap items-center justify-end gap-1">
-											{#if isWeakest}<span class="mr-auto text-xs font-semibold text-amber-300">weakest</span>{/if}
+											{#if isWeakest}<span class="mr-auto rounded-xs bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold tracking-wide text-amber-300 uppercase">Weakest</span>{/if}
 											<button type="button" class={btnAccent} aria-label={`Max astrogem ${gi + 1}`} onclick={() => maxCore(core, gi)} title="Best max-cut Ancient astrogem that fits this core's current Willpower">Max</button>
 											{#if before && JSON.stringify(gem) !== JSON.stringify(before)}
 												<button
