@@ -5,14 +5,17 @@
 	import ItemIcon from './ItemIcon.svelte';
 	import SimCard from './SimCard.svelte';
 	import Stepper from './Stepper.svelte';
+	import SimSidereal from './SimSidereal.svelte';
 	import { btn, type SectionDelta } from './ui';
 
 	let {
 		sim = $bindable(),
 		base,
 		delta,
-		itemIds
-	}: { sim: SimState; base: SimState; delta: SectionDelta; itemIds: Record<string, number> } = $props();
+		itemIds,
+		mainStat,
+		attackPower
+	}: { sim: SimState; base: SimState; delta: SectionDelta; itemIds: Record<string, number>; mainStat: number; attackPower: number } = $props();
 
 	const LABELS: Record<HoningSlot, string> = {
 		head: 'Head',
@@ -37,9 +40,9 @@
 	{#snippet actions()}
 		<button type="button" class={btn} onclick={() => bumpAll(-1)}>All −1</button>
 		<button type="button" class={btn} onclick={() => bumpAll(1)}>All +1</button>
-		<button type="button" class={btn} onclick={() => (sim.gear = structuredClone($state.snapshot(base.gear)))}>Reset</button>
+		<button type="button" class={btn} onclick={() => { sim.gear = structuredClone($state.snapshot(base.gear)); sim.sidereal = structuredClone($state.snapshot(base.sidereal)); }}>Reset</button>
 	{/snippet}
-	{#if slots.length === 0}
+	{#if slots.length === 0 && !sim.sidereal}
 		<p class="text-sm text-surface-400">No T4 1675-tier gear found; honing can't be simulated for this loadout.</p>
 	{:else}
 		<div class="grid w-fit grid-cols-[max-content_minmax(4rem,8rem)_max-content_max-content_max-content_3rem] items-center gap-x-4 gap-y-3.5 max-sm:w-full max-sm:grid-cols-[max-content_minmax(0,1fr)_max-content_max-content_3rem] max-sm:gap-x-2">
@@ -63,5 +66,8 @@
 				{:else}<span></span>{/if}
 			{/each}
 		</div>
+	{/if}
+	{#if sim.sidereal && base.sidereal}
+		<SimSidereal bind:weapon={sim.sidereal} base={base.sidereal} itemId={itemIds.weapon} {mainStat} {attackPower} />
 	{/if}
 </SimCard>

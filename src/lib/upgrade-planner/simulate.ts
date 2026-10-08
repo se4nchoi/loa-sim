@@ -24,6 +24,7 @@ import {
 	type Tier
 } from './tables';
 import type { BattlePointPart, Loadout } from './types';
+import { readSidereal, siderealItemLevel, siderealWeaponPower, type SimSidereal } from './sidereal';
 import { astrogemTotals, coreStates, coreValueAs, engravingStates, weaponPowerOf, type CoreState } from './upgrades';
 
 /** Advanced honing level 30+ adds this much to the item's stats; fits bible's main stat to 0.05%. */
@@ -44,6 +45,7 @@ export type SimLine = DpsLine | OtherLine;
 export const isOtherLine = (ln: SimLine): ln is OtherLine => ln.key === 'other';
 
 export interface SimState {
+	sidereal: SimSidereal | null;
 	gear: Partial<Record<HoningSlot, { honing: number; advanced: number }>>;
 	accessories: Partial<Record<AccessorySlot, SimLine[]>>;
 	/** Each gem, in the order of the loadout's gem parts. Only `level` affects Combat Power. */
@@ -271,6 +273,7 @@ export function initSimState(l: Loadout): SimState {
 	}
 	const leap = l.battlePoint.parts.find((p) => p.type === PartType.KarmaLeapLevel);
 	return {
+		sidereal: readSidereal(l),
 		gear,
 		accessories,
 		gems: readGems(l),
@@ -327,9 +330,10 @@ const gearStat = (slot: HoningSlot, g: { honing: number; advanced: number }) =>
 
 /** Item level as bible shows it: the mean of the six pieces' honing item levels. */
 export function itemLevel(state: SimState): number | null {
-	const slots = HONING_SLOTS.filter((s) => state.gear[s]);
+	const slots = HONING_SLOTS.filter((s) => state.gear[s] || (s === 'weapon' && state.sidereal));
 	if (slots.length !== HONING_SLOTS.length) return null;
-	return slots.reduce((sum, s) => sum + HONING_BASE_ILVL + 5 * state.gear[s]!.honing, 0) / slots.length;
+	return slots.reduce((sum, s) => sum + (s === 'weapon' && state.sidereal
+		? siderealItemLevel(state.sidereal) : HONING_BASE_ILVL + 5 * state.gear[s]!.honing), 0) / slots.length;
 }
 
 function linesTotal(lines: SimState['accessories'], weapon: 'percent' | 'flat') {
@@ -409,6 +413,8 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	const isMainStat = (i: number) => i === msIndex || i === ALL_MAIN_STATS;
 	mainStat += braceletStat(state.bracelet, isMainStat) - braceletStat(base.bracelet, isMainStat);
 	let weaponPower = weapon0;
+	if (state.sidereal && base.sidereal)
+		weaponPower *= siderealWeaponPower(state.sidereal) / siderealWeaponPower(base.sidereal);
 	for (const slot of HONING_SLOTS) {
 		const from = base.gear[slot];
 		const to = state.gear[slot];
@@ -482,8 +488,9 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	for (const c of coreStates(l)) {
 		const points = simCorePoints(l, state, base, c.id);
 		const core = state.arkGrid.find((x) => x.id === c.id);
-		if (points === c.points && core?.grade === undefined && core?.variant === undefined) continue;
-		const v = simCoreValue(c, core, points, weapon0);
+		if (points === c.points && core?.grade === undefined && core?.variant === undefined
+			&& (!c.info.weaponCore || weaponPower === weapon0)) continue;
+		const v = simCoreValue(c, core, points, weaponPower);
 		replace(CORE_TYPES, (p) => p.id === c.id, v.defense ? PartType.ArkGridCoreDefense : PartType.ArkGridCore, v.value, { id: c.id, points });
 	}
 	const t = astrogemTotals(l);

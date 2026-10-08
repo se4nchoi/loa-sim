@@ -281,3 +281,5 @@ console.log(
 	`items ${Object.keys(itemMap).length}, engravings ${Object.keys(engravingIcons).length}, bracelet effects ${bracelet.length}, ` +
 		`gem skills ${Object.keys(gemSkills).length}, gem effects ${JSON.stringify(gemEffects)}`
 );
+
+await import('./bake-sidereal-data.mjs');

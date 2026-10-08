@@ -43,6 +43,8 @@
 	const snapshot = () => $state.snapshot(sim) as SimState;
 	const baseline = $derived(simulate(loadout, base, base));
 	const result = $derived(simulate(loadout, snapshot(), base));
+	const bondAttackPower = $derived(Math.sqrt(result.mainStat * result.weaponPower / 6)
+		* (1 + Number(loadout.battlePoint.parts.find((p) => p.type === 1)?.attackPowerMultiplier ?? 0) / 100));
 	// Supports: how each half of the score (Buff Power, Shield & Heal Power) moves.
 	const split = $derived.by(() => {
 		if (!loadout.battlePoint.isSupport) return null;
@@ -193,7 +195,7 @@
 	<div class="flex min-w-0 flex-col gap-2">
 		<div class="grid grid-cols-2 items-start gap-2 max-xl:grid-cols-1">
 			<div class="flex min-w-0 flex-col gap-2">
-				<SimGear bind:sim {base} {itemIds} delta={sections.gear} />
+			<SimGear bind:sim {base} {itemIds} delta={sections.gear} mainStat={result.mainStat} attackPower={bondAttackPower} />
 				<SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} />
 				<SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} />
 			</div>

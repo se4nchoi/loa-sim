@@ -12,6 +12,7 @@
 	} from '$lib/bible-data';
 	import { characterKey, listSavedCharacters, removeSavedCharacter, saveCharacter, type SavedCharacter } from '$lib/saved-character';
 	import { onMount } from 'svelte';
+	import { preferredRegion, saveRegion } from '$lib/region-preference';
 
 	let region = $state<Region>('NA');
 	let input = $state('');
@@ -21,8 +22,8 @@
 
 	onMount(() => {
 		saved = listSavedCharacters();
-		const r = page.url.searchParams.get('region')?.toUpperCase();
-		if (r && (REGIONS as readonly string[]).includes(r)) region = r as Region;
+		region = preferredRegion(page.url.searchParams.get('region'));
+		saveRegion(region);
 		input = page.url.searchParams.get('name') ?? '';
 	});
 
@@ -42,6 +43,7 @@
 				return;
 			}
 			saveCharacter(data);
+			saveRegion(data.region);
 			goto(`/sim?c=${encodeURIComponent(characterKey(data))}`);
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
@@ -103,7 +105,7 @@
 			<div class="flex min-w-0 flex-1 flex-col gap-2">
 				<label for="char" class="font-semibold">Your character</label>
 				<div class="flex flex-row gap-2">
-					<select bind:value={region} aria-label="Region" class={field}>
+					<select bind:value={region} onchange={(e) => saveRegion(e.currentTarget.value)} aria-label="Region" class={field}>
 						{#each REGIONS as r (r)}<option>{r}</option>{/each}
 					</select>
 					<input id="char" bind:value={input} placeholder="Character name or lostark.bible link" class="{field} min-w-0 flex-1" autocomplete="off" />

@@ -178,6 +178,10 @@ export function coreValueAt(state: CoreState, points: number, weaponPower: numbe
 
 /** Value as another core type (grade / chaos option tier) at `points`; still anchored on bible while it's the same type. */
 export function coreValueAs(state: CoreState, info: CoreInfo, points: number, weaponPower: number) {
+	// Weapon-core values depend on stats we can only approximate. Keep the imported correction
+	// across grade changes of the same option, just as we do across point changes.
+	if (state.info.weaponCore && info.weaponCore)
+		return state.value + coreValue(info, points, weaponPower) - state.modelValue;
 	return info.grade === state.info.grade && info.tier === state.info.tier
 		? coreValueAt(state, points, weaponPower)
 		: coreValue(info, points, weaponPower);
