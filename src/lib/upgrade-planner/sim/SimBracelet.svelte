@@ -3,7 +3,7 @@
 	import { BRACELET_EFFECTS } from '../game-data';
 	import { itemLook } from '../icons';
 	import type { RoleTables } from '../roles';
-	import { BRACELET_STAT_LINES, type BraceletLine, type SimState } from '../simulate';
+	import type { BraceletLine, SimState } from '../simulate';
 	import { SUPPORT_BRACELET_EFFECTS } from '../support-data';
 	import ItemIcon from './ItemIcon.svelte';
 	import LinePicker from './LinePicker.svelte';
@@ -124,7 +124,7 @@
 </script>
 
 {#if sim.bracelet}
-	<SimCard title="Bracelet" {delta} info="Lines 1–2 are stat lines. Lines 3–5 can each roll a stat or a special effect.">
+	<SimCard title="Bracelet" {delta} info="Each of the five lines can be a stat, a special effect, or empty.">
 		{#snippet actions()}
 			<button type="button" class={btn} onclick={() => (sim.bracelet = structuredClone($state.snapshot(base.bracelet)))}>Reset</button>
 		{/snippet}
@@ -133,16 +133,14 @@
 			<div class="flex min-w-0 flex-col gap-1.5">
 				{#each sim.bracelet.lines as line, i (i)}
 					{@const before = base.bracelet?.lines[i]}
-					<div class="flex min-w-0 flex-row flex-wrap items-center gap-1.5 {i === BRACELET_STAT_LINES ? 'mt-1 border-t border-neutral-950 pt-2.5' : ''}">
-						{#if i >= BRACELET_STAT_LINES}
-							<Segmented
-								value={line.kind}
-								options={KINDS}
-								onselect={(k) => setKind(i, k)}
-								label={`Bracelet line ${i + 1} type`}
-								size="h-8 min-w-9 px-1.5 text-xs"
-							/>
-						{/if}
+					<div class="flex min-w-0 flex-row flex-wrap items-center gap-1.5">
+						<Segmented
+							value={line.kind}
+							options={KINDS}
+							onselect={(k) => setKind(i, k)}
+							label={`Bracelet line ${i + 1} type`}
+							size="h-8 min-w-9 px-1.5 text-xs"
+						/>
 						{#if line.kind === 'stat'}
 							<span class="flex flex-row">
 								<select

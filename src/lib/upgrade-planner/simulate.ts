@@ -133,9 +133,8 @@ export type BraceletLine =
 	| { kind: 'effect'; key: string }
 	| { kind: 'empty' };
 
-/** T4 bracelets have five lines: two stat lines, then three that roll a stat or an effect. */
+/** T4 bracelets have five lines; each can be a stat or an effect. */
 export const BRACELET_LINES = 5;
-export const BRACELET_STAT_LINES = 2;
 
 export interface SimBracelet {
 	lines: BraceletLine[];

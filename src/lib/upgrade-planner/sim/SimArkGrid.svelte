@@ -5,7 +5,7 @@
 	import { ASTROGEM_ITEMS, ASTROGEM_KINDS } from '../game-data';
 	import { coreLook, itemLook } from '../icons';
 	import type { RoleTables } from '../roles';
-	import { coreVariant, simCoreInfo, simCorePoints, type SimAstrogem, type SimState } from '../simulate';
+	import { coreVariant, optionLevel, simCoreInfo, simCorePoints, type SimAstrogem, type SimState } from '../simulate';
 	import { coreOptionName, supportCoreValue, swappedCoreId } from '../support';
 	import {
 		ASTROGEM_OPTION_NAMES,
@@ -111,10 +111,13 @@
 	}
 
 	// Option picker: one row per option type, levels 1–5 as cells. Value encodes "id:level".
-	const optionChoices = (g: SimAstrogem): MenuOption<string>[] =>
-		(kindOf(g)?.options ?? [2001, 2002, 2003]).flatMap((id) =>
-			[1, 2, 3, 4, 5].map((lv) => ({ value: `${id}:${lv}`, label: String(lv), row: ASTROGEM_OPTION_NAMES[id], muted: !SCORING.has(id) }))
-		);
+	// An astrogem's two options are different types, so the other option's type isn't offered.
+	const optionChoices = (g: SimAstrogem, oi: number): MenuOption<string>[] =>
+		(kindOf(g)?.options ?? [2001, 2002, 2003])
+			.filter((id) => !g.opts.some((o, j) => j !== oi && o.id === id))
+			.flatMap((id) =>
+				[1, 2, 3, 4, 5].map((lv) => ({ value: `${id}:${lv}`, label: String(lv), row: ASTROGEM_OPTION_NAMES[id], muted: !SCORING.has(id) }))
+			);
 	const POINTS: MenuOption<number>[] = [1, 2, 3, 4, 5].map((p) => ({ value: p, label: `${p}P` }));
 	const decode = (v: string) => {
 		const [id, level] = v.split(':').map(Number);
@@ -131,6 +134,13 @@
 			});
 		return worst as { ci: number; gi: number; pct: number } | null;
 	});
+
+	/** Total level of every astrogem option across the grid; the ones that score for this role first. */
+	const totals = $derived(
+		[2001, 2002, 2003, 2011, 2012, 2013]
+			.map((id) => ({ id, now: optionLevel(sim.arkGrid, id), before: optionLevel(base.arkGrid, id), scoring: SCORING.has(id) }))
+			.sort((a, b) => Number(b.scoring) - Number(a.scoring))
+	);
 
 	// Optimizer
 	let suggestion = $state<{ arrangement: Arrangement; gainPct: number; moved: number } | null>(null);
@@ -184,6 +194,19 @@
 				<button type="button" class="{btn} {suggestion.gainPct > 0.0005 ? '' : 'ml-auto'}" onclick={() => (suggestion = null)}>Dismiss</button>
 			</div>
 		{/if}
+		<div class="mb-3 flex flex-row flex-wrap gap-1.5" aria-label="Astrogem option totals">
+			{#each totals as t (t.id)}
+				<span
+					class="rounded-xs border px-2 py-1 text-xs {t.scoring ? 'border-surface-600 bg-surface-800 text-surface-100' : 'border-surface-800 text-surface-500'}"
+					title={t.scoring ? `${ASTROGEM_OPTION_NAMES[t.id]}: total across all astrogems` : `${ASTROGEM_OPTION_NAMES[t.id]}: doesn't count for ${support ? 'support' : 'DPS'} Combat Power`}
+				>
+					{ASTROGEM_OPTION_SHORT[t.id]}
+					<b class="tabular-nums {t.now !== t.before ? 'text-accent-300' : t.scoring ? 'text-surface-50' : ''}">
+						Lv. {#if t.now !== t.before}{`${t.before} → `}{/if}{t.now}
+					</b>
+				</span>
+			{/each}
+		</div>
 		<!-- Two columns only when the card itself is wide enough (a container query), so rows never crunch. -->
 		<div class="@container">
 			<div class="grid grid-cols-1 gap-3 @3xl:grid-cols-2">
@@ -258,7 +281,7 @@
 												{#each gem.opts as opt, oi (oi)}
 													<MenuPicker
 														value={`${opt.id}:${opt.level}`}
-														options={optionChoices(gem)}
+														options={optionChoices(gem, oi)}
 														label={`Option ${oi + 1}`}
 														changed={before?.opts[oi]?.id !== opt.id || before?.opts[oi]?.level !== opt.level}
 														onpick={(v) => (gem.opts[oi] = decode(v))}
