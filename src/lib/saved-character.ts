@@ -8,7 +8,7 @@ const LEGACY_KEY = 'loa-eff:character';
 const MAX_SAVED = 24;
 /** Characters last shown in the simulator, newest first: the Simulator tab returns to the first. */
 const RECENT_KEY = 'loa-sim:recent';
-const MAX_RECENT = 6;
+export const MAX_RECENT = 12;
 
 export interface SavedCharacter extends CharacterData {
 	savedAt: number;

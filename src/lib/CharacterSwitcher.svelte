@@ -7,7 +7,7 @@
 	import { goto } from '$app/navigation';
 	import { cachedRoster, hiddenRosterKeys } from '$lib/bible-oauth';
 	import { loadCharacter } from '$lib/load-character';
-	import { characterKey, listSavedCharacters, recentKeys, type SavedCharacter } from '$lib/saved-character';
+	import { MAX_RECENT, characterKey, listSavedCharacters, recentKeys, type SavedCharacter } from '$lib/saved-character';
 	import { classIconUrl } from '$lib/upgrade-planner/class-icons';
 
 	let { current }: { /** Key of the character on screen ("na/soulshan"). */ current: string } = $props();
@@ -25,7 +25,7 @@
 		const rosterKeys = new Set((cachedRoster()?.roster ?? []).map((c) => characterKey(c)));
 		return {
 			byKey,
-			recent: [current, ...recentKeys().filter((k) => k !== current)].slice(0, 6).flatMap((k) => byKey.get(k) ?? []),
+			recent: [current, ...recentKeys().filter((k) => k !== current)].slice(0, MAX_RECENT).flatMap((k) => byKey.get(k) ?? []),
 			roster: roster.map((c) => ({ ...c, key: characterKey(c), loaded: byKey.has(characterKey(c)) })),
 			typed: saved.filter((c) => !rosterKeys.has(characterKey(c)))
 		};
