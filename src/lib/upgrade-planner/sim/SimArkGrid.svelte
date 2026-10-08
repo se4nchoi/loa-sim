@@ -135,12 +135,6 @@
 		return worst as { ci: number; gi: number; pct: number } | null;
 	});
 
-	/** Total level of every astrogem option across the grid; the ones that score for this role first. */
-	const totals = $derived(
-		[2001, 2002, 2003, 2011, 2012, 2013]
-			.map((id) => ({ id, now: optionLevel(sim.arkGrid, id), before: optionLevel(base.arkGrid, id), scoring: SCORING.has(id) }))
-			.sort((a, b) => Number(b.scoring) - Number(a.scoring))
-	);
 
 	// What one more core point / option level is worth from the current state. A probe astrogem carries only
 	// the points or levels, so the preview isolates them.
@@ -156,7 +150,23 @@
 	}
 	/** +1 level of an option, averaged over the next 5 (values round down per level, like Next Upgrades). */
 	const levelValue = (id: number) => (rows.length ? preview((s) => probe(s.arkGrid[rows[0].ci], 0, [{ id, level: 5 }])) / 5 : 0);
+	// The simulated score, for raw CP next to a percent.
+	const cpNow = getContext<(() => number) | undefined>('loa-sim:cp');
 	const small = (pct: number) => formatPct(pct, Math.abs(pct) < 0.1 && pct !== 0 ? 3 : 2);
+
+	/** Total level of every astrogem option across the grid; the ones that score for this role first. */
+	const totals = $derived(
+		[2001, 2002, 2003, 2011, 2012, 2013]
+			.map((id) => ({
+				id,
+				now: optionLevel(sim.arkGrid, id),
+				before: optionLevel(base.arkGrid, id),
+				scoring: SCORING.has(id),
+				/** CP % of one more level (scoring options only). */
+				gain: SCORING.has(id) ? levelValue(id) : 0
+			}))
+			.sort((a, b) => Number(b.scoring) - Number(a.scoring))
+	);
 </script>
 
 <SimCard
@@ -189,7 +199,7 @@
 							class="truncate rounded-xs border border-green-900 bg-green-950/40 px-2 py-1 text-xs text-green-400 tabular-nums"
 							title={`${ASTROGEM_OPTION_NAMES[t.id]}: Combat Power from one more level (average of the next 5)`}
 						>
-							+1 Lv ≈ {small(levelValue(t.id))}%
+							+1 Lv ≈ {small(t.gain)}%{#if cpNow}<span class="ml-1 text-[11px] text-surface-400">{formatPct((cpNow() * t.gain) / 100, 1)}</span>{/if}
 						</span>
 					{/if}
 				</div>
