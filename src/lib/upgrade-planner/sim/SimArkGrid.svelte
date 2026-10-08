@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { astrogemWillpower } from '../arkgrid-optimize';
+	import { astrogemTypeChoices, setAstrogemType } from '../astrogem-edit';
 	import { formatPct } from '../format';
 	import { ASTROGEM_ITEMS, ASTROGEM_KINDS } from '../game-data';
 	import { coreLook, itemLook } from '../icons';
@@ -58,12 +59,21 @@
 	}
 
 	const kindOf = (g: SimAstrogem) => ASTROGEM_KINDS[ASTROGEM_ITEMS[g.itemId]];
+	const gemTypeChoices = (ci: number, info: CoreInfo, gi: number): MenuOption<number>[] =>
+		astrogemTypeChoices(sim.arkGrid[ci], info, gi).map((c) => ({
+			value: c.itemId,
+			label: `${c.name} · ${c.willpower} WP · core ${c.total}/${c.cap}`,
+			disabled: !c.fits,
+				title: c.itemId === 0 ? 'Unequip this astrogem: removes its points and options and frees its Willpower.'
+					: c.fits ? 'Keeps grade, core points, Willpower reduction and option levels; incompatible option types are replaced.'
+				: `Needs ${c.total} Willpower; this simulated core provides ${c.cap}.`
+		}));
 	const reached = (points: number) => CORE_BREAKPOINTS.filter((bp) => points >= bp).at(-1);
 
 	// Core type picker: another grade, and for chaos cores another option (Swift → Flashy, Absorbing → Crushing,
 	// Weapon → Attack). Sun and moon have three dealer options (the second and third share a curve), star two.
 	const GRADES: CoreGrade[] = ['ancient', 'relic', 'legendary', 'heroic'];
-	const GRADE_NAME: Record<CoreGrade, string> = { ancient: 'Ancient', relic: 'Relic', legendary: 'Legendary', heroic: 'Heroic' };
+	const GRADE_NAME: Record<CoreGrade, string> = { ancient: 'Ancient', relic: 'Relic', legendary: 'Legendary', heroic: 'Epic' };
 	/** Chaos options per shape, by the id's variant digit. */
 	const CHAOS_OPTIONS: Record<CoreInfo['shape'], string[]> = {
 		sun: ['Flashy Attack', 'Stable Attack', 'Swift Attack'],
@@ -124,15 +134,20 @@
 		return { id, level };
 	};
 
-	/** What each astrogem's options add right now; the lowest one is flagged as the first to replace. */
+	/** Order and Chaos have separate replacement pools; flag the lowest option contribution in each. */
 	const weakest = $derived.by(() => {
-		let worst: { ci: number; gi: number; pct: number } | null = null;
-		for (const { ci } of rows)
-			sim.arkGrid[ci].gems.forEach((_, gi) => {
-				const pct = -preview((s) => (s.arkGrid[ci].gems[gi].opts = []));
-				if (!worst || pct < worst.pct) worst = { ci, gi, pct };
-			});
-		return worst as { ci: number; gi: number; pct: number } | null;
+		const result: Record<string, { ci: number; gi: number; pct: number } | null> = {};
+		for (const col of columns) {
+			result[col.title] = null;
+			for (const { ci } of col.rows)
+				sim.arkGrid[ci].gems.forEach((_, gi) => {
+					if (sim.arkGrid[ci].gems[gi].removed) return;
+					const pct = -preview((s) => (s.arkGrid[ci].gems[gi].opts = []));
+					const worst = result[col.title];
+					if (!worst || pct < worst.pct) result[col.title] = { ci, gi, pct };
+				});
+		}
+		return result;
 	});
 
 
@@ -172,7 +187,7 @@
 <SimCard
 	title="Ark Grid"
 	{delta}
-	info={`Core points and option totals add up from the astrogems. Click a core's name to try another grade or chaos option. Greyed options don't count for ${support ? 'support' : 'DPS'} Combat Power.`}
+	info={`Click a core or astrogem name to change its type. Choose None to unequip an astrogem and free Willpower. Other types keep grade, points, Willpower reduction and option levels; incompatible options are replaced. Types exceeding the simulated core's Willpower are disabled. Greyed stat options don't count for ${support ? 'support' : 'DPS'} Combat Power.`}
 >
 	{#snippet actions()}
 		<button type="button" class={btn} onclick={() => (sim.arkGrid = structuredClone($state.snapshot(base.arkGrid)))}>Reset</button>
@@ -261,22 +276,33 @@
 									{@const gl = itemLook(gem.itemId)}
 									{@const kind = kindOf(gem)}
 									{@const before = base.arkGrid[ci]?.gems[gi]}
-									{@const isWeakest = weakest?.ci === ci && weakest?.gi === gi}
+									{@const worst = weakest[col.title]}
+									{@const isWeakest = worst?.ci === ci && worst?.gi === gi}
 									<div
 										class="flex w-fit max-w-full flex-row items-center gap-2 rounded-xs p-1 {isWeakest ? 'bg-amber-500/10 ring-1 ring-amber-400/70' : ''}"
-										title={isWeakest ? `Weakest astrogem: its options add ${formatPct(weakest!.pct)}% CP` : undefined}
+										title={isWeakest ? `Weakest ${col.title} astrogem: its options add ${formatPct(worst!.pct)}% CP` : undefined}
 									>
 										<!-- Narrow cores (small phones) drop the icon; the kind name stays. -->
-										<div class="@max-[20rem]:hidden">
+										<div class="@max-[20rem]:hidden" class:opacity-30={gem.removed}>
 											<ItemIcon src={gl.icon} grade={gl.grade} size="size-9" title={`${kind?.name ?? 'Astrogem'} · ${astrogemWillpower(gem)} willpower`} />
 										</div>
 										<div class="flex min-w-0 flex-col gap-1">
 											<span class="flex flex-row items-baseline gap-1.5 text-xs">
-												<span class="font-semibold {info.attr === 'order' ? 'text-amber-200' : 'text-sky-200'}">{kind?.name ?? 'Astrogem'}</span>
+												<MenuPicker
+													value={gem.removed ? 0 : gem.itemId}
+													options={gemTypeChoices(ci, info, gi)}
+													label={`Astrogem type ${gi + 1}`}
+													changed={gem.removed || before?.itemId !== gem.itemId}
+													onpick={(v) => setAstrogemType(sim.arkGrid[ci], info, gi, v)}
+													preview={(v) => preview((s) => { setAstrogemType(s.arkGrid[ci], info, gi, v); })}
+												>
+													{#snippet trigger()}<span class="font-semibold text-xs {info.attr === 'order' ? 'text-amber-200' : 'text-sky-200'}">{gem.removed ? 'None' : kind?.name ?? 'Astrogem'}</span>{/snippet}
+												</MenuPicker>
 												<span class="text-surface-400 tabular-nums" title="Willpower">{astrogemWillpower(gem)} WP</span>
 												{#if isWeakest}<span class="font-semibold text-amber-300">· weakest</span>{/if}
 											</span>
 											<div class="flex flex-row flex-wrap items-center gap-1">
+												{#if !gem.removed}
 												<MenuPicker
 													value={gem.corePoints}
 													options={POINTS}
@@ -305,6 +331,7 @@
 														{/snippet}
 													</MenuPicker>
 												{/each}
+												{/if}
 												{#if before && JSON.stringify(gem) !== JSON.stringify(before)}
 													<button
 														type="button"

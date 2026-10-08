@@ -28,7 +28,7 @@ export interface CoreInfo {
 	grade: CoreGrade;
 	/** Chaos cores only: 0 = top-tier option (Flashy Attack, Smoldering Strike, Attack), 1 = second tier. */
 	tier: number;
-	/** Chaos star "Weapon": value depends on weapon power, so it's computed instead of tabled. */
+	/** Chaos star "Weapon": contributes flat / percent Weapon Power to base attack. */
 	weaponCore: boolean;
 	/** Support-only cores give dealers nothing. */
 	supportOnly: boolean;
@@ -58,23 +58,12 @@ export function decodeCore(id: number): CoreInfo | null {
 }
 
 /** Core battle points at 10/14/17/18/19/20P for dealers [agl]. */
-function dealerCoreCurve(info: CoreInfo, weaponPower: number): number[] {
+function dealerCoreCurve(info: CoreInfo): number[] {
 	if (info.supportOnly) return [0, 0, 0, 0, 0, 0];
 	if (info.attr === 'order')
 		return info.shape === 'star' ? [100, 250, 450, 467, 483, 500] : [150, 400, 750, 767, 783, 800];
-	if (info.weaponCore) {
-		// [agl] getWeaponCoeff: weapon power gained, as a √ multiplier on base attack.
-		const ancient = info.grade === 'ancient';
-		const flat17 = ancient ? 5200 : 3900;
-		const pct17 = ancient ? 3 : 2.25;
-		const steps: [number, number][] = [
-			[1300, 0], [1300, 0.75], [flat17, pct17], [flat17, pct17 + 0.23], [flat17, pct17 + 0.46], [flat17, pct17 + 0.69]
-		];
-		// bible exposes total weapon power only; assume ~9% of it comes from % bonuses like [agl]'s default.
-		const pct = 9;
-		const fixed = weaponPower / (1 + pct / 100);
-		return steps.map(([f, p]) => Math.floor((Math.sqrt(((fixed + f) * (1 + (pct + p) / 100)) / weaponPower) - 1) * 1e4));
-	}
+	// Weapon stats are already included in bible's BaseAttack, for dealers and supports alike.
+	if (info.weaponCore) return [0, 0, 0, 0, 0, 0];
 	if (info.tier === 0) return [50, 100, 250, 267, 283, 300];
 	return [0, 50, 150, 167, 183, 200];
 }
@@ -86,8 +75,8 @@ export const CORE_GRADE_CAP: Record<CoreGrade, number> = { heroic: 10, legendary
 export const CORE_WILLPOWER: Record<CoreGrade, number> = { heroic: 9, legendary: 12, relic: 15, ancient: 17 };
 
 /** Dealer battle points for a core at `points`. */
-export function coreValue(info: CoreInfo, points: number, weaponPower: number): number {
-	const curve = dealerCoreCurve(info, weaponPower);
+export function coreValue(info: CoreInfo, points: number, _weaponPower: number): number {
+	const curve = dealerCoreCurve(info);
 	const capped = Math.min(points, CORE_GRADE_CAP[info.grade]);
 	let idx = -1;
 	CORE_BREAKPOINTS.forEach((bp, i) => {

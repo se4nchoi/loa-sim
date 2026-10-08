@@ -5,15 +5,14 @@
 -->
 <script lang="ts">
 	import { formatPct } from './format';
-	import { honingUpgrades } from './honing-upgrades';
-	import { bracerUpgrades } from './bracer-upgrades';
-	import type { SimState } from './simulate';
+	import { liveUpgrades } from './live-upgrades';
+	import { initSimState, type SimState } from './simulate';
 	import { roleOf } from './roles';
 	import type { Loadout } from './types';
 	import UpgradeDialog from './UpgradeDialog.svelte';
 	import UpgradeTitle from './UpgradeTitle.svelte';
 	import { btn } from './sim/ui';
-	import { CATEGORY_LABELS, buildUpgrades, topDistinct, type Upgrade } from './upgrades';
+	import { CATEGORY_LABELS, topDistinct, type Upgrade } from './upgrades';
 
 	let {
 		loadout,
@@ -34,7 +33,7 @@
 		flashTimer = setTimeout(() => (flash = null), 1200);
 	}
 
-	const upgrades = $derived(buildUpgrades(loadout, [...honingUpgrades(loadout), ...bracerUpgrades(loadout, simState, simBase)]));
+	const upgrades = $derived(liveUpgrades(loadout, simState ? $state.snapshot(simState) : initSimState(loadout), simBase ?? initSimState(loadout)));
 	const cp = $derived(currentCp ?? loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
 	let dialogOpen = $state(false);
 </script>

@@ -4,8 +4,6 @@ import soulshan from './fixtures/na-soulshan.json';
 import { initSimState, itemLevel, simulate } from './simulate';
 import { readSidereal, setSiderealInfusion, siderealBattlePoints, siderealItemLevel, siderealMaxEvolution, siderealWeaponPower } from './sidereal';
 import { PartType, combatPower } from './cp';
-import { coreStates, coreValueAs, weaponPowerOf } from './upgrades';
-import { coreValue, decodeCore } from './tables';
 import type { Loadout } from './types';
 
 const loadout = mira as unknown as Loadout;
@@ -57,23 +55,18 @@ describe('Sidereal owner import and progression', () => {
 });
 
 describe('weapon core grade regression', () => {
-	it('retains the imported correction when relic Weapon becomes ancient', () => {
+	it('raises base Weapon Power when relic Weapon becomes ancient', () => {
 		const l = structuredClone(loadout);
 		const id = 673121005;
 		const core = l.arkGridCores!.find((c) => String(c.id).startsWith('67312'))!;
 		const part = l.battlePoint.parts.find((p) => p.type === PartType.ArkGridCore && p.id === core.id)!;
 		core.id = id;
-		part.id = id;
-		part.value = 650; // Higher than our approximation: this previously produced a downgrade.
-		const c = coreStates(l).find((c) => c.id === id)!;
-		const ancient = decodeCore(673121006)!;
-		const wp = weaponPowerOf(l);
-		const expected = 650 + coreValue(ancient, c.points, wp) - c.modelValue;
-		expect(coreValueAs(c, ancient, c.points, wp)).toBe(expected);
-		expect(expected).toBeGreaterThan(650);
+		// Weapon cores have no separate battle-point part: their stats are in base attack.
+		l.battlePoint.parts.splice(l.battlePoint.parts.indexOf(part), 1);
 		const base = initSimState(l);
 		const s = structuredClone(base);
 		s.arkGrid.find((c) => c.id === id)!.grade = 'ancient';
+		expect(simulate(l, s, base).weaponPower).toBeGreaterThan(simulate(l, base, base).weaponPower);
 		expect(simulate(l, s, base).cp).toBeGreaterThan(simulate(l, base, base).cp);
 	});
 });

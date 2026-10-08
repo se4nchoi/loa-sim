@@ -67,7 +67,9 @@ sidebar card under the existing Combat Power card. Support loadouts show a "DPS 
   table delta. So even if a table is off by a constant somewhere, the *difference* stays right, and the
   current CP is always the site's number.
 - The CP gain of changing one part from `a` to `b` is `(1e4 + b) / (1e4 + a) − 1`, since CP is a product.
-- Ark grid: cores use the 10/14/17/18/19/20P dealer curves, with ancient +100 from 17P. Astrogem options
+- Ark grid: cores use the 10/14/17/18/19/20P dealer curves, with ancient +100 from 17P except Weapon.
+  Weapon cores add flat and percent Weapon Power to base attack for both roles; swapping to Attack
+  removes those stats before adding Attack's core multiplier. Astrogem options
   are `floor(totalLevel × {Atk 400, Additional Damage 700, Boss Damage 1000} / 120)`, summed across every
   equipped astrogem.
 - Ability stones are scored as a whole stone (two engravings), net of the stone they replace.
@@ -82,8 +84,8 @@ sidebar card under the existing Combat Power card. Support loadouts show a "DPS 
 - Supports aren't modelled (different score, `combatPower.id === 2`).
 - Bracelets, elixirs, transcendence and cards aren't editable yet; honing covers T4 1675 gear only.
 - Honing results are marked ≈ (see above). Accessory Weapon Power lines are estimated the same way.
-- The chaos star "Weapon" core and earring Weapon Power % lines are estimates. bible exposes total weapon
-  power but not the flat/% split, so they're marked ≈.
+- Weapon Power changes use the imported total, with known accessory, karma and Weapon core bonuses
+  removed and reapplied as needed. Unknown Weapon Power bonuses can still affect the estimate.
 - T3 gems and non-relic engravings are supported by the tables but weren't checked against a live character.
 - The astrogem evaluator doesn't check willpower.
 

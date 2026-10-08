@@ -1,10 +1,10 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
+	import type { RoleTables } from '../roles';
 	import type { SimState } from '../simulate';
 	import {
 		KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL,
 		KARMA_EVOLUTION_HP_PER_LEVEL,
-		KARMA_EVOLUTION_PER_RANK,
-		KARMA_LEAP_PER_LEVEL,
 		KARMA_MAX_LEVEL,
 		karmaRank
 	} from '../tables';
@@ -13,6 +13,7 @@
 	import { btn, type SectionDelta } from './ui';
 
 	let { sim = $bindable(), base, delta }: { sim: SimState; base: SimState; delta: SectionDelta } = $props();
+	const role = getContext<() => RoleTables>('loa-sim:role');
 
 	type Tree = 'evolution' | 'enlightenment' | 'leap';
 	// Tree colors follow the in-game ark passive tabs.
@@ -25,7 +26,7 @@
 		const rank = karmaRank(level);
 		if (tree === 'evolution')
 			return [
-				{ label: `+${((rank * KARMA_EVOLUTION_PER_RANK) / 100).toFixed(2)}% CP` },
+				{ label: `+${((rank * role().evolutionKarmaPerRank) / 100).toFixed(2)}% ${role().support ? 'Buff Power bonus' : 'CP bonus'}` },
 				{ label: `+${(level * KARMA_EVOLUTION_HP_PER_LEVEL).toLocaleString()} Max HP` }
 			];
 		if (tree === 'enlightenment')
@@ -34,7 +35,7 @@
 				{ label: `+${rank} enlightenment point${rank === 1 ? '' : 's'}` }
 			];
 		return [
-			{ label: `+${((level * KARMA_LEAP_PER_LEVEL) / 100).toFixed(2)}% CP` },
+			...(role().leapKarmaPerLevel ? [{ label: `+${((level * role().leapKarmaPerLevel) / 100).toFixed(2)}% CP bonus` }] : []),
 			{ label: `+${rank * 2} leap points` }
 		];
 	};

@@ -151,7 +151,5 @@
 				<Delta pct={d.pct} cp={d.cp} class="text-right text-sm" />
 			{/each}
 		</div>
-	{:else}
-		<p class="p-2 text-xs text-surface-400">Change anything to see its effect on Combat Power.</p>
 	{/if}
 </div>

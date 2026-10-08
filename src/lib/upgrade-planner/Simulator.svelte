@@ -193,20 +193,27 @@
 	<div class="flex min-w-0 flex-col gap-2">
 		<div class="grid grid-cols-2 items-start gap-2 max-xl:grid-cols-1">
 			<div class="flex min-w-0 flex-col gap-2">
-			<SimGear bind:sim {base} {itemIds} classId={loadout.classId} delta={sections.gear} />
-				<SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} />
-				<SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} />
+				<section id="sim-equipment" aria-label="Equipment" class="scroll-mt-28"><SimGear bind:sim {base} {itemIds} classId={loadout.classId} delta={sections.gear} /></section>
+				<section id="sim-accessories" aria-label="Accessories" class="scroll-mt-28"><SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} /></section>
+				<section id="sim-bracelet" aria-label="Bracelet" class="scroll-mt-28"><SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} /></section>
 			</div>
 			<div class="flex min-w-0 flex-col gap-2">
-				<SimGems bind:sim {base} {gems} {characterName} delta={sections.gems} />
-				<SimEngravings bind:sim {base} {preview} delta={sections.engravings} />
-				<SimKarma bind:sim {base} delta={sections.karma} />
+				<section id="sim-gems" aria-label="Gems" class="scroll-mt-28"><SimGems bind:sim {base} {gems} {characterName} delta={sections.gems} /></section>
+				<section id="sim-engravings" aria-label="Engravings" class="scroll-mt-28"><SimEngravings bind:sim {base} {preview} delta={sections.engravings} /></section>
+				<section id="sim-karma" aria-label="Karma" class="scroll-mt-28"><SimKarma bind:sim {base} delta={sections.karma} /></section>
 			</div>
 		</div>
-		<SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} />
+		<section id="sim-ark-grid" aria-label="Ark Grid" class="scroll-mt-28"><SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} /></section>
 	</div>
 	<div class="flex flex-col gap-2 lg:sticky lg:top-16">
 		<div class="max-lg:hidden">{@render summary()}</div>
+		<nav aria-label="Simulator cards" class="card p-3">
+			<div class="grid grid-cols-2 gap-2">
+				{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Ark Grid'] as title}
+					<a href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`} class="rounded-xs border border-surface-700 bg-surface-800 px-2 py-2 text-center text-xs font-semibold text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a>
+				{/each}
+			</div>
+		</nav>
 		<UpgradePlanner {loadout} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
 		{@render sidebar?.()}
 	</div>
