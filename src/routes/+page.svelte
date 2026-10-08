@@ -135,7 +135,7 @@
 <svelte:head><title>loa-sim · Combat Power Simulator</title></svelte:head>
 
 <!-- One compact character row: class emblem, name, item level · CP, then its actions. -->
-{#snippet row(c: { region: string; name: string }, classId: string | undefined, ilvl: number | undefined, cp: { score: number; support: boolean } | undefined, note: string | undefined, dismiss: { label: string; icon: string; run: () => void } | null)}
+{#snippet row(c: { region: string; name: string }, classId: string | undefined, ilvl: number | undefined, cp: { score: number; support: boolean } | undefined, note: string | undefined, dismiss: { label: string; icon: 'hide' | 'show' | 'remove'; run: () => void } | null)}
 	{@const key = characterKey(c)}
 	{@const have = savedByKey.get(key)}
 	<div class="flex flex-row items-center gap-3 px-3 py-2">
@@ -159,7 +159,15 @@
 			<button type="button" class={primary} disabled={loading !== null} onclick={() => load(c.region, c.name)}>{loading === key ? 'Loading…' : 'Load'}</button>
 		{/if}
 		{#if dismiss}
-			<button type="button" class="w-5 text-surface-500 hover:text-surface-100" onclick={dismiss.run} aria-label={`${dismiss.label} ${c.name}`} title={dismiss.label}>{dismiss.icon}</button>
+			<button type="button" class="flex w-5 justify-center text-surface-500 hover:text-surface-100" onclick={dismiss.run} aria-label={`${dismiss.label} ${c.name}`} title={dismiss.label}>
+				{#if dismiss.icon === 'remove'}✕{:else}
+					<svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+						<circle cx="12" cy="12" r="3" />
+						{#if dismiss.icon === 'hide'}<path d="M3 3l18 18" />{/if}
+					</svg>
+				{/if}
+			</button>
 		{/if}
 	</div>
 {/snippet}
@@ -221,8 +229,8 @@
 					c.cp ?? (have?.loadout?.combatPower ? { score: have.loadout.combatPower.score, support: have.loadout.combatPower.id === 2 } : undefined),
 					isHidden ? 'hidden' : have ? `loaded ${ago(have.savedAt)}` : undefined,
 					isHidden
-						? { label: 'Show', icon: '↺', run: () => setHidden(characterKey(c), false) }
-						: { label: 'Hide', icon: '✕', run: () => setHidden(characterKey(c), true) }
+						? { label: 'Show', icon: 'show', run: () => setHidden(characterKey(c), false) }
+						: { label: 'Hide', icon: 'hide', run: () => setHidden(characterKey(c), true) }
 				)}
 			{/each}
 			{#if hiddenCount}
@@ -245,7 +253,7 @@
 					c.header?.ilvl,
 					c.loadout?.combatPower ? { score: c.loadout.combatPower.score, support: c.loadout.combatPower.id === 2 } : undefined,
 					`loaded ${ago(c.savedAt)}`,
-					{ label: 'Remove', icon: '✕', run: () => remove(c) }
+					{ label: 'Remove', icon: 'remove', run: () => remove(c) }
 				)}
 			{/each}
 		</section>
