@@ -122,12 +122,27 @@ export function simCoreInfo(info: CoreInfo, core?: SimCore): CoreInfo {
 	return { ...info, grade, tier, weaponCore: info.attr === 'chaos' && info.shape === 'star' && tier === 1 };
 }
 
-/** Bracelet lines: plain stats (combat stats, main stat, ...) and effects from the battle point catalog. */
+/**
+ * A bracelet line: a plain stat (combat stat, main stat, Vitality, ...), an effect from the battle point catalog
+ * ("3:11041", "4:605100173"; unknown effects keep their key and score 0), or an empty slot.
+ */
+export type BraceletLine =
+	| { kind: 'stat'; index: number; value: number }
+	| { kind: 'effect'; key: string }
+	| { kind: 'empty' };
+
+/** T4 bracelets have five lines: two stat lines, then three that roll a stat or an effect. */
+export const BRACELET_LINES = 5;
+export const BRACELET_STAT_LINES = 2;
+
 export interface SimBracelet {
-	stats: { index: number; value: number }[];
-	/** Catalog keys ("3:11041", "4:605100173"); unknown effects keep their key and score 0. */
-	effects: string[];
+	lines: BraceletLine[];
 }
+
+export const braceletStats = (b: SimBracelet | null) =>
+	(b?.lines ?? []).filter((x): x is Extract<BraceletLine, { kind: 'stat' }> => x.kind === 'stat');
+export const braceletEffects = (b: SimBracelet | null) =>
+	(b?.lines ?? []).filter((x): x is Extract<BraceletLine, { kind: 'effect' }> => x.kind === 'effect').map((x) => x.key);
 
 /** Stat index for Strength, Dexterity and Intelligence together (bracelet main stat lines). */
 const ALL_MAIN_STATS = 11;
@@ -213,13 +228,20 @@ export function initSimState(l: Loadout): SimState {
 			?.data.stats?.find((s) => s.base && s.type === 2 && s.index === msIndex);
 		if (stat) accessoryStats[slot] = stat.value;
 	}
-	const braceletStats = l.items?.find((i) => i.slot === 'bracelet')?.data.stats;
-	const bracelet: SimBracelet | null = braceletStats
-		? {
-				stats: braceletStats.filter((s) => s.type === 2).map((s) => ({ index: s.index, value: s.value })),
-				effects: braceletStats.filter((s) => s.type === 3 || s.type === 4).map((s) => `${s.type}:${s.index}`)
-			}
-		: null;
+	const braceletData = l.items?.find((i) => i.slot === 'bracelet')?.data.stats;
+	let bracelet: SimBracelet | null = null;
+	if (braceletData) {
+		// Bible lists the lines in game order: the fixed stat lines first, then the rolled ones.
+		const lines: BraceletLine[] = braceletData.flatMap((st): BraceletLine[] =>
+			st.type === 2
+				? [{ kind: 'stat', index: st.index, value: st.value }]
+				: st.type === 3 || st.type === 4
+					? [{ kind: 'effect', key: `${st.type}:${st.index}` }]
+					: []
+		);
+		while (lines.length < BRACELET_LINES) lines.push({ kind: 'empty' });
+		bracelet = { lines };
+	}
 	const leap = l.battlePoint.parts.find((p) => p.type === PartType.KarmaLeapLevel);
 	return {
 		gear,
@@ -328,7 +350,7 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 		mainStat += (Number(state.accessoryStats[slot]) || 0) - (base.accessoryStats[slot] ?? 0);
 	const msIndex = mainStatIndex(l);
 	const braceletStat = (b: SimBracelet | null, pick: (i: number) => boolean) =>
-		(b?.stats ?? []).filter((s) => pick(s.index)).reduce((sum, s) => sum + (Number(s.value) || 0), 0);
+		braceletStats(b).filter((s) => pick(s.index)).reduce((sum, s) => sum + (Number(s.value) || 0), 0);
 	// Bracelets roll main stat as index 11 (Strength, Dexterity and Intelligence at once) or as the class's own stat.
 	const isMainStat = (i: number) => i === msIndex || i === ALL_MAIN_STATS;
 	mainStat += braceletStat(state.bracelet, isMainStat) - braceletStat(base.bracelet, isMainStat);
@@ -407,11 +429,11 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	if (state.bracelet && JSON.stringify(state.bracelet) !== JSON.stringify(base.bracelet)) {
 		for (let i = parts.length - 1; i >= 0; i--)
 			if (parts[i].type === PartType.BraceletEffect || parts[i].type === PartType.BraceletStatType) parts.splice(i, 1);
-		for (const key of state.bracelet.effects) {
+		for (const key of braceletEffects(state.bracelet)) {
 			const effect = braceletEffect(key);
 			if (effect) parts.push({ type: PartType.BraceletEffect, value: effect.value });
 		}
-		for (const st of state.bracelet.stats)
+		for (const st of braceletStats(state.bracelet))
 			if (BRACELET_STAT_COEFF[st.index])
 				parts.push({ type: PartType.BraceletStatType, value: ((Number(st.value) || 0) * BRACELET_STAT_COEFF[st.index]) / 1e4 });
 		const combat = (b: SimBracelet | null) => braceletStat(b, (i) => COMBAT_STAT_INDICES.includes(i));

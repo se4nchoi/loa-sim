@@ -60,11 +60,13 @@ describe('initSimState', () => {
 		expect(mainStatIndex(loadout)).toBe(4); // Dexterity
 		expect(s.accessoryStats).toEqual({ neck: 17670, ear1: 13556, ear2: 13723, finger1: 12220, finger2: 12452 });
 		expect(s.bracelet).toEqual({
-			stats: [
-				{ index: 15, value: 86 },
-				{ index: 16, value: 77 }
-			],
-			effects: ['4:605100173', '3:11043', '3:11051']
+			lines: [
+				{ kind: 'stat', index: 15, value: 86 },
+				{ kind: 'stat', index: 16, value: 77 },
+				{ kind: 'effect', key: '4:605100173' },
+				{ kind: 'effect', key: '3:11043' },
+				{ kind: 'effect', key: '3:11051' }
+			]
 		});
 	});
 });
@@ -176,13 +178,13 @@ describe('simulate', () => {
 
 	it('bracelet effects use the game catalog values', () => {
 		// Non-directional 2.5% (250) → 3.5% (350)
-		const cp = edit((s) => (s.bracelet!.effects[0] = '4:605100171'));
+		const cp = edit((s) => (s.bracelet!.lines[2] = { kind: 'effect', key: '4:605100171' }));
 		expect(pct(cp)).toBeCloseTo((10350 / 10250 - 1) * 100, 6);
 	});
 
 	it('bracelet combat stats feed part 26 at 3 per point', () => {
 		// Crit +86 → +100: combat stats 7653 → 7695
-		const cp = edit((s) => (s.bracelet!.stats[0].value = 100));
+		const cp = edit((s) => (s.bracelet!.lines[0] = { kind: 'stat', index: 15, value: 100 }));
 		expect(pct(cp)).toBeCloseTo(((10000 + 7653 + 14 * 3) / (10000 + 7653) - 1) * 100, 6);
 	});
 
@@ -274,17 +276,27 @@ describe('class names', () => {
 });
 
 describe('bracelet main stat', () => {
+	it('pads to five lines', () => {
+		const l = structuredClone(soulshan) as unknown as Loadout;
+		const br = l.items!.find((i) => i.slot === 'bracelet')!;
+		br.data.stats = br.data.stats!.slice(0, 4);
+		expect(initSimState(l).bracelet!.lines.map((x) => x.kind)).toEqual(['stat', 'stat', 'effect', 'effect', 'empty']);
+	});
+
 	it('counts index 11 (all main stats) like the class main stat', () => {
 		const l = soulshan as unknown as Loadout;
 		const base = initSimState(l);
 		const withStat = (index: number) => {
 			const s = structuredClone(base);
-			s.bracelet!.stats.push({ index, value: 1000 });
+			s.bracelet!.lines[4] = { kind: 'stat', index, value: 1000 };
 			return simulate(l, s, base);
 		};
 		const before = simulate(l, base, base);
 		expect(withStat(11).mainStat).toBe(before.mainStat + 1000);
 		expect(withStat(11).cp).toBeCloseTo(withStat(mainStatIndex(l)).cp, 10);
-		expect(withStat(6).cp).toBeCloseTo(before.cp, 10); // Vitality: no DPS value
+		// Vitality has no DPS value: same as emptying the line.
+		const empty = structuredClone(base);
+		empty.bracelet!.lines[4] = { kind: 'empty' };
+		expect(withStat(6).cp).toBeCloseTo(simulate(l, empty, base).cp, 10);
 	});
 });
