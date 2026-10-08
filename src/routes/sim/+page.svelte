@@ -3,10 +3,10 @@
 	import { page } from '$app/state';
 	import CharacterView from '$lib/demo/CharacterView.svelte';
 	import type { LoadoutKind } from '$lib/bible-data';
-	import { characterKey, loadSavedCharacter, setLoadoutKind } from '$lib/saved-character';
+	import { characterKey, loadSavedCharacter, rememberViewed, setLoadoutKind } from '$lib/saved-character';
 	import { onMount } from 'svelte';
 
-	// ?c=na/soulshan picks a saved character; without it, the most recently loaded one.
+	// ?c=na/soulshan picks a saved character; without it (the Simulator tab), the one last viewed here.
 	let switched = $state<ReturnType<typeof loadSavedCharacter>>(null);
 	const wanted = $derived(page.url.searchParams.get('c'));
 	// After a loadout switch, show the updated save, but only for the character it was made on.
@@ -17,6 +17,10 @@
 	const onloadout = (kind: LoadoutKind) => {
 		if (saved) switched = setLoadoutKind(characterKey(saved), kind) ?? switched;
 	};
+
+	$effect(() => {
+		if (saved) rememberViewed(characterKey(saved));
+	});
 
 	onMount(() => {
 		if (!saved) goto('/', { replaceState: true });

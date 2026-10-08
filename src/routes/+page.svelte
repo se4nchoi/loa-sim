@@ -86,8 +86,14 @@
 	const openUrl = (c: { region: string; name: string }) => `/sim?c=${encodeURIComponent(characterKey(c))}`;
 
 	/** Loads a character's current bible snapshot via our server, saves it here and opens the simulator. */
-	async function load(r: string, name: string) {
-		loading = characterKey({ region: r, name });
+	/** Character just reloaded in place, for a brief ✓ on its button. */
+	let refreshed = $state<string | null>(null);
+	let refreshedTimer: ReturnType<typeof setTimeout>;
+
+	/** With `open` false (↻), the saved copy is updated and the page stays here. */
+	async function load(r: string, name: string, open = true) {
+		const key = characterKey({ region: r, name });
+		loading = key;
 		error = null;
 		try {
 			const res = await fetch(`/api/character/${encodeURIComponent(r)}/${encodeURIComponent(name)}`);
@@ -96,7 +102,12 @@
 			if (!body?.loadout) throw new Error(`${name} (${r}) wasn't found on lostark.bible, or has no Ark Passive loadout with Combat Power yet.`);
 			saveCharacter(body);
 			saveRegion(r);
-			goto(openUrl(body));
+			if (open) return void goto(openUrl(body));
+			saved = listSavedCharacters();
+			loading = null;
+			refreshed = key;
+			clearTimeout(refreshedTimer);
+			refreshedTimer = setTimeout(() => (refreshed = null), 1500);
 		} catch (e) {
 			// Fall back to pasting the data for this character.
 			region = r as Region;
@@ -135,7 +146,7 @@
 
 	const ago = (t: number) => {
 		const m = Math.round((Date.now() - t) / 60000);
-		return m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`;
+		return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`;
 	};
 	const field = 'h-10 rounded-xs border border-surface-600 bg-surface-800 px-3 text-surface-100 focus:border-accent-500 focus:outline-none';
 	const primary = 'rounded-xs bg-accent-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-accent-600 disabled:opacity-50';
@@ -162,8 +173,8 @@
 		</a>
 		{#if have}
 			<a href={openUrl(c)} class={primary}>Open</a>
-			<button type="button" class={secondary} disabled={loading !== null} onclick={() => load(c.region, c.name)} title="Load the latest lostark.bible snapshot">
-				{loading === key ? '…' : '↻'}
+			<button type="button" class={secondary} disabled={loading !== null} onclick={() => load(c.region, c.name, false)} title="Reload the latest lostark.bible snapshot">
+				{loading === key ? '…' : refreshed === key ? '✓' : '↻'}
 			</button>
 		{:else}
 			<button type="button" class={primary} disabled={loading !== null} onclick={() => load(c.region, c.name)}>{loading === key ? 'Loading…' : 'Load'}</button>

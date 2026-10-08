@@ -6,6 +6,8 @@ import type { CharacterData, LoadoutKind } from '$lib/bible-data';
 const KEY = 'loa-sim:characters';
 const LEGACY_KEY = 'loa-eff:character';
 const MAX_SAVED = 12;
+/** The character last shown in the simulator, so the Simulator tab returns to it. */
+const LAST_VIEWED_KEY = 'loa-sim:last-viewed';
 
 export interface SavedCharacter extends CharacterData {
 	savedAt: number;
@@ -53,7 +55,24 @@ export const listSavedCharacters = (): SavedCharacter[] => read().sort((a, b) =>
 /** A saved character by key, or the most recent one. */
 export function loadSavedCharacter(key?: string | null): SavedCharacter | null {
 	const list = listSavedCharacters();
-	return (key ? list.find((c) => characterKey(c) === key.toLowerCase()) : list[0]) ?? null;
+	if (!key) {
+		let last: string | null = null;
+		try {
+			last = localStorage.getItem(LAST_VIEWED_KEY);
+		} catch {
+			/* storage blocked */
+		}
+		return list.find((c) => characterKey(c) === last) ?? list[0] ?? null;
+	}
+	return list.find((c) => characterKey(c) === key.toLowerCase()) ?? null;
+}
+
+export function rememberViewed(key: string) {
+	try {
+		localStorage.setItem(LAST_VIEWED_KEY, key.toLowerCase());
+	} catch {
+		/* storage blocked: the tab falls back to the most recently loaded */
+	}
 }
 
 export function removeSavedCharacter(key: string) {
