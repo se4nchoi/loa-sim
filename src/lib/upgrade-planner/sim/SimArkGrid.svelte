@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { astrogemWillpower } from '../arkgrid-optimize';
+	import { maxArkGridCore, maxScore } from '../sim-max';
 	import { astrogemEfficiencyChoices, astrogemTypeChoices, setAstrogemEfficiency, setAstrogemType } from '../astrogem-edit';
 	import { formatPct } from '../format';
 	import { ASTROGEM_ITEMS, ASTROGEM_KINDS } from '../game-data';
@@ -21,7 +22,7 @@
 	import ItemIcon from './ItemIcon.svelte';
 	import MenuPicker from './MenuPicker.svelte';
 	import SimCard from './SimCard.svelte';
-	import { btn, type MenuOption, type PreviewEdit, type SectionDelta } from './ui';
+	import { btn, btnAccent, type MenuOption, type PreviewEdit, type SectionDelta } from './ui';
 
 	let {
 		sim = $bindable(),
@@ -41,6 +42,9 @@
 
 	const role = getContext<() => RoleTables>('loa-sim:role');
 	const support = $derived(role().support);
+	function maxCore(core: CoreState, gi?: number) {
+		maxArkGridCore(loadout, sim, core, maxScore(loadout, $state.snapshot(sim), $state.snapshot(base)), gi);
+	}
 	/** Astrogem options that score for this role (dealer: Atk./Add./Boss; support: Ally Dmg / Brand / Ally Atk.). */
 	const SCORING = $derived(new Set(role().astrogemOptions));
 	const rows = $derived(
@@ -198,6 +202,7 @@
 	info={`Click a core or astrogem name to change its type, or its WP value to edit Willpower efficiency (0–5). Choose None to unequip an astrogem and free Willpower. Other types keep grade, points, Willpower reduction and option levels; incompatible options are replaced. Choices exceeding the simulated core's Willpower are disabled. Greyed stat options don't count for ${support ? 'support' : 'DPS'} Combat Power.`}
 >
 	{#snippet actions()}
+		<button type="button" class={btnAccent} onclick={() => rows.forEach(({ core }) => maxCore(core))} title="Max every core and its astrogems within Willpower capacity">All max</button>
 		<button type="button" class={btn} onclick={() => (sim.arkGrid = structuredClone($state.snapshot(base.arkGrid)))}>Reset</button>
 	{/snippet}
 	{#if rows.length === 0}
@@ -279,6 +284,8 @@
 											</span>
 										</span>
 									</div>
+									<button type="button" class={btnAccent} aria-label={`Max ${coreLabel(info)}`} onclick={() => maxCore(core)} title="Ancient core and four max-cut astrogems; best simulated CP within Willpower">Max</button>
+									<button type="button" class={btn} aria-label={`Reset ${coreLabel(info)}`} onclick={() => (sim.arkGrid[ci] = structuredClone($state.snapshot(base.arkGrid[ci])))}>Reset</button>
 								</div>
 								{#each sim.arkGrid[ci].gems as gem, gi (gi)}
 									{@const gl = itemLook(gem.itemId)}
@@ -352,6 +359,7 @@
 													</MenuPicker>
 												{/each}
 												{/if}
+												<button type="button" class={btnAccent} aria-label={`Max astrogem ${gi + 1}`} onclick={() => maxCore(core, gi)} title="Best max-cut Ancient astrogem that fits this core's current Willpower">Max</button>
 												{#if before && JSON.stringify(gem) !== JSON.stringify(before)}
 													<button
 														type="button"

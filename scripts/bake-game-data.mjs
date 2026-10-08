@@ -2,7 +2,7 @@
 // (https://assets-ng.maxroll.gg/laplanner/game/{stats,items,skills}.json). Run once per game patch:
 //   node scripts/bake-game-data.mjs
 // Writes:
-//   src/lib/upgrade-planner/honing-data.ts  main stat / Weapon Power by honing level (T4 1675 gear)
+//   src/lib/upgrade-planner/honing-data.ts  main stat / Weapon Power by honing level (T4 Aegir and Serca gear)
 //   src/lib/upgrade-planner/game-data.ts    item icons + names, engraving icons, bracelet effect catalog,
 //                                           gem-able class skills, gem skill effects by level
 
@@ -39,23 +39,30 @@ const SLOTS = {
 	hand: { levelOption: 12159024, amp: 5110, stat: 4 },
 	shoulder: { levelOption: 12159025, amp: 6110, stat: 4 }
 };
-const honing = {};
-for (const [slot, { levelOption, amp, stat }] of Object.entries(SLOTS)) {
-	const h = Array.from({ length: 26 }, (_, i) => statOf(stats.itemLevel[`${levelOption}#${BASE_ILVL + 5 * i}`], stat));
-	// Advanced honing runs in two stages (1–20, 21–40); each stage's table is cumulative within it.
-	const stage = (l) => statOf(stats.amplification[`${amp}#${l}`]?.stats, stat);
-	const a = Array.from({ length: 41 }, (_, l) => stage(Math.min(l, 20)) + (l > 20 ? stage(l) : 0));
-	if (h.some((v) => !v) || !a[40]) throw new Error(`missing honing data for ${slot}`);
-	honing[slot] = { honing: h, advanced: a };
+function honingTable(baseIlvl, levelOffset) {
+	const honing = {};
+	for (const [slot, { levelOption, amp, stat }] of Object.entries(SLOTS)) {
+		const h = Array.from({ length: 26 }, (_, i) => statOf(stats.itemLevel[`${levelOption - levelOffset}#${baseIlvl + 5 * i}`], stat));
+		// Advanced honing runs in two stages (1–20, 21–40); each stage's table is cumulative within it.
+		const stage = (l) => statOf(stats.amplification[`${amp}#${l}`]?.stats, stat);
+		const a = Array.from({ length: 41 }, (_, l) => stage(Math.min(l, 20)) + (l > 20 ? stage(l) : 0));
+		if (h.some((v) => !v) || !a[40]) throw new Error(`missing honing data for ${slot}`);
+		honing[slot] = { honing: h, advanced: a };
+	}
+	return honing;
 }
+const honing = honingTable(BASE_ILVL, 0);
+const aegirHoning = honingTable(1590, 1000000);
 fs.writeFileSync(
 	'src/lib/upgrade-planner/honing-data.ts',
-	`${header('T4 1675 "Destined Tremor" gear; armor values are main stat, weapon values are Weapon Power.')}// honing[h] = stat at +h; advanced[l] = cumulative stat from advanced honing level l.
+	`${header('T4 Aegir and Serca gear; armor values are main stat, weapon values are Weapon Power.')}// honing[h] = stat at +h; advanced[l] = cumulative stat from advanced honing level l.
 
 export const HONING_SLOTS = ${JSON.stringify(Object.keys(SLOTS))} as const;
 export type HoningSlot = (typeof HONING_SLOTS)[number];
 
 export const HONING_TABLE: Record<HoningSlot, { honing: number[]; advanced: number[] }> = ${JSON.stringify(honing, null, '\t')};
+
+export const AEGIR_HONING_TABLE: typeof HONING_TABLE = ${JSON.stringify(aegirHoning, null, '\t')};
 `
 );
 

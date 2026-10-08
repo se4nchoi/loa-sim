@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { PartType } from './cp';
 import soulshan from './fixtures/na-soulshan.json';
-import { HONING_TABLE } from './honing-data';
+import { HONING_TABLE, AEGIR_HONING_TABLE, HONING_SLOTS } from './honing-data';
+import { honingUpgrades } from './honing-upgrades';
 import { gemDpsGainPct } from './dps';
 import { gemParts, initSimState, itemLevel, mainStatIndex, optionLevel, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
 import { className } from './class-names';
@@ -70,6 +71,55 @@ describe('initSimState', () => {
 				{ kind: 'effect', key: '3:11051' }
 			]
 		});
+	});
+});
+
+describe('Aegir equipment', () => {
+	const aegirLoadout = () => {
+		const l = structuredClone(loadout);
+		for (const item of l.items ?? []) {
+			if (!HONING_SLOTS.includes(item.slot as typeof HONING_SLOTS[number])) continue;
+			item.id = item.slot === 'weapon' ? 134611440 : 134613440 + HONING_SLOTS.indexOf(item.slot as typeof HONING_SLOTS[number]);
+			item.data.honing = 20;
+			item.data.advancedHoning = 30;
+		}
+		return l;
+	};
+
+	it('imports all six Aegir slots and includes advanced honing in item level', () => {
+		const l = aegirLoadout();
+		const s = initSimState(l);
+		expect(Object.keys(s.gear)).toHaveLength(6);
+		expect(s.gear.weapon).toEqual({ set: 'aegir', honing: 20, advanced: 30 });
+		expect(itemLevel(s)).toBe(1720);
+		expect(simulate(l, s).cp).toBeCloseTo(CP, 9);
+		s.gear.head!.advanced = 40;
+		expect(itemLevel(s)).toBeCloseTo(1720 + 10 / 6, 9);
+	});
+
+	it('uses Aegir armor stats and offers matching upgrade suggestions', () => {
+		const l = aegirLoadout();
+		const s = initSimState(l);
+		const before = simulate(l, s);
+		const suggestions = honingUpgrades(l, s);
+		s.gear.head!.honing++;
+		const after = simulate(l, s);
+		expect(after.mainStat - before.mainStat).toBeCloseTo((AEGIR_HONING_TABLE.head.honing[21] - AEGIR_HONING_TABLE.head.honing[20]) * 1.02, 6);
+		expect(suggestions.find((u) => u.key === 'honing:head:21')!.gainPct).toBeCloseTo((after.cp / before.cp - 1) * 100, 9);
+	});
+
+	it('uses the Aegir weapon table alongside Serca armor', () => {
+		const l = structuredClone(loadout);
+		const weapon = l.items!.find((i) => i.slot === 'weapon')!;
+		weapon.id = 134611440;
+		weapon.data.honing = 20;
+		const s = initSimState(l);
+		expect(s.gear.head).toEqual(fresh().gear.head);
+		const before = simulate(l, s);
+		s.gear.weapon!.honing = 21;
+		const table = AEGIR_HONING_TABLE.weapon;
+		const ratio = (table.honing[21] + table.advanced[40]) / (table.honing[20] + table.advanced[40]);
+		expect(simulate(l, s).cp / before.cp).toBeCloseTo(Math.sqrt(ratio), 9);
 	});
 });
 

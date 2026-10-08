@@ -195,7 +195,7 @@
 			<div class="flex min-w-0 flex-col gap-2">
 				<section id="sim-equipment" aria-label="Equipment" class="scroll-mt-28"><SimGear bind:sim {base} {itemIds} classId={loadout.classId} delta={sections.gear} /></section>
 				<section id="sim-accessories" aria-label="Accessories" class="scroll-mt-28"><SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} /></section>
-				<section id="sim-bracelet" aria-label="Bracelet" class="scroll-mt-28"><SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} /></section>
+				<section id="sim-bracelet" aria-label="Bracelet" class="scroll-mt-28"><SimBracelet bind:sim {base} {loadout} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} /></section>
 			</div>
 			<div class="flex min-w-0 flex-col gap-2">
 				<section id="sim-gems" aria-label="Gems" class="scroll-mt-28"><SimGems bind:sim {base} {gems} {characterName} delta={sections.gems} /></section>

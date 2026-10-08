@@ -45,7 +45,7 @@ export function honingUpgrades(l: Loadout, state: SimState = initSimState(l), ba
 				approximate: true,
 				group
 			});
-		if (g.advanced < MAX_ADVANCED) {
+		if (g.set === 'aegir' && g.advanced < MAX_ADVANCED) {
 			const to = Math.min(MAX_ADVANCED, (Math.floor(g.advanced / ADVANCED_STEP) + 1) * ADVANCED_STEP);
 			out.push({
 				key: `advanced:${slot}:${to}`,
