@@ -28,9 +28,7 @@ describe('range presets', () => {
 	it('last N weeks include the current week', () => {
 		expect(rangeOf('last-2-weeks', now)).toEqual([reset - WEEK, Infinity]);
 		expect(rangeOf('last-3-weeks', now)).toEqual([reset - 2 * WEEK, Infinity]);
-	});
-	it('this month starts on the 1st (UTC)', () => {
-		expect(rangeOf('this-month', now)).toEqual([at('2026-10-01T00:00:00Z'), Infinity]);
+		expect(rangeOf('last-4-weeks', now)).toEqual([reset - 3 * WEEK, Infinity]);
 	});
 });
 

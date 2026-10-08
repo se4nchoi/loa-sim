@@ -55,14 +55,14 @@ export function lastReset(now = Date.now()): number {
 	return reset;
 }
 
-export type RangePreset = 'this-week' | 'last-week' | 'last-2-weeks' | 'last-3-weeks' | 'this-month' | 'all';
+export type RangePreset = 'this-week' | 'last-week' | 'last-2-weeks' | 'last-3-weeks' | 'last-4-weeks' | 'all';
 
 export const RANGE_LABELS: Record<RangePreset, string> = {
 	'this-week': 'This week',
 	'last-week': 'Last week',
 	'last-2-weeks': 'Last 2 weeks',
 	'last-3-weeks': 'Last 3 weeks',
-	'this-month': 'This month',
+	'last-4-weeks': 'Last 4 weeks',
 	all: 'All time'
 };
 
@@ -78,10 +78,8 @@ export function rangeOf(preset: RangePreset, now = Date.now()): [number, number]
 			return [reset - WEEK, Infinity];
 		case 'last-3-weeks':
 			return [reset - 2 * WEEK, Infinity];
-		case 'this-month': {
-			const d = new Date(now);
-			return [Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1), Infinity];
-		}
+		case 'last-4-weeks':
+			return [reset - 3 * WEEK, Infinity];
 		default:
 			return [0, Infinity];
 	}
