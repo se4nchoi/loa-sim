@@ -32,10 +32,8 @@
 		<span class="rounded-xs bg-surface-900 px-2 py-0.5">{region === 'NA' ? 'North America' : region}</span>
 		{#if loadout}<span class="rounded-xs bg-surface-900 px-2 py-0.5">{className(loadout.classId)}</span>{/if}
 	</div>
-	<div class="flex flex-row flex-wrap items-baseline gap-x-3">
-		<h1 class="text-3xl font-bold">{name}</h1>
-		{#if ilvl}<span class="text-xl font-semibold text-surface-200 tabular-nums">Item Level {ilvl.toFixed(2)}</span>{/if}
-	</div>
+	<h1 class="text-3xl font-bold">{name}</h1>
+	{#if ilvl}<span class="text-xl font-semibold text-surface-200 tabular-nums" title="Item Level">{ilvl.toFixed(2)}</span>{/if}
 	{#each lines as line (line)}<span class="text-sm text-surface-300">{line}</span>{/each}
 	<a class="w-fit text-xs text-surface-300 underline" href={`https://lostark.bible/character/${region}/${encodeURIComponent(name)}`} target="_blank" rel="noopener">
 		View on lostark.bible
