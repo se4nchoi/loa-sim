@@ -10,7 +10,7 @@
 	} from '../tables';
 	import SimCard from './SimCard.svelte';
 	import Stepper from './Stepper.svelte';
-	import { btn, type SectionDelta } from './ui';
+	import { btn, btnAccent, type SectionDelta } from './ui';
 
 	let { sim = $bindable(), base, delta }: { sim: SimState; base: SimState; delta: SectionDelta } = $props();
 	const role = getContext<() => RoleTables>('loa-sim:role');
@@ -45,7 +45,7 @@
 {#if trees.length}
 	<SimCard title="Karma" {delta}>
 		{#snippet actions()}
-			<button type="button" class={btn} onclick={() => trees.forEach((t) => (sim.karma[t.key] = KARMA_MAX_LEVEL))}>All max</button>
+			<button type="button" class={btnAccent} onclick={() => trees.forEach((t) => (sim.karma[t.key] = KARMA_MAX_LEVEL))}>All max</button>
 			<button type="button" class={btn} onclick={() => (sim.karma = { ...base.karma })}>Reset</button>
 		{/snippet}
 		<div class="grid grid-cols-3 gap-2 max-md:grid-cols-1">
@@ -73,7 +73,7 @@
 					</div>
 					<div class="flex flex-row items-center gap-1.5">
 						<Stepper bind:value={sim.karma[t.key]!} min={0} max={KARMA_MAX_LEVEL} prefix="Lv. " {changed} label={`${t.name} karma level`} width="w-6" />
-						<button type="button" class={btn} onclick={() => (sim.karma[t.key] = KARMA_MAX_LEVEL)}>Max</button>
+						<button type="button" class={btnAccent} onclick={() => (sim.karma[t.key] = KARMA_MAX_LEVEL)}>Max</button>
 					</div>
 					<ul class="flex flex-col gap-0.5 text-xs">
 						{#each effects(t.key, level) as e (e.label)}

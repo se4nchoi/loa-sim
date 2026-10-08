@@ -11,7 +11,7 @@
 	import ItemIcon from './ItemIcon.svelte';
 	import MenuPicker from './MenuPicker.svelte';
 	import SimCard from './SimCard.svelte';
-	import { RELIC_COLOR, STONE_COLOR, btn, type MenuOption, type PreviewEdit, type SectionDelta } from './ui';
+	import { RELIC_COLOR, STONE_COLOR, btn, btnAccent, type MenuOption, type PreviewEdit, type SectionDelta } from './ui';
 
 	let {
 		sim = $bindable(),
@@ -85,7 +85,7 @@
 
 <SimCard title="Engravings" {delta}>
 	{#snippet actions()}
-		<button type="button" class={btn} onclick={() => ids.forEach((id) => (sim.engravings[id].books = ENGRAVING_BOOK_STEPS.length - 1))}>All max</button>
+		<button type="button" class={btnAccent} onclick={() => ids.forEach((id) => (sim.engravings[id].books = ENGRAVING_BOOK_STEPS.length - 1))}>All max</button>
 		<button type="button" class={btn} onclick={() => (sim.engravings = structuredClone($state.snapshot(base.engravings)))}>Reset</button>
 	{/snippet}
 	{#if ids.length === 0 && role().engravingIds().length === 0}

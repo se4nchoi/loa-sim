@@ -4,13 +4,15 @@
 	import { itemLook } from '../icons';
 	import type { RoleTables } from '../roles';
 	import type { BraceletLine, SimState } from '../simulate';
+	import { maxBracelet, maxScore } from '../sim-max';
+	import type { Loadout } from '../types';
 	import { SUPPORT_BRACELET_EFFECTS } from '../support-data';
 	import ItemIcon from './ItemIcon.svelte';
 	import LinePicker from './LinePicker.svelte';
 	import Segmented from './Segmented.svelte';
 	import SimCard from './SimCard.svelte';
 	import Stepper from './Stepper.svelte';
-	import { GRADE_COLORS, ROLL_COLORS, btn, selectClass, type PickOption, type PreviewEdit, type SectionDelta } from './ui';
+	import { GRADE_COLORS, ROLL_COLORS, btn, btnAccent, selectClass, type PickOption, type PreviewEdit, type SectionDelta } from './ui';
 
 	let {
 		sim = $bindable(),
@@ -18,7 +20,8 @@
 		delta,
 		itemId,
 		mainStatName,
-		preview
+		preview,
+		loadout
 	}: {
 		sim: SimState;
 		base: SimState;
@@ -26,6 +29,7 @@
 		itemId?: number;
 		mainStatName: string;
 		preview: PreviewEdit;
+		loadout: Loadout;
 	} = $props();
 
 	const role = getContext<() => RoleTables>('loa-sim:role');
@@ -173,6 +177,7 @@
 {#if sim.bracelet}
 	<SimCard title="Bracelet" {delta} info="Each of the five lines can be a stat, an effect, or empty.">
 		{#snippet actions()}
+			<button type="button" class={btnAccent} onclick={() => (sim.bracelet = maxBracelet(loadout, maxScore(loadout, $state.snapshot(sim), $state.snapshot(base))))} title="Highest simulated CP from two max stat rolls and three distinct high-roll effects">All max</button>
 			<button type="button" class={btn} onclick={() => (sim.bracelet = structuredClone($state.snapshot(base.bracelet)))}>Reset</button>
 		{/snippet}
 		<!-- Phones: no icon, and the line type is a dropdown, so each line fits on one row. -->

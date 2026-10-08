@@ -5,7 +5,7 @@
 	import { iconUrl } from '../icons';
 	import ItemIcon from './ItemIcon.svelte';
 	import Stepper from './Stepper.svelte';
-	import { btn, selectClass } from './ui';
+	import { btn, btnAccent, selectClass } from './ui';
 
 	let { weapon = $bindable(), base, itemId }: {
 		weapon: SimSidereal; base: SimSidereal; itemId: number;
@@ -17,6 +17,7 @@
 	<div class="flex flex-wrap items-center gap-3">
 		<ItemIcon src={iconUrl(look?.icon)} grade={7} title={look?.name} frame="evolution" />
 		<div class="flex-1 text-sm"><b>Sidereal weapon</b><div class="text-xs text-surface-400">{look?.name} · Item Lv. {siderealItemLevel(weapon)}</div></div>
+		<button type="button" class={btnAccent} onclick={() => Object.assign(weapon, { infusion: 3, evolution: 10, advanced: 40 })}>Max Sidereal</button>
 		<button type="button" class={btn} onclick={() => weapon = structuredClone(base)}>Reset Sidereal</button>
 	</div>
 	<div class="flex flex-wrap gap-3">

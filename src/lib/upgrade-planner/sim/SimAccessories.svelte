@@ -116,7 +116,7 @@
 					<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="enlightenment" />
 					<span class="text-[11px] font-semibold text-surface-300">{LABELS[slot]}</span>
 					<div class="ml-auto flex flex-row gap-1.5 sm:hidden">
-						<button type="button" class={btn} onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goal}</button>
+						<button type="button" class={btnAccent} onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goal}</button>
 						<button type="button" class={btn} onclick={() => resetSlot(slot)}>Reset</button>
 					</div>
 				</div>
@@ -159,7 +159,7 @@
 								compact
 							/>
 						{/if}
-						<button type="button" class="{btn} max-sm:hidden" onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goal}</button>
+						<button type="button" class="{btnAccent} max-sm:hidden" onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goal}</button>
 						<button type="button" class="{btn} max-sm:hidden" onclick={() => resetSlot(slot)}>Reset</button>
 					</div>
 				</div>

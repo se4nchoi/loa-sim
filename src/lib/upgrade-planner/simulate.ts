@@ -8,7 +8,7 @@
 import { PartType, baseAttackPoint, partHigh } from './cp';
 import { bracerStats, readBracer, type SimBracer } from './bracer';
 import { BRACELET_EFFECTS, GEM_BASE_ATTACK, GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
-import { HONING_SLOTS, HONING_TABLE, type HoningSlot } from './honing-data';
+import { HONING_SLOTS, HONING_TABLE, AEGIR_HONING_TABLE, type HoningSlot } from './honing-data';
 import { roleOf } from './roles';
 import { SUPPORT_ACCESSORY_LINES, supportCoreValue, supportWeaponCoreStats, swappedCoreId, type SupportAccessoryLine } from './support';
 import {
@@ -33,9 +33,14 @@ import { astrogemTotals, coreStates, coreValueAs, engravingStates, weaponPowerOf
 
 /** Advanced honing level 30+ adds this much to the item's stats; fits bible's main stat to 0.05%. */
 const ADVANCED_STAT_BONUS = 1.02;
-const HONING_BASE_ILVL = 1675;
-/** Every T4 1675 "Destined Tremor" piece has an id 134621xxx; the honing table only covers that set. */
-const isTableGear = (itemId: number) => Math.floor(itemId / 1000) === 134621;
+/** Omitted set retains compatibility with existing Serca simulation state. */
+export type SimGear = { honing: number; advanced: number; set?: 'aegir' };
+const gearSet = (itemId: number) => {
+	const prefix = Math.floor(itemId / 1000);
+	return prefix === 134621 ? 'serca' : prefix === 134611 || prefix === 134613 ? 'aegir' : null;
+};
+export const gearItemLevel = (g: SimGear) =>
+	(g.set === 'aegir' ? 1590 + g.advanced : 1675) + 5 * g.honing;
 
 export const ACCESSORY_SLOTS = ['neck', 'ear1', 'ear2', 'finger1', 'finger2'] as const;
 export type AccessorySlot = (typeof ACCESSORY_SLOTS)[number];
@@ -51,7 +56,7 @@ export const isOtherLine = (ln: SimLine): ln is OtherLine => ln.key === 'other';
 export interface SimState {
 	bracer: SimBracer | null;
 	sidereal: SimSidereal | null;
-	gear: Partial<Record<HoningSlot, { honing: number; advanced: number }>>;
+	gear: Partial<Record<HoningSlot, SimGear>>;
 	accessories: Partial<Record<AccessorySlot, SimLine[]>>;
 	/** Each gem, in the order of the loadout's gem parts. Only `level` affects Combat Power. */
 	gems: SimGem[];
@@ -246,8 +251,9 @@ export function initSimState(l: Loadout): SimState {
 	for (const slot of HONING_SLOTS) {
 		const item = l.items?.find((i) => i.slot === slot);
 		const honing = item?.data.honing;
-		if (item && isTableGear(item.id) && typeof honing === 'number')
-			gear[slot] = { honing, advanced: typeof item?.data.advancedHoning === 'number' ? item.data.advancedHoning : 0 };
+		if (item && gearSet(item.id) && typeof honing === 'number')
+			gear[slot] = { ...(gearSet(item.id) === 'aegir' ? { set: 'aegir' as const } : {}), honing,
+				advanced: gearSet(item.id) === 'serca' ? 40 : typeof item.data.advancedHoning === 'number' ? item.data.advancedHoning : 0 };
 	}
 	const accessories: SimState['accessories'] = {};
 	for (const slot of ACCESSORY_SLOTS) {
@@ -333,15 +339,17 @@ export function gemParts(l: Loadout): GemPart[] {
 		});
 }
 
-const gearStat = (slot: HoningSlot, g: { honing: number; advanced: number }) =>
-	HONING_TABLE[slot].honing[g.honing] + HONING_TABLE[slot].advanced[g.advanced];
+const gearStat = (slot: HoningSlot, g: SimGear) => {
+	const table = (g.set === 'aegir' ? AEGIR_HONING_TABLE : HONING_TABLE)[slot];
+	return table.honing[g.honing] + table.advanced[g.set === 'aegir' ? g.advanced : 40];
+};
 
 /** Item level as bible shows it: the mean of the six pieces' honing item levels. */
 export function itemLevel(state: SimState): number | null {
 	const slots = HONING_SLOTS.filter((s) => state.gear[s] || (s === 'weapon' && state.sidereal));
 	if (slots.length !== HONING_SLOTS.length) return null;
 	return slots.reduce((sum, s) => sum + (s === 'weapon' && state.sidereal
-		? siderealItemLevel(state.sidereal) : HONING_BASE_ILVL + 5 * state.gear[s]!.honing), 0) / slots.length;
+		? siderealItemLevel(state.sidereal) : gearItemLevel(state.gear[s]!)), 0) / slots.length;
 }
 
 function linesTotal(lines: SimState['accessories'], weapon: 'percent' | 'flat') {
