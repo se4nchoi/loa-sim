@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import { gemDpsGainPct } from '../dps';
+	import type { RoleTables } from '../roles';
 	import { formatPct } from '../format';
 	import { GEM_SKILL_GROUPS, GEM_SKILLS, ITEMS } from '../game-data';
 	import { iconUrl, itemLook } from '../icons';
@@ -105,6 +107,9 @@
 
 	const dps = $derived(gemDpsGainPct(base.gems, sim.gems, gems, sim.skillShares));
 	const sharedTotal = $derived(Object.values(sim.skillShares).reduce((a, v) => a + (Number(v) || 0), 0));
+	// Damage shares estimate a dealer's DPS; supports don't get them.
+	const role = getContext<() => RoleTables>('loa-sim:role');
+	const support = $derived(role().support);
 	let showShares = $state(false);
 	$effect.pre(() => {
 		if (Object.keys(sim.skillShares).length) showShares = true;
@@ -124,12 +129,14 @@
 <SimCard
 	title="Gems"
 	{delta}
-	info={GEM_INFO}
+	info={support ? undefined : GEM_INFO}
 >
 	{#snippet actions()}
-		<button type="button" class={btn} onclick={() => (showShares = !showShares)} aria-pressed={showShares}>
-			{showShares ? 'Hide' : 'Add'} damage shares
-		</button>
+		{#if !support}
+			<button type="button" class={btn} onclick={() => (showShares = !showShares)} aria-pressed={showShares}>
+				{showShares ? 'Hide' : 'Add'} damage shares
+			</button>
+		{/if}
 	{/snippet}
 	{#if editable.length === 0}
 		<p class="text-sm text-surface-400">No gems equipped.</p>

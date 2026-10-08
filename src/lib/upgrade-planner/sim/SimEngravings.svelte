@@ -1,7 +1,10 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import { engravingIcon } from '../icons';
+	import type { RoleTables } from '../roles';
 	import type { SimState } from '../simulate';
-	import { ENGRAVING_BOOK_STEPS, ENGRAVING_NAMES, engravingIds } from '../tables';
+	import { ENGRAVING_BOOK_STEPS } from '../tables';
+	import { engravingName } from '../upgrades';
 	import Glyph from './Glyph.svelte';
 	import ItemIcon from './ItemIcon.svelte';
 	import MenuPicker from './MenuPicker.svelte';
@@ -26,12 +29,14 @@
 		muted: col === 0
 	}));
 	const shown = (id: number) => sim.engravings[id].as ?? id;
-	/** Engravings this slot can become: any with a DPS table not already used by another slot. */
+	const role = getContext<() => RoleTables>('loa-sim:role');
+	/** Engravings this slot can become: any this role scores that another slot isn't already using. */
 	const swapOptions = (id: number): MenuOption<number>[] => {
 		const taken = new Set(ids.filter((x) => x !== id).map(shown));
-		return engravingIds()
+		return role()
+			.engravingIds()
 			.filter((e) => !taken.has(e))
-			.map((e) => ({ value: e, label: ENGRAVING_NAMES[e] ?? String(e), iconUrl: engravingIcon(e) }))
+			.map((e) => ({ value: e, label: engravingName(e), iconUrl: engravingIcon(e) }))
 			.sort((a, b) => a.label.localeCompare(b.label));
 	};
 	const STONE: MenuOption<number>[] = [0, 1, 2, 3, 4].map((lv) => ({
@@ -61,22 +66,22 @@
 						<MenuPicker
 							value={shown(id)}
 							options={swapOptions(id)}
-							label={`Swap ${ENGRAVING_NAMES[id]}`}
+							label={`Swap ${engravingName(id)}`}
 							changed={shown(id) !== id}
 							onpick={(v) => (e.as = v === id ? undefined : v)}
 							preview={(v) => preview((s) => (s.engravings[id].as = v === id ? undefined : v))}
 							full
 						>
 							{#snippet trigger()}
-								<span class="-ml-1 shrink-0"><ItemIcon src={engravingIcon(shown(id))} grade={5} size="size-6" title={ENGRAVING_NAMES[shown(id)]} /></span>
-								<span class="min-w-0 truncate text-sm font-semibold @max-[17rem]:hidden" title={ENGRAVING_NAMES[shown(id)]}>{ENGRAVING_NAMES[shown(id)] ?? id}</span>
+								<span class="-ml-1 shrink-0"><ItemIcon src={engravingIcon(shown(id))} grade={5} size="size-6" title={engravingName(shown(id))} /></span>
+								<span class="min-w-0 truncate text-sm font-semibold @max-[17rem]:hidden" title={engravingName(shown(id))}>{engravingName(shown(id))}</span>
 							{/snippet}
 						</MenuPicker>
 					</div>
 					<MenuPicker
 						value={e.books}
 						options={BOOKS}
-						label={`${ENGRAVING_NAMES[id]} relic engraving level`}
+						label={`${engravingName(id)} relic engraving level`}
 						changed={e.books !== b.books}
 						onpick={(v) => (e.books = v)}
 						preview={(v) => preview((s) => (s.engravings[id].books = v))}
@@ -90,7 +95,7 @@
 					<MenuPicker
 						value={e.stone}
 						options={STONE}
-						label={`${ENGRAVING_NAMES[id]} ability stone level`}
+						label={`${engravingName(id)} ability stone level`}
 						changed={e.stone !== b.stone}
 						onpick={(v) => (e.stone = v)}
 						preview={(v) => preview((s) => (s.engravings[id].stone = v))}

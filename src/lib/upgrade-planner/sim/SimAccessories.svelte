@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import { itemLook } from '../icons';
-	import { ACCESSORY_SLOTS, familyOf, isOtherLine, type AccessorySlot, type SimLine, type SimState } from '../simulate';
-	import { ACCESSORY_LINES, ACCESSORY_MAIN_STAT_RANGE, TIERS, formatLineValue, type Tier } from '../tables';
+	import type { RoleTables } from '../roles';
+	import { ACCESSORY_SLOTS, familyOf, isOtherLine, lineOf, type AccessorySlot, type SimLine, type SimState } from '../simulate';
+	import { ACCESSORY_MAIN_STAT_RANGE, TIERS, formatLineValue, type Tier } from '../tables';
 	import ItemIcon from './ItemIcon.svelte';
 	import LinePicker from './LinePicker.svelte';
 	import RangeInput from './RangeInput.svelte';
@@ -38,22 +40,25 @@
 		color: ROLL_COLORS[t]
 	}));
 	const slots = $derived(ACCESSORY_SLOTS.filter((s) => sim.accessories[s]));
-	const lineOf = (key: string) => ACCESSORY_LINES.find((l) => l.key === key);
+	// Dealer or support lines: which ones score, and what "max" means.
+	const role = getContext<() => RoleTables>('loa-sim:role');
+	const LINES = $derived(role().accessoryLines);
+	const goal = $derived(role().support ? 'support' : 'DPS');
 	const same = (a: SimLine | undefined, b: SimLine) => JSON.stringify(a) === JSON.stringify(b);
 
 	/** Line types this slot can roll, minus types already on its other lines (a type can't appear twice). */
 	function optionsFor(slot: AccessorySlot, current: SimLine, index: number): PickOption[] {
 		const taken = new Set(sim.accessories[slot]!.filter((ln, i) => i !== index && !isOtherLine(ln)).map((ln) => ln.key));
 		const tier: Tier = isOtherLine(current) ? 'high' : current.tier;
-		const out: PickOption[] = ACCESSORY_LINES.filter((l) => l.slots.includes(familyOf(slot)) && !taken.has(l.key)).map((l) => ({
+		const out: PickOption[] = LINES.filter((l) => l.slots.includes(familyOf(slot)) && !taken.has(l.key)).map((l) => ({
 			value: l.key,
 			label: `${l.name} ${formatLineValue(l, l.values[tier])}`,
 			color: ROLL_COLORS[tier],
-			group: l.primary ? 'DPS lines' : 'Any accessory'
+			group: l.primary ? `${goal === 'DPS' ? 'DPS' : 'Support'} lines` : 'Any accessory'
 		}));
 		out.push({
 			value: 'other',
-			label: isOtherLine(current) ? current.label : 'Other (no DPS value)',
+			label: isOtherLine(current) ? current.label : `Other (no ${goal} value)`,
 			color: ROLL_COLORS.none,
 			group: 'Other'
 		});
@@ -65,7 +70,7 @@
 		key === 'other'
 			? isOtherLine(ln)
 				? ln
-				: { key: 'other', label: 'Other (no DPS value)' }
+				: { key: 'other', label: `Other (no ${goal} value)` }
 			: { key, tier: isOtherLine(ln) ? 'high' : ln.tier };
 
 	const display = (ln: SimLine) => {
@@ -74,10 +79,10 @@
 		return { label: `${l.name} ${formatLineValue(l, l.values[ln.tier])}`, color: ROLL_COLORS[ln.tier] };
 	};
 
-	/** Both main DPS lines at High, replacing non-DPS or flat lines first. */
+	/** Both main lines (DPS or support) at High, replacing other or flat lines first. */
 	function maxDps(slot: AccessorySlot) {
 		const lines = sim.accessories[slot]!;
-		for (const p of ACCESSORY_LINES.filter((l) => l.primary && l.slots.includes(familyOf(slot)))) {
+		for (const p of LINES.filter((l) => l.primary && l.slots.includes(familyOf(slot)))) {
 			const existing = lines.findIndex((ln) => ln.key === p.key);
 			if (existing >= 0) {
 				lines[existing] = { key: p.key, tier: 'high' };
@@ -95,7 +100,7 @@
 
 <SimCard title="Accessories" {delta} info="Open a line to compare every alternative. Weapon Power lines are approximate.">
 	{#snippet actions()}
-		<button type="button" class={btnAccent} onclick={() => slots.forEach(maxDps)}>All max DPS lines</button>
+		<button type="button" class={btnAccent} onclick={() => slots.forEach(maxDps)}>All max {goal} lines</button>
 	{/snippet}
 	<div class="flex flex-col gap-2">
 		{#each slots as slot (slot)}
@@ -145,7 +150,7 @@
 								compact
 							/>
 						{/if}
-						<button type="button" class={btn} onclick={() => maxDps(slot)} title="Both main DPS lines at High">Max DPS</button>
+						<button type="button" class={btn} onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goal}</button>
 						<button type="button" class={btn} onclick={() => resetSlot(slot)}>Reset</button>
 					</div>
 				</div>

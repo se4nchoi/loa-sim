@@ -1,7 +1,10 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import { BRACELET_EFFECTS } from '../game-data';
 	import { itemLook } from '../icons';
+	import type { RoleTables } from '../roles';
 	import { BRACELET_STAT_LINES, type BraceletLine, type SimState } from '../simulate';
+	import { SUPPORT_BRACELET_EFFECTS } from '../support-data';
 	import ItemIcon from './ItemIcon.svelte';
 	import LinePicker from './LinePicker.svelte';
 	import Segmented from './Segmented.svelte';
@@ -25,54 +28,69 @@
 		preview: PreviewEdit;
 	} = $props();
 
-	const STAT_NAMES: Record<number, string> = {
-		6: 'Vitality',
-		15: 'Crit',
-		16: 'Specialization',
-		17: 'Domination',
-		18: 'Swiftness',
-		19: 'Endurance',
-		20: 'Expertise',
-		50: 'Additional Damage %',
-		74: 'Crit Rate %',
-		76: 'Crit Damage %'
+	const role = getContext<() => RoleTables>('loa-sim:role');
+	const support = $derived(role().support);
+
+	type StatLine = Extract<BraceletLine, { kind: 'stat' }>;
+	/** Stat lines are keyed "type:index": type 2 = plain stat by index; 54 / 59 = Ally Atk. Power / Damage Enhancement %. */
+	const statKey = (l: { type?: number; index: number }) => `${l.type ?? 2}:${l.index}`;
+	const STAT_NAMES: Record<string, string> = {
+		'2:6': 'Vitality',
+		'2:15': 'Crit',
+		'2:16': 'Specialization',
+		'2:17': 'Domination',
+		'2:18': 'Swiftness',
+		'2:19': 'Endurance',
+		'2:20': 'Expertise',
+		'2:50': 'Additional Damage %',
+		'2:74': 'Crit Rate %',
+		'2:76': 'Crit Damage %',
+		'54:0': 'Ally Atk. Power Enh. (0.01%)',
+		'59:0': 'Ally Damage Enh. (0.01%)'
 	};
 	// 3 / 4 / 5 are Strength / Dexterity / Intelligence; 11 is all three, which bracelets roll as the class's main stat.
-	const statName = (i: number) => (i === 3 || i === 4 || i === 5 || i === 11 ? mainStatName : (STAT_NAMES[i] ?? 'Other stat'));
-	const STAT_CHOICES = [15, 16, 18, 17, 19, 20, 11, 6];
+	const statName = (key: string) => (['2:3', '2:4', '2:5', '2:11'].includes(key) ? mainStatName : (STAT_NAMES[key] ?? 'Other stat'));
+	const STAT_CHOICES = $derived([
+		'2:15', '2:16', '2:18', '2:17', '2:19', '2:20', '2:11', '2:6',
+		// Supports also roll Ally Enhancement % lines.
+		...(support ? ['54:0', '59:0'] : [])
+	]);
 	/** A typical T4 roll, used when a line switches to this stat. */
-	const defaultValue = (i: number) => (i === 11 ? 12000 : i === 6 ? 4000 : 100);
-	const group = (i: number) => (i === 11 || (i >= 3 && i <= 5) ? 'main' : i === 6 ? 'vit' : 'other');
+	const DEFAULT_VALUE: Record<string, number> = { '2:11': 12000, '2:6': 4000, '54:0': 400, '59:0': 600 };
+	const parseKey = (key: string) => {
+		const [type, index] = key.split(':').map(Number);
+		return { type: type === 2 ? undefined : type, index };
+	};
 	const look = $derived(itemLook(itemId));
 
 	/** "Outgoing Damage +3%." → short label for the family heading. */
 	const shortText = (t: string) => (t.length > 70 ? `${t.slice(0, 68)}…` : t);
-	const OPTIONS: PickOption[] = [
-		...BRACELET_EFFECTS.toSorted((a, b) => Number(b.t4) - Number(a.t4) || a.family.localeCompare(b.family) || a.grade - b.grade).map(
-			(e) => ({
-				value: e.key,
-				label: shortText(e.text),
-				color: GRADE_COLORS[e.grade] ?? ROLL_COLORS.none,
-				group: e.t4 ? 'T4 bracelet effects' : 'Older effects'
-			})
-		)
-	];
+	// Dealers and supports roll the same effects but score them differently; supports list their own table.
+	const EFFECTS = $derived(support ? SUPPORT_BRACELET_EFFECTS : BRACELET_EFFECTS);
+	const OPTIONS = $derived<PickOption[]>(
+		EFFECTS.toSorted((a, b) => Number(b.t4) - Number(a.t4) || a.family.localeCompare(b.family) || a.grade - b.grade).map((e) => ({
+			value: e.key,
+			label: shortText(e.text),
+			color: GRADE_COLORS[e.grade] ?? ROLL_COLORS.none,
+			group: e.t4 ? 'T4 bracelet effects' : 'Older effects'
+		}))
+	);
 	// No duplicate lines: a stat or an effect family already on another line isn't offered.
-	const FAMILY = new Map(BRACELET_EFFECTS.map((e) => [e.key, e.family]));
+	const FAMILY = $derived(new Map(EFFECTS.map((e) => [e.key, e.family])));
 	const otherLines = (i: number) => sim.bracelet!.lines.filter((_, j) => j !== i);
-	const usedStats = (i: number) => new Set(otherLines(i).flatMap((l) => (l.kind === 'stat' ? [l.index] : [])));
+	const usedStats = (i: number) => new Set(otherLines(i).flatMap((l) => (l.kind === 'stat' ? [statKey(l)] : [])));
 	const usedFamilies = (i: number) =>
 		new Set(otherLines(i).flatMap((l) => (l.kind === 'effect' ? [FAMILY.get(l.key) ?? l.key] : [])));
-	const statChoices = (i: number, current: number) => {
+	const statChoices = (i: number, current: string) => {
 		const used = usedStats(i);
-		return [...new Set([current, ...STAT_CHOICES])].filter((idx) => idx === current || !used.has(idx));
+		return [...new Set([current, ...STAT_CHOICES])].filter((k) => k === current || !used.has(k));
 	};
 	const optionsFor = (i: number, key: string): PickOption[] => {
 		const used = usedFamilies(i);
 		const free = OPTIONS.filter((o) => o.value === key || !used.has(FAMILY.get(String(o.value))!));
 		return free.some((o) => o.value === key)
 			? free
-			: [...free, { value: key, label: 'Other (no DPS value)', color: ROLL_COLORS.none, group: 'Other' }];
+			: [...free, { value: key, label: `Other (no ${support ? 'support' : 'DPS'} value)`, color: ROLL_COLORS.none, group: 'Other' }];
 	};
 
 	type Kind = BraceletLine['kind'];
@@ -86,21 +104,21 @@
 	function setKind(i: number, kind: Kind) {
 		const before = base.bracelet?.lines[i];
 		const taken =
-			(before?.kind === 'stat' && usedStats(i).has(before.index)) ||
+			(before?.kind === 'stat' && usedStats(i).has(statKey(before))) ||
 			(before?.kind === 'effect' && usedFamilies(i).has(FAMILY.get(before.key) ?? before.key));
 		if (before?.kind === kind && !taken) sim.bracelet!.lines[i] = structuredClone($state.snapshot(before));
 		else if (kind === 'stat') {
-			const index = STAT_CHOICES.find((idx) => !usedStats(i).has(idx)) ?? 15;
-			sim.bracelet!.lines[i] = { kind, index, value: defaultValue(index) };
+			const key = STAT_CHOICES.find((k) => !usedStats(i).has(k)) ?? '2:15';
+			sim.bracelet!.lines[i] = { kind, ...parseKey(key), value: DEFAULT_VALUE[key] ?? 100 };
 		} else if (kind === 'effect') {
 			const key = OPTIONS.find((o) => !usedFamilies(i).has(FAMILY.get(String(o.value))!))?.value ?? OPTIONS[0].value;
 			sim.bracelet!.lines[i] = { kind, key: String(key) };
-		}
-		else sim.bracelet!.lines[i] = { kind };
+		} else sim.bracelet!.lines[i] = { kind };
 	}
-	function setIndex(line: Extract<BraceletLine, { kind: 'stat' }>, index: number) {
-		if (group(index) !== group(line.index)) line.value = defaultValue(index);
-		line.index = index;
+	/** Picking another stat keeps the value unless the scale differs (main stat / Vitality / % lines vs combat stats). */
+	function setStat(i: number, line: StatLine, key: string) {
+		const scale = (k: string) => DEFAULT_VALUE[k] ?? 100;
+		sim.bracelet!.lines[i] = { kind: 'stat', ...parseKey(key), value: scale(key) === scale(statKey(line)) ? line.value : scale(key) };
 	}
 	const sameLine = (a?: BraceletLine, b?: BraceletLine) => JSON.stringify(a) === JSON.stringify(b);
 </script>
@@ -128,12 +146,12 @@
 						{#if line.kind === 'stat'}
 							<span class="flex flex-row">
 								<select
-									class="{selectClass(before?.kind !== 'stat' || before.index !== line.index)} rounded-r-none"
-									value={line.index}
-									onchange={(e) => setIndex(line, Number(e.currentTarget.value))}
+									class="{selectClass(before?.kind !== 'stat' || statKey(before) !== statKey(line))} rounded-r-none"
+									value={statKey(line)}
+									onchange={(e) => setStat(i, line, e.currentTarget.value)}
 									aria-label={`Bracelet line ${i + 1} stat`}
 								>
-									{#each statChoices(i, line.index) as idx (idx)}<option value={idx}>{statName(idx)}</option>{/each}
+									{#each statChoices(i, statKey(line)) as k (k)}<option value={k}>{statName(k)}</option>{/each}
 								</select>
 								<span class="-ml-px">
 									<Stepper
@@ -141,7 +159,7 @@
 										min={0}
 										max={99999}
 										changed={!sameLine(before, line)}
-										label={`${statName(line.index)} value`}
+										label={`${statName(statKey(line))} value`}
 										width={line.value >= 10000 ? 'w-14' : 'w-10'}
 									/>
 								</span>

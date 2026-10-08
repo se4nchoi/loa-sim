@@ -2,7 +2,7 @@
 	import { formatTop, type CpStanding, type IlvlRange } from '../cp-distribution';
 	import Segmented from './Segmented.svelte';
 	import Stepper from './Stepper.svelte';
-	import { formatCp } from '../format';
+	import { formatCp, formatPct } from '../format';
 	import Delta from './Delta.svelte';
 	import { btn, type SectionDelta, type SimSection } from './ui';
 
@@ -21,7 +21,8 @@
 		onundo,
 		onredo,
 		canUndo,
-		canRedo
+		canRedo,
+		split = null
 	}: {
 		current: number;
 		simulated: number;
@@ -39,6 +40,8 @@
 		onredo: () => void;
 		canUndo: boolean;
 		canRedo: boolean;
+		/** Supports: % change of Buff Power and of Shield & Heal Power. */
+		split?: { buff: number; shieldHeal: number } | null;
 	} = $props();
 
 	const LABELS: Record<SimSection, string> = {
@@ -98,6 +101,14 @@
 			<span class="text-sm text-surface-200">
 				{ilvlBefore.toFixed(2)}{#if ilvlAfter !== ilvlBefore} → <span class={color(ilvlAfter - ilvlBefore)}>{ilvlAfter.toFixed(2)}</span>{/if}
 			</span>
+		{/if}
+		{#if split}
+			<div class="mt-1 grid grid-cols-[1fr_max-content] gap-x-2 text-sm" title="A support's Combat Power is Buff Power plus Shield & Heal Power">
+				<span class="text-xs text-sky-300">Buff Power</span>
+				<span class="text-right tabular-nums {color(split.buff)}">{formatPct(split.buff)}%</span>
+				<span class="text-xs text-red-300">Shield & Heal</span>
+				<span class="text-right tabular-nums {color(split.shieldHeal)}">{formatPct(split.shieldHeal)}%</span>
+			</div>
 		{/if}
 	</div>
 	{#if brackets.length && range !== undefined}

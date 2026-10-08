@@ -16,6 +16,7 @@ import {
 	KARMA_LEAP_PER_LEVEL,
 	karmaRank,
 	TIERS,
+	formatLineValue,
 	type AccessoryFamily,
 	type AccessoryLine,
 	type CoreGrade,
@@ -69,9 +70,13 @@ export interface SimGem {
 	skill: number | null;
 }
 
-/** Bible's gem effect types: 5 = skill damage, 27 = skill cooldown. */
 // Gem effects: 5 / 27 name a skill; 34 / 35 name a skill group (Guardian Knight skills, Brawl King Twelve Forms).
-const GEM_EFFECT_TYPE: Record<number, GemKind> = { 5: 'damage', 27: 'cooldown', 34: 'damage', 35: 'cooldown' };
+// Support damage gems also carry buff / shield / heal / Atk. Power amplify effects: 58 / 60 / 62 / 64 on a skill,
+// 59 / 61 / 63 / 65 on a skill group (e.g. "Yin Yang Skill").
+const GEM_EFFECT_TYPE: Record<number, GemKind> = {
+	5: 'damage', 27: 'cooldown', 34: 'damage', 35: 'cooldown',
+	58: 'damage', 59: 'damage', 60: 'damage', 61: 'damage', 62: 'damage', 63: 'damage', 64: 'damage', 65: 'damage'
+};
 
 function readGems(l: Loadout): SimGem[] {
 	const pool = [...(l.gems ?? [])];
@@ -177,9 +182,12 @@ const OTHER_LINE_NAMES: Record<string, [name: string, percent: boolean]> = {
 	'59:*': ['Ally Damage Enhancement Effect', true]
 };
 
-function otherLineLabel(s: { type: number; index: number; value: number }): string {
+function otherLineLabel(s: { type: number; index: number; value: number }, support: boolean): string {
+	// A line that scores for the other role (e.g. Crit Rate on a support) keeps its name.
+	const line = ALL_LINES.find((x) => !x.combatEffect && x.match(s));
+	if (line) return `${line.name} ${formatLineValue(line, s.value)}`;
 	const named = OTHER_LINE_NAMES[`${s.type}:${s.index}`] ?? OTHER_LINE_NAMES[`${s.type}:*`];
-	if (!named) return 'Other (no DPS value)';
+	if (!named) return `Other (no ${support ? 'support' : 'DPS'} value)`;
 	const [name, percent] = named;
 	return `${name} +${percent ? `${Number((s.value / 100).toFixed(2))}%` : s.value}`;
 }
@@ -193,7 +201,7 @@ function readAccessoryLines(l: Loadout, slot: AccessorySlot): SimLine[] | undefi
 		.filter((s) => !s.base)
 		.map((s): SimLine => {
 			const line = lines.find((x) => x.slots.includes(family) && x.match(s));
-			if (!line) return { key: 'other', label: otherLineLabel(s) };
+			if (!line) return { key: 'other', label: otherLineLabel(s, l.battlePoint.isSupport) };
 			if (line.combatEffect) {
 				// Combat effects carry no value in item stats; bible's battle point is the % × 100.
 				const part = l.battlePoint.parts.find((p) => p.type === PartType.AccessoryCombatEffect && p.slot === slot);

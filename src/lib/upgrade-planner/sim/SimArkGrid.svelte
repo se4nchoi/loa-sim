@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import { astrogemWillpower, optimizeArkGrid, withArrangement, type Arrangement } from '../arkgrid-optimize';
 	import { formatPct } from '../format';
 	import { ASTROGEM_ITEMS, ASTROGEM_KINDS } from '../game-data';
 	import { coreLook, itemLook } from '../icons';
+	import type { RoleTables } from '../roles';
 	import { coreVariant, simCoreInfo, simCorePoints, type SimAstrogem, type SimState } from '../simulate';
+	import { coreOptionName, supportCoreValue, swappedCoreId } from '../support';
 	import {
 		ASTROGEM_OPTION_NAMES,
 		ASTROGEM_OPTION_SHORT,
@@ -35,10 +38,13 @@
 		preview: PreviewEdit;
 	} = $props();
 
-	const DEALER_OPTIONS = new Set([2001, 2002, 2003]);
+	const role = getContext<() => RoleTables>('loa-sim:role');
+	const support = $derived(role().support);
+	/** Astrogem options that score for this role (dealer: Atk./Add./Boss; support: Ally Dmg / Brand / Ally Atk.). */
+	const SCORING = $derived(new Set(role().astrogemOptions));
 	const rows = $derived(
 		cores
-			.filter((c) => !c.info.supportOnly)
+			.filter((c) => support || !c.info.supportOnly)
 			.map((c) => ({ core: c, ci: sim.arkGrid.findIndex((x) => x.id === c.id) }))
 			.filter((r) => r.ci >= 0)
 	);
@@ -66,17 +72,32 @@
 	};
 	const SHAPE_ORDER: CoreInfo['shape'][] = ['sun', 'moon', 'star'];
 	const variantOf = (ci: number) => sim.arkGrid[ci].variant ?? coreVariant(sim.arkGrid[ci].id);
+	// Supports: chaos options that score for supports (support table > 0 at 20P), named from the game data.
+	const supportVariants = (core: CoreState) =>
+		[0, 1, 2, 3, 4, 5].filter(
+			(v) => v === coreVariant(core.id) || supportCoreValue(swappedCoreId(core.id, 'ancient', v), 20).value > 0
+		);
+	/** Short cell labels: the first word, or the last when options share their first word (Echoing Brand / Steel). */
+	const shortNames = (names: string[]) => {
+		const first = names.map((n) => n.split(' ')[0]);
+		return names.map((n, i) => (first.filter((f) => f === first[i]).length > 1 ? n.split(' ').at(-1)! : first[i]));
+	};
 	// The column already says Order / Chaos.
-	const typeName = (info: CoreInfo, variant: number) => {
+	const typeName = (core: CoreState, info: CoreInfo, variant: number) => {
 		const name = coreLabel(info).replace(/ (Order|Chaos) /, ' ');
+		if (support) return `${name} · ${coreOptionName(swappedCoreId(core.id, info.grade, variant)) ?? ''}`;
 		return info.attr === 'chaos' ? `${name} · ${CHAOS_OPTIONS[info.shape][variant] ?? ''}` : name;
 	};
-	const typeChoices = (core: CoreState): MenuOption<string>[] =>
-		core.info.attr === 'chaos'
-			? GRADES.flatMap((g) =>
-					CHAOS_OPTIONS[core.info.shape].map((name, v) => ({ value: `${g}:${v}`, label: name.split(' ')[0], row: GRADE_NAME[g] }))
-				)
-			: GRADES.map((g) => ({ value: `${g}:0`, label: GRADE_NAME[g] }));
+	const typeChoices = (core: CoreState): MenuOption<string>[] => {
+		// Order cores keep their class option; only the grade changes.
+		if (core.info.attr === 'order') return GRADES.map((g) => ({ value: `${g}:${coreVariant(core.id)}`, label: GRADE_NAME[g] }));
+		const variants = support ? supportVariants(core) : CHAOS_OPTIONS[core.info.shape].map((_, v) => v);
+		const names = variants.map((v) =>
+			support ? (coreOptionName(swappedCoreId(core.id, core.info.grade, v)) ?? `Option ${v}`) : CHAOS_OPTIONS[core.info.shape][v]
+		);
+		const labels = shortNames(names);
+		return GRADES.flatMap((g) => variants.map((v, i) => ({ value: `${g}:${v}`, label: labels[i], row: GRADE_NAME[g] })));
+	};
 	const decodeType = (v: string) => {
 		const [grade, variant] = v.split(':');
 		return { grade: grade as CoreGrade, variant: Number(variant) };
@@ -92,7 +113,7 @@
 	// Option picker: one row per option type, levels 1–5 as cells. Value encodes "id:level".
 	const optionChoices = (g: SimAstrogem): MenuOption<string>[] =>
 		(kindOf(g)?.options ?? [2001, 2002, 2003]).flatMap((id) =>
-			[1, 2, 3, 4, 5].map((lv) => ({ value: `${id}:${lv}`, label: String(lv), row: ASTROGEM_OPTION_NAMES[id], muted: !DEALER_OPTIONS.has(id) }))
+			[1, 2, 3, 4, 5].map((lv) => ({ value: `${id}:${lv}`, label: String(lv), row: ASTROGEM_OPTION_NAMES[id], muted: !SCORING.has(id) }))
 		);
 	const POINTS: MenuOption<number>[] = [1, 2, 3, 4, 5].map((p) => ({ value: p, label: `${p}P` }));
 	const decode = (v: string) => {
@@ -133,7 +154,7 @@
 <SimCard
 	title="Ark Grid"
 	{delta}
-	info="Core points and option totals add up from the astrogems. Click a core's name to try another grade or chaos option. Greyed options don't count for DPS Combat Power."
+	info={`Core points and option totals add up from the astrogems. Click a core's name to try another grade or chaos option. Greyed options don't count for ${support ? 'support' : 'DPS'} Combat Power.`}
 >
 	{#snippet actions()}
 		<button type="button" class={btn} onclick={optimize} title="Moves your equipped astrogems between cores for the most Combat Power. bible doesn't show unequipped astrogems, so only the equipped ones are considered.">
@@ -188,7 +209,7 @@
 											preview={(v) => preview((s) => Object.assign(s.arkGrid[ci], decodeType(v)))}
 										>
 											{#snippet trigger()}
-												<span class="min-w-0 truncate text-left text-sm font-semibold" title={typeName(info, variantOf(ci))}>{typeName(info, variantOf(ci))}</span>
+												<span class="min-w-0 truncate text-left text-sm font-semibold" title={typeName(core, info, variantOf(ci))}>{typeName(core, info, variantOf(ci))}</span>
 											{/snippet}
 										</MenuPicker>
 										<span class="flex flex-row flex-wrap items-center gap-x-1.5 text-xs text-surface-400">
@@ -245,7 +266,7 @@
 														align={oi === 1 ? 'right' : 'left'}
 													>
 														{#snippet trigger()}
-															<span class="w-[5.25rem] truncate text-left text-xs @max-[20rem]:w-[4.5rem] {DEALER_OPTIONS.has(opt.id) ? '' : 'text-surface-400'}" title={ASTROGEM_OPTION_NAMES[opt.id]}>
+															<span class="w-[5.25rem] truncate text-left text-xs @max-[20rem]:w-[4.5rem] {SCORING.has(opt.id) ? '' : 'text-surface-400'}" title={ASTROGEM_OPTION_NAMES[opt.id]}>
 																{ASTROGEM_OPTION_SHORT[opt.id]} <b class="text-surface-50">{opt.level}</b>
 															</span>
 														{/snippet}

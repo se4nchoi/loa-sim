@@ -6,6 +6,8 @@
 <script lang="ts">
 	import { setContext, untrack, type Snippet } from 'svelte';
 	import { className as classNameOf } from './class-names';
+	import { roleOf } from './roles';
+	import { supportCombatPower } from './support';
 	import { cpBrackets, cpStanding, ownRange, type CpDistribution, type CpRole, type IlvlRange } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
 	import SimArkGrid from './sim/SimArkGrid.svelte';
@@ -38,6 +40,12 @@
 	const snapshot = () => $state.snapshot(sim) as SimState;
 	const baseline = $derived(simulate(loadout, base, base));
 	const result = $derived(simulate(loadout, snapshot(), base));
+	// Supports: how each half of the score (Buff Power, Shield & Heal Power) moves.
+	const split = $derived.by(() => {
+		if (!loadout.battlePoint.isSupport) return null;
+		const [a, b] = [supportCombatPower(baseline.parts), supportCombatPower(result.parts)];
+		return { buff: (b.buff / a.buff - 1) * 100, shieldHeal: (b.shieldHeal / a.shieldHeal - 1) * 100 };
+	});
 	const current = $derived(loadout.combatPower?.score ?? baseline.cp);
 	// Keep the headline number identical to the in-game score; edits apply as a ratio on top.
 	const simulated = $derived(current * (result.cp / baseline.cp));
@@ -63,6 +71,8 @@
 
 	// Pickers show a preview's raw CP next to its percent.
 	setContext('loa-sim:cp', () => simulated);
+	// Dealer or support battle point tables, for the cards (which lines / options / effects score).
+	setContext('loa-sim:role', () => roleOf(loadout));
 
 	// Standing among the class: the character's own 10-level bracket until the player picks another range.
 	const own = $derived(ownRange(loadout.itemLevel));
@@ -147,6 +157,7 @@
 		{simulated}
 		ilvlBefore={itemLevel(base)}
 		ilvlAfter={itemLevel(sim)}
+		{split}
 		{sections}
 		{standing}
 		{brackets}
@@ -161,31 +172,27 @@
 	/>
 {/snippet}
 
-{#if loadout.battlePoint.isSupport}
-	<p class="text-sm text-surface-300">The simulator supports DPS loadouts only for now.</p>
-{:else}
-	<!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
-	<MobileSummaryBar {current} {simulated}>{@render summary()}</MobileSummaryBar>
-	<div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
-		<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
-		<div class="flex min-w-0 flex-col gap-2">
-			<div class="grid grid-cols-2 items-start gap-2 max-xl:grid-cols-1">
-				<div class="flex min-w-0 flex-col gap-2">
-					<SimGear bind:sim {base} {itemIds} delta={sections.gear} />
-					<SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} />
-					<SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} />
-				</div>
-				<div class="flex min-w-0 flex-col gap-2">
-					<SimGems bind:sim {base} {gems} {characterName} delta={sections.gems} />
-					<SimEngravings bind:sim {base} {preview} delta={sections.engravings} />
-					<SimKarma bind:sim {base} delta={sections.karma} />
-				</div>
+<!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
+<MobileSummaryBar {current} {simulated}>{@render summary()}</MobileSummaryBar>
+<div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
+	<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
+	<div class="flex min-w-0 flex-col gap-2">
+		<div class="grid grid-cols-2 items-start gap-2 max-xl:grid-cols-1">
+			<div class="flex min-w-0 flex-col gap-2">
+				<SimGear bind:sim {base} {itemIds} delta={sections.gear} />
+				<SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} />
+				<SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} />
 			</div>
-			<SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} />
+			<div class="flex min-w-0 flex-col gap-2">
+				<SimGems bind:sim {base} {gems} {characterName} delta={sections.gems} />
+				<SimEngravings bind:sim {base} {preview} delta={sections.engravings} />
+				<SimKarma bind:sim {base} delta={sections.karma} />
+			</div>
 		</div>
-		<div class="flex flex-col gap-2 lg:sticky lg:top-16">
-			<div class="max-lg:hidden">{@render summary()}</div>
-			{@render sidebar?.()}
-		</div>
+		<SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} />
 	</div>
-{/if}
+	<div class="flex flex-col gap-2 lg:sticky lg:top-16">
+		<div class="max-lg:hidden">{@render summary()}</div>
+		{@render sidebar?.()}
+	</div>
+</div>

@@ -227,7 +227,10 @@ export const ACCESSORY_MAIN_STAT_RANGE: Record<AccessoryFamily, { min: number; m
 
 /** How a line's value reads in the UI. */
 export const formatLineValue = (line: AccessoryLine, v: number) =>
-	line.key === 'atk_flat' || line.key === 'weapon_flat' ? `+${v}` : `+${Number((v / 100).toFixed(2))}%`;
+	line.key === 'atk_flat' || line.key === 'weapon_flat'
+		? `+${v}`
+		: // Identity meter gain is stored as battle points (80 / 180 / 300 = +1.6 / 3.6 / 6%).
+			`+${Number((line.key === 's_identity' ? v / 50 : v / 100).toFixed(2))}%`;
 
 // ---------------------------------------------------------------------------------------------
 // Karma [inven]

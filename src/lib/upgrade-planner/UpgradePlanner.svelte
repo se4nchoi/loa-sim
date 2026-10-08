@@ -4,8 +4,8 @@
 	where `loadout` is the ark passive loadout bible already renders (the one with `battlePoint`).
 -->
 <script lang="ts">
-	import { combatPower } from './cp';
 	import { formatPct } from './format';
+	import { roleOf } from './roles';
 	import type { Loadout } from './types';
 	import UpgradeDialog from './UpgradeDialog.svelte';
 	import UpgradeTitle from './UpgradeTitle.svelte';
@@ -13,9 +13,8 @@
 
 	let { loadout, limit = 5 }: { loadout: Loadout; limit?: number } = $props();
 
-	const isSupport = $derived(loadout.battlePoint.isSupport);
 	const upgrades = $derived(buildUpgrades(loadout));
-	const cp = $derived(loadout.combatPower?.score ?? combatPower(loadout.battlePoint.parts).max);
+	const cp = $derived(loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
 	let dialogOpen = $state(false);
 </script>
 
@@ -23,9 +22,7 @@
 	<div class="flex flex-row items-center bg-black/10 px-3 py-2 font-bold">
 		<div class="flex flex-row items-start">Next Upgrades</div>
 	</div>
-	{#if isSupport}
-		<p class="p-2 text-sm text-surface-300">Upgrade suggestions are available for DPS loadouts only for now.</p>
-	{:else if upgrades.length === 0}
+	{#if upgrades.length === 0}
 		<p class="p-2 text-sm text-surface-300">No one-step upgrades found for this loadout.</p>
 	{:else}
 		<div class="grid grid-cols-[1fr_max-content] gap-x-2 p-1">
