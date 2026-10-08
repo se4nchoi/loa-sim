@@ -36,35 +36,52 @@ export function digestCdf(d: CpDigest, x: number): number {
 	return 1;
 }
 
+/** Item level range [from, to) in whole 10-level brackets; null = every item level. */
+export type IlvlRange = { from: number; to: number } | null;
+
 export interface CpStanding {
-	/** Digest key ("1-1780", "1-all"). */
-	key: string;
-	/** "1780–1789" or "All item levels". */
-	label: string;
 	count: number;
 	/** Percent of characters at or above the score ("top 12%"). */
 	top: (cp: number) => number;
 }
 
-/** Every item-level bracket with data, highest first, then the whole class. */
-export function cpStandings(dist: CpDistribution): CpStanding[] {
-	const entries = Object.entries(dist.digests).filter(([, d]) => d?.count);
-	const bracketOf = (k: string) => Number(k.split('-').at(-1));
-	const brackets = entries.filter(([k]) => !Number.isNaN(bracketOf(k))).sort(([a], [b]) => bracketOf(b) - bracketOf(a));
-	const all = entries.filter(([k]) => k.endsWith('-all'));
-	return [...brackets, ...all].map(([key, d]) => ({
-		key,
-		label: key.endsWith('-all') ? 'All item levels' : `${bracketOf(key)}–${bracketOf(key) + 9}`,
-		count: d.count,
-		top: (cp) => (1 - digestCdf(d, cp)) * 100
-	}));
+const bracketOf = (key: string) => Number(key.split('-').at(-1));
+
+/** Brackets with data (10-level steps: 1700, 1710, ...), ascending. */
+export const cpBrackets = (dist: CpDistribution) =>
+	Object.entries(dist.digests)
+		.filter(([k, d]) => d?.count && !Number.isNaN(bracketOf(k)))
+		.map(([k]) => bracketOf(k))
+		.sort((a, b) => a - b);
+
+/** Several digests as one: their centroids together, re-sorted. */
+export function mergeDigests(list: CpDigest[]): CpDigest | null {
+	const ds = list.filter((d) => d?.count);
+	if (!ds.length) return null;
+	return {
+		centroids: ds.flatMap((d) => d.centroids).sort((a, b) => a[0] - b[0]),
+		count: ds.reduce((a, d) => a + d.count, 0),
+		min: Math.min(...ds.map((d) => d.min)),
+		max: Math.max(...ds.map((d) => d.max))
+	};
 }
 
-/** The character's own bracket, or the whole class when its bracket has no data. */
-export function defaultStanding(list: CpStanding[], itemLevel: number | null): CpStanding | undefined {
-	const bracket = itemLevel ? Math.floor(itemLevel / 10) * 10 : null;
-	return list.find((s) => bracket !== null && s.key.endsWith(`-${bracket}`)) ?? list.find((s) => s.key.endsWith('-all')) ?? list[0];
+/** Standing within an item level range, or across the whole class. */
+export function cpStanding(dist: CpDistribution, range: IlvlRange): CpStanding | null {
+	const entries = Object.entries(dist.digests);
+	const d = range
+		? mergeDigests(entries.filter(([k]) => bracketOf(k) >= range.from && bracketOf(k) < range.to).map(([, d]) => d))
+		: (entries.find(([k]) => k.endsWith('-all'))?.[1] ?? null);
+	if (!d?.count) return null;
+	return { count: d.count, top: (cp) => (1 - digestCdf(d, cp)) * 100 };
 }
+
+/** The character's own 10-level bracket. */
+export const ownRange = (itemLevel: number | null | undefined): IlvlRange => {
+	if (!itemLevel) return null;
+	const from = Math.floor(itemLevel / 10) * 10;
+	return { from, to: from + 10 };
+};
 
 /** "Top 12%", "Top 3.1%", "Top 0.85%": two significant digits near the top. */
 export const formatTop = (top: number) =>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cpStandings, defaultStanding, digestCdf, formatTop, type CpDistribution } from './cp-distribution';
+import { cpBrackets, cpStanding, digestCdf, formatTop, ownRange, type CpDistribution } from './cp-distribution';
 import dist from './fixtures/na-soulshan-cp.json';
 
 const d = dist as unknown as CpDistribution;
@@ -17,19 +17,22 @@ describe('cp distribution', () => {
 		}
 	});
 
-	it('lists brackets high to low, then the whole class; higher CP ranks higher', () => {
-		const list = cpStandings(d);
-		expect(list[0].label).toBe('1800–1809');
-		expect(list.at(-1)!.label).toBe('All item levels');
-		const own = defaultStanding(list, 1784.17)!;
-		expect(own.label).toBe('1780–1789');
+	it('ranks within a bracket, a merged range and the whole class', () => {
+		const own = cpStanding(d, ownRange(1784.17))!;
+		expect(own.count).toBe(256);
 		expect(own.top(6785)).toBeGreaterThan(own.top(7500));
-		const all = list.at(-1)!;
-		expect(all.top(6785)).toBeLessThan(own.top(6785)); // the whole class is weaker than its top bracket
+		// 1770–1790 = the 1770 and 1780 brackets together.
+		const wide = cpStanding(d, { from: 1770, to: 1790 })!;
+		expect(wide.count).toBe(865 + 256);
+		expect(wide.top(6785)).toBeLessThan(own.top(6785)); // the lower bracket is weaker
+		const all = cpStanding(d, null)!;
+		expect(all.top(6785)).toBeLessThan(own.top(6785));
 	});
 
-	it('falls back to the whole class when the bracket has no data', () => {
-		expect(defaultStanding(cpStandings(d), 1500)!.label).toBe('All item levels');
+	it('lists brackets and handles empty ranges', () => {
+		expect(cpBrackets(d)[0]).toBe(1640);
+		expect(cpBrackets(d).at(-1)).toBe(1800);
+		expect(cpStanding(d, { from: 1500, to: 1510 })).toBeNull();
 	});
 
 	it('formats', () => {

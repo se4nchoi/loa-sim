@@ -6,7 +6,7 @@
 <script lang="ts">
 	import { setContext, untrack, type Snippet } from 'svelte';
 	import { className as classNameOf } from './class-names';
-	import { cpStandings, defaultStanding, type CpDistribution } from './cp-distribution';
+	import { cpBrackets, cpStanding, ownRange, type CpDistribution, type IlvlRange } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
 	import SimArkGrid from './sim/SimArkGrid.svelte';
 	import SimBracelet from './sim/SimBracelet.svelte';
@@ -64,12 +64,14 @@
 	// Pickers show a preview's raw CP next to its percent.
 	setContext('loa-sim:cp', () => simulated);
 
-	const standings = $derived(cpDistribution ? cpStandings(cpDistribution) : []);
-	// Compare with the character's own item level range until the player picks another.
-	let standingKey = $state<string | null>(null);
+	// Standing among the class: the character's own 10-level bracket until the player picks another range.
+	const own = $derived(ownRange(loadout.itemLevel));
+	let range = $state<IlvlRange>(null);
 	$effect.pre(() => {
-		standingKey = defaultStanding(standings, loadout.itemLevel ?? null)?.key ?? null;
+		range = own;
 	});
+	const brackets = $derived(cpDistribution ? cpBrackets(cpDistribution) : []);
+	const standing = $derived(cpDistribution ? cpStanding(cpDistribution, range) : null);
 	const className = $derived(classNameOf(loadout.classId));
 
 	const gems = $derived(gemParts(loadout));
@@ -144,8 +146,10 @@
 		ilvlBefore={itemLevel(base)}
 		ilvlAfter={itemLevel(sim)}
 		{sections}
-		{standings}
-		bind:standingKey
+		{standing}
+		{brackets}
+		ownRange={own}
+		bind:range
 		{className}
 		onreset={reset}
 		onundo={undo}

@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { formatTop, type CpStanding } from '../cp-distribution';
+	import { formatTop, type CpStanding, type IlvlRange } from '../cp-distribution';
+	import Segmented from './Segmented.svelte';
+	import Stepper from './Stepper.svelte';
 	import { formatCp } from '../format';
 	import Delta from './Delta.svelte';
 	import { btn, type SectionDelta, type SimSection } from './ui';
@@ -10,8 +12,10 @@
 		ilvlBefore,
 		ilvlAfter,
 		sections,
-		standings = [],
-		standingKey = $bindable(null),
+		standing = null,
+		brackets = [],
+		ownRange = null,
+		range = $bindable(),
 		className = '',
 		onreset,
 		onundo,
@@ -24,8 +28,11 @@
 		ilvlBefore: number | null;
 		ilvlAfter: number | null;
 		sections: Record<SimSection, SectionDelta>;
-		standings?: CpStanding[];
-		standingKey?: string | null;
+		standing?: CpStanding | null;
+		/** Item level brackets with data (10-level steps). */
+		brackets?: number[];
+		ownRange?: IlvlRange;
+		range?: IlvlRange;
 		className?: string;
 		onreset: () => void;
 		onundo: () => void;
@@ -43,7 +50,27 @@
 		arkGrid: 'Ark Grid',
 		karma: 'Karma'
 	};
-	const standing = $derived(standings.find((s) => s.key === standingKey) ?? standings[0]);
+	// Item level range: presets around the character's own bracket, or any from–to in 10-level steps.
+	const lo = $derived(brackets[0] ?? 0);
+	const hi = $derived((brackets.at(-1) ?? 0) + 10);
+	type Preset = 'own' | 'pm10' | 'pm20' | 'all';
+	const PRESETS: { value: Preset; label: string }[] = [
+		{ value: 'own', label: 'Own' },
+		{ value: 'pm10', label: '±10' },
+		{ value: 'pm20', label: '±20' },
+		{ value: 'all', label: 'All' }
+	];
+	const widen = (n: number): IlvlRange =>
+		ownRange ? { from: Math.max(lo, ownRange.from - n), to: Math.min(hi, ownRange.to + n) } : null;
+	const preset = $derived.by<Preset | null>(() => {
+		if (!range) return 'all';
+		for (const [p, n] of [['own', 0], ['pm10', 10], ['pm20', 20]] as const) {
+			const r = widen(n);
+			if (r && r.from === range.from && r.to === range.to) return p;
+		}
+		return null;
+	});
+	const applyPreset = (p: Preset) => (range = p === 'all' ? null : widen({ own: 0, pm10: 10, pm20: 20 }[p]));
 	const delta = $derived((simulated / current - 1) * 100);
 	const changed = $derived((Object.entries(sections) as [SimSection, SectionDelta][]).filter(([, d]) => Math.abs(d.pct) > 0.00005));
 	const color = (v: number) => (v > 0 ? 'text-green-400' : v < 0 ? 'text-red-400' : 'text-surface-300');
@@ -73,27 +100,33 @@
 			</span>
 		{/if}
 	</div>
-	{#if standing}
-		{@const now = standing.top(current)}
-		{@const after = standing.top(simulated)}
-		<div class="flex flex-col gap-1 p-2">
-			<select
-				class="h-7 w-full rounded-xs border border-surface-700 bg-surface-950 px-1.5 text-xs text-surface-200 focus:border-accent-500 focus:outline-none"
-				aria-label="Item level range to compare with"
-				title={`${className}s on lostark.bible in this item level range`}
-				bind:value={standingKey}
-			>
-				{#each standings as s (s.key)}
-					<option value={s.key}>{s.key.endsWith('-all') ? '' : 'Item Level '}{s.label} ({s.count.toLocaleString()} {className}s)</option>
-				{/each}
-			</select>
-			<div class="flex flex-row items-baseline gap-1.5 text-lg whitespace-nowrap tabular-nums">
-				<span class="font-bold text-surface-100">{formatTop(now)}</span>
-				{#if formatTop(after) !== formatTop(now)}
-					<span class="text-sm text-surface-400">→</span>
-					<span class="font-bold {after < now ? 'text-green-400' : 'text-red-400'}">{formatTop(after)}</span>
-				{/if}
+	{#if brackets.length && range !== undefined}
+		<div class="flex flex-col gap-1.5 p-2">
+			<div class="flex flex-row items-baseline justify-between gap-2">
+				<span class="text-xs text-surface-400" title={`Combat Power among ${className}s on lostark.bible`}>Standing</span>
+				<span class="text-xs text-surface-500">
+					{range ? `Item Level ${range.from}–${range.to}` : 'All item levels'} · {standing ? `${standing.count.toLocaleString()} ${className}s` : 'no data'}
+				</span>
 			</div>
+			{#if standing}
+				{@const now = standing.top(current)}
+				{@const after = standing.top(simulated)}
+				<div class="flex flex-row items-baseline gap-1.5 text-lg whitespace-nowrap tabular-nums">
+					<span class="font-bold text-surface-100">{formatTop(now)}</span>
+					{#if formatTop(after) !== formatTop(now)}
+						<span class="text-sm text-surface-400">→</span>
+						<span class="font-bold {after < now ? 'text-green-400' : 'text-red-400'}">{formatTop(after)}</span>
+					{/if}
+				</div>
+			{/if}
+			<Segmented value={preset} options={PRESETS} onselect={applyPreset} label="Item level range" size="h-7 flex-1 px-2 text-xs" />
+			{#if range}
+				<div class="flex flex-row items-center gap-1.5">
+					<Stepper bind:value={range.from} min={lo} max={range.to - 10} step={10} label="Item level from" width="w-11" />
+					<span class="text-surface-400">–</span>
+					<Stepper bind:value={range.to} min={range.from + 10} max={hi} step={10} label="Item level to" width="w-11" />
+				</div>
+			{/if}
 		</div>
 	{/if}
 	{#if changed.length}
