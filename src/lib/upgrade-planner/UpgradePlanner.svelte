@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { formatPct } from './format';
+	import { honingUpgrades } from './honing-upgrades';
 	import { roleOf } from './roles';
 	import type { Loadout } from './types';
 	import UpgradeDialog from './UpgradeDialog.svelte';
@@ -28,7 +29,7 @@
 		flashTimer = setTimeout(() => (flash = null), 1200);
 	}
 
-	const upgrades = $derived(buildUpgrades(loadout));
+	const upgrades = $derived(buildUpgrades(loadout, honingUpgrades(loadout)));
 	const cp = $derived(loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
 	let dialogOpen = $state(false);
 </script>

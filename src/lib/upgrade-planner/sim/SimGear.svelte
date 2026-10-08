@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { HONING_SLOTS, type HoningSlot } from '../honing-data';
+	import { HONING_SLOT_LABELS as LABELS } from '../honing-upgrades';
 	import { isInheritedGear, itemLook } from '../icons';
 	import type { SimState } from '../simulate';
 	import ItemIcon from './ItemIcon.svelte';
@@ -15,14 +16,6 @@
 		itemIds
 	}: { sim: SimState; base: SimState; delta: SectionDelta; itemIds: Record<string, number> } = $props();
 
-	const LABELS: Record<HoningSlot, string> = {
-		head: 'Head',
-		shoulder: 'Shoulder',
-		upper_body: 'Chest',
-		lower_body: 'Pants',
-		hand: 'Gloves',
-		weapon: 'Weapon'
-	};
 	const ORDER: HoningSlot[] = ['head', 'shoulder', 'upper_body', 'lower_body', 'hand', 'weapon'];
 	const slots = $derived(ORDER.filter((s) => sim.gear[s]));
 

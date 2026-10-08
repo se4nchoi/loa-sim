@@ -5,6 +5,7 @@ import soulshan from './fixtures/na-soulshan.json';
 import { initSimState, simulate } from './simulate';
 import type { Loadout } from './types';
 import { buildUpgrades } from './upgrades';
+import { honingUpgrades } from './honing-upgrades';
 
 describe.each([
 	['dealer (Soulshan)', soulshan],
@@ -15,14 +16,17 @@ describe.each([
 	const cp0 = simulate(l, base, base).cp;
 
 	it('every suggestion can be applied, and exact ones give the promised gain', () => {
-		const ups = buildUpgrades(l);
+		const ups = buildUpgrades(l, honingUpgrades(l));
 		expect(ups.length).toBeGreaterThan(5);
+		expect(ups.some((u) => u.category === 'honing')).toBe(true);
 		for (const u of ups) {
 			const s = structuredClone(base);
 			expect(applyUpgrade(l, s, base, u), u.key).toBe(true);
 			const pct = (simulate(l, s, base).cp / cp0 - 1) * 100;
 			// Astrogem rows are an average over 5 levels; approximate rows rest on an assumption.
-			if (u.category === 'astrogem' || u.approximate) expect(pct, u.key).toBeGreaterThan(0);
+			// Honing rows are scored by the simulator itself, so they match exactly.
+			if (u.category === 'honing') expect(pct, u.key).toBeCloseTo(u.gainPct, 9);
+			else if (u.category === 'astrogem' || u.approximate) expect(pct, u.key).toBeGreaterThan(0);
 			else expect(pct, u.key).toBeCloseTo(u.gainPct, 6);
 		}
 	});

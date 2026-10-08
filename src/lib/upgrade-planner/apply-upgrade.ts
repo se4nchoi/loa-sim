@@ -2,6 +2,7 @@
 // Suggestions are keyed by what they change (see upgrades.ts); each one becomes the matching edit.
 
 import { roleOf } from './roles';
+import type { HoningSlot } from './honing-data';
 import { gemParts, isOtherLine, type AccessorySlot, type SimState } from './simulate';
 import { ENGRAVING_BOOK_STEPS, karmaRank } from './tables';
 import type { Loadout } from './types';
@@ -15,6 +16,15 @@ const MAX_CORE_POINTS_PER_GEM = 5;
 export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade): boolean {
 	const [kind, a, b] = u.key.split(':');
 	switch (kind) {
+		case 'honing':
+		case 'advanced': {
+			// honing:<slot>:<level> / advanced:<slot>:<level> → that piece at least at that level.
+			const g = s.gear[a as HoningSlot];
+			if (!g) return false;
+			if (kind === 'honing') g.honing = Math.max(g.honing, Number(b));
+			else g.advanced = Math.max(g.advanced, Number(b));
+			return true;
+		}
 		case 'gem': {
 			// gem:T4:7 → one gem of that tier still at Lv. 7 goes to Lv. 8.
 			const parts = gemParts(l);

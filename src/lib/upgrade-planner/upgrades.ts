@@ -19,7 +19,7 @@ import {
 } from './tables';
 import type { ArkGridGem, BattlePointPart, Loadout } from './types';
 
-export type UpgradeCategory = 'gem' | 'core' | 'astrogem' | 'engraving' | 'accessory' | 'karma';
+export type UpgradeCategory = 'honing' | 'gem' | 'core' | 'astrogem' | 'engraving' | 'accessory' | 'karma';
 
 export interface Upgrade {
 	/** Stable key, e.g. for remembering a user-entered gold cost. */
@@ -55,6 +55,7 @@ export const topDistinct = (upgrades: Upgrade[], limit: number) => {
 };
 
 export const CATEGORY_LABELS: Record<UpgradeCategory, string> = {
+	honing: 'Equipment',
 	gem: 'Gems',
 	core: 'Ark Grid Cores',
 	astrogem: 'Astrogems',
@@ -261,14 +262,18 @@ export function astrogemOptionGain(t: AstrogemTotals, optionId: number, delta: n
 function astrogemUpgrades(l: Loadout): Upgrade[] {
 	if (!l.arkGridCores?.some((c) => c.gems.length)) return [];
 	const t = astrogemTotals(l);
+	const room = (id: number) =>
+		l.arkGridCores!.reduce((n, c) => n + c.gems.filter((g) => g.opts.some((o) => o.id === id && o.level < 5)).length, 0);
 	return t.role.astrogemOptions.map((id) => {
 		// Values are floored per total level, so a single level can round to 0. Average over 5.
 		const per = astrogemOptionGain(t, id, 5) / 5;
+		const level = t.levels[id];
 		return {
 			key: `astrogem:${id}`,
 			category: 'astrogem' as const,
-			title: `${ASTROGEM_OPTION_NAMES[id]} +1 level`,
-			detail: `Total across astrogems: Lv. ${t.levels[id]}. Average of the next 5 levels.`,
+			subject: 'Astrogems',
+			title: `${ASTROGEM_OPTION_NAMES[id]} Lv. ${level} → ${level + 1}`,
+			detail: `Total ${ASTROGEM_OPTION_NAMES[id]} level across your astrogems; ${room(id)} of them can still raise it (max Lv. 5 each). Gain is the average of the next 5 levels, since values round per level.`,
 			gainPct: per,
 			count: 1,
 			approximate: false
@@ -482,9 +487,13 @@ function karmaUpgrades(l: Loadout): Upgrade[] {
 
 // ---------------------------------------------------------------------------------------------
 
-/** Every one-step upgrade available to this loadout, best first (by dealer or support Combat Power). */
-export function buildUpgrades(l: Loadout): Upgrade[] {
+/**
+ * Every one-step upgrade available to this loadout, best first (by dealer or support Combat Power). `extra` takes
+ * suggestions scored elsewhere (equipment honing, see honing-upgrades.ts).
+ */
+export function buildUpgrades(l: Loadout, extra: Upgrade[] = []): Upgrade[] {
 	return [
+		...extra,
 		...gemUpgrades(l),
 		...coreUpgrades(l),
 		...astrogemUpgrades(l),
