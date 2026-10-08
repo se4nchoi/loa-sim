@@ -108,7 +108,7 @@
 					<select bind:value={region} onchange={(e) => saveRegion(e.currentTarget.value)} aria-label="Region" class={field}>
 						{#each REGIONS as r (r)}<option>{r}</option>{/each}
 					</select>
-					<input id="char" bind:value={input} placeholder="Character name or lostark.bible link" class="{field} min-w-0 flex-1" autocomplete="off" />
+					<input id="char" bind:value={input} placeholder="Name or bible link" class="{field} min-w-0 flex-1" autocomplete="off" />
 				</div>
 				{#if input && !target}
 					<span class="text-sm text-red-400">Enter a character name, or a lostark.bible/character/… link.</span>
