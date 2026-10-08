@@ -69,7 +69,7 @@
 				>
 					{#if classIconUrl(c.loadout?.classId)}<img src={classIconUrl(c.loadout?.classId)} alt="" class="size-6" />{/if}
 					<span class="font-semibold">{c.name}</span>
-					{#if cp}<span class="text-xs tabular-nums {cp.id === 2 ? 'text-green-400' : 'text-red-400'}">{cp.score.toFixed(0)}</span>{/if}
+					{#if cp}<span class="text-xs tabular-nums {cp.id === 2 ? 'text-green-400' : 'text-red-400'}">{cp.score.toFixed(2)}</span>{/if}
 				</a>
 			{/each}
 		{/if}
