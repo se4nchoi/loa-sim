@@ -55,7 +55,7 @@
 	const hi = $derived((brackets.at(-1) ?? 0) + 10);
 	type Preset = 'own' | 'pm10' | 'pm20' | 'all';
 	const PRESETS: { value: Preset; label: string }[] = [
-		{ value: 'own', label: 'Own' },
+		{ value: 'own', label: 'My ilvl' },
 		{ value: 'pm10', label: '±10' },
 		{ value: 'pm20', label: '±20' },
 		{ value: 'all', label: 'All' }
