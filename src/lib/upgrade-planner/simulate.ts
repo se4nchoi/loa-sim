@@ -26,6 +26,7 @@ import {
 } from './tables';
 import type { BattlePointPart, Loadout } from './types';
 import { readSidereal, siderealBattlePoints, siderealItemLevel, siderealWeaponPower, type SimSidereal } from './sidereal';
+import { stoneAtkPct, stoneLevelNodes } from './stones';
 import { astrogemTotals, coreStates, coreValueAs, engravingStates, weaponPowerOf, type CoreState } from './upgrades';
 
 /** Advanced honing level 30+ adds this much to the item's stats; fits bible's main stat to 0.05%. */
@@ -383,6 +384,12 @@ export interface SimResult {
 	weaponPower: number;
 }
 
+/** Node counts of the equipped ability stone's two engraving lines (the third is the penalty line). */
+function stoneNodesOf(l: Loadout): number[] | null {
+	const lines = l.items?.find((i) => i.slot === 'ability_stone')?.data.engravings as { nodes: number }[] | undefined;
+	return lines?.length ? lines.slice(0, 2).map((e) => e.nodes) : null;
+}
+
 export function simulate(l: Loadout, state: SimState, base: SimState = initSimState(l)): SimResult {
 	const role = roleOf(l);
 	const parts = l.battlePoint.parts.map((p) => ({ ...p }));
@@ -450,9 +457,14 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 		(linesTotal(state.accessories, 'flat') - linesTotal(base.accessories, 'flat') + braceletWeapon(state.bracelet) - braceletWeapon(base.bracelet) + core1.flat - core0.flat) *
 		(1 + pct0 / 100);
 	weaponPower *= (100 + pct1) / (100 + pct0);
+	// Ability stone: its two engraving lines reaching 16 nodes add Atk. Power, which follows the simulated stone levels.
+	let atkPct1 = atkPct;
+	const stoneLevels = (s: SimState) => Object.values(s.engravings).map((e) => e.stone);
+	if (stoneLevels(state).join() !== stoneLevels(base).join())
+		atkPct1 += stoneAtkPct(stoneLevelNodes(stoneLevels(state))) - stoneAtkPct(stoneNodesOf(l) ?? stoneLevelNodes(stoneLevels(base)));
 	if (mainStat0 && weapon0)
 		basePart.value =
-			partHigh(basePart) * (baseAttackPoint(mainStat, weaponPower, atkPct) / baseAttackPoint(mainStat0, weapon0, atkPct));
+			partHigh(basePart) * (baseAttackPoint(mainStat, weaponPower, atkPct1) / baseAttackPoint(mainStat0, weapon0, atkPct));
 
 	// --- Gems (gemParts keeps the loadout's part order, so the k-th gem part lines up with state.gems[k])
 	const gemIndices = parts.flatMap((p, i) => (p.type === PartType.Gem && typeof p.id === 'number' ? [i] : []));

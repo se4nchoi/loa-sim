@@ -6,6 +6,8 @@ import { gemDpsGainPct } from './dps';
 import { gemParts, initSimState, itemLevel, mainStatIndex, optionLevel, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
 import { className } from './class-names';
 import { coreValue } from './tables';
+import { roleOf } from './roles';
+import { partHigh } from './cp';
 import { coreStates, weaponPowerOf } from './upgrades';
 import type { Loadout } from './types';
 
@@ -343,5 +345,28 @@ describe('bracelet main stat', () => {
 		const empty = structuredClone(base);
 		empty.bracelet!.lines[4] = { kind: 'empty' };
 		expect(withStat(6).cp).toBeCloseTo(simulate(l, empty, base).cp, 10);
+	});
+});
+
+describe('ability stone bonus', () => {
+	// Soulshan's stone is Raid Captain 9 / Cursed Doll 7 nodes: Lv. 3 / Lv. 2, already +1.5% Atk. Power.
+	const atk = loadout.battlePoint.parts.find((p) => p.type === PartType.BaseAttack)!.attackPowerMultiplier as number;
+	const stones = (raidCaptain: number, cursedDoll: number) =>
+		edit((s) => {
+			s.engravings[1254].stone = raidCaptain;
+			s.engravings[1247].stone = cursedDoll;
+		});
+	const engravingOnly = (raidCaptain: number, cursedDoll: number) => {
+		const [rc, cd] = [1254, 1247].map((id) => loadout.battlePoint.parts.find((p) => p.type === PartType.Engraving && p.id === id)!);
+		const v = (id: number, lv: number) => roleOf(loadout).engraving(id)!.table[lv][4];
+		return ((1e4 + v(1254, raidCaptain)) / (1e4 + partHigh(rc))) * ((1e4 + v(1247, cursedDoll)) / (1e4 + partHigh(cd)));
+	};
+
+	it('drops the bonus below 16 nodes (3/1)', () => {
+		expect(stones(3, 1) / CP).toBeCloseTo(engravingOnly(3, 1) * ((100 + atk - 1.5) / (100 + atk)), 9);
+	});
+
+	it('keeps it at 10/6 (4/1)', () => {
+		expect(stones(4, 1) / CP).toBeCloseTo(engravingOnly(4, 1), 9);
 	});
 });

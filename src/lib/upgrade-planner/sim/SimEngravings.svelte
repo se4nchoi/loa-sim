@@ -3,8 +3,10 @@
 	import { engravingIcon } from '../icons';
 	import type { RoleTables } from '../roles';
 	import type { SimState } from '../simulate';
+	import { STONE_BONUS_ATK_PCT, STONE_LEVEL_NODES, bestStones, hasStoneBonus, type StonePick } from '../stones';
 	import { ENGRAVING_BOOK_STEPS } from '../tables';
 	import { engravingName } from '../upgrades';
+	import Delta from './Delta.svelte';
 	import Glyph from './Glyph.svelte';
 	import ItemIcon from './ItemIcon.svelte';
 	import MenuPicker from './MenuPicker.svelte';
@@ -53,6 +55,22 @@
 		delete s.engravings[from];
 		if (to !== REMOVE) s.engravings[to] = { ...e };
 	}
+
+	// Which two of the engravings above a stone should carry, by Combat Power. Only scored while the section is open.
+	let stonesOpen = $state(false);
+	const cpNow = getContext<(() => number) | undefined>('loa-sim:cp');
+	const withStones = (s: SimState, stones: Record<number, number>) => {
+		for (const id of Object.keys(s.engravings).map(Number)) s.engravings[id].stone = stones[id] ?? 0;
+	};
+	const stonePicks = $derived(stonesOpen ? bestStones(ids, (stones) => preview((s) => withStones(s, stones))) : []);
+	const isCurrent = (p: StonePick) => ids.every((id) => sim.engravings[id].stone === (p.stones[id] ?? 0));
+	const stoneLabel = (stones: Record<number, number>) =>
+		Object.entries(stones)
+			.filter(([, lv]) => lv > 0)
+			.sort(([, a], [, b]) => b - a)
+			.map(([id, lv]) => `${engravingName(shown(Number(id)))} Lv. ${lv}`)
+			.join(' + ') || 'none';
+	const pickLabel = (p: StonePick) => stoneLabel(p.stones);
 
 	const STONE: MenuOption<number>[] = [0, 1, 2, 3, 4].map((lv) => ({
 		value: lv,
@@ -147,6 +165,35 @@
 		</div>
 		{#if stoned > 2}
 			<p class="mt-2 text-xs text-amber-300">An ability stone carries at most two engravings ({stoned} set).</p>
+		{/if}
+		{#if ids.length > 1}
+			<details class="mt-2 rounded-xs border border-surface-700 bg-black/15 px-3 py-2 text-xs text-surface-300" bind:open={stonesOpen}>
+				<summary class="cursor-pointer font-semibold text-surface-100 select-none">Suggested Stone Kit Engravings</summary>
+				<p class="mt-1.5 text-amber-300">
+					Combat Power only, not a DPS estimate. CP values some engravings differently from their real damage (crit or
+					back attack based ones, or builds that drop an engraving), and Smilegate can change the CP ratios.
+				</p>
+				<p class="mt-1.5">Current stone: <span class="text-surface-100">{stoneLabel(Object.fromEntries(ids.map((id) => [id, sim.engravings[id].stone])))}</span></p>
+				<ul class="mt-2 flex flex-col divide-y divide-neutral-950">
+					{#each stonePicks as p (p.pattern.join('/'))}
+						<li class="flex flex-row items-center gap-x-2 py-1.5 first:pt-0 last:pb-0">
+							<span class="flex w-16 shrink-0 flex-col leading-tight">
+								<span class="font-bold tabular-nums" style:color={STONE_COLOR}>Lv. {p.pattern[0]} / {p.pattern[1]}</span>
+								<span class="text-[0.85em] text-surface-400 tabular-nums">
+									{STONE_LEVEL_NODES[p.pattern[0]]}/{STONE_LEVEL_NODES[p.pattern[1]]}{hasStoneBonus(p.pattern) ? ` · +${STONE_BONUS_ATK_PCT}% Atk` : ''}
+								</span>
+							</span>
+							<span class="min-w-0 flex-1 truncate text-surface-100" title={pickLabel(p)}>{pickLabel(p)}</span>
+							<Delta pct={p.pct} cp={((cpNow?.() ?? 0) * p.pct) / 100} />
+							{#if isCurrent(p)}
+								<span class="w-12 text-right text-surface-400">Current</span>
+							{:else}
+								<button type="button" class="{btn} w-12" onclick={() => withStones(sim, p.stones)}>Apply</button>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</details>
 		{/if}
 	{/if}
 </SimCard>
