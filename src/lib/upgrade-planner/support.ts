@@ -44,14 +44,17 @@ export const SUPPORT_GEM_T4: number[] = SUPPORT_BP.gems.T4;
 export const SUPPORT_GEM_T3: number[] = SUPPORT_BP.gems.T3;
 
 // --- Engravings: [stone][relic book step], like the dealer table. Defense engravings score Shield & Heal Power.
+// Utility choices are valid support engravings but have no entry in the game's CP table.
+export const SUPPORT_UTILITY_ENGRAVINGS = [1109, 1140, 1142, 1167, 1168, 1240, 1241];
+const UTILITY_TABLE = Array.from({ length: 5 }, () => Array(5).fill(0) as number[]);
 export const supportEngravingTable = (id: number): { table: number[][]; defense: boolean } | undefined => {
 	const atk = (SUPPORT_BP.engravings as Record<string, number[][]>)[id];
 	if (atk) return { table: atk, defense: false };
 	const def = (SUPPORT_BP.engravingsDefense as Record<string, number[][]>)[id];
-	return def ? { table: def, defense: true } : undefined;
+	return def ? { table: def, defense: true } : SUPPORT_UTILITY_ENGRAVINGS.includes(id) ? { table: UTILITY_TABLE, defense: false } : undefined;
 };
 export const supportEngravingIds = () =>
-	[...Object.keys(SUPPORT_BP.engravings), ...Object.keys(SUPPORT_BP.engravingsDefense)].map(Number);
+	[...new Set([...Object.keys(SUPPORT_BP.engravings), ...Object.keys(SUPPORT_BP.engravingsDefense)].map(Number).concat(SUPPORT_UTILITY_ENGRAVINGS))];
 
 // --- Accessories [game]: line values are the T4 low / mid / high rolls; coefficients from the support table.
 const coeff = (rows: number[][], kind: number, index = 0) => (rows.find((r) => r[0] === kind && r[1] === index)?.[2] ?? 0) / 1e4;
@@ -84,7 +87,7 @@ export const SUPPORT_ACCESSORY_LINES: SupportAccessoryLine[] = [
 const CORES = SUPPORT_BP.cores as Record<string, (number | null)[]>;
 const CORES_DEF = SUPPORT_BP.coresDefense as Record<string, (number | null)[]>;
 
-/** Weapon cores affect the support's base attack, rather than a separate battle-point part. */
+/** Weapon cores affect base attack for both roles, rather than a separate battle-point part. */
 export function supportWeaponCoreStats(id: number, points: number): { flat: number; percent: number } {
 	const rows = (SUPPORT_BP.weaponCores as Record<string, number[][]>)[id] ?? [];
 	const info = decodeCore(id);

@@ -2,7 +2,7 @@
 // what the Equipment card shows. (Lives apart from upgrades.ts because simulate.ts imports that module.)
 
 import { HONING_SLOTS, type HoningSlot } from './honing-data';
-import { initSimState, simulate } from './simulate';
+import { initSimState, simulate, type SimState } from './simulate';
 import type { Loadout } from './types';
 import type { Upgrade } from './upgrades';
 
@@ -19,18 +19,17 @@ const MAX_ADVANCED = 40;
 /** Advanced honing is shown to the next tier (10 / 20 / 30 / 40); single levels are too small to rank. */
 const ADVANCED_STEP = 10;
 
-export function honingUpgrades(l: Loadout): Upgrade[] {
-	const base = initSimState(l);
-	const cp0 = simulate(l, base, base).cp;
+export function honingUpgrades(l: Loadout, state: SimState = initSimState(l), base: SimState = initSimState(l)): Upgrade[] {
+	const cp0 = simulate(l, state, base).cp;
 	if (!(cp0 > 0)) return [];
 	const gainWith = (slot: HoningSlot, edit: { honing?: number; advanced?: number }) => {
-		const s = structuredClone(base);
+		const s = structuredClone(state);
 		s.gear[slot] = { ...s.gear[slot]!, ...edit };
 		return (simulate(l, s, base).cp / cp0 - 1) * 100;
 	};
 	const out: Upgrade[] = [];
 	for (const slot of HONING_SLOTS) {
-		const g = base.gear[slot];
+		const g = state.gear[slot];
 		if (!g) continue;
 		const subject = HONING_SLOT_LABELS[slot];
 		const group = slot === 'weapon' ? 'honing:weapon' : 'honing:armor';

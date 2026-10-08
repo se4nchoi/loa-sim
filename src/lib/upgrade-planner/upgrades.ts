@@ -18,6 +18,7 @@ import {
 	type Tier
 } from './tables';
 import type { ArkGridGem, BattlePointPart, Loadout } from './types';
+import { STONE_LEVEL_NODES } from './stones';
 
 export type UpgradeCategory = 'honing' | 'gem' | 'core' | 'astrogem' | 'engraving' | 'accessory' | 'karma';
 
@@ -142,7 +143,7 @@ export interface CoreState {
 
 const SHAPE_LABEL = { sun: 'Sun', moon: 'Moon', star: 'Star' };
 const ATTR_LABEL = { order: 'Order', chaos: 'Chaos' };
-const GRADE_LABEL = { heroic: 'Heroic', legendary: 'Legendary', relic: 'Relic', ancient: 'Ancient' };
+const GRADE_LABEL = { heroic: 'Epic', legendary: 'Legendary', relic: 'Relic', ancient: 'Ancient' };
 
 export const coreLabel = (info: CoreInfo) =>
 	`${GRADE_LABEL[info.grade]} ${ATTR_LABEL[info.attr]} ${SHAPE_LABEL[info.shape]}`;
@@ -179,6 +180,7 @@ export function coreStates(l: Loadout): CoreState[] {
 export function coreValueAt(state: CoreState, points: number, weaponPower: number) {
 	// Imported model corrections describe an active effect, never an inactive core.
 	if (points < CORE_BREAKPOINTS[0]) return 0;
+	if (state.info.weaponCore) return 0;
 	const model = state.support ? supportCoreValue(state.id, points).value : coreValue(state.info, points, weaponPower);
 	return state.value + model - state.modelValue;
 }
@@ -186,13 +188,28 @@ export function coreValueAt(state: CoreState, points: number, weaponPower: numbe
 /** Value as another core type (grade / chaos option tier) at `points`; still anchored on bible while it's the same type. */
 export function coreValueAs(state: CoreState, info: CoreInfo, points: number, weaponPower: number) {
 	if (points < CORE_BREAKPOINTS[0]) return 0;
-	// Weapon-core values depend on stats we can only approximate. Keep the imported correction
-	// across grade changes of the same option, just as we do across point changes.
-	if (state.info.weaponCore && info.weaponCore)
-		return state.value + coreValue(info, points, weaponPower) - state.modelValue;
+	// Weapon cores score through base attack, never an additional core multiplier.
+	if (info.weaponCore) return 0;
 	return info.grade === state.info.grade && info.tier === state.info.tier
 		? coreValueAt(state, points, weaponPower)
 		: coreValue(info, points, weaponPower);
+}
+
+/** Base attack ratio after replacing one core's Weapon Power stats in the imported loadout. */
+export function coreWeaponRatio(l: Loadout, core: CoreState, id: number, points: number): number {
+	const wp = weaponPowerOf(l);
+	if (wp <= 0) return 1;
+	const from = supportWeaponCoreStats(core.id, core.points);
+	const to = supportWeaponCoreStats(id, points);
+	const pct = (l.karma?.enlightenment ?? 0) * KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL
+		+ l.battlePoint.parts.reduce((sum, p) => {
+			const stat = p.stat as { type?: number; index?: number; value?: number } | undefined;
+			return sum + (stat?.type === 2 && stat.index === 152 ? (stat.value ?? 0) / 100 : 0);
+		}, 0)
+		+ coreStates(l).reduce((sum, c) => sum + supportWeaponCoreStats(c.id, c.points).percent, 0);
+	const changed = (wp / (1 + pct / 100) - from.flat + to.flat)
+		* (1 + (pct - from.percent + to.percent) / 100);
+	return Math.sqrt(changed / wp);
 }
 
 function coreUpgrades(l: Loadout): Upgrade[] {
@@ -205,17 +222,8 @@ function coreUpgrades(l: Loadout): Upgrade[] {
 		if (!next) return [];
 		const to = coreValueAt(c, next, wp);
 		let gainPct = g(c.value, to, c.defense);
-		if (c.support && c.info.weaponCore && wp > 0) {
-			const from = supportWeaponCoreStats(c.id, c.points);
-			const target = supportWeaponCoreStats(c.id, next);
-			const otherPct = (l.karma?.enlightenment ?? 0) * KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL
-				+ l.battlePoint.parts.reduce((sum, p) => {
-					const stat = p.stat as { type?: number; index?: number; value?: number } | undefined;
-					return sum + (stat?.type === 2 && stat.index === 152 ? (stat.value ?? 0) / 100 : 0);
-				}, 0);
-			const changed = (wp / (1 + (otherPct + from.percent) / 100) - from.flat + target.flat)
-				* (1 + (otherPct + target.percent) / 100);
-			gainPct = g(0, (Math.sqrt(changed / wp) - 1) * 1e4);
+		if (c.info.weaponCore && wp > 0) {
+			gainPct = g(0, (coreWeaponRatio(l, c, c.id, next) - 1) * 1e4);
 		}
 		return [
 			{
@@ -312,7 +320,8 @@ export function evaluateAstrogemSwap(
 	if (!core) return null;
 	const old = gemIdx === null ? undefined : core.gems.find((g) => g.idx === gemIdx);
 	const pointsAfter = core.points - (old?.corePoints ?? 0) + candidate.corePoints;
-	const coreRatio = partRatio(core.value, coreValueAt(core, pointsAfter, wp));
+	const coreRatio = partRatio(core.value, coreValueAt(core, pointsAfter, wp))
+		* coreWeaponRatio(l, core, core.id, pointsAfter);
 
 	const t = astrogemTotals(l);
 	let optionRatio = 1;
@@ -349,7 +358,7 @@ export const engravingName = (id: number) => ENGRAVING_NAMES[id] ?? ENGRAVING_IC
 
 export function engravingStates(l: Loadout): EngravingState[] {
 	const role = roleOf(l);
-	return engravingPartTypes(role)
+	const scored = engravingPartTypes(role)
 		.flatMap((type) => partsOf(l, type))
 		.flatMap((p) => {
 			const id = num(p, 'id');
@@ -361,6 +370,18 @@ export function engravingStates(l: Loadout): EngravingState[] {
 			if (col < 0) return [];
 			return [{ id, name: engravingName(id), table: t.table, stone, col, value, defense: t.defense }];
 		});
+	// Utility engravings have no battle-point part, but still occupy a slot and can carry stone nodes.
+	const stoneLines = l.items?.find((i) => i.slot === 'ability_stone')?.data.engravings as { id: number; nodes: number }[] | undefined;
+	for (const e of l.engravings ?? []) {
+		if (scored.some((s) => s.id === e.id)) continue;
+		const t = role.engraving(e.id);
+		if (!t || t.table.some((row) => row.some((v) => v !== 0))) continue;
+		const nodes = stoneLines?.find((s) => s.id + 1000 === e.id)?.nodes ?? 0;
+		const stone = STONE_LEVEL_NODES.findLastIndex((n) => nodes >= n);
+		const col = e.grade === 'engrave_grade05' ? 4 : Math.min(4, Math.floor(e.progress / 5));
+		scored.push({ id: e.id, name: engravingName(e.id), ...t, stone, col, value: 0 });
+	}
+	return scored;
 }
 
 function engravingUpgrades(l: Loadout): Upgrade[] {

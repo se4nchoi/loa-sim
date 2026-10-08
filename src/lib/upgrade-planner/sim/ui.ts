@@ -58,6 +58,9 @@ export interface MenuOption<V> {
 	glyph?: 'relic' | 'stone';
 	color?: string;
 	muted?: boolean;
+	/** Visible but unavailable, e.g. an astrogem exceeding the core's Willpower. */
+	disabled?: boolean;
+	title?: string;
 	/** Options sharing a row label are laid out as one row (e.g. astrogem option type × level 1–5). */
 	row?: string;
 }

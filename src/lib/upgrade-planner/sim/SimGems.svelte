@@ -176,7 +176,12 @@
 			<span class="mx-1 h-5 w-px bg-surface-700"></span>
 			<button type="button" class={btn} onclick={() => setAll((v) => v - 1)}>All −1</button>
 			<button type="button" class={btn} onclick={() => setAll((v) => v + 1)}>All +1</button>
-			<button type="button" class={btn} onclick={() => (sim.gems = structuredClone($state.snapshot(base.gems)))}>Reset</button>
+			<button type="button" class={btn} onclick={() => {
+				sim.gems = structuredClone($state.snapshot(base.gems));
+				sim.skillShares = {};
+				sim.skillCooldownUse = {};
+				showShares = false;
+			}}>Reset</button>
 		</div>
 
 		{#if showShares}

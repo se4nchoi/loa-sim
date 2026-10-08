@@ -15,6 +15,7 @@ import {
 	ACCESSORY_LINES,
 	CORE_BREAKPOINTS,
 	KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL,
+	KARMA_EVOLUTION_HP_PER_LEVEL,
 	KARMA_LEAP_PER_LEVEL,
 	karmaRank,
 	TIERS,
@@ -112,6 +113,8 @@ function readGems(l: Loadout): SimGem[] {
 }
 
 export interface SimAstrogem {
+	/** Unequipped in the simulator; retain its cuts so the slot can be restored. */
+	removed?: boolean;
 	/** Item id (kind and grade); kept when edited so the icon and allowed options stay right. */
 	itemId: number;
 	corePoints: number;
@@ -352,12 +355,12 @@ function linesTotal(lines: SimState['accessories'], weapon: 'percent' | 'flat') 
 	return total;
 }
 
-const corePointsOf = (core: SimCore | undefined) => core?.gems.reduce((sum, g) => sum + g.corePoints, 0) ?? 0;
+const corePointsOf = (core: SimCore | undefined) => core?.gems.reduce((sum, g) => sum + (g.removed ? 0 : g.corePoints), 0) ?? 0;
 
 /** Total level of an astrogem option across every core. */
 export const optionLevel = (arkGrid: SimCore[], optionId: number) =>
 	arkGrid.reduce(
-		(sum, c) => sum + c.gems.reduce((s, g) => s + g.opts.filter((o) => o.id === optionId).reduce((a, o) => a + o.level, 0), 0),
+		(sum, c) => sum + c.gems.reduce((s, g) => s + (g.removed ? 0 : g.opts.filter((o) => o.id === optionId).reduce((a, o) => a + o.level, 0)), 0),
 		0
 	);
 
@@ -451,9 +454,9 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 		}
 		else mainStat += (gearStat(slot, to) - gearStat(slot, from)) * ADVANCED_STAT_BONUS;
 	}
-	// Accessories, Enlightenment karma and support Weapon cores contribute additive Weapon Power %.
+	// Accessories, Enlightenment karma and Weapon cores contribute additive Weapon Power %.
 	const karmaPct = (s: SimState) => (s.karma.enlightenment ?? 0) * KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL;
-	const coreWeapon = (s: SimState) => !role.support ? { flat: 0, percent: 0 } : coreStates(l).reduce((sum, c) => {
+	const coreWeapon = (s: SimState) => coreStates(l).reduce((sum, c) => {
 		const core = s.arkGrid.find((x) => x.id === c.id);
 		const id = swappedCoreId(c.id, core?.grade ?? c.info.grade, core?.variant);
 		const stats = supportWeaponCoreStats(id, simCorePoints(l, s, base, c.id));
@@ -463,8 +466,8 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	const core1 = coreWeapon(state);
 	const pct0 = linesTotal(base.accessories, 'percent') / 100 + karmaPct(base) + core0.percent;
 	const pct1 = linesTotal(state.accessories, 'percent') / 100 + karmaPct(state) + core1.percent;
-	// The equipped bracer's flat WP is independent of weapon honing / Sidereal evolution.
-	weaponPower -= bracer0.weaponPower * (1 + pct0 / 100) * (weaponScale - 1);
+	// Equipped bracer and core flat WP are independent of weapon honing / Sidereal evolution.
+	weaponPower -= (bracer0.weaponPower + core0.flat) * (1 + pct0 / 100) * (weaponScale - 1);
 	// Flat Weapon Power from accessories and the bracelet's Weapon Power effect (stat 151).
 	const braceletWeapon = (b: SimBracelet | null) =>
 		braceletStat(b, (i) => i === WEAPON_POWER_FLAT) + braceletEffects(b).reduce((sum, key) => sum + effectWeaponPower(key), 0);
@@ -490,9 +493,11 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	// Vitality adds HP before vigor and Max HP multipliers. Defense itself does not score CP.
 	const hp = parts.find((p) => p.type === PartType.BaseHealth);
 	const hpCon = ({ holyknight: 2.1, holyknightfemale: 2.1, bard: 2, yinyangshi: 2 } as Record<string, number>)[l.classId.replaceAll('_', '').toLowerCase()];
-	if (role.support && hp && hpCon && bracer1.vitality !== bracer0.vitality) {
-		const gain = (bracer1.vitality - bracer0.vitality) * hpCon * statValue(10, 10000) / 10000
-			* (1 + statValue(137) / 10000) * statValue(29, 10000) / 10000 * statValue(31, 10000) / 10000;
+	if (role.support && hp) {
+		const vitalityHp = (bracer1.vitality - bracer0.vitality) * (hpCon ?? 0) * statValue(10, 10000) / 10000
+			* (1 + statValue(137) / 10000);
+		const karmaHp = ((state.karma.evolution ?? 0) - (base.karma.evolution ?? 0)) * KARMA_EVOLUTION_HP_PER_LEVEL;
+		const gain = (vitalityHp + karmaHp) * statValue(29, 10000) / 10000 * statValue(31, 10000) / 10000;
 		const maxHp = typeof hp.maxHp === 'number' ? hp.maxHp : 0;
 		if (maxHp > 0) {
 			hp.value = partHigh(hp) * (maxHp + gain) / maxHp;

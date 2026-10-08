@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { astrogemWillpower, optimizeArkGrid, withArrangement } from './arkgrid-optimize';
 import soulshan from './fixtures/na-soulshan.json';
+import drkuuljulian from './fixtures/ce-drkuuljulian.json';
 import { initSimState, simulate } from './simulate';
 import { CORE_WILLPOWER, decodeCore } from './tables';
 import type { Loadout } from './types';
@@ -10,6 +11,13 @@ const loadout = soulshan as unknown as Loadout;
 describe('ark grid optimizer', () => {
 	const base = initSimState(loadout);
 	const cpOf = (s: ReturnType<typeof initSimState>) => simulate(loadout, s, base).cp;
+
+	it('preserves the value of dealer Weapon core breakpoints when arranging gems', () => {
+		const l = drkuuljulian as unknown as Loadout;
+		const base = initSimState(l);
+		const after = withArrangement(base, optimizeArkGrid(l, base, base));
+		expect(simulate(l, after, base).cp).toBeGreaterThanOrEqual(simulate(l, base, base).cp - 1e-9);
+	});
 
 	it('never does worse than the current arrangement, and respects willpower and sockets', () => {
 		const a = optimizeArkGrid(loadout, base, base);

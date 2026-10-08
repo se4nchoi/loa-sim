@@ -45,9 +45,9 @@ export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade
 			const c = coreStates(l).find((x) => x.id === Number(a));
 			const core = s.arkGrid.find((x) => x.id === Number(a));
 			if (!c || !core) return false;
-			const placed = (st: SimState) => st.arkGrid.find((x) => x.id === c.id)?.gems.reduce((n, g) => n + g.corePoints, 0) ?? 0;
+			const placed = (st: SimState) => st.arkGrid.find((x) => x.id === c.id)?.gems.reduce((n, g) => n + (g.removed ? 0 : g.corePoints), 0) ?? 0;
 			let need = Number(b) - (c.points + placed(s) - placed(base));
-			for (const g of core.gems.toSorted((x, y) => y.corePoints - x.corePoints)) {
+			for (const g of core.gems.filter((g) => !g.removed).toSorted((x, y) => y.corePoints - x.corePoints)) {
 				const add = Math.min(need, MAX_CORE_POINTS_PER_GEM - g.corePoints);
 				if (add <= 0) continue;
 				g.corePoints += add;
@@ -59,6 +59,7 @@ export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade
 			// astrogem:<option id> → +1 level on an astrogem that has the option below Lv. 5.
 			for (const core of s.arkGrid)
 				for (const g of core.gems) {
+					if (g.removed) continue;
 					const opt = g.opts.find((o) => o.id === Number(a) && o.level < 5);
 					if (opt) {
 						opt.level++;
@@ -101,6 +102,14 @@ export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade
 			return true;
 		}
 		case 'karma': {
+			if (a === 'evolution-level' && s.karma.evolution !== null) {
+				s.karma.evolution = Math.max(s.karma.evolution, Number(b));
+				return true;
+			}
+			if (a === 'enlightenment' && s.karma.enlightenment !== null) {
+				s.karma.enlightenment = Math.max(s.karma.enlightenment, Number(b));
+				return true;
+			}
 			if (a === 'evolution' && s.karma.evolution !== null) {
 				const rank = Number(b);
 				s.karma.evolution = Math.max(s.karma.evolution, RANK_FROM[rank] ?? s.karma.evolution);
