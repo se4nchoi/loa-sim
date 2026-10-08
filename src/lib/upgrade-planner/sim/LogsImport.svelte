@@ -145,7 +145,8 @@
 </script>
 
 <div class="flex flex-col gap-2 rounded-xs border border-surface-700 bg-surface-950/60 p-2.5">
-	<div class="flex flex-row flex-wrap items-center gap-2">
+	<!-- min-h-7 = the file button's height, so folding doesn't shift the layout. -->
+	<div class="flex min-h-7 flex-row flex-wrap items-center gap-2">
 		<button
 			type="button"
 			class="flex flex-row items-center gap-1.5 text-sm font-semibold text-surface-100 hover:text-white"
