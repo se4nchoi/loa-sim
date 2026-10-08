@@ -32,7 +32,8 @@ const skill = (id, name, icon, total_damage) => [id, { id, name, icon, total_dam
 const runs = [
 	{ id: 1, start: now - 1 * 3600 * 1000, player: 'Soulshan', boss: 'Archdemon Kazeros', cleared: 1, dmg: [30, 20, 2, 48] },
 	{ id: 2, start: now - 2 * 3600 * 1000, player: 'Soulshan', boss: 'Archdemon Kazeros', cleared: 1, dmg: [20, 30, 2, 48] },
-	{ id: 3, start: now - 9 * day, player: 'Soulshan', boss: 'Armoche', cleared: 1, dmg: [40, 20, 2, 38] },
+	{ id: 3, start: now - 9 * day, player: 'Soulshan', boss: 'Brelshaza, Ember in the Ashes', cleared: 1, dmg: [40, 20, 2, 38] },
+	{ id: 5, start: now - 9 * day - 3600 * 1000, player: 'Soulshan', boss: 'Armoche, Sentinel of the Abyss', cleared: 1, dmg: [35, 25, 2, 38] },
 	{ id: 4, start: now - 3 * 3600 * 1000, player: 'SomeAlt', boss: 'Archdemon Kazeros', cleared: 1, dmg: [90, 5, 5, 0] }
 ];
 const insE = db.prepare('INSERT INTO encounter (id, last_combat_packet, total_damage_dealt) VALUES (?, ?, ?)');

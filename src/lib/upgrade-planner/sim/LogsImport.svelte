@@ -3,6 +3,7 @@
 -->
 <script lang="ts">
 	import { LoaLogsReader, RANGE_LABELS, rangeOf, type EncounterRow, type RangePreset, type SkillShare } from '$lib/logs/loa-logs';
+	import { raidGateOf } from '$lib/logs/raids';
 	import { onDestroy } from 'svelte';
 	import { iconUrl } from '../icons';
 	import Segmented from './Segmented.svelte';
@@ -35,8 +36,11 @@
 			reader ??= new LoaLogsReader();
 			encounters = await reader.open(file);
 			fileName = file.name;
+			// Only the simulator's character: logs recorded on it (it's the local player in those logs).
 			const players = playerList(encounters);
-			player = players.find((p) => p.name.toLowerCase() === characterName?.toLowerCase())?.name ?? players[0]?.name ?? '';
+			player = characterName
+				? (players.find((p) => p.name.toLowerCase() === characterName.toLowerCase())?.name ?? '')
+				: (players[0]?.name ?? '');
 			boss = '';
 		} catch (err) {
 			error = err instanceof Error ? err.message : String(err);
@@ -52,16 +56,43 @@
 		return [...m.entries()].map(([name, runs]) => ({ name, runs })).sort((a, b) => b.runs - a.runs);
 	};
 	const players = $derived(encounters ? playerList(encounters) : []);
-	const bosses = $derived.by(() => {
-		const m = new Map<string, number>();
-		for (const r of encounters ?? []) if (r.player === player && r.boss) m.set(r.boss, (m.get(r.boss) ?? 0) + 1);
-		return [...m.entries()].sort((a, b) => b[1] - a[1]);
+	const mine = $derived((encounters ?? []).filter((r) => r.player === player && r.boss));
+	/**
+	 * Raid filter, grouped by raid and gate (newest raids first): "raid:<raid>", "gate:<raid>:<gate>", or
+	 * "boss:<name>" for bosses outside the raid list.
+	 */
+	const raidGroups = $derived.by(() => {
+		const raids = new Map<string, { order: number; runs: number; gates: Map<number, { label: string; runs: number }> }>();
+		const others = new Map<string, number>();
+		for (const r of mine) {
+			const rg = raidGateOf(r.boss);
+			if (!rg) {
+				others.set(r.boss, (others.get(r.boss) ?? 0) + 1);
+				continue;
+			}
+			const g = raids.get(rg.raid) ?? { order: rg.order, runs: 0, gates: new Map() };
+			g.runs++;
+			g.gates.set(rg.gate, { label: rg.label, runs: (g.gates.get(rg.gate)?.runs ?? 0) + 1 });
+			raids.set(rg.raid, g);
+		}
+		return {
+			raids: [...raids.entries()]
+				.sort((a, b) => b[1].order - a[1].order)
+				.map(([raid, g]) => ({ raid, runs: g.runs, gates: [...g.gates.entries()].sort((a, b) => a[0] - b[0]) })),
+			others: [...others.entries()].sort((a, b) => b[1] - a[1])
+		};
 	});
+	const matchesRaid = (r: EncounterRow) => {
+		if (!boss) return true;
+		const [kind, ...rest] = boss.split(':');
+		const rg = raidGateOf(r.boss);
+		if (kind === 'raid') return rg?.raid === rest.join(':');
+		if (kind === 'gate') return rg !== null && `${rg.raid}:${rg.gate}` === rest.join(':');
+		return r.boss === rest.join(':');
+	};
 	const selected = $derived.by(() => {
 		const [from, to] = rangeOf(range);
-		const rows = (encounters ?? []).filter(
-			(r) => r.player === player && (!boss || r.boss === boss) && r.start >= from && r.start < to && (!clearedOnly || r.cleared !== false)
-		);
+		const rows = mine.filter((r) => matchesRaid(r) && r.start >= from && r.start < to && (!clearedOnly || r.cleared !== false));
 		return limit > 0 ? rows.slice(0, limit) : rows;
 	});
 
@@ -103,14 +134,26 @@
 	{/if}
 	{#if error}<p class="text-xs text-red-400">{error}</p>{/if}
 
-	{#if encounters}
+	{#if encounters && !player}
+		<p class="text-xs text-amber-300">
+			No logs recorded on {characterName} in this file. Logs from: {players.map((p) => p.name).join(', ') || 'no characters'}.
+		</p>
+	{:else if encounters}
 		<div class="flex flex-row flex-wrap items-center gap-2">
-			<select class={selectClass(false)} bind:value={player} aria-label="Character">
-				{#each players as p (p.name)}<option value={p.name}>{p.name} ({p.runs})</option>{/each}
-			</select>
+			<span class="text-xs text-surface-300">Logs of <b class="text-surface-100">{player || characterName}</b></span>
 			<select class={selectClass(false)} bind:value={boss} aria-label="Raid">
-				<option value="">All raids</option>
-				{#each bosses as [b, n] (b)}<option value={b}>{b} ({n})</option>{/each}
+				<option value="">All raids ({mine.length})</option>
+				{#each raidGroups.raids as g (g.raid)}
+					<optgroup label={g.raid}>
+						<option value={`raid:${g.raid}`}>{g.raid}, all gates ({g.runs})</option>
+						{#each g.gates as [gate, x] (gate)}<option value={`gate:${g.raid}:${gate}`}>{x.label} ({x.runs})</option>{/each}
+					</optgroup>
+				{/each}
+				{#if raidGroups.others.length}
+					<optgroup label="Other">
+						{#each raidGroups.others as [b, n] (b)}<option value={`boss:${b}`}>{b} ({n})</option>{/each}
+					</optgroup>
+				{/if}
 			</select>
 			<label class="flex items-center gap-1.5 text-xs text-surface-300">
 				<input type="checkbox" bind:checked={clearedOnly} class="accent-accent-500" /> Cleared only

@@ -43,4 +43,5 @@ All game-related assets are property of their respective owners.
 - [wa-sqlite](https://github.com/rhashimoto/wa-sqlite) (MIT, © Roy T. Hashimoto): SQLite in WebAssembly, used to read
   LOA Logs databases locally.
 - The LOA Logs database format follows [snoww/loa-logs](https://github.com/snoww/loa-logs) (GPL-3.0). Only its data
-  format is read; no code is copied.
+  format is read; no code is copied. The raid / gate grouping of boss names (`src/lib/logs/raids.ts`) follows its
+  encounter list (`src/lib/constants/encounters.ts`): the names as facts, re-typed into our own structure.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { lastReset, rangeOf } from './loa-logs';
+import { raidGateOf } from './raids';
 
 const at = (iso: string) => Date.parse(iso);
 const WEEK = 7 * 24 * 3600 * 1000;
@@ -30,5 +31,17 @@ describe('range presets', () => {
 	});
 	it('this month starts on the 1st (UTC)', () => {
 		expect(rangeOf('this-month', now)).toEqual([at('2026-10-01T00:00:00Z'), Infinity]);
+	});
+});
+
+describe('raid gates', () => {
+	it('groups bosses by raid and gate', () => {
+		expect(raidGateOf('Brelshaza, Ember in the Ashes')).toMatchObject({ raid: 'Armoche (Act 4)', gate: 1, label: 'Armoche G1 (Act 4)' });
+		expect(raidGateOf('Act 4: Covetous Master Echidna')?.label).toBe('Armoche G1 (Act 4)');
+		expect(raidGateOf('Armoche, Sentinel of the Abyss')?.label).toBe('Armoche G2 (Act 4)');
+		// Shared names go to the newest raid.
+		expect(raidGateOf('Phantom Legion Commander Brelshaza')?.label).toBe('Brelshaza G2 (Act 2)');
+		expect(raidGateOf('Behemoth, Cruel Storm Slayer')?.label).toBe('Behemoth G2');
+		expect(raidGateOf('Sonavel')).toBeNull();
 	});
 });
