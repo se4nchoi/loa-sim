@@ -42,3 +42,20 @@ export function setAstrogemType(core: SimCore, info: CoreInfo, gi: number, itemI
 	core.gems[gi] = itemId === 0 ? { ...core.gems[gi], removed: true } : astrogemAs(core.gems[gi], itemId);
 	return true;
 }
+
+/** Efficiency is the gem's 0–5 Willpower reduction, independent of its core points and options. */
+export function astrogemEfficiencyChoices(core: SimCore, info: CoreInfo, gi: number) {
+	const gem = core.gems[gi];
+	const cap = CORE_WILLPOWER[core.grade ?? info.grade];
+	const other = core.gems.reduce((sum, g, i) => sum + (i === gi ? 0 : astrogemWillpower(g)), 0);
+	return Array.from({ length: 6 }, (_, costReduc) => {
+		const willpower = astrogemWillpower({ ...gem, costReduc });
+		return { costReduc, willpower, total: other + willpower, cap, fits: other + willpower <= cap };
+	});
+}
+
+export function setAstrogemEfficiency(core: SimCore, info: CoreInfo, gi: number, costReduc: number): boolean {
+	if (!astrogemEfficiencyChoices(core, info, gi).some((c) => c.costReduc === costReduc && c.fits)) return false;
+	core.gems[gi].costReduc = costReduc;
+	return true;
+}

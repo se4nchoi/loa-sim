@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { astrogemWillpower } from '../arkgrid-optimize';
-	import { astrogemTypeChoices, setAstrogemType } from '../astrogem-edit';
+	import { astrogemEfficiencyChoices, astrogemTypeChoices, setAstrogemEfficiency, setAstrogemType } from '../astrogem-edit';
 	import { formatPct } from '../format';
 	import { ASTROGEM_ITEMS, ASTROGEM_KINDS } from '../game-data';
 	import { coreLook, itemLook } from '../icons';
@@ -69,6 +69,14 @@
 				: `Needs ${c.total} Willpower; this simulated core provides ${c.cap}.`
 		}));
 	const reached = (points: number) => CORE_BREAKPOINTS.filter((bp) => points >= bp).at(-1);
+	const efficiencyChoices = (ci: number, info: CoreInfo, gi: number): MenuOption<number>[] =>
+		astrogemEfficiencyChoices(sim.arkGrid[ci], info, gi).map((c) => ({
+			value: c.costReduc,
+			label: `Efficiency ${c.costReduc} · ${c.willpower} WP · core ${c.total}/${c.cap}`,
+			disabled: !c.fits,
+			title: c.fits ? `Reduces this astrogem's Willpower cost by ${c.costReduc}.`
+				: `Needs ${c.total} Willpower; this simulated core provides ${c.cap}.`
+		}));
 
 	// Core type picker: another grade, and for chaos cores another option (Swift → Flashy, Absorbing → Crushing,
 	// Weapon → Attack). Sun and moon have three dealer options (the second and third share a curve), star two.
@@ -187,7 +195,7 @@
 <SimCard
 	title="Ark Grid"
 	{delta}
-	info={`Click a core or astrogem name to change its type. Choose None to unequip an astrogem and free Willpower. Other types keep grade, points, Willpower reduction and option levels; incompatible options are replaced. Types exceeding the simulated core's Willpower are disabled. Greyed stat options don't count for ${support ? 'support' : 'DPS'} Combat Power.`}
+	info={`Click a core or astrogem name to change its type, or its WP value to edit Willpower efficiency (0–5). Choose None to unequip an astrogem and free Willpower. Other types keep grade, points, Willpower reduction and option levels; incompatible options are replaced. Choices exceeding the simulated core's Willpower are disabled. Greyed stat options don't count for ${support ? 'support' : 'DPS'} Combat Power.`}
 >
 	{#snippet actions()}
 		<button type="button" class={btn} onclick={() => (sim.arkGrid = structuredClone($state.snapshot(base.arkGrid)))}>Reset</button>
@@ -287,7 +295,7 @@
 											<ItemIcon src={gl.icon} grade={gl.grade} size="size-9" title={`${kind?.name ?? 'Astrogem'} · ${astrogemWillpower(gem)} willpower`} />
 										</div>
 										<div class="flex min-w-0 flex-col gap-1">
-											<span class="flex flex-row items-baseline gap-1.5 text-xs">
+											<span class="flex flex-row flex-wrap items-baseline gap-1.5 text-xs">
 												<MenuPicker
 													value={gem.removed ? 0 : gem.itemId}
 													options={gemTypeChoices(ci, info, gi)}
@@ -298,7 +306,19 @@
 												>
 													{#snippet trigger()}<span class="font-semibold text-xs {info.attr === 'order' ? 'text-amber-200' : 'text-sky-200'}">{gem.removed ? 'None' : kind?.name ?? 'Astrogem'}</span>{/snippet}
 												</MenuPicker>
-												<span class="text-surface-400 tabular-nums" title="Willpower">{astrogemWillpower(gem)} WP</span>
+												{#if gem.removed}
+													<span class="text-surface-400 tabular-nums">0 WP</span>
+												{:else}
+													<MenuPicker
+														value={gem.costReduc}
+														options={efficiencyChoices(ci, info, gi)}
+														label={`Willpower efficiency ${gi + 1}`}
+														changed={before?.costReduc !== gem.costReduc}
+														onpick={(v) => setAstrogemEfficiency(sim.arkGrid[ci], info, gi, v)}
+													>
+														{#snippet trigger()}<span class="text-xs tabular-nums" title="Willpower cost and efficiency level">{astrogemWillpower(gem)} WP <span class="text-surface-400">· Eff. {gem.costReduc}</span></span>{/snippet}
+													</MenuPicker>
+												{/if}
 												{#if isWeakest}<span class="font-semibold text-amber-300">· weakest</span>{/if}
 											</span>
 											<div class="flex flex-row flex-wrap items-center gap-1">
