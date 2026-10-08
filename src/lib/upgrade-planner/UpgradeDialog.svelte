@@ -1,10 +1,24 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { formatCp, formatPct } from './format';
+	import { btn } from './sim/ui';
 	import UpgradeTitle from './UpgradeTitle.svelte';
 	import { CATEGORY_LABELS, type Upgrade, type UpgradeCategory } from './upgrades';
 
-	let { upgrades, cp, onclose }: { upgrades: Upgrade[]; cp: number; onclose: () => void } = $props();
+	let {
+		upgrades,
+		cp,
+		onclose,
+		onapply,
+		flash = null
+	}: {
+		upgrades: Upgrade[];
+		cp: number;
+		onclose: () => void;
+		onapply?: (u: Upgrade) => void;
+		/** The row just applied, for feedback. */
+		flash?: { key: string; ok: boolean } | null;
+	} = $props();
 
 	let dialog: HTMLDialogElement;
 	onMount(() => dialog.showModal());
@@ -59,6 +73,11 @@
 								<span class="text-sm font-semibold text-green-400 tabular-nums">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>
 								<span class="text-xs text-surface-500 tabular-nums">{formatCp(cp * (1 + u.gainPct / 100))}</span>
 							</div>
+							{#if onapply}
+								<button type="button" class="{btn} w-14 shrink-0 px-1.5" onclick={() => onapply(u)} title="Make this change in the simulator">
+									{flash?.key === u.key ? (flash.ok ? '✓' : 'Done') : 'Apply'}
+								</button>
+							{/if}
 						</div>
 					{/each}
 				</section>

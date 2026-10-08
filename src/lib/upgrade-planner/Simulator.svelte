@@ -2,11 +2,14 @@
 	Combat Power simulator: edit honing, accessories, gems, engravings, ark grid, bracelet and karma, and see
 	the character's CP update live. Usage on the character page:
 		<Simulator loadout={loadout}>{#snippet sidebar()}…extra sidebar cards…{/snippet}</Simulator>
+	The sidebar holds the Combat Power card and Next Upgrades (whose Apply buttons edit the simulation).
 -->
 <script lang="ts">
 	import { setContext, untrack, type Snippet } from 'svelte';
 	import { className as classNameOf } from './class-names';
+	import { applyUpgrade } from './apply-upgrade';
 	import { roleOf } from './roles';
+	import UpgradePlanner from './UpgradePlanner.svelte';
 	import { supportCombatPower } from './support';
 	import { cpBrackets, cpStanding, ownRange, type CpDistribution, type CpRole, type IlvlRange } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
@@ -21,7 +24,7 @@
 	import { SECTIONS, type PreviewEdit, type SectionDelta, type SimSection } from './sim/ui';
 	import { gemParts, initSimState, itemLevel, mainStatIndex, simulate, type SimState } from './simulate';
 	import type { Loadout } from './types';
-	import { coreStates } from './upgrades';
+	import { coreStates, type Upgrade } from './upgrades';
 
 	let {
 		loadout,
@@ -44,7 +47,10 @@
 	const split = $derived.by(() => {
 		if (!loadout.battlePoint.isSupport) return null;
 		const [a, b] = [supportCombatPower(baseline.parts), supportCombatPower(result.parts)];
-		return { buff: (b.buff / a.buff - 1) * 100, shieldHeal: (b.shieldHeal / a.shieldHeal - 1) * 100 };
+		return {
+			buff: { value: b.buff, pct: (b.buff / a.buff - 1) * 100 },
+			shieldHeal: { value: b.shieldHeal, pct: (b.shieldHeal / a.shieldHeal - 1) * 100 }
+		};
 	});
 	const current = $derived(loadout.combatPower?.score ?? baseline.cp);
 	// Keep the headline number identical to the in-game score; edits apply as a ratio on top.
@@ -90,6 +96,14 @@
 	const cores = $derived(coreStates(loadout));
 	const itemIds = $derived(Object.fromEntries((loadout.items ?? []).map((i) => [i.slot, i.id])));
 	const mainStatName = $derived(({ 3: 'Strength', 4: 'Dexterity', 5: 'Intelligence' } as Record<number, string>)[mainStatIndex(loadout)]);
+
+	/** Next Upgrades → Apply: make the suggested edit in the simulator. */
+	function applySuggestion(u: Upgrade) {
+		const s = snapshot();
+		if (!applyUpgrade(loadout, s, base, u)) return false;
+		sim = s;
+		return true;
+	}
 
 	function reset() {
 		sim = initSimState(loadout);
@@ -193,6 +207,7 @@
 	</div>
 	<div class="flex flex-col gap-2 lg:sticky lg:top-16">
 		<div class="max-lg:hidden">{@render summary()}</div>
+		<UpgradePlanner {loadout} onapply={applySuggestion} />
 		{@render sidebar?.()}
 	</div>
 </div>

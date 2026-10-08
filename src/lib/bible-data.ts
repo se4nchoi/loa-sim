@@ -88,9 +88,18 @@ export function decodeCharacterData(body: unknown, name: string, region: string)
 		name,
 		region,
 		header: layout?.header ?? null,
-		loadout: page.loadouts?.find((l) => l.type === 'ark_passive' && l.battlePoint) ?? null,
+		loadout: pickLoadout(page.loadouts ?? []),
 		cpDistribution: distributionOf(page.combatPowerDistribution)
 	};
+}
+
+/**
+ * The ark passive loadout to simulate. Support classes come with two (scored as support and as dealer); only the
+ * one matching the character's build has the in-game score, so a DPS-build Bard is simulated as a dealer.
+ */
+export function pickLoadout(loadouts: Loadout[]): Loadout | null {
+	const ap = loadouts.filter((l) => l.type === 'ark_passive' && l.battlePoint);
+	return ap.find((l) => l.combatPower?.score) ?? ap[0] ?? null;
 }
 
 function distributionOf(raw: Record<string, Record<string, CpDigest>> | undefined): CpDistribution | null {

@@ -1,7 +1,7 @@
 <!--
-	"Next Upgrades" sidebar card. Drop it under the Combat Power card on the character page:
-		<UpgradePlanner loadout={loadout} />
-	where `loadout` is the ark passive loadout bible already renders (the one with `battlePoint`).
+	"Next Upgrades" sidebar card: the best one-step upgrades for the loadout. With `onapply` (the simulator passes
+	it), each row gets an Apply button that makes the edit in the simulator.
+		<UpgradePlanner loadout={loadout} onapply={(u) => …} />
 -->
 <script lang="ts">
 	import { formatPct } from './format';
@@ -9,9 +9,24 @@
 	import type { Loadout } from './types';
 	import UpgradeDialog from './UpgradeDialog.svelte';
 	import UpgradeTitle from './UpgradeTitle.svelte';
-	import { CATEGORY_LABELS, buildUpgrades, topDistinct } from './upgrades';
+	import { btn } from './sim/ui';
+	import { CATEGORY_LABELS, buildUpgrades, topDistinct, type Upgrade } from './upgrades';
 
-	let { loadout, limit = 5 }: { loadout: Loadout; limit?: number } = $props();
+	let {
+		loadout,
+		limit = 5,
+		onapply
+	}: { loadout: Loadout; limit?: number; /** Returns false when it couldn't be applied. */ onapply?: (u: Upgrade) => boolean } = $props();
+
+	/** Brief feedback on the row just applied. */
+	let flash = $state<{ key: string; ok: boolean } | null>(null);
+	let flashTimer: ReturnType<typeof setTimeout>;
+	function apply(u: Upgrade) {
+		const ok = onapply?.(u) ?? false;
+		flash = { key: u.key, ok };
+		clearTimeout(flashTimer);
+		flashTimer = setTimeout(() => (flash = null), 1200);
+	}
 
 	const upgrades = $derived(buildUpgrades(loadout));
 	const cp = $derived(loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
@@ -25,7 +40,7 @@
 	{#if upgrades.length === 0}
 		<p class="p-2 text-sm text-surface-300">No one-step upgrades found for this loadout.</p>
 	{:else}
-		<div class="grid grid-cols-[1fr_max-content] gap-x-2 p-1">
+		<div class="grid gap-x-2 p-1 {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
 			{#each topDistinct(upgrades, limit) as u (u.key)}
 				<div
 					class="col-span-full grid grid-cols-subgrid items-center rounded-xs px-1.5 py-1 transition duration-75 hover:bg-black/20"
@@ -39,6 +54,11 @@
 						{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span>
 						{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
 					</span>
+					{#if onapply}
+						<button type="button" class="{btn} w-14 px-1.5" onclick={() => apply(u)} title="Make this change in the simulator">
+							{flash?.key === u.key ? (flash.ok ? '✓' : 'Done') : 'Apply'}
+						</button>
+					{/if}
 				</div>
 			{/each}
 			<div class="col-span-full w-full px-1 text-right">
@@ -56,5 +76,5 @@
 </div>
 
 {#if dialogOpen}
-	<UpgradeDialog {upgrades} {cp} onclose={() => (dialogOpen = false)} />
+	<UpgradeDialog {upgrades} {cp} onapply={onapply ? apply : undefined} {flash} onclose={() => (dialogOpen = false)} />
 {/if}

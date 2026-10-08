@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { bibleDataUrl, parseCharacterInput, parsePastedData } from './bible-data';
+import { bibleDataUrl, parseCharacterInput, parsePastedData, pickLoadout } from './bible-data';
+import type { Loadout } from './upgrade-planner/types';
 
 describe('parseCharacterInput', () => {
 	it('takes a plain name with the chosen region', () => {
@@ -61,5 +62,20 @@ describe('parsePastedData', () => {
 		expect(() => parsePastedData('{"type":"data","nod', 'x', 'NA')).toThrow(/isn't complete/);
 		expect(() => parsePastedData('{"hello":1}', 'x', 'NA')).toThrow(/doesn't look like/);
 		expect(() => parsePastedData(JSON.stringify({ type: 'data', nodes: [] }), 'x', 'NA')).toThrow(/No character/);
+	});
+});
+
+const lo = (isSupport: boolean, score: number | null) =>
+	({ type: 'ark_passive', classId: 'bard', itemLevel: 1750, battlePoint: { isSupport, parts: [] }, combatPower: score === null ? null : { id: isSupport ? 2 : 1, score } }) as unknown as Loadout;
+
+describe('pickLoadout', () => {
+	it('takes the loadout the game scored (a DPS-build support is a dealer)', () => {
+		expect(pickLoadout([lo(true, null), lo(false, 4200)])!.battlePoint.isSupport).toBe(false);
+		expect(pickLoadout([lo(true, 3300), lo(false, null)])!.battlePoint.isSupport).toBe(true);
+	});
+
+	it('falls back to the first ark passive loadout', () => {
+		expect(pickLoadout([lo(true, null), lo(false, null)])!.battlePoint.isSupport).toBe(true);
+		expect(pickLoadout([])).toBeNull();
 	});
 });

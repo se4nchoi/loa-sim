@@ -40,8 +40,8 @@
 		onredo: () => void;
 		canUndo: boolean;
 		canRedo: boolean;
-		/** Supports: % change of Buff Power and of Shield & Heal Power. */
-		split?: { buff: number; shieldHeal: number } | null;
+		/** Supports: Buff Power and Shield & Heal Power (bible's breakdown) and their % change. */
+		split?: { buff: { value: number; pct: number }; shieldHeal: { value: number; pct: number } } | null;
 	} = $props();
 
 	const LABELS: Record<SimSection, string> = {
@@ -93,7 +93,7 @@
 		<span class="text-lg font-bold text-surface-200">{formatCp(current)}</span>
 		<span class="mt-1 text-xs text-surface-400">Simulated</span>
 		<div class="flex flex-row items-baseline gap-2">
-			<span class="text-2xl font-bold text-red-400">{formatCp(simulated)}</span>
+			<span class="text-2xl font-bold {split ? 'text-green-400' : 'text-red-400'}">{formatCp(simulated)}</span>
 			<Delta pct={delta} cp={simulated - current} class="text-sm font-semibold" />
 		</div>
 		{#if ilvlBefore !== null && ilvlAfter !== null}
@@ -103,11 +103,15 @@
 			</span>
 		{/if}
 		{#if split}
-			<div class="mt-1 grid grid-cols-[1fr_max-content] gap-x-2 text-sm" title="A support's Combat Power is Buff Power plus Shield & Heal Power">
-				<span class="text-xs text-sky-300">Buff Power</span>
-				<span class="text-right tabular-nums {color(split.buff)}">{formatPct(split.buff)}%</span>
-				<span class="text-xs text-red-300">Shield & Heal</span>
-				<span class="text-right tabular-nums {color(split.shieldHeal)}">{formatPct(split.shieldHeal)}%</span>
+			<div
+				class="mt-1 grid grid-cols-[1fr_max-content_max-content] items-baseline gap-x-2 text-sm"
+				title="A support's Combat Power is Buff Power plus Shield & Heal Power (lostark.bible's breakdown)"
+			>
+				{#each [['Buff Power', 'text-sky-300', split.buff], ['Shield & Heal', 'text-red-300', split.shieldHeal]] as const as [name, tone, v] (name)}
+					<span class="text-xs {tone}">{name}</span>
+					<span class="text-right text-surface-200 tabular-nums">≈{formatCp(v.value)}</span>
+					<span class="w-16 text-right text-xs tabular-nums {color(v.pct)}">{formatPct(v.pct)}%</span>
+				{/each}
 			</div>
 		{/if}
 	</div>

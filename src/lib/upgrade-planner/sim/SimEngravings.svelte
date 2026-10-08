@@ -39,6 +39,21 @@
 			.map((e) => ({ value: e, label: engravingName(e), iconUrl: engravingIcon(e) }))
 			.sort((a, b) => a.label.localeCompare(b.label));
 	};
+	// Characters run up to five engravings; empty rows take any engraving that scores and isn't used yet.
+	const SLOTS = 5;
+	const REMOVE = 0;
+	const empty = $derived(Math.max(0, SLOTS - ids.length));
+	/** An added row's picker can also clear the slot again. */
+	const pickerOptions = (id: number) =>
+		sim.engravings[id].added ? [{ value: REMOVE, label: 'Remove (empty slot)', muted: true }, ...swapOptions(id)] : swapOptions(id);
+	const added = (books = ENGRAVING_BOOK_STEPS.length - 1) => ({ books, stone: 0, added: true });
+	/** Swap an added row to another engraving (it's keyed by its own id), or clear it. */
+	function moveAdded(s: SimState, from: number, to: number) {
+		const e = s.engravings[from];
+		delete s.engravings[from];
+		if (to !== REMOVE) s.engravings[to] = { ...e };
+	}
+
 	const STONE: MenuOption<number>[] = [0, 1, 2, 3, 4].map((lv) => ({
 		value: lv,
 		label: lv === 0 ? 'No stone level' : `Lv. ${lv}`,
@@ -53,23 +68,30 @@
 		<button type="button" class={btn} onclick={() => ids.forEach((id) => (sim.engravings[id].books = ENGRAVING_BOOK_STEPS.length - 1))}>All max</button>
 		<button type="button" class={btn} onclick={() => (sim.engravings = structuredClone($state.snapshot(base.engravings)))}>Reset</button>
 	{/snippet}
-	{#if ids.length === 0}
+	{#if ids.length === 0 && role().engravingIds().length === 0}
 		<p class="text-sm text-surface-400">No supported engravings found.</p>
 	{:else}
 		<!-- Narrow cards (container query) show engraving icons only. -->
 		<div class="@container flex flex-col divide-y divide-neutral-950">
 			{#each ids as id (id)}
 				{@const e = sim.engravings[id]}
-				{@const b = base.engravings[id]}
+				{@const b = base.engravings[id] as SimState['engravings'][number] | undefined}
 				<div class="flex flex-row items-center gap-x-2 py-1.5 first:pt-0 last:pb-0">
 					<div class="min-w-0 flex-1">
 						<MenuPicker
 							value={shown(id)}
-							options={swapOptions(id)}
+							options={pickerOptions(id)}
 							label={`Swap ${engravingName(id)}`}
-							changed={shown(id) !== id}
-							onpick={(v) => (e.as = v === id ? undefined : v)}
-							preview={(v) => preview((s) => (s.engravings[id].as = v === id ? undefined : v))}
+							changed={!b || shown(id) !== id}
+							onpick={(v) => {
+								if (e.added) moveAdded(sim, id, v);
+								else e.as = v === id ? undefined : v;
+							}}
+							preview={(v) =>
+								preview((s) => {
+									if (s.engravings[id].added) moveAdded(s, id, v);
+									else s.engravings[id].as = v === id ? undefined : v;
+								})}
 							full
 						>
 							{#snippet trigger()}
@@ -82,7 +104,7 @@
 						value={e.books}
 						options={BOOKS}
 						label={`${engravingName(id)} relic engraving level`}
-						changed={e.books !== b.books}
+						changed={e.books !== b?.books}
 						onpick={(v) => (e.books = v)}
 						preview={(v) => preview((s) => (s.engravings[id].books = v))}
 						align="right"
@@ -96,7 +118,7 @@
 						value={e.stone}
 						options={STONE}
 						label={`${engravingName(id)} ability stone level`}
-						changed={e.stone !== b.stone}
+						changed={e.stone !== b?.stone}
 						onpick={(v) => (e.stone = v)}
 						preview={(v) => preview((s) => (s.engravings[id].stone = v))}
 						align="right"
@@ -105,6 +127,20 @@
 							<Glyph kind="stone" dim={e.stone === 0} />
 							<span class="w-9 font-bold tabular-nums" style:color={e.stone > 0 ? STONE_COLOR : undefined}>{e.stone ? `Lv. ${e.stone}` : '—'}</span>
 						{/snippet}
+					</MenuPicker>
+				</div>
+			{/each}
+			{#each { length: empty } as _, k (k)}
+				<div class="py-1.5 first:pt-0 last:pb-0">
+					<MenuPicker
+						value={REMOVE}
+						options={swapOptions(-1)}
+						label="Add an engraving"
+						onpick={(v) => (sim.engravings[v] = added())}
+						preview={(v) => preview((s) => (s.engravings[v] = added()))}
+						full
+					>
+						{#snippet trigger()}<span class="text-sm text-surface-400">+ Add engraving</span>{/snippet}
 					</MenuPicker>
 				</div>
 			{/each}

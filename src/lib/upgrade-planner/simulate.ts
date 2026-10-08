@@ -51,7 +51,17 @@ export interface SimState {
 	/** Optional damage share per skill id, in percent of total damage; enables the DPS estimate. */
 	skillShares: Record<number, number>;
 	/** Per engraving id: relic book step (0–4 → 0/5/10/15/20 books) and ability stone level (0–4). */
-	engravings: Record<number, { books: number; stone: number; /** Swapped to another engraving (its id). */ as?: number }>;
+	engravings: Record<
+		number,
+		{
+			books: number;
+			stone: number;
+			/** Swapped to another engraving (its id). */
+			as?: number;
+			/** Added in an empty slot (not on the character); keyed by its own id. */
+			added?: boolean;
+		}
+	>;
 	/** Main stat (Str/Dex/Int) on each accessory. */
 	accessoryStats: Partial<Record<AccessorySlot, number>>;
 	/** Ark grid cores with their astrogems; core points and option totals are derived from these. */
@@ -414,6 +424,11 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 		const t = swapped ? (role.engraving(s.as!) ?? e) : e;
 		if (s && (swapped || s.stone !== e.stone || s.books !== e.col))
 			replace(ENGRAVING_TYPES, (p) => p.id === e.id, t.defense ? PartType.EngravingDefense : PartType.Engraving, t.table[s.stone][s.books], { id: e.id });
+	}
+	// Engravings added in empty slots score like any other.
+	for (const [id, s] of Object.entries(state.engravings)) {
+		const t = s.added ? role.engraving(Number(id)) : undefined;
+		if (t) parts.push({ type: t.defense ? PartType.EngravingDefense : PartType.Engraving, value: t.table[s.stone][s.books], id: Number(id) });
 	}
 
 	// --- Accessories: rebuild the grinding (15 / 16) and combat effect (17) parts of every edited slot.

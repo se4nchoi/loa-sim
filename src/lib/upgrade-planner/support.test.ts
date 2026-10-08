@@ -92,6 +92,14 @@ describe('support simulation (Brushann)', () => {
 		expect(after.shieldHeal).toBeGreaterThan(before.shieldHeal);
 	});
 
+	it('an engraving added in an empty slot scores (Crushing Fist)', () => {
+		expect(Object.keys(base.engravings)).not.toContain('1236');
+		const r = sim((s) => (s.engravings[1236] = { books: 4, stone: 0, added: true }));
+		const after = supportCombatPower(r.parts);
+		expect(after.buff / before.buff).toBeCloseTo(1 + supportEngravingTable(1236)!.table[0][4] / 1e4, 6);
+		expect(after.shieldHeal).toBeCloseTo(before.shieldHeal, 6);
+	});
+
 	it('swapping a chaos core option uses the support table', () => {
 		const moon = coreStates(l).find((c) => c.id === 673113005)!;
 		const r = sim((s) => (s.arkGrid.find((c) => c.id === moon.id)!.grade = 'ancient'));

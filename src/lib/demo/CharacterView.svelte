@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Simulator, UpgradePlanner } from '$lib/upgrade-planner';
+	import { Simulator } from '$lib/upgrade-planner';
 	import { className } from '$lib/upgrade-planner/class-names';
 	import type { CpDistribution } from '$lib/upgrade-planner/cp-distribution';
 	import type { Loadout } from '$lib/upgrade-planner/types';
@@ -43,9 +43,5 @@
 {#if !loadout}
 	<p class="text-surface-300">This character has no Ark Passive loadout with combat power data yet.</p>
 {:else}
-	<Simulator {loadout} {cpDistribution} characterName={name}>
-		{#snippet sidebar()}
-			<UpgradePlanner {loadout} />
-		{/snippet}
-	</Simulator>
+	<Simulator {loadout} {cpDistribution} characterName={name} />
 {/if}
