@@ -57,8 +57,17 @@
 	<!-- One row: recent chips scroll sideways, the dropdown stays put (own row on phones). -->
 	<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 		{#if lists.recent.length > 1}
-			<div class="flex min-w-0 flex-1 flex-row items-center gap-2 overflow-x-auto [scrollbar-width:thin]">
-			<span class="shrink-0 text-xs font-semibold tracking-wide text-surface-400 uppercase">Recent</span>
+			<!-- No visible scrollbar (it would make the row taller than the dropdown); the mouse wheel scrolls sideways. -->
+			<div
+				class="flex min-w-0 flex-1 flex-row items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+				aria-label="Recent characters"
+				onwheel={(e) => {
+					const el = e.currentTarget;
+					if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+					el.scrollLeft += e.deltaY;
+					e.preventDefault();
+				}}
+			>
 			{#each lists.recent as c (characterKey(c))}
 				{@const key = characterKey(c)}
 				{@const cp = cpOf(c)}
