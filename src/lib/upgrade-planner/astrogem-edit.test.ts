@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { astrogemAs, astrogemTypeChoices, setAstrogemType } from './astrogem-edit';
+import { astrogemAs, astrogemEfficiencyChoices, astrogemTypeChoices, setAstrogemEfficiency, setAstrogemType } from './astrogem-edit';
 import { ASTROGEM_ITEMS, ASTROGEM_KINDS, ITEMS } from './game-data';
 import { initSimState, optionLevel, simCorePoints, simulate, type SimAstrogem, type SimCore } from './simulate';
 import { astrogemWillpower } from './arkgrid-optimize';
@@ -13,6 +13,31 @@ const corrosion = (): SimAstrogem => ({
 });
 
 describe('astrogem type changes', () => {
+	it('increasing efficiency frees Willpower for a more expensive type without changing CP or other cuts', () => {
+		const l = drkuuljulian as unknown as Loadout;
+		const base = initSimState(l);
+		const state = structuredClone(base);
+		const core = state.arkGrid.find((c) => c.id === 673121006)!;
+		const info = decodeCore(core.id)!;
+		const before = structuredClone(core.gems[2]);
+		expect(setAstrogemType(core, info, 0, 67411525)).toBe(false);
+		expect(setAstrogemEfficiency(core, info, 2, 5)).toBe(true);
+		expect(core.gems[2]).toEqual({ ...before, costReduc: 5 });
+		expect(simulate(l, state, base)).toEqual(simulate(l, base, base));
+		expect(setAstrogemType(core, info, 0, 67411525)).toBe(true);
+	});
+
+	it('checks efficiency against the simulated grade, permits exact capacity and rejects invalid levels', () => {
+		const core: SimCore = { id: 673121005, gems: Array.from({ length: 4 }, corrosion) };
+		const info = decodeCore(core.id)!;
+		expect(astrogemEfficiencyChoices(core, info, 0).map((c) => c.costReduc)).toEqual([0, 1, 2, 3, 4, 5]);
+		expect(setAstrogemEfficiency(core, info, 0, 2)).toBe(true); // 15 / 15
+		expect(setAstrogemEfficiency(core, info, 0, 1)).toBe(false); // 16 / 15
+		expect(core.gems[0].costReduc).toBe(2);
+		core.grade = 'ancient';
+		expect(setAstrogemEfficiency(core, info, 0, 0)).toBe(true); // 17 / 17
+		for (const invalid of [-1, 6, 2.5, NaN]) expect(setAstrogemEfficiency(core, info, 0, invalid)).toBe(false);
+	});
 	it('preserves cuts and the compatible option without introducing duplicate or invalid options', () => {
 		const source = corrosion();
 		const changed = astrogemAs(source, 67411525);
