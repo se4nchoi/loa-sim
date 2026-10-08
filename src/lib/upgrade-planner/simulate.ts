@@ -6,7 +6,7 @@
 // of bible's values, which keeps unknown bonuses (titles, karma, etc.) intact.
 
 import { PartType, baseAttackPoint, partHigh } from './cp';
-import { BRACELET_EFFECTS, GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
+import { BRACELET_EFFECTS, GEM_BASE_ATTACK, GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
 import { HONING_SLOTS, HONING_TABLE, type HoningSlot } from './honing-data';
 import { roleOf } from './roles';
 import { SUPPORT_ACCESSORY_LINES, supportCoreValue, supportWeaponCoreStats, swappedCoreId, type SupportAccessoryLine } from './support';
@@ -459,6 +459,12 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	weaponPower *= (100 + pct1) / (100 + pct0);
 	// Ability stone: its two engraving lines reaching 16 nodes add Atk. Power, which follows the simulated stone levels.
 	let atkPct1 = atkPct;
+	gemParts(l).forEach((g, k) => {
+		if (g.tier !== 'T4') return;
+		const from = base.gems[k]?.level ?? g.level;
+		const to = state.gems[k]?.level ?? from;
+		atkPct1 += (GEM_BASE_ATTACK[to - 1] ?? 0) - (GEM_BASE_ATTACK[from - 1] ?? 0);
+	});
 	const stoneLevels = (s: SimState) => Object.values(s.engravings).map((e) => e.stone);
 	if (stoneLevels(state).join() !== stoneLevels(base).join())
 		atkPct1 += stoneAtkPct(stoneLevelNodes(stoneLevels(state))) - stoneAtkPct(stoneNodesOf(l) ?? stoneLevelNodes(stoneLevels(base)));

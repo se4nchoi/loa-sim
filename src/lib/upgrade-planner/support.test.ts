@@ -97,7 +97,7 @@ describe('support simulation (Brushann)', () => {
 		const r = sim((s) => (s.gems[i].level = 8));
 		const after = supportCombatPower(r.parts);
 		expect(after.shieldHeal).toBeCloseTo(before.shieldHeal, 6);
-		expect(after.buff / before.buff).toBeCloseTo((1e4 + 1000) / (1e4 + 875), 6);
+		expect(after.buff / before.buff).toBeCloseTo((1e4 + 1000) / (1e4 + 875) * (1 + 0.2 / (100 + Number(parts.find((p) => p.type === PartType.BaseAttack)!.attackPowerMultiplier))), 6);
 	});
 
 	it('a Shield & Heal engraving moves Shield & Heal Power only', () => {

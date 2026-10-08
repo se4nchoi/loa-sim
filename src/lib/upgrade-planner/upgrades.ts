@@ -1,5 +1,5 @@
 import { PartType, partHigh, partRatio, ratioToPct } from './cp';
-import { ENGRAVING_ICONS, GEM_REGULAR } from './game-data';
+import { ENGRAVING_ICONS, GEM_BASE_ATTACK, GEM_REGULAR } from './game-data';
 import { engravingPartTypes, roleOf, type RoleTables } from './roles';
 import { supportCombatPower, supportCoreValue, supportWeaponCoreStats } from './support';
 import {
@@ -89,6 +89,7 @@ function gemUpgrades(l: Loadout): Upgrade[] {
 	const { gemT4, gemT3 } = roleOf(l);
 	const g = gainIn(l);
 	const groups = new Map<string, Upgrade>();
+	const attackPct = Number(partsOf(l, PartType.BaseAttack)[0]?.attackPowerMultiplier ?? 0);
 	for (const p of partsOf(l, PartType.Gem)) {
 		const raw = num(p, 'id');
 		if (!raw) continue;
@@ -110,7 +111,9 @@ function gemUpgrades(l: Loadout): Upgrade[] {
 			category: 'gem',
 			title: `${tier} gem Lv. ${level} → ${level + 1}`,
 			detail: `1 gem at Lv. ${level}.`,
-			gainPct: g(value, table[level]),
+			gainPct: g(0, (partRatio(value, table[level]) * (tier === 'T4'
+				? (100 + attackPct + GEM_BASE_ATTACK[level] - GEM_BASE_ATTACK[level - 1]) / (100 + attackPct)
+				: 1) - 1) * 1e4),
 			count: 1,
 			approximate: false
 		});

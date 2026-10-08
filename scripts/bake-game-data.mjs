@@ -132,6 +132,11 @@ const gemEffects = {
 	T4: { damage: gemEffect(65031000), cooldown: gemEffect(65032000) },
 	T3: { damage: gemEffect(65021000), cooldown: gemEffect(65022000) }
 };
+const gemBaseAttack = Array.from({ length: 10 }, (_, i) => {
+	const prefix = `${65031000 + (i + 1) * 10}#`;
+	const key = Object.keys(stats.itemStatic).find((k) => k.startsWith(prefix));
+	return (stats.itemStatic[key] ?? []).filter((s) => s.type === 2 && s.stat === 150).reduce((sum, s) => sum + s.value, 0) / 100;
+});
 
 // ------------------------------------------------------------------------------------------- bracelet effects
 
@@ -252,6 +257,9 @@ export const GEM_SKILL_ALIAS: Record<number, number> = ${JSON.stringify(gemSkill
 
 /** Gem skill effect by level (index 0 = Lv. 1), in 1/100 %: damage % for damage gems, cooldown % for cooldown gems. */
 export const GEM_EFFECTS: Record<'T4' | 'T3', { damage: number[]; cooldown: number[] }> = ${JSON.stringify(gemEffects)};
+
+/** T4 gem base Attack Power percentage by level (1–10), separate from gem battle points. */
+export const GEM_BASE_ATTACK: number[] = ${JSON.stringify(gemBaseAttack)};
 
 /** Event gem id → the regular gem id it behaves as (same tier, kind and level). */
 export const GEM_REGULAR: Record<number, number> = ${JSON.stringify(gemRegular)};

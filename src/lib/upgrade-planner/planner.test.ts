@@ -91,7 +91,7 @@ describe('upgrades', () => {
 	it('groups identical gems and prices Lv. 9 → 10 at 704/640', () => {
 		const g = find('gem:T4:9')!;
 		expect(g.count).toBe(10);
-		expect(g.gainPct).toBeCloseTo((10704 / 10640 - 1) * 100, 6);
+		expect(g.gainPct).toBeCloseTo((10704 / 10640 * (1 + 0.2 / (100 + Number(loadout.battlePoint.parts.find((p) => p.type === PartType.BaseAttack)!.attackPowerMultiplier))) - 1) * 100, 6);
 	});
 
 	it('prices the next core breakpoint', () => {

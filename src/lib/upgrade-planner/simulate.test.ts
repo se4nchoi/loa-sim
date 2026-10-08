@@ -124,7 +124,7 @@ describe('simulate', () => {
 	});
 
 	it('one gem Lv. 9 → 10', () => {
-		expect(pct(edit((s) => (s.gems[0].level = 10)))).toBeCloseTo((10704 / 10640 - 1) * 100, 6);
+		expect(pct(edit((s) => (s.gems[0].level = 10)))).toBeCloseTo((10704 / 10640 * (1 + 0.2 / (100 + Number(loadout.battlePoint.parts.find((p) => p.type === PartType.BaseAttack)!.attackPowerMultiplier))) - 1) * 100, 6);
 	});
 
 	it('necklace Outgoing Damage mid → high', () => {
@@ -225,7 +225,7 @@ describe('simulate', () => {
 			s.gems[0].level = 10;
 			s.karma.leap = 30;
 		});
-		expect(both / CP).toBeCloseTo((10704 / 10640) * (10060 / 10056), 9);
+		expect(both / CP).toBeCloseTo((10704 / 10640) * (1 + 0.2 / (100 + Number(loadout.battlePoint.parts.find((p) => p.type === PartType.BaseAttack)!.attackPowerMultiplier))) * (10060 / 10056), 9);
 	});
 });
 
