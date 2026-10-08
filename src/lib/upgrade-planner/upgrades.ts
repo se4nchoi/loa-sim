@@ -1,7 +1,7 @@
 import { PartType, partHigh, partRatio, ratioToPct } from './cp';
 import { ENGRAVING_ICONS, GEM_REGULAR } from './game-data';
 import { engravingPartTypes, roleOf, type RoleTables } from './roles';
-import { supportCombatPower, supportCoreValue } from './support';
+import { supportCombatPower, supportCoreValue, supportWeaponCoreStats } from './support';
 import {
 	ASTROGEM_OPTION_NAMES,
 	CORE_BREAKPOINTS,
@@ -9,6 +9,7 @@ import {
 	ENGRAVING_NAMES,
 	KARMA_EVOLUTION_MAX_RANK,
 	KARMA_LEAP_MAX_LEVEL,
+	KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL,
 	TIERS,
 	coreValue,
 	decodeCore,
@@ -199,15 +200,28 @@ function coreUpgrades(l: Loadout): Upgrade[] {
 		const next = CORE_BREAKPOINTS.find((bp) => bp > c.points && bp <= cap);
 		if (!next) return [];
 		const to = coreValueAt(c, next, wp);
+		let gainPct = g(c.value, to, c.defense);
+		if (c.support && c.info.weaponCore && wp > 0) {
+			const from = supportWeaponCoreStats(c.id, c.points);
+			const target = supportWeaponCoreStats(c.id, next);
+			const otherPct = (l.karma?.enlightenment ?? 0) * KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL
+				+ l.battlePoint.parts.reduce((sum, p) => {
+					const stat = p.stat as { type?: number; index?: number; value?: number } | undefined;
+					return sum + (stat?.type === 2 && stat.index === 152 ? (stat.value ?? 0) / 100 : 0);
+				}, 0);
+			const changed = (wp / (1 + (otherPct + from.percent) / 100) - from.flat + target.flat)
+				* (1 + (otherPct + target.percent) / 100);
+			gainPct = g(0, (Math.sqrt(changed / wp) - 1) * 1e4);
+		}
 		return [
 			{
 				key: `core:${c.id}:${next}`,
 				category: 'core' as const,
 				title: `${c.label} core → ${next}P`,
 				detail: `Needs ${next - c.points} more core point${next - c.points > 1 ? 's' : ''} from its astrogems.`,
-				gainPct: g(c.value, to, c.defense),
+				gainPct,
 				count: 1,
-				approximate: (!c.support && c.info.weaponCore) || c.modelValue !== c.value
+				approximate: c.info.weaponCore || c.modelValue !== c.value
 			}
 		];
 	});

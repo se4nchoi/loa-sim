@@ -212,6 +212,10 @@ const supportData = {
 	combatStat: Object.fromEntries(ofType(26)),
 	cores: byLevel(ofType(29)),
 	coresDefense: byLevel(ofType(30)),
+	weaponCores: Object.fromEntries(Object.entries(items).filter(([, item]) => item.arkCore?.group === 673121003).map(([id, item]) => [id,
+		item.arkCore.bonuses.map(({ points, id: bonus }) => [points,
+			...[151, 152].map((stat) => (stats.arkGridCoreOptions[bonus]?.stats ?? []).filter((s) => s.type === 2 && s.stat === stat).reduce((sum, s) => sum + s.value, 0))])
+	])),
 	astrogem: byLevel(ofType(31))
 };
 fs.writeFileSync(

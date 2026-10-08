@@ -9,7 +9,7 @@ import { PartType, baseAttackPoint, partHigh } from './cp';
 import { BRACELET_EFFECTS, GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
 import { HONING_SLOTS, HONING_TABLE, type HoningSlot } from './honing-data';
 import { roleOf } from './roles';
-import { SUPPORT_ACCESSORY_LINES, supportCoreValue, swappedCoreId, type SupportAccessoryLine } from './support';
+import { SUPPORT_ACCESSORY_LINES, supportCoreValue, supportWeaponCoreStats, swappedCoreId, type SupportAccessoryLine } from './support';
 import {
 	ACCESSORY_LINES,
 	CORE_BREAKPOINTS,
@@ -424,16 +424,23 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 		if (slot === 'weapon') weaponPower *= gearStat(slot, to) / gearStat(slot, from);
 		else mainStat += (gearStat(slot, to) - gearStat(slot, from)) * ADVANCED_STAT_BONUS;
 	}
-	// Weapon Power % from accessories multiplies everything else; assume they're the only % source we can change.
-	// Enlightenment karma adds Weapon Power % the same way.
+	// Accessories, Enlightenment karma and support Weapon cores contribute additive Weapon Power %.
 	const karmaPct = (s: SimState) => (s.karma.enlightenment ?? 0) * KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL;
-	const pct0 = linesTotal(base.accessories, 'percent') / 100 + karmaPct(base);
-	const pct1 = linesTotal(state.accessories, 'percent') / 100 + karmaPct(state);
+	const coreWeapon = (s: SimState) => !role.support ? { flat: 0, percent: 0 } : coreStates(l).reduce((sum, c) => {
+		const core = s.arkGrid.find((x) => x.id === c.id);
+		const id = swappedCoreId(c.id, core?.grade ?? c.info.grade, core?.variant);
+		const stats = supportWeaponCoreStats(id, simCorePoints(l, s, base, c.id));
+		return { flat: sum.flat + stats.flat, percent: sum.percent + stats.percent };
+	}, { flat: 0, percent: 0 });
+	const core0 = coreWeapon(base);
+	const core1 = coreWeapon(state);
+	const pct0 = linesTotal(base.accessories, 'percent') / 100 + karmaPct(base) + core0.percent;
+	const pct1 = linesTotal(state.accessories, 'percent') / 100 + karmaPct(state) + core1.percent;
 	// Flat Weapon Power from accessories and the bracelet's Weapon Power effect (stat 151).
 	const braceletWeapon = (b: SimBracelet | null) =>
 		braceletStat(b, (i) => i === WEAPON_POWER_FLAT) + braceletEffects(b).reduce((sum, key) => sum + effectWeaponPower(key), 0);
 	weaponPower +=
-		(linesTotal(state.accessories, 'flat') - linesTotal(base.accessories, 'flat') + braceletWeapon(state.bracelet) - braceletWeapon(base.bracelet)) *
+		(linesTotal(state.accessories, 'flat') - linesTotal(base.accessories, 'flat') + braceletWeapon(state.bracelet) - braceletWeapon(base.bracelet) + core1.flat - core0.flat) *
 		(1 + pct0 / 100);
 	weaponPower *= (100 + pct1) / (100 + pct0);
 	if (mainStat0 && weapon0)

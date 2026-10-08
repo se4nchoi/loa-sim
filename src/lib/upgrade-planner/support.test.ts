@@ -8,6 +8,7 @@ import {
 	supportAstrogemValue,
 	supportCombatPower,
 	supportCoreValue,
+	supportWeaponCoreStats,
 	supportEngravingTable,
 	swappedCoreId
 } from './support';
@@ -67,6 +68,14 @@ describe('support tables reproduce bible (Brushann, Artist)', () => {
 		expect(coreOptionName(swappedCoreId(673113005, 'ancient', 4))).toBe('Echoing Steel');
 		expect(swappedCoreId(673014515, 'ancient')).toBe(673014516);
 	});
+
+	it('Weapon core effects accumulate through the active breakpoint', () => {
+		expect(supportWeaponCoreStats(673121005, 17)).toEqual({ flat: 3900, percent: 2.25 });
+		expect(supportWeaponCoreStats(673121006, 17)).toEqual({ flat: 5200, percent: 3 });
+		expect(supportWeaponCoreStats(673121006, 20).percent).toBeCloseTo(3.69);
+		expect(supportWeaponCoreStats(673121004, 20)).toEqual({ flat: 1300, percent: 0.75 });
+		expect(supportWeaponCoreStats(673121006, 9)).toEqual({ flat: 0, percent: 0 });
+	});
 });
 
 describe('support simulation (Brushann)', () => {
@@ -111,6 +120,29 @@ describe('support simulation (Brushann)', () => {
 		const r = sim((s) => (s.arkGrid.find((c) => c.id === moon.id)!.grade = 'ancient'));
 		const part = r.parts.find((p) => p.id === moon.id && (p.type === PartType.ArkGridCore || p.type === PartType.ArkGridCoreDefense))!;
 		expect(part.value).toBe(supportCoreValue(673113006, moon.points).value);
+	});
+
+	it('upgrading Weapon increases Buff Power, while swapping to Salvation removes its weapon stats', () => {
+		const weapon = base.arkGrid.find((c) => c.id === 673121005)!;
+		const upgraded = supportCombatPower(sim((s) => (s.arkGrid.find((c) => c.id === weapon.id)!.grade = 'ancient')).parts);
+		expect(upgraded.buff).toBeGreaterThan(before.buff);
+		expect(upgraded.shieldHeal).toBeCloseTo(before.shieldHeal, 6);
+		const salvation = supportCombatPower(sim((s) => {
+			const core = s.arkGrid.find((c) => c.id === weapon.id)!;
+			core.grade = 'ancient';
+			core.variant = 2;
+		}).parts);
+		expect(salvation.buff).toBeLessThan(before.buff);
+		expect(salvation.shieldHeal / before.shieldHeal).toBeCloseTo(1.0672, 6);
+		expect(salvation.total).toBeLessThan(upgraded.total);
+	});
+
+	it('Weapon point upgrades agree between Next Upgrades and simulation', () => {
+		const core = base.arkGrid.find((c) => c.id === 673121005)!;
+		const r = sim((s) => { s.arkGrid.find((c) => c.id === core.id)!.gems[0].corePoints += 1; });
+		const upgrade = buildUpgrades(l).find((u) => u.key === 'core:673121005:18')!;
+		expect(upgrade.gainPct).toBeGreaterThan(0);
+		expect(upgrade.gainPct).toBeCloseTo(pct(r.cp), 4);
 	});
 
 	it('bracelet Ally Atk. Power Enhancement lines score part 19', () => {

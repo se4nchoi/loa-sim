@@ -84,6 +84,15 @@ export const SUPPORT_ACCESSORY_LINES: SupportAccessoryLine[] = [
 const CORES = SUPPORT_BP.cores as Record<string, (number | null)[]>;
 const CORES_DEF = SUPPORT_BP.coresDefense as Record<string, (number | null)[]>;
 
+/** Weapon cores affect the support's base attack, rather than a separate battle-point part. */
+export function supportWeaponCoreStats(id: number, points: number): { flat: number; percent: number } {
+	const rows = (SUPPORT_BP.weaponCores as Record<string, number[][]>)[id] ?? [];
+	const info = decodeCore(id);
+	const capped = Math.min(points, info ? CORE_GRADE_CAP[info.grade] : 20);
+	return rows.reduce((sum, [threshold, flat, percent]) => threshold <= capped
+		? { flat: sum.flat + flat, percent: sum.percent + percent / 100 } : sum, { flat: 0, percent: 0 });
+}
+
 /** Support battle points of a core id at `points`, and whether it scores Shield & Heal Power. */
 export function supportCoreValue(id: number, points: number): { value: number; defense: boolean } {
 	const defense = !CORES[id] && !!CORES_DEF[id];
