@@ -117,6 +117,8 @@ export interface RosterCharacter {
 	ilvl?: number;
 	/** Last time bible saw the character, epoch ms. */
 	lastUpdate?: number;
+	/** Combat Power, when the roster includes it (support = the support score). */
+	cp?: { score: number; support: boolean };
 }
 
 const asRegion = (v: unknown): Region | null => {
@@ -126,6 +128,13 @@ const asRegion = (v: unknown): Region | null => {
 const asTime = (v: unknown): number | undefined => {
 	const t = typeof v === 'number' ? v : typeof v === 'string' ? Date.parse(v) : NaN;
 	return Number.isFinite(t) ? (t < 1e12 ? t * 1000 : t) : undefined;
+};
+
+/** A combat power given as a number or as bible's { id, score } (id 2 = support). */
+const asCp = (v: unknown): RosterCharacter['cp'] => {
+	if (typeof v === 'number') return { score: v, support: false };
+	const o = v as { id?: number; score?: number } | null;
+	return typeof o?.score === 'number' ? { score: o.score, support: o.id === 2 } : undefined;
 };
 
 /** Reads the rosters response: a list of rosters (or { rosters }), each with a region and its characters. */
@@ -142,7 +151,8 @@ export function parseRosters(body: unknown): RosterCharacter[] {
 				region,
 				classId: typeof c.class === 'string' ? c.class : typeof c.classId === 'string' ? c.classId : undefined,
 				ilvl: typeof c.ilvl === 'number' ? c.ilvl : undefined,
-				lastUpdate: asTime(c.lastUpdate)
+				lastUpdate: asTime(c.lastUpdate),
+				cp: asCp(c.combatPower ?? c.cp)
 			});
 		}
 	}

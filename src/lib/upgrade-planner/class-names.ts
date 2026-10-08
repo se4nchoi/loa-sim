@@ -34,6 +34,10 @@ const NA_NAMES: Record<string, string> = {
 	dimensionmaster: 'Dimensionalist'
 };
 
+/** bible class key (no underscores) for an NA class name ("Souleater" → "souleater"), or undefined. */
+export const classKeyFromName = (name: string) =>
+	Object.entries(NA_NAMES).find(([, na]) => na.toLowerCase() === name.replaceAll(' ', '').toLowerCase())?.[0];
+
 /** NA class name for a bible class id; unknown ids fall back to a readable form of the id. */
 export const className = (classId: string) =>
 	NA_NAMES[classId.replaceAll('_', '').toLowerCase()] ??

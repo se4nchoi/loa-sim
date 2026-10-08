@@ -44,6 +44,8 @@ All game-related assets are property of their respective owners.
 
 - `static/frames/*.png` (ark passive frames and the inherited-gear border) are game UI assets, as used by
   lostark.bible (served there under `/i/`). All game assets belong to Smilegate RPG / Amazon Games.
+- `static/classes/*.png` (class emblems) are game assets copied from lostark.bible's `/i/classes/`.
+- `static/bible/artist_cry.png` is lostark.bible's logo, used to label the roster synced from lostark.bible.
 
 ## Libraries
 
