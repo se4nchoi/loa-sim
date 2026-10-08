@@ -50,39 +50,39 @@
 		}
 	}
 
+	/** Chip k shows once the row fits k+1 chips (13rem wide + 0.5rem gap); the rest stay in the dropdown. */
+	const CHIP_SHOWN = [
+		'flex',
+		'hidden @min-[26.5rem]:flex',
+		'hidden @min-[40rem]:flex',
+		'hidden @min-[53.5rem]:flex',
+		'hidden @min-[67rem]:flex',
+		'hidden @min-[80.5rem]:flex'
+	];
 	const cpOf = (c: SavedCharacter) => c.loadout?.combatPower;
 </script>
 
 <div class="mb-4 flex flex-col gap-2">
-	<!-- One row: recent chips scroll sideways, the dropdown stays put (own row on phones). -->
+	<!-- One row: as many recent chips as fit (fixed width, no scrolling), then the dropdown. Phones get just the dropdown. -->
 	<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 		{#if lists.recent.length > 1}
-			<!-- No visible scrollbar (it would make the row taller than the dropdown); the mouse wheel scrolls sideways. -->
-			<div
-				class="flex min-w-0 flex-1 flex-row items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-				aria-label="Recent characters"
-				onwheel={(e) => {
-					const el = e.currentTarget;
-					if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-					el.scrollLeft += e.deltaY;
-					e.preventDefault();
-				}}
-			>
-			{#each lists.recent as c (characterKey(c))}
-				{@const key = characterKey(c)}
-				{@const cp = cpOf(c)}
-				<a
-					href={openUrl(key)}
-					aria-current={key === current ? 'page' : undefined}
-					class="flex h-9 shrink-0 flex-row items-center gap-2 rounded-xs border px-2 text-sm whitespace-nowrap {key === current
-						? 'border-accent-500 bg-accent-900/30 text-surface-50'
-						: 'border-surface-700 bg-surface-900 text-surface-200 hover:bg-surface-800'}"
-				>
-					{#if classIconUrl(c.loadout?.classId)}<img src={classIconUrl(c.loadout?.classId)} alt="" class="size-6" />{/if}
-					<span class="font-semibold">{c.name}</span>
-					{#if cp}<span class="text-xs tabular-nums {cp.id === 2 ? 'text-green-400' : 'text-red-400'}">{cp.score.toFixed(2)}</span>{/if}
-				</a>
-			{/each}
+			<div class="@container flex min-w-0 flex-1 flex-row items-center gap-2 overflow-hidden max-sm:hidden" aria-label="Recent characters">
+				{#each lists.recent as c, i (characterKey(c))}
+					{@const key = characterKey(c)}
+					{@const cp = cpOf(c)}
+					<a
+						href={openUrl(key)}
+						aria-current={key === current ? 'page' : undefined}
+						title={c.name}
+						class="{CHIP_SHOWN[i]} h-9 w-52 shrink-0 flex-row items-center gap-2 rounded-xs border px-2 text-sm {key === current
+							? 'border-accent-500 bg-accent-900/30 text-surface-50'
+							: 'border-surface-700 bg-surface-900 text-surface-200 hover:bg-surface-800'}"
+					>
+						{#if classIconUrl(c.loadout?.classId)}<img src={classIconUrl(c.loadout?.classId)} alt="" class="size-6 shrink-0" />{/if}
+						<span class="min-w-0 flex-1 truncate font-semibold">{c.name}</span>
+						{#if cp}<span class="shrink-0 text-xs tabular-nums {cp.id === 2 ? 'text-green-400' : 'text-red-400'}">{cp.score.toFixed(2)}</span>{/if}
+					</a>
+				{/each}
 			</div>
 		{/if}
 		<select
