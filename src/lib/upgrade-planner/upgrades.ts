@@ -1,5 +1,5 @@
 import { PartType, partHigh, partRatio, ratioToPct } from './cp';
-import { ENGRAVING_ICONS } from './game-data';
+import { ENGRAVING_ICONS, GEM_REGULAR } from './game-data';
 import { engravingPartTypes, roleOf, type RoleTables } from './roles';
 import { supportCombatPower, supportCoreValue } from './support';
 import {
@@ -88,8 +88,9 @@ function gemUpgrades(l: Loadout): Upgrade[] {
 	const g = gainIn(l);
 	const groups = new Map<string, Upgrade>();
 	for (const p of partsOf(l, PartType.Gem)) {
-		const id = num(p, 'id');
-		if (!id) continue;
+		const raw = num(p, 'id');
+		if (!raw) continue;
+		const id = GEM_REGULAR[raw] ?? raw; // event gems behave as a regular gem
 		const level = Math.floor(id / 10) % 100;
 		const value = partHigh(p);
 		const table = gemT4[level - 1] === value ? gemT4 : gemT3[level - 1] === value ? gemT3 : null;

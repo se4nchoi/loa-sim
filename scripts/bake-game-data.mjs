@@ -147,6 +147,13 @@ const bracelet = stats.battlePoint['1']
 		return { key: `${kind}:${id}`, value, family, grade, text, t4: kind === 3 || id >= 605100000 };
 	});
 
+// ------------------------------------------------------------------------------------------- event gems
+
+// Event gems (6509xxxx, e.g. "Lv. 7 Blazing Gem") don't encode tier / kind / level in their id; each one names
+// the regular gem it behaves as.
+const gemRegular = {};
+for (const [id, v] of Object.entries(items)) if (/^6509\d{4}$/.test(id) && v.gem?.random) gemRegular[id] = v.gem.random;
+
 // ------------------------------------------------------------------------------------------- ark grid cores
 
 // Core item id → option name ("Chaos Moon Core: Echoing Brand" → "Echoing Brand"), one entry per id shape/option
@@ -236,6 +243,9 @@ export const GEM_SKILL_ALIAS: Record<number, number> = ${JSON.stringify(gemSkill
 
 /** Gem skill effect by level (index 0 = Lv. 1), in 1/100 %: damage % for damage gems, cooldown % for cooldown gems. */
 export const GEM_EFFECTS: Record<'T4' | 'T3', { damage: number[]; cooldown: number[] }> = ${JSON.stringify(gemEffects)};
+
+/** Event gem id → the regular gem id it behaves as (same tier, kind and level). */
+export const GEM_REGULAR: Record<number, number> = ${JSON.stringify(gemRegular)};
 
 /** Core item id without its grade digit (first 8 digits) → option name, e.g. 67311300 → "Echoing Brand". */
 export const CORE_NAMES: Record<string, string> = ${JSON.stringify(coreNames)};

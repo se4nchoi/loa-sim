@@ -283,6 +283,15 @@ describe('bracelet main stat', () => {
 		expect(initSimState(l).bracelet!.lines.map((x) => x.kind)).toEqual(['stat', 'stat', 'effect', 'effect', 'empty']);
 	});
 
+	it('reads % lines in 1/100 % (Crit Rate +5% = 500 → 350 battle points)', () => {
+		const l = soulshan as unknown as Loadout;
+		const base = initSimState(l);
+		const s = structuredClone(base);
+		s.bracelet!.lines[4] = { kind: 'stat', index: 74, value: 500 };
+		const part = simulate(l, s, base).parts.find((p) => p.type === PartType.BraceletStatType)!;
+		expect(part.value).toBeCloseTo(350, 6);
+	});
+
 	it('counts index 11 (all main stats) like the class main stat', () => {
 		const l = soulshan as unknown as Loadout;
 		const base = initSimState(l);

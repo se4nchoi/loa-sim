@@ -118,7 +118,7 @@
 
 {#snippet gemCell(i: number)}
 	{@const gem = sim.gems[i]}
-	{@const look = itemLook(gemId(gems[i].id, gem.kind, gem.level))}
+	{@const look = itemLook(gemId(gems[i].regular, gem.kind, gem.level))}
 	<div class="flex h-11 w-[9.75rem] flex-row items-center gap-1.5 rounded-xs p-1 @max-[30rem]:w-[7rem] {gemChanged(i) ? 'bg-accent-500/10 ring-1 ring-accent-500' : ''}">
 		<!-- Narrow cards drop the gem icon; the stepper still shows the level. -->
 		<span class="@max-[30rem]:hidden"><ItemIcon src={look.icon} grade={look.grade} size="size-9" badge={gem.level} title={look.name} /></span>

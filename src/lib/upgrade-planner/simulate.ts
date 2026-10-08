@@ -6,7 +6,7 @@
 // of bible's values, which keeps unknown bonuses (titles, karma, etc.) intact.
 
 import { PartType, baseAttackPoint, partHigh } from './cp';
-import { GEM_SKILL_ALIAS } from './game-data';
+import { GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
 import { HONING_SLOTS, HONING_TABLE, type HoningSlot } from './honing-data';
 import { roleOf } from './roles';
 import { SUPPORT_ACCESSORY_LINES, supportCoreValue, swappedCoreId, type SupportAccessoryLine } from './support';
@@ -282,7 +282,10 @@ export function initSimState(l: Loadout): SimState {
 
 export interface GemPart {
 	part: BattlePointPart;
+	/** The equipped gem's item id (what bible's gem list uses). */
 	id: number;
+	/** The regular gem id it behaves as: itself, or the regular gem an event gem stands for. */
+	regular: number;
 	level: number;
 	table: number[] | null;
 	tier: 'T4' | 'T3' | null;
@@ -295,12 +298,14 @@ export function gemParts(l: Loadout): GemPart[] {
 		.filter((p) => p.type === PartType.Gem && typeof p.id === 'number')
 		.map((part) => {
 			const id = part.id as number;
-			const level = Math.floor(id / 10) % 100;
+			// 650[tier][kind][level 2 digits][bound]; event gems (6509xxxx) name the regular gem they behave as.
+			const regular = GEM_REGULAR[id] ?? id;
+			const level = Math.floor(regular / 10) % 100;
 			const v = partHigh(part);
 			const table = gemT4[level - 1] === v ? gemT4 : gemT3[level - 1] === v ? gemT3 : null;
-			const kindDigit = Math.floor(id / 1000) % 10; // 6503[1]xxx: 1 = damage (Doomfire), 2 = cooldown (Blazing)
+			const kindDigit = Math.floor(regular / 1000) % 10; // 6503[1]xxx: 1 = damage (Doomfire), 2 = cooldown (Blazing)
 			const tier = table === gemT4 ? 'T4' : table === gemT3 ? 'T3' : null;
-			return { part, id, level, table, tier, kind: kindDigit === 1 ? 'damage' : kindDigit === 2 ? 'cooldown' : 'other' };
+			return { part, id, regular, level, table, tier, kind: kindDigit === 1 ? 'damage' : kindDigit === 2 ? 'cooldown' : 'other' };
 		});
 }
 

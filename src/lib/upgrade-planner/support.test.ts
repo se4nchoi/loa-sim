@@ -11,7 +11,7 @@ import {
 	supportEngravingTable,
 	swappedCoreId
 } from './support';
-import { initSimState, simulate, type SimState } from './simulate';
+import { gemParts, initSimState, simulate, type SimState } from './simulate';
 import type { Loadout } from './types';
 import { buildUpgrades, coreStates } from './upgrades';
 
@@ -30,6 +30,12 @@ describe('support tables reproduce bible (Brushann, Artist)', () => {
 
 	it('gems', () => {
 		for (const p of ofType(PartType.Gem)) expect(SUPPORT_GEM_T4).toContain(partHigh(p));
+	});
+
+	it('event gems (6509xxxx) read as the regular gem they stand for', () => {
+		const event = gemParts(l).filter((g) => String(g.id).startsWith('6509'));
+		expect(event.length).toBeGreaterThan(0);
+		for (const g of event) expect(g.table, `gem ${g.id}`).not.toBeNull();
 	});
 
 	it('engravings (Buff and Shield & Heal)', () => {
