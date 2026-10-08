@@ -50,6 +50,8 @@ export interface SimState {
 	gems: SimGem[];
 	/** Optional damage share per skill id, in percent of total damage; enables the DPS estimate. */
 	skillShares: Record<number, number>;
+	/** Optional share of the fight each skill spends on cooldown, in percent (blank = 100%); refines cooldown gems. */
+	skillCooldownUse: Record<number, number>;
 	/** Per engraving id: relic book step (0–4 → 0/5/10/15/20 books) and ability stone level (0–4). */
 	engravings: Record<
 		number,
@@ -273,6 +275,7 @@ export function initSimState(l: Loadout): SimState {
 		accessories,
 		gems: readGems(l),
 		skillShares: {},
+		skillCooldownUse: {},
 		engravings: Object.fromEntries(engravingStates(l).map((e) => [e.id, { books: e.col, stone: e.stone }])),
 		accessoryStats,
 		arkGrid: (l.arkGridCores ?? []).map((c) => ({

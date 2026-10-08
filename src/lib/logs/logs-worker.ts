@@ -124,7 +124,9 @@ async function listEncounters(): Promise<EncounterRow[]> {
 	}));
 }
 
-async function decodeSkills(value: unknown): Promise<Record<string, { id?: number; name?: string; icon?: string; total_damage?: number; totalDamage?: number }>> {
+type LoggedSkill = { id?: number; name?: string; icon?: string; total_damage?: number; totalDamage?: number; timeAvailable?: number };
+
+async function decodeSkills(value: unknown): Promise<Record<string, LoggedSkill>> {
 	if (value === null || value === undefined) return {};
 	if (typeof value === 'string') return JSON.parse(value);
 	const bytes = value as Uint8Array;
@@ -135,32 +137,49 @@ async function decodeSkills(value: unknown): Promise<Record<string, { id?: numbe
 	return JSON.parse(new TextDecoder().decode(bytes));
 }
 
+/**
+ * Average damage share per skill over the runs, and how much of the fight each skill spent on cooldown. LOA Logs
+ * records `timeAvailable` (ready but not cast) for the player who recorded the log; on cooldown = 1 − that / fight.
+ */
 async function skillShares(player: string, ids: number[]): Promise<{ runs: number; shares: SkillShare[] }> {
-	const per = new Map<number, { name: string; icon: string; sum: number }>();
+	const per = new Map<number, { name: string; icon: string; sum: number; available: number; fight: number }>();
+	const table = await encounterTable();
 	let runs = 0;
 	// Chunk the IN list to stay well under SQLite's parameter limit.
 	for (let i = 0; i < ids.length; i += 200) {
 		const chunk = ids.slice(i, i + 200);
-		const rows = await query(
-			`SELECT encounter_id, skills FROM entity WHERE name = ? AND encounter_id IN (${chunk.map(() => '?').join(',')})`,
-			[player, ...chunk]
+		const marks = chunk.map(() => '?').join(',');
+		const durations = new Map(
+			(await query(`SELECT id, duration FROM ${table} WHERE id IN (${marks})`, chunk)).map((r) => [Number(r.id), Number(r.duration) || 0])
 		);
+		const rows = await query(`SELECT encounter_id, skills FROM entity WHERE name = ? AND encounter_id IN (${marks})`, [player, ...chunk]);
 		for (const row of rows) {
 			const skills = Object.values(await decodeSkills(row.skills));
 			const total = skills.reduce((s, k) => s + Number(k.total_damage ?? k.totalDamage ?? 0), 0);
 			if (total <= 0) continue;
 			runs++;
+			const fight = durations.get(Number(row.encounter_id)) ?? 0;
 			for (const k of skills) {
 				const id = Number(k.id);
-				const entry = per.get(id) ?? { name: k.name ?? `Skill ${id}`, icon: k.icon ?? '', sum: 0 };
+				const entry = per.get(id) ?? { name: k.name ?? `Skill ${id}`, icon: k.icon ?? '', sum: 0, available: 0, fight: 0 };
 				entry.sum += Number(k.total_damage ?? k.totalDamage ?? 0) / total;
+				if (typeof k.timeAvailable === 'number' && fight > 0) {
+					entry.available += Math.min(k.timeAvailable, fight);
+					entry.fight += fight;
+				}
 				per.set(id, entry);
 			}
 		}
 	}
 	// Average share per run, so every run counts the same whatever its length.
 	const shares = [...per.entries()]
-		.map(([id, e]) => ({ id, name: e.name, icon: e.icon, pct: runs ? (e.sum / runs) * 100 : 0 }))
+		.map(([id, e]) => ({
+			id,
+			name: e.name,
+			icon: e.icon,
+			pct: runs ? (e.sum / runs) * 100 : 0,
+			cooldownUse: e.fight > 0 ? Math.max(0, Math.min(1, 1 - e.available / e.fight)) : undefined
+		}))
 		.filter((s) => s.pct >= 0.01)
 		.sort((a, b) => b.pct - a.pct);
 	return { runs, shares };

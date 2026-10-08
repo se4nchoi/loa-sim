@@ -24,7 +24,8 @@
 	const KINDS: GemKind[] = ['damage', 'cooldown'];
 	const GEM_INFO = [
 		`Combat Power counts every gem the same. The DPS estimate weighs each gem by its skill:`,
-		`• DPS gain = skill damage share × gem effect. Damage gems raise the skill's damage; cooldown gems count every second saved as extra casts.`,
+		`• DPS gain = skill damage share × gem effect. Damage gems raise the skill's damage; cooldown gems add casts.`,
+		`• CD use: how much of the fight the skill spends on cooldown (LOA Logs records it). At 100% every second saved becomes casts; the lower it is, the less a cooldown gem helps (0% = the skill always waits on your rotation). Blank counts as 100%.`,
 		`• Enter damage shares by hand from your logs or a combat analyzer, or load your LOA Logs database to use your average shares.`,
 		`• Logs can include older builds or settings (e.g. Night's Edge before switching to Full Moon Harvester), so pick a range that matches your current build.`
 	].join('\n');
@@ -84,13 +85,16 @@
 	const optionOf = (id: number | null) =>
 		SKILL_OPTIONS.find((o) => o.value === id || (id !== null && o.label === GEM_SKILLS[id]?.[0]))?.value ?? 0;
 	/** Shares from logs are per skill; a gem on a skill group gets the sum of the group's skills. */
-	const withGroups = (shares: Record<number, number>) => {
-		const out = { ...shares };
+	/** Per-skill values from logs, for a gem on a skill group: shares add up; cooldown use takes the busiest skill. */
+	const withGroups = (values: Record<number, number>, combine: 'sum' | 'max' = 'sum') => {
+		const out = { ...values };
 		for (const g of sim.gems) {
 			const members = g.skill !== null ? GEM_SKILL_GROUPS[g.skill] : undefined;
-			if (!members || out[g.skill!]) continue;
-			const sum = members.reduce((a, m) => a + (shares[m] ?? 0), 0);
-			if (sum > 0) out[g.skill!] = Number(sum.toFixed(2));
+			if (!members || out[g.skill!] !== undefined) continue;
+			const known = members.filter((m) => values[m] !== undefined).map((m) => values[m]);
+			if (!known.length) continue;
+			const v = combine === 'sum' ? known.reduce((a, x) => a + x, 0) : Math.max(...known);
+			if (v > 0) out[g.skill!] = Number(v.toFixed(2));
 		}
 		return out;
 	};
@@ -105,14 +109,14 @@
 		editable.forEach(({ i }) => (sim.gems[i].level = Math.min(10, Math.max(1, fn(sim.gems[i].level)))));
 	const gemChanged = (i: number) => JSON.stringify(sim.gems[i]) !== JSON.stringify(base.gems[i]);
 
-	const dps = $derived(gemDpsGainPct(base.gems, sim.gems, gems, sim.skillShares));
+	const dps = $derived(gemDpsGainPct(base.gems, sim.gems, gems, sim.skillShares, sim.skillCooldownUse));
 	const sharedTotal = $derived(Object.values(sim.skillShares).reduce((a, v) => a + (Number(v) || 0), 0));
 	// Damage shares estimate a dealer's DPS; supports don't get them.
 	const role = getContext<() => RoleTables>('loa-sim:role');
 	const support = $derived(role().support);
 	let showShares = $state(false);
 	$effect.pre(() => {
-		if (Object.keys(sim.skillShares).length) showShares = true;
+		if (Object.keys(sim.skillShares).length || Object.keys(sim.skillCooldownUse).length) showShares = true;
 	});
 </script>
 
@@ -124,6 +128,30 @@
 		<span class="@max-[30rem]:hidden"><ItemIcon src={look.icon} grade={look.grade} size="size-9" badge={gem.level} title={look.name} /></span>
 		<Stepper bind:value={gem.level} min={1} max={10} changed={gem.level !== base.gems[i].level} label={`${skillName(gem.skill)} ${gem.kind} gem level`} width="w-6" />
 	</div>
+{/snippet}
+
+{#snippet pctInput(map: Record<number, number>, skill: number, what: string, hint: string, placeholder: string)}
+	<label
+		class="flex h-8 w-16 cursor-text items-center gap-0.5 justify-self-end rounded-xs border border-surface-600 bg-surface-800 px-1.5 focus-within:border-accent-500 hover:border-accent-500"
+		title={`${skillName(skill)}: ${hint}`}
+	>
+		<input
+			type="number"
+			min="0"
+			max="100"
+			step="0.1"
+			{placeholder}
+			class="w-full [appearance:textfield] bg-transparent text-right text-sm tabular-nums focus:outline-none [&::-webkit-inner-spin-button]:appearance-none"
+			aria-label={`${skillName(skill)} ${what}`}
+			value={map[skill] ?? ''}
+			oninput={(e) => {
+				const v = Number(e.currentTarget.value);
+				if (e.currentTarget.value !== '' && v >= 0) map[skill] = Math.min(100, v);
+				else delete map[skill];
+			}}
+		/>
+		<span class="text-xs text-surface-400">%</span>
+	</label>
 {/snippet}
 
 <SimCard
@@ -158,20 +186,29 @@
 						DPS estimate
 						<span class="font-bold {dps > 0 ? 'text-green-400' : dps < 0 ? 'text-red-400' : 'text-surface-200'}">{formatPct(dps)}%</span>
 						<span class="text-xs text-surface-400">· {sharedTotal.toFixed(0)}% of damage covered</span>
-						<button type="button" class="ml-1 text-xs text-surface-400 underline hover:text-surface-100" onclick={() => (sim.skillShares = {})}>Clear</button>
+						<button type="button" class="ml-1 text-xs text-surface-400 underline hover:text-surface-100"onclick={() => ((sim.skillShares = {}), (sim.skillCooldownUse = {}))}>Clear</button>
 					</div>
 				{/if}
-				<LogsImport {characterName} onapply={(shares) => (sim.skillShares = withGroups(shares))} />
+				<LogsImport
+					{characterName}
+					onapply={(shares, cooldownUse) => {
+						sim.skillShares = withGroups(shares);
+						sim.skillCooldownUse = withGroups(cooldownUse, 'max');
+					}}
+				/>
 			</div>
 		{/if}
 
 		<!-- Narrow cards (container query) show skill icons only and drop gem icons. -->
 		<div class="@container">
-		<div class="grid items-center gap-x-2 gap-y-1 {showShares ? 'grid-cols-[minmax(0,1fr)_auto_auto_auto]' : 'grid-cols-[minmax(0,1fr)_auto_auto]'}">
+		<div class="grid items-center gap-x-2 gap-y-1 {showShares ? 'grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]' : 'grid-cols-[minmax(0,1fr)_auto_auto]'}">
 			<span class="text-xs text-surface-400">Skill</span>
 			<span class="px-1 text-xs text-surface-400">Damage</span>
 			<span class="px-1 text-xs text-surface-400">Cooldown</span>
-			{#if showShares}<span class="text-right text-xs text-surface-400">Share</span>{/if}
+			{#if showShares}
+				<span class="text-right text-xs text-surface-400" title="Share of your total damage">Share</span>
+				<span class="text-right text-xs text-surface-400" title="Share of the fight the skill spent on cooldown (from LOA Logs); blank = always cast right off cooldown">CD use</span>
+			{/if}
 			{#each rows as r, ri (ri)}
 				{@const skill = r.slots.damage !== undefined ? sim.gems[r.slots.damage].skill : r.slots.cooldown !== undefined ? sim.gems[r.slots.cooldown].skill : r.skill}
 				<div class="col-span-full grid grid-cols-subgrid items-center border-t border-neutral-950 py-1">
@@ -205,25 +242,9 @@
 					{/each}
 					{#if showShares}
 						{#if skill}
-							<label class="flex h-8 w-16 cursor-text items-center gap-0.5 justify-self-end rounded-xs border border-surface-600 bg-surface-800 px-1.5 hover:border-accent-500 focus-within:border-accent-500" title={`${skillName(skill)}: share of total damage`}>
-								<input
-									type="number"
-									min="0"
-									max="100"
-									step="0.1"
-									placeholder="0"
-									class="w-full bg-transparent text-right text-sm tabular-nums [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none"
-									aria-label={`${skillName(skill)} damage share`}
-									value={sim.skillShares[skill] ?? ''}
-									oninput={(e) => {
-										const v = Number(e.currentTarget.value);
-										if (v > 0) sim.skillShares[skill] = v;
-										else delete sim.skillShares[skill];
-									}}
-								/>
-								<span class="text-xs text-surface-400">%</span>
-							</label>
-						{:else}<span></span>{/if}
+							{@render pctInput(sim.skillShares, skill, 'damage share', 'share of total damage', '0')}
+							{@render pctInput(sim.skillCooldownUse, skill, 'cooldown use', 'share of the fight spent on cooldown; blank = 100%', '100')}
+						{:else}<span></span><span></span>{/if}
 					{/if}
 					{#each r.extra as i (i)}
 						<span></span>

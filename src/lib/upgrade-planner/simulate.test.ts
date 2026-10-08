@@ -95,6 +95,18 @@ describe('gem DPS estimate', () => {
 		expect(gemDpsGainPct(before, after, parts, { 46430: 20 })!).toBeCloseTo(20 * (0.78 / 0.76 - 1), 9);
 	});
 
+	it('weighs cooldown gems by how much of the fight the skill is on cooldown', () => {
+		const before = fresh().gems;
+		const after = structuredClone(before);
+		after[4].level = 10; // Astaros cooldown 22% → 24%: cooldown × 0.76 / 0.78
+		const k = 0.76 / 0.78;
+		const at = (use?: number) => gemDpsGainPct(before, after, parts, { 46430: 20 }, use === undefined ? {} : { 46430: use })!;
+		expect(at(100)).toBeCloseTo(at(), 9); // 100% = the old best case
+		expect(at(0)).toBeCloseTo(0, 9); // always waiting on the rotation: no gain
+		expect(at(60)).toBeCloseTo(20 * (1 / (1 - 0.6 + 0.6 * k) - 1), 9);
+		expect(at(60)).toBeLessThan(at(100));
+	});
+
 	it('moving a gem to another skill shifts the gain to that skill', () => {
 		const before = fresh().gems;
 		const after = structuredClone(before);

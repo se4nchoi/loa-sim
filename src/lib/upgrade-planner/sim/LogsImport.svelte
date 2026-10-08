@@ -9,7 +9,14 @@
 	import Segmented from './Segmented.svelte';
 	import { btnAccent, selectClass } from './ui';
 
-	let { characterName, onapply }: { characterName?: string; onapply: (shares: Record<number, number>) => void } = $props();
+	let {
+		characterName,
+		onapply
+	}: {
+		characterName?: string;
+		/** Damage share and cooldown use per skill, both in percent. */
+		onapply: (shares: Record<number, number>, cooldownUse: Record<number, number>) => void;
+	} = $props();
 
 	let reader: LoaLogsReader | null = null;
 	let encounters = $state<EncounterRow[] | null>(null);
@@ -181,14 +188,22 @@
 				{#each result.shares.slice(0, 12) as s (s.id)}
 					{#if iconOf(s.icon)}<img src={iconOf(s.icon)} alt="" class="size-5 rounded-xs" />{:else}<span></span>{/if}
 					<span class="truncate text-xs text-surface-200">{s.name}</span>
-					<span class="text-right text-xs tabular-nums text-surface-100">{s.pct.toFixed(1)}%</span>
+					<span class="text-right text-xs tabular-nums text-surface-100">
+						{s.pct.toFixed(1)}%{#if s.cooldownUse !== undefined}<span class="ml-1.5 text-surface-400" title="Share of the fight on cooldown">CD {(s.cooldownUse * 100).toFixed(0)}%</span>{/if}
+					</span>
 				{/each}
 			</div>
 			<div class="flex flex-row items-center gap-2">
 				<button
 					type="button"
 					class={btnAccent}
-					onclick={() => onapply(Object.fromEntries(result!.shares.map((s) => [s.id, Number(s.pct.toFixed(2))])))}
+					onclick={() =>
+						onapply(
+							Object.fromEntries(result!.shares.map((s) => [s.id, Number(s.pct.toFixed(2))])),
+							Object.fromEntries(
+								result!.shares.flatMap((s) => (s.cooldownUse === undefined ? [] : [[s.id, Number((s.cooldownUse * 100).toFixed(1))]]))
+							)
+						)}
 				>
 					Use these shares
 				</button>

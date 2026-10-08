@@ -27,7 +27,8 @@ db.exec(`
 
 const now = Date.now();
 const day = 24 * 3600 * 1000;
-const skill = (id, name, icon, total_damage) => [id, { id, name, icon, total_damage, casts: 10 }];
+// timeAvailable: ms the skill sat ready but unused (fights are 600 s): Reaper's Scythe 90% on cooldown, Astaros 50%.
+const skill = (id, name, icon, total_damage, timeAvailable) => [id, { id, name, icon, total_damage, casts: 10, timeAvailable }];
 // Shares per run (Soulshan): Reaper's Scythe 30/20/40, Astaros 20/30/20, Death Yard 2/2/2, rest = other.
 const runs = [
 	{ id: 1, start: now - 1 * 3600 * 1000, player: 'Soulshan', boss: 'Archdemon Kazeros', cleared: 1, dmg: [30, 20, 2, 48] },
@@ -44,8 +45,8 @@ const insN = db.prepare('INSERT INTO entity (name, encounter_id, entity_type, cl
 for (const r of runs) {
 	const [a, b, c, d] = r.dmg.map((pct) => pct * 1_000_000);
 	const skills = Object.fromEntries([
-		skill(46500, "Reaper's Scythe", 'SE_Skill_01_16.png', a),
-		skill(46430, 'Astaros', 'SE_Skill_01_13.png', b),
+		skill(46500, "Reaper's Scythe", 'SE_Skill_01_16.png', a, 60_000),
+		skill(46430, 'Astaros', 'SE_Skill_01_13.png', b, 300_000),
 		skill(46450, 'Death Yard', 'SE_Skill_01_15.png', c),
 		skill(46200, 'Harvest', 'SE_Skill_01_01.png', d)
 	]);

@@ -20,6 +20,8 @@ export interface SkillShare {
 	icon: string;
 	/** Average share of the player's damage per run, in percent. */
 	pct: number;
+	/** Share of fight time the skill spent on cooldown (0–1), from LOA Logs' "time available"; unknown on old logs. */
+	cooldownUse?: number;
 }
 
 export type LogsRequest =
