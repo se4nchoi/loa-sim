@@ -42,8 +42,7 @@
 				Made with <span class="text-red-400">♥</span> by <b class="text-surface-200">Soulshan@Inanna</b>
 			</span>
 			<span>
-				Character data from <a class="underline hover:text-surface-100" href="https://lostark.bible" target="_blank" rel="noopener">lostark.bible</a>, with
-				permission. Not affiliated with Smilegate or Amazon Games. Game data and icons © Smilegate RPG.
+				Character data from <a class="underline hover:text-surface-100" href="https://lostark.bible" target="_blank" rel="noopener">lostark.bible</a>. Not affiliated with Smilegate or Amazon Games. Game data and icons © Smilegate RPG.
 			</span>
 		</div>
 	</footer>
