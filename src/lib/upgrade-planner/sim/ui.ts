@@ -21,6 +21,7 @@ export const SECTIONS = {
 	gear: ['gear', 'sidereal', 'bracer'],
 	accessories: ['accessories', 'accessoryStats'],
 	bracelet: ['bracelet'],
+	skins: ['skins'],
 	gems: ['gems'],
 	engravings: ['engravings'],
 	arkGrid: ['arkGrid'],

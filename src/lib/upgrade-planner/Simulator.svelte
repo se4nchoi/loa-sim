@@ -19,6 +19,7 @@
 	import SimGear from './sim/SimGear.svelte';
 	import SimGems from './sim/SimGems.svelte';
 	import SimKarma from './sim/SimKarma.svelte';
+	import SimSkins from './sim/SimSkins.svelte';
 	import MobileSummaryBar from './sim/MobileSummaryBar.svelte';
 	import SimSummary from './sim/SimSummary.svelte';
 	import { SECTIONS, type PreviewEdit, type SectionDelta, type SimSection } from './sim/ui';
@@ -201,6 +202,7 @@
 				<section id="sim-gems" aria-label="Gems" class="scroll-mt-28"><SimGems bind:sim {base} {gems} {characterName} delta={sections.gems} /></section>
 				<section id="sim-engravings" aria-label="Engravings" class="scroll-mt-28"><SimEngravings bind:sim {base} {preview} delta={sections.engravings} /></section>
 				<section id="sim-karma" aria-label="Karma" class="scroll-mt-28"><SimKarma bind:sim {base} delta={sections.karma} /></section>
+				<section id="sim-skins" aria-label="Skins" class="scroll-mt-28"><SimSkins bind:sim {base} {itemIds} {mainStatName} delta={sections.skins} /></section>
 			</div>
 		</div>
 		<section id="sim-ark-grid" aria-label="Ark Grid" class="scroll-mt-28"><SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} /></section>
@@ -209,7 +211,7 @@
 		<div class="max-lg:hidden">{@render summary()}</div>
 		<nav aria-label="Simulator cards" class="card p-3">
 			<div class="grid grid-cols-2 gap-2">
-				{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Ark Grid'] as title}
+				{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'] as title}
 					<a href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`} class="rounded-xs border border-surface-700 bg-surface-800 px-2 py-2 text-center text-xs font-semibold text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a>
 				{/each}
 			</div>

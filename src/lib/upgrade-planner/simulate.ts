@@ -10,6 +10,7 @@ import { bracerStats, readBracer, type SimBracer } from './bracer';
 import { BRACELET_EFFECTS, GEM_BASE_ATTACK, GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
 import { HONING_SLOTS, HONING_TABLE, AEGIR_HONING_TABLE, type HoningSlot } from './honing-data';
 import { roleOf } from './roles';
+import { readSkinBonus, skinStatRatio, type SimSkins } from './skins';
 import { SUPPORT_ACCESSORY_LINES, supportCoreValue, supportWeaponCoreStats, swappedCoreId, type SupportAccessoryLine } from './support';
 import {
 	ACCESSORY_LINES,
@@ -81,6 +82,7 @@ export interface SimState {
 	/** Ark grid cores with their astrogems; core points and option totals are derived from these. */
 	arkGrid: SimCore[];
 	bracelet: SimBracelet | null;
+	skins: SimSkins;
 	/** Karma levels (0–30) per tree; null when the loadout has no karma data. */
 	karma: { evolution: number | null; enlightenment: number | null; leap: number | null };
 }
@@ -302,6 +304,7 @@ export function initSimState(l: Loadout): SimState {
 				.map((g) => ({ itemId: g.id, corePoints: g.corePoints, costReduc: g.costReduc, opts: g.opts.map((o) => ({ ...o })) }))
 		})),
 		bracelet,
+		skins: { bonus: readSkinBonus(l, msIndex), currentBonus: null },
 		karma: {
 			evolution: l.karma?.evolution ?? null,
 			enlightenment: l.karma?.enlightenment ?? null,
@@ -494,6 +497,8 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	const stoneLevels = (s: SimState) => Object.values(s.engravings).map((e) => e.stone);
 	if (stoneLevels(state).join() !== stoneLevels(base).join())
 		atkPct1 += stoneAtkPct(stoneLevelNodes(stoneLevels(state))) - stoneAtkPct(stoneNodesOf(l) ?? stoneLevelNodes(stoneLevels(base)));
+	// Skin % applies to main stat, including the other simulated equipment edits, before base attack.
+	mainStat *= skinStatRatio(state.skins, base.skins, l.stats?.find((s) => s.type === msIndex + 4)?.value);
 	if (mainStat0 && weapon0)
 		basePart.value =
 			partHigh(basePart) * (baseAttackPoint(mainStat, weaponPower, atkPct1, bracer1.attackFlat) / baseAttackPoint(mainStat0, weapon0, atkPct, bracer0.attackFlat));

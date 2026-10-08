@@ -48,6 +48,7 @@
 		gear: 'Equipment',
 		accessories: 'Accessories',
 		bracelet: 'Bracelet',
+		skins: 'Skins',
 		gems: 'Gems',
 		engravings: 'Engravings',
 		arkGrid: 'Ark Grid',

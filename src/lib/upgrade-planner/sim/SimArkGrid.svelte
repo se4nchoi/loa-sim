@@ -248,7 +248,7 @@
 							{@const cap = CORE_WILLPOWER[info.grade]}
 							{@const pv = pointValue(ci, points, info.grade)}
 							<div class="@container flex flex-col gap-1.5 rounded-xs bg-black/15 p-2.5">
-								<div class="flex flex-row items-center gap-2 pb-1">
+								<div class="flex flex-row items-start gap-2 pb-1">
 									<ItemIcon src={look.icon} grade={look.grade} size="size-9" />
 									<div class="flex min-w-0 flex-1 flex-col items-start gap-0.5">
 										<MenuPicker
@@ -260,7 +260,7 @@
 											preview={(v) => preview((s) => Object.assign(s.arkGrid[ci], decodeType(v)))}
 										>
 											{#snippet trigger()}
-												<span class="min-w-0 truncate text-left text-sm font-semibold" title={typeName(core, info, variantOf(ci))}>{typeName(core, info, variantOf(ci))}</span>
+											<span class="min-w-0 truncate text-left text-sm font-semibold" title={typeName(core, info, variantOf(ci))}>{typeName(core, info, variantOf(ci))}</span>
 											{/snippet}
 										</MenuPicker>
 										<span class="flex flex-row flex-wrap items-center gap-x-1.5 text-xs text-surface-400">
@@ -294,83 +294,91 @@
 									{@const worst = weakest[col.title]}
 									{@const isWeakest = worst?.ci === ci && worst?.gi === gi}
 									<div
-										class="flex w-fit max-w-full flex-row items-center gap-2 rounded-xs p-1 {isWeakest ? 'bg-amber-500/10 ring-1 ring-amber-400/70' : ''}"
+										class="grid w-full grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-x-2 gap-y-1 rounded-xs p-1 {isWeakest ? 'bg-amber-500/10 ring-1 ring-amber-400/70' : ''}"
 										title={isWeakest ? `Weakest ${col.title} astrogem: its options add ${formatPct(worst!.pct)}% CP` : undefined}
 									>
-										<!-- Narrow cores (small phones) drop the icon; the kind name stays. -->
-										<div class="@max-[20rem]:hidden" class:opacity-30={gem.removed}>
-											<ItemIcon src={gl.icon} grade={gl.grade} size="size-9" title={`${kind?.name ?? 'Astrogem'} · ${astrogemWillpower(gem)} willpower`} />
-										</div>
-										<div class="flex min-w-0 flex-col gap-1">
-											<span class="flex flex-row flex-wrap items-baseline gap-1.5 text-xs">
+										<div class="flex min-w-0 items-center gap-1.5">
+											<div class="shrink-0 @max-[26rem]:hidden" class:opacity-30={gem.removed}>
+												<ItemIcon src={gl.icon} grade={gl.grade} size="size-9" title={kind?.name ?? 'Astrogem'} />
+											</div>
+											<div class="flex min-w-0 flex-1 flex-col gap-1">
 												<MenuPicker
 													value={gem.removed ? 0 : gem.itemId}
 													options={gemTypeChoices(ci, info, gi)}
 													label={`Astrogem type ${gi + 1}`}
+													full
 													changed={gem.removed || before?.itemId !== gem.itemId}
 													onpick={(v) => setAstrogemType(sim.arkGrid[ci], info, gi, v)}
 													preview={(v) => preview((s) => { setAstrogemType(s.arkGrid[ci], info, gi, v); })}
 												>
-													{#snippet trigger()}<span class="font-semibold text-xs {info.attr === 'order' ? 'text-amber-200' : 'text-sky-200'}">{gem.removed ? 'None' : kind?.name ?? 'Astrogem'}</span>{/snippet}
+													{#snippet trigger()}<span title={gem.removed ? 'None' : kind?.name} class="truncate font-semibold text-xs {info.attr === 'order' ? 'text-amber-200' : 'text-sky-200'}">{gem.removed ? 'None' : kind?.name ?? 'Astrogem'}</span>{/snippet}
 												</MenuPicker>
-												{#if gem.removed}
-													<span class="text-surface-400 tabular-nums">0 WP</span>
-												{:else}
-													<MenuPicker
-														value={gem.costReduc}
-														options={efficiencyChoices(ci, info, gi)}
-														label={`Willpower efficiency ${gi + 1}`}
-														changed={before?.costReduc !== gem.costReduc}
-														onpick={(v) => setAstrogemEfficiency(sim.arkGrid[ci], info, gi, v)}
-													>
-														{#snippet trigger()}<span class="text-xs tabular-nums" title="Willpower cost and efficiency level">{astrogemWillpower(gem)} WP <span class="text-surface-400">· Eff. {gem.costReduc}</span></span>{/snippet}
-													</MenuPicker>
-												{/if}
-												{#if isWeakest}<span class="font-semibold text-amber-300">· weakest</span>{/if}
-											</span>
-											<div class="flex flex-row flex-wrap items-center gap-1">
-												{#if !gem.removed}
+												{#if isWeakest}<span class="text-xs font-semibold text-amber-300">weakest</span>{/if}
+											</div>
+										</div>
+										<div class="flex min-w-0 flex-col gap-1 border-l border-surface-700/60 pl-2">
+											{#if gem.removed}
+												<span class="text-xs text-surface-400">0 WP · 0P</span>
+											{:else}
+												<MenuPicker
+													value={gem.costReduc}
+													options={efficiencyChoices(ci, info, gi)}
+													label={`Willpower efficiency ${gi + 1}`}
+													full
+													changed={before?.costReduc !== gem.costReduc}
+													onpick={(v) => setAstrogemEfficiency(sim.arkGrid[ci], info, gi, v)}
+												>
+													{#snippet trigger()}<span class="text-xs tabular-nums" title="Willpower cost and efficiency level">{astrogemWillpower(gem)}WP <span class="text-surface-400">· Eff.{gem.costReduc}</span></span>{/snippet}
+												</MenuPicker>
 												<MenuPicker
 													value={gem.corePoints}
 													options={POINTS}
 													columns={5}
 													label="Core points"
+													full
 													changed={before?.corePoints !== gem.corePoints}
 													onpick={(v) => (gem.corePoints = v)}
 													preview={(v) => preview((s) => (s.arkGrid[ci].gems[gi].corePoints = v))}
 												>
-													{#snippet trigger()}<span class="w-6 font-semibold tabular-nums">{gem.corePoints}P</span>{/snippet}
+													{#snippet trigger()}<span class="text-xs font-semibold tabular-nums">{info.attr === 'order' ? 'Order' : 'Chaos'} {gem.corePoints}P</span>{/snippet}
 												</MenuPicker>
+												{/if}
+										</div>
+										<div class="flex min-w-0 flex-col gap-1 border-l border-surface-700/60 pl-2">
+											{#if !gem.removed}
 												{#each gem.opts as opt, oi (oi)}
 													<MenuPicker
 														value={`${opt.id}:${opt.level}`}
 														options={optionChoices(gem, oi)}
 														label={`Option ${oi + 1}`}
+														full
 														changed={before?.opts[oi]?.id !== opt.id || before?.opts[oi]?.level !== opt.level}
 														onpick={(v) => (gem.opts[oi] = decode(v))}
 														preview={(v) => preview((s) => (s.arkGrid[ci].gems[gi].opts[oi] = decode(v)))}
 														align={oi === 1 ? 'right' : 'left'}
 													>
 														{#snippet trigger()}
-															<span class="w-[5.25rem] truncate text-left text-xs @max-[20rem]:w-[4.5rem] {SCORING.has(opt.id) ? '' : 'text-surface-400'}" title={ASTROGEM_OPTION_NAMES[opt.id]}>
-																{ASTROGEM_OPTION_SHORT[opt.id]} <b class="text-surface-50">{opt.level}</b>
-															</span>
+														<span class="min-w-0 flex-1 truncate text-left text-xs {SCORING.has(opt.id) ? '' : 'text-surface-400'}" title={ASTROGEM_OPTION_NAMES[opt.id]}>
+														{ASTROGEM_OPTION_SHORT[opt.id]} <b class="text-surface-50">{opt.level}</b>
+														</span>
 														{/snippet}
 													</MenuPicker>
-												{/each}
-												{/if}
-												<button type="button" class={btnAccent} aria-label={`Max astrogem ${gi + 1}`} onclick={() => maxCore(core, gi)} title="Best max-cut Ancient astrogem that fits this core's current Willpower">Max</button>
-												{#if before && JSON.stringify(gem) !== JSON.stringify(before)}
-													<button
-														type="button"
-														class="{btn} px-2"
-														aria-label={`Reset ${kind?.name ?? 'astrogem'} ${gi + 1}`}
-														onclick={() => (sim.arkGrid[ci].gems[gi] = structuredClone($state.snapshot(before)))}
-													>
-														Reset
-													</button>
-												{/if}
-											</div>
+													{/each}
+											{:else}<span class="text-xs text-surface-500">No stats</span>{/if}
+										</div>
+										<div class="col-span-3 flex flex-wrap justify-end gap-1">
+											<button type="button" class={btnAccent} aria-label={`Max astrogem ${gi + 1}`} onclick={() => maxCore(core, gi)} title="Best max-cut Ancient astrogem that fits this core's current Willpower">Max</button>
+											{#if before && JSON.stringify(gem) !== JSON.stringify(before)}
+												<button
+													type="button"
+													class="{btn} px-2"
+													aria-label={`Reset ${kind?.name ?? 'astrogem'} ${gi + 1}`}
+													onclick={() => (sim.arkGrid[ci].gems[gi] = structuredClone($state.snapshot(before)))}
+												>
+													Reset
+												</button>
+											{/if}
+
 										</div>
 									</div>
 								{/each}
