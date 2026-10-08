@@ -2,6 +2,7 @@
 // Suggestions are keyed by what they change (see upgrades.ts); each one becomes the matching edit.
 
 import { roleOf } from './roles';
+import { nextBracer } from './bracer';
 import type { HoningSlot } from './honing-data';
 import { gemParts, isOtherLine, type AccessorySlot, type SimState } from './simulate';
 import { ENGRAVING_BOOK_STEPS, karmaRank } from './tables';
@@ -16,6 +17,12 @@ const MAX_CORE_POINTS_PER_GEM = 5;
 export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade): boolean {
 	const [kind, a, b] = u.key.split(':');
 	switch (kind) {
+		case 'bracer': {
+			const to = nextBracer(s.bracer);
+			if (!to || to.grade !== a || to.honing !== Number(b)) return false;
+			s.bracer = to;
+			return true;
+		}
 		case 'honing':
 		case 'advanced': {
 			// honing:<slot>:<level> / advanced:<slot>:<level> → that piece at least at that level.

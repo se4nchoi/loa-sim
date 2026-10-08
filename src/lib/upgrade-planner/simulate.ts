@@ -6,6 +6,7 @@
 // of bible's values, which keeps unknown bonuses (titles, karma, etc.) intact.
 
 import { PartType, baseAttackPoint, partHigh } from './cp';
+import { bracerStats, readBracer, type SimBracer } from './bracer';
 import { BRACELET_EFFECTS, GEM_BASE_ATTACK, GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
 import { HONING_SLOTS, HONING_TABLE, type HoningSlot } from './honing-data';
 import { roleOf } from './roles';
@@ -47,6 +48,7 @@ export type SimLine = DpsLine | OtherLine;
 export const isOtherLine = (ln: SimLine): ln is OtherLine => ln.key === 'other';
 
 export interface SimState {
+	bracer: SimBracer | null;
 	sidereal: SimSidereal | null;
 	gear: Partial<Record<HoningSlot, { honing: number; advanced: number }>>;
 	accessories: Partial<Record<AccessorySlot, SimLine[]>>;
@@ -275,6 +277,7 @@ export function initSimState(l: Loadout): SimState {
 	}
 	const leap = l.battlePoint.parts.find((p) => p.type === PartType.KarmaLeapLevel);
 	return {
+		bracer: readBracer(l),
 		sidereal: readSidereal(l),
 		gear,
 		accessories,
@@ -414,6 +417,10 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	for (const slot of ACCESSORY_SLOTS)
 		mainStat += (Number(state.accessoryStats[slot]) || 0) - (base.accessoryStats[slot] ?? 0);
 	const msIndex = mainStatIndex(l);
+	const bracer0 = bracerStats(base.bracer);
+	const bracer1 = bracerStats(state.bracer);
+	const statValue = (index: number, fallback = 0) => l.stats?.find((s) => s.type === index)?.value ?? fallback;
+	mainStat += (bracer1.mainStat - bracer0.mainStat) * statValue(msIndex + 4, 10000) / 10000;
 	const braceletStat = (b: SimBracelet | null, pick: (i: number) => boolean) =>
 		braceletStats(b)
 			.filter((s) => (s.type ?? 2) === 2 && pick(s.index))
@@ -422,8 +429,10 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	const isMainStat = (i: number) => i === msIndex || i === ALL_MAIN_STATS;
 	mainStat += braceletStat(state.bracelet, isMainStat) - braceletStat(base.bracelet, isMainStat);
 	let weaponPower = weapon0;
+	let weaponScale = 1;
 	if (state.sidereal && base.sidereal) {
-		weaponPower *= siderealWeaponPower(state.sidereal) / siderealWeaponPower(base.sidereal);
+		weaponScale = siderealWeaponPower(state.sidereal) / siderealWeaponPower(base.sidereal);
+		weaponPower *= weaponScale;
 		// The weapon's own battle points (part 23), anchored on bible's value.
 		const dBp = siderealBattlePoints(state.sidereal) - siderealBattlePoints(base.sidereal);
 		if (dBp) {
@@ -435,7 +444,11 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 		const from = base.gear[slot];
 		const to = state.gear[slot];
 		if (!from || !to) continue;
-		if (slot === 'weapon') weaponPower *= gearStat(slot, to) / gearStat(slot, from);
+		if (slot === 'weapon') {
+			const scale = gearStat(slot, to) / gearStat(slot, from);
+			weaponPower *= scale;
+			weaponScale *= scale;
+		}
 		else mainStat += (gearStat(slot, to) - gearStat(slot, from)) * ADVANCED_STAT_BONUS;
 	}
 	// Accessories, Enlightenment karma and support Weapon cores contribute additive Weapon Power %.
@@ -450,15 +463,17 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	const core1 = coreWeapon(state);
 	const pct0 = linesTotal(base.accessories, 'percent') / 100 + karmaPct(base) + core0.percent;
 	const pct1 = linesTotal(state.accessories, 'percent') / 100 + karmaPct(state) + core1.percent;
+	// The equipped bracer's flat WP is independent of weapon honing / Sidereal evolution.
+	weaponPower -= bracer0.weaponPower * (1 + pct0 / 100) * (weaponScale - 1);
 	// Flat Weapon Power from accessories and the bracelet's Weapon Power effect (stat 151).
 	const braceletWeapon = (b: SimBracelet | null) =>
 		braceletStat(b, (i) => i === WEAPON_POWER_FLAT) + braceletEffects(b).reduce((sum, key) => sum + effectWeaponPower(key), 0);
 	weaponPower +=
-		(linesTotal(state.accessories, 'flat') - linesTotal(base.accessories, 'flat') + braceletWeapon(state.bracelet) - braceletWeapon(base.bracelet) + core1.flat - core0.flat) *
+		(linesTotal(state.accessories, 'flat') - linesTotal(base.accessories, 'flat') + braceletWeapon(state.bracelet) - braceletWeapon(base.bracelet) + core1.flat - core0.flat + bracer1.weaponPower - bracer0.weaponPower) *
 		(1 + pct0 / 100);
 	weaponPower *= (100 + pct1) / (100 + pct0);
 	// Ability stone: its two engraving lines reaching 16 nodes add Atk. Power, which follows the simulated stone levels.
-	let atkPct1 = atkPct;
+	let atkPct1 = atkPct + bracer1.attackPercent - bracer0.attackPercent;
 	gemParts(l).forEach((g, k) => {
 		if (g.tier !== 'T4') return;
 		const from = base.gems[k]?.level ?? g.level;
@@ -470,7 +485,20 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 		atkPct1 += stoneAtkPct(stoneLevelNodes(stoneLevels(state))) - stoneAtkPct(stoneNodesOf(l) ?? stoneLevelNodes(stoneLevels(base)));
 	if (mainStat0 && weapon0)
 		basePart.value =
-			partHigh(basePart) * (baseAttackPoint(mainStat, weaponPower, atkPct1) / baseAttackPoint(mainStat0, weapon0, atkPct));
+			partHigh(basePart) * (baseAttackPoint(mainStat, weaponPower, atkPct1, bracer1.attackFlat) / baseAttackPoint(mainStat0, weapon0, atkPct, bracer0.attackFlat));
+
+	// Vitality adds HP before vigor and Max HP multipliers. Defense itself does not score CP.
+	const hp = parts.find((p) => p.type === PartType.BaseHealth);
+	const hpCon = ({ holyknight: 2.1, holyknightfemale: 2.1, bard: 2, yinyangshi: 2 } as Record<string, number>)[l.classId.replaceAll('_', '').toLowerCase()];
+	if (role.support && hp && hpCon && bracer1.vitality !== bracer0.vitality) {
+		const gain = (bracer1.vitality - bracer0.vitality) * hpCon * statValue(10, 10000) / 10000
+			* (1 + statValue(137) / 10000) * statValue(29, 10000) / 10000 * statValue(31, 10000) / 10000;
+		const maxHp = typeof hp.maxHp === 'number' ? hp.maxHp : 0;
+		if (maxHp > 0) {
+			hp.value = partHigh(hp) * (maxHp + gain) / maxHp;
+			hp.maxHp = maxHp + gain;
+		}
+	}
 
 	// --- Gems (gemParts keeps the loadout's part order, so the k-th gem part lines up with state.gems[k])
 	const gemIndices = parts.flatMap((p, i) => (p.type === PartType.Gem && typeof p.id === 'number' ? [i] : []));

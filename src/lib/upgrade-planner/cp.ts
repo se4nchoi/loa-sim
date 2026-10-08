@@ -82,5 +82,5 @@ export const ratioToPct = (ratio: number) => (ratio - 1) * 100;
  * Base attack battle point: 2.88 × √(mainStat × weaponPower ÷ 6) × (1 + attack% ÷ 100).
  * Matches bible's `baseAttackPower × 2.88` exactly.
  */
-export const baseAttackPoint = (mainStat: number, weaponPower: number, attackPct: number) =>
-	2.88 * Math.sqrt((mainStat * weaponPower) / 6) * (1 + attackPct / 100);
+export const baseAttackPoint = (mainStat: number, weaponPower: number, attackPct: number, attackFlat = 0) =>
+	2.88 * (Math.sqrt((mainStat * weaponPower) / 6) + attackFlat) * (1 + attackPct / 100);

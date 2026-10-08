@@ -193,7 +193,7 @@
 	<div class="flex min-w-0 flex-col gap-2">
 		<div class="grid grid-cols-2 items-start gap-2 max-xl:grid-cols-1">
 			<div class="flex min-w-0 flex-col gap-2">
-			<SimGear bind:sim {base} {itemIds} delta={sections.gear} />
+			<SimGear bind:sim {base} {itemIds} classId={loadout.classId} delta={sections.gear} />
 				<SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} />
 				<SimBracelet bind:sim {base} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} />
 			</div>
@@ -207,7 +207,7 @@
 	</div>
 	<div class="flex flex-col gap-2 lg:sticky lg:top-16">
 		<div class="max-lg:hidden">{@render summary()}</div>
-		<UpgradePlanner {loadout} onapply={applySuggestion} />
+		<UpgradePlanner {loadout} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
 		{@render sidebar?.()}
 	</div>
 </div>

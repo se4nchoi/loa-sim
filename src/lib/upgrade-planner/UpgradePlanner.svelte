@@ -6,6 +6,8 @@
 <script lang="ts">
 	import { formatPct } from './format';
 	import { honingUpgrades } from './honing-upgrades';
+	import { bracerUpgrades } from './bracer-upgrades';
+	import type { SimState } from './simulate';
 	import { roleOf } from './roles';
 	import type { Loadout } from './types';
 	import UpgradeDialog from './UpgradeDialog.svelte';
@@ -16,8 +18,11 @@
 	let {
 		loadout,
 		limit = 5,
-		onapply
-	}: { loadout: Loadout; limit?: number; /** Returns false when it couldn't be applied. */ onapply?: (u: Upgrade) => boolean } = $props();
+		onapply,
+		simState,
+		simBase,
+		currentCp
+	}: { loadout: Loadout; limit?: number; simState?: SimState; simBase?: SimState; currentCp?: number; /** Returns false when it couldn't be applied. */ onapply?: (u: Upgrade) => boolean } = $props();
 
 	/** Brief feedback on the row just applied. */
 	let flash = $state<{ key: string; ok: boolean } | null>(null);
@@ -29,8 +34,8 @@
 		flashTimer = setTimeout(() => (flash = null), 1200);
 	}
 
-	const upgrades = $derived(buildUpgrades(loadout, honingUpgrades(loadout)));
-	const cp = $derived(loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
+	const upgrades = $derived(buildUpgrades(loadout, [...honingUpgrades(loadout), ...bracerUpgrades(loadout, simState, simBase)]));
+	const cp = $derived(currentCp ?? loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
 	let dialogOpen = $state(false);
 </script>
 

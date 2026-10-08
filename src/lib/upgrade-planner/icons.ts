@@ -2,6 +2,7 @@
 
 import { ENGRAVING_ICONS, ITEMS } from './game-data';
 import type { CoreInfo } from './tables';
+import { BRACER_GRADES, type BracerGrade } from './bracer';
 
 const CDN = 'https://cdn-lostark.game.onstove.com/efui_iconatlas';
 /** Where the ark passive frame / inherited border overlays live (lostark.bible serves the same files at /i). */
@@ -58,3 +59,25 @@ export const coreLook = (info: CoreInfo): ItemLook => ({
 });
 
 export const engravingIcon = (id: number) => iconUrl(ENGRAVING_ICONS[id]?.[0]);
+
+// KR bracer art is grouped by base class, with eleven icons per grade.
+// Item IDs / icon names: https://lostark.inven.co.kr/dataninfo/item/?datagroup=etc&itemclass2=10206
+const BRACER_CLASS_ICON: Record<string, number> = Object.fromEntries([
+	[['berserker', 'destroyer', 'warlord', 'holyknight'], 1],
+	[['berserkerfemale', 'holyknightfemale'], 2],
+	[['bard', 'summoner', 'arcana', 'elementalmaster'], 3],
+	[['battlemaster', 'infighter', 'forcemaster', 'lancemaster'], 4],
+	[['battlemastermale', 'infightermale'], 5],
+	[['devilhunter', 'blaster', 'hawkeye', 'scouter'], 6],
+	[['blade', 'demonic', 'reaper', 'souleater'], 7],
+	[['devilhunterfemale'], 8],
+	[['yinyangshi', 'weatherartist', 'alchemist'], 9],
+	[['dimensionmaster'], 10],
+	[['dragonknight'], 11]
+].flatMap(([classes, offset]) => (classes as string[]).map((id) => [id, offset as number])));
+
+export function bracerLook(classId: string, grade: BracerGrade): ItemLook {
+	const offset = BRACER_CLASS_ICON[classId.replaceAll('_', '').toLowerCase()] ?? 1;
+	const index = BRACER_GRADES.indexOf(grade);
+	return { icon: iconUrl(`bracer_${offset + 11 * index}`), grade: index + 3, name: `${grade[0].toUpperCase() + grade.slice(1)} Bracer` };
+}
