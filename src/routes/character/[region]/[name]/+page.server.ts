@@ -6,7 +6,7 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ params, fetch }) => {
 	const region = params.region.toUpperCase();
 	if (!(REGIONS as readonly string[]).includes(region)) error(404, 'Unknown region');
-	// Public deployments don't proxy lostark.bible; send the player to the paste flow instead.
+	// With server fetching turned off, send the player to the paste flow instead.
 	if (!serverFetchEnabled()) redirect(307, `/?region=${region}&name=${encodeURIComponent(params.name)}`);
 	try {
 		return await loadCharacter(region, params.name, fetch);

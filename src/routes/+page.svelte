@@ -13,6 +13,7 @@
 	import { characterKey, listSavedCharacters, removeSavedCharacter, saveCharacter, type SavedCharacter } from '$lib/saved-character';
 	import { onMount } from 'svelte';
 	import { preferredRegion, saveRegion } from '$lib/region-preference';
+	import { bibleToken, completeSignIn, fetchRoster, signOut, startSignIn, type RosterCharacter } from '$lib/bible-oauth';
 
 	let region = $state<Region>('NA');
 	let input = $state('');
@@ -20,12 +21,60 @@
 	let error = $state<string | null>(null);
 	let saved = $state<SavedCharacter[]>([]);
 
-	onMount(() => {
+	// lostark.bible sign-in: the roster to pick from. Loading itself goes through our server (bible's data has no CORS).
+	let signedIn = $state(false);
+	let roster = $state<RosterCharacter[] | null>(null);
+	let rosterError = $state<string | null>(null);
+	/** Character being loaded ("na/name"), for the button's busy state. */
+	let loading = $state<string | null>(null);
+
+	async function refreshRoster() {
+		rosterError = null;
+		try {
+			roster = await fetchRoster();
+		} catch (e) {
+			const message = e instanceof Error ? e.message : String(e);
+			if (message === 'signed-out') signedIn = false;
+			else rosterError = `Couldn't load your roster: ${message}`;
+		}
+	}
+
+	onMount(async () => {
 		saved = listSavedCharacters();
 		region = preferredRegion(page.url.searchParams.get('region'));
 		saveRegion(region);
 		input = page.url.searchParams.get('name') ?? '';
+		try {
+			await completeSignIn(new URL(location.href)); // the production callback lands here
+		} catch (e) {
+			rosterError = e instanceof Error ? e.message : String(e);
+		}
+		signedIn = !!bibleToken();
+		if (signedIn) await refreshRoster();
 	});
+
+	/** Loads a character's current bible snapshot via our server, saves it here and opens the simulator. */
+	async function loadFromBible(r: string, name: string) {
+		const key = characterKey({ region: r, name });
+		loading = key;
+		error = null;
+		try {
+			const res = await fetch(`/api/character/${encodeURIComponent(r)}/${encodeURIComponent(name)}`);
+			const body = await res.json().catch(() => null);
+			if (!res.ok) throw new Error(body?.message ?? `Loading failed (${res.status})`);
+			if (!body?.loadout) throw new Error(`${name} (${r}) wasn't found on lostark.bible, or has no Ark Passive loadout with Combat Power yet.`);
+			saveCharacter(body);
+			saveRegion(r);
+			goto(`/sim?c=${encodeURIComponent(characterKey(body))}`);
+		} catch (e) {
+			// Fall back to the paste steps for this character.
+			region = r as Region;
+			input = name;
+			error = `${e instanceof Error ? e.message : String(e)} You can paste the data yourself below.`;
+			loading = null;
+		}
+	}
+	const savedKeys = $derived(new Set(saved.map((c) => characterKey(c))));
 
 	const target = $derived(parseCharacterInput(input, region));
 
@@ -90,7 +139,15 @@
 						</span>
 					</a>
 					<a href={`/sim?c=${encodeURIComponent(characterKey(c))}`} class="rounded-xs bg-accent-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-accent-600">Continue</a>
-					<a href={`/?region=${c.region}&name=${encodeURIComponent(c.name)}`} class="text-xs text-surface-300 underline hover:text-surface-50">Reload</a>
+					<button
+						type="button"
+						class="text-xs text-surface-300 underline hover:text-surface-50 disabled:opacity-50"
+						disabled={loading !== null}
+						onclick={() => loadFromBible(c.region, c.name)}
+						title="Load the latest lostark.bible snapshot"
+					>
+						{loading === characterKey(c) ? 'Loading…' : 'Reload'}
+					</button>
 					<button type="button" class="text-xs text-surface-500 hover:text-red-300" onclick={() => remove(c)} aria-label={`Remove ${c.name}`}>Remove</button>
 				</div>
 			{/each}
@@ -98,7 +155,54 @@
 	{/if}
 
 	<div class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
-		<div class="bg-black/10 px-4 py-2 font-bold">{saved.length ? 'Load another character' : 'Load your character'}</div>
+		<div class="flex flex-row items-center gap-2 bg-black/10 px-4 py-2">
+			<span class="font-bold">Your lostark.bible roster</span>
+			{#if signedIn}
+				<button type="button" class="ml-auto text-xs text-surface-400 underline hover:text-surface-100" onclick={() => ((signedIn = false), (roster = null), signOut())}>
+					Sign out
+				</button>
+			{/if}
+		</div>
+		{#if !signedIn}
+			<div class="flex flex-row flex-wrap items-center gap-3 p-4">
+				<button type="button" class="rounded-xs bg-accent-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-accent-600" onclick={startSignIn}>
+					Sign in with lostark.bible
+				</button>
+				<span class="text-sm text-surface-400">Pick a character from your roster; no copy-paste. Only your roster is read.</span>
+			</div>
+		{:else if roster === null && !rosterError}
+			<p class="p-4 text-sm text-surface-400">Loading your roster…</p>
+		{:else if roster?.length === 0}
+			<p class="p-4 text-sm text-surface-400">No characters on your linked rosters. Link a roster on lostark.bible first.</p>
+		{:else if roster}
+			{#each roster as c (characterKey(c))}
+				<div class="flex flex-row items-center gap-3 px-4 py-2">
+					<div class="flex min-w-0 flex-1 flex-col">
+						<span class="font-semibold">{c.name} <span class="text-xs font-normal text-surface-400">{c.region}</span></span>
+						<span class="text-xs text-surface-400">
+							{[c.classId && className(c.classId), c.ilvl && `Item Level ${c.ilvl.toFixed(2)}`, c.lastUpdate && `seen ${ago(c.lastUpdate)}`]
+								.filter(Boolean)
+								.join(' · ')}
+						</span>
+					</div>
+					<button
+						type="button"
+						class="rounded-xs px-3 py-1.5 text-sm font-semibold disabled:opacity-50 {savedKeys.has(characterKey(c))
+							? 'border border-surface-600 text-surface-200 hover:bg-surface-800'
+							: 'bg-accent-700 text-white hover:bg-accent-600'}"
+						disabled={loading !== null}
+						onclick={() => loadFromBible(c.region, c.name)}
+					>
+						{loading === characterKey(c) ? 'Loading…' : savedKeys.has(characterKey(c)) ? 'Reload' : 'Load'}
+					</button>
+				</div>
+			{/each}
+		{/if}
+		{#if rosterError}<p class="p-4 text-sm text-red-400">{rosterError}</p>{/if}
+	</div>
+
+	<div class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
+		<div class="bg-black/10 px-4 py-2 font-bold">{saved.length ? 'Load another character' : 'Load your character'} by name</div>
 
 		<section class="flex flex-row gap-3 p-4">
 			<span class={step}>1</span>
@@ -109,6 +213,14 @@
 						{#each REGIONS as r (r)}<option>{r}</option>{/each}
 					</select>
 					<input id="char" bind:value={input} placeholder="Name or bible link" class="{field} min-w-0 flex-1" autocomplete="off" />
+					<button
+						type="button"
+						class="rounded-xs bg-accent-700 px-4 font-semibold text-white hover:bg-accent-600 disabled:opacity-50"
+						disabled={!target || loading !== null}
+						onclick={() => target && loadFromBible(target.region, target.name)}
+					>
+						{loading && target && loading === characterKey(target) ? 'Loading…' : 'Load'}
+					</button>
 				</div>
 				{#if input && !target}
 					<span class="text-sm text-red-400">Enter a character name, or a lostark.bible/character/… link.</span>
@@ -138,7 +250,7 @@
 		<section class="flex flex-row gap-3 p-4">
 			<span class={step}>3</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-2 text-sm">
-				<span class="text-base font-semibold">Copy your data and paste it here</span>
+				<span class="text-base font-semibold">If Load doesn't work: copy your data and paste it here</span>
 				{#if target}
 					<a
 						class="w-fit rounded-xs bg-accent-700 px-3 py-1.5 font-semibold text-white hover:bg-accent-600"
