@@ -292,6 +292,30 @@ describe('bracelet main stat', () => {
 		expect(part.value).toBeCloseTo(350, 6);
 	});
 
+	it('the Weapon Power effect (stat 151) adds weapon power like a flat accessory line', () => {
+		const l = soulshan as unknown as Loadout;
+		const base = initSimState(l);
+		const s = structuredClone(base);
+		s.bracelet!.lines[4] = { kind: 'stat', index: 151, value: 9000 };
+		const empty = structuredClone(base);
+		empty.bracelet!.lines[4] = { kind: 'empty' };
+		const before = simulate(l, empty, base);
+		const after = simulate(l, s, base);
+		expect(after.weaponPower).toBeGreaterThan(before.weaponPower + 9000);
+		expect(after.cp).toBeGreaterThan(before.cp);
+	});
+
+	it('a "Weapon Power +9,000. ..." special effect adds its Weapon Power to base attack', () => {
+		const l = soulshan as unknown as Loadout;
+		const base = initSimState(l);
+		const s = structuredClone(base);
+		s.bracelet!.lines[4] = { kind: 'effect', key: '3:11111' };
+		const flat = structuredClone(base);
+		flat.bracelet!.lines[4] = { kind: 'stat', index: 151, value: 9000 };
+		// Same Weapon Power as the plain +9,000 line, plus the effect's own 65 battle points.
+		expect(simulate(l, s, base).weaponPower).toBeCloseTo(simulate(l, flat, base).weaponPower, 6);
+	});
+
 	it('counts index 11 (all main stats) like the class main stat', () => {
 		const l = soulshan as unknown as Loadout;
 		const base = initSimState(l);

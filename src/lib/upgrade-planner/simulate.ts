@@ -6,7 +6,7 @@
 // of bible's values, which keeps unknown bonuses (titles, karma, etc.) intact.
 
 import { PartType, baseAttackPoint, partHigh } from './cp';
-import { GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
+import { BRACELET_EFFECTS, GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
 import { HONING_SLOTS, HONING_TABLE, type HoningSlot } from './honing-data';
 import { roleOf } from './roles';
 import { SUPPORT_ACCESSORY_LINES, supportCoreValue, swappedCoreId, type SupportAccessoryLine } from './support';
@@ -157,6 +157,16 @@ export const braceletEffects = (b: SimBracelet | null) =>
 
 /** Stat index for Strength, Dexterity and Intelligence together (bracelet main stat lines). */
 const ALL_MAIN_STATS = 11;
+/** Flat Weapon Power (accessory lines, the bracelet's Weapon Power effect). */
+const WEAPON_POWER_FLAT = 151;
+/**
+ * Permanent Weapon Power from a bracelet special effect ("Weapon Power +9,000. When your HP is…"). The game counts
+ * it in base attack, not in the effect's battle points; "On hit, Weapon Power +…" effects are only the latter.
+ */
+const effectWeaponPower = (key: string) => {
+	const m = BRACELET_EFFECTS.find((e) => e.key === key)?.text.match(/^Weapon Power \+([\d,]+)/);
+	return m ? Number(m[1].replaceAll(',', '')) : 0;
+};
 
 /** Combat stats that count toward a dealer's Combat Power (Crit, Specialization, Swiftness). */
 export const COMBAT_STAT_INDICES = [15, 16, 18];
@@ -408,7 +418,12 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	const karmaPct = (s: SimState) => (s.karma.enlightenment ?? 0) * KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL;
 	const pct0 = linesTotal(base.accessories, 'percent') / 100 + karmaPct(base);
 	const pct1 = linesTotal(state.accessories, 'percent') / 100 + karmaPct(state);
-	weaponPower += (linesTotal(state.accessories, 'flat') - linesTotal(base.accessories, 'flat')) * (1 + pct0 / 100);
+	// Flat Weapon Power from accessories and the bracelet's Weapon Power effect (stat 151).
+	const braceletWeapon = (b: SimBracelet | null) =>
+		braceletStat(b, (i) => i === WEAPON_POWER_FLAT) + braceletEffects(b).reduce((sum, key) => sum + effectWeaponPower(key), 0);
+	weaponPower +=
+		(linesTotal(state.accessories, 'flat') - linesTotal(base.accessories, 'flat') + braceletWeapon(state.bracelet) - braceletWeapon(base.bracelet)) *
+		(1 + pct0 / 100);
 	weaponPower *= (100 + pct1) / (100 + pct0);
 	if (mainStat0 && weapon0)
 		basePart.value =
@@ -485,7 +500,8 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 			if (effect) parts.push({ type: effect.defense ? PartType.BraceletEffectDefense : PartType.BraceletEffect, value: effect.value });
 		}
 		for (const st of braceletStats(state.bracelet)) {
-			const c = role.braceletStatCoeff[`${st.type ?? 2}:${st.index}`];
+			// Ally Enhancement lines (54 / 59) are matched by type; bible gives 59 with index 16000001.
+			const c = role.braceletStatCoeff[`${st.type ?? 2}:${st.type === 54 || st.type === 59 ? 0 : st.index}`];
 			if (c) parts.push({ type: PartType.BraceletStatType, value: ((Number(st.value) || 0) * c) / 1e4 });
 		}
 		// Combat stats feed part 26 at the role's battle points per point.
