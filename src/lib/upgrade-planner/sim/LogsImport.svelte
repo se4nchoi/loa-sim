@@ -163,8 +163,8 @@
 			{#if loading}<span class="text-xs text-surface-400">Reading…</span>{/if}
 			{#if fileName && !loading}<span class="text-xs text-surface-400">{fileName} · {encounters?.length ?? 0} logs</span>{/if}
 		{:else if applied}
-			<span class="text-xs text-green-400">✓ Shares from {applied.runs} run{applied.runs === 1 ? '' : 's'} in use</span>
-			<span class="text-xs text-surface-400">· {applied.range} · {applied.raid}</span>
+			<span class="text-xs text-green-400">✓ Damage Distribution Loaded</span>
+			<span class="text-xs text-surface-400">· {applied.runs} run{applied.runs === 1 ? '' : 's'} · {applied.range} · {applied.raid}</span>
 		{:else if encounters}
 			<span class="text-xs text-surface-400">{fileName} loaded · shares not applied yet</span>
 		{:else}
