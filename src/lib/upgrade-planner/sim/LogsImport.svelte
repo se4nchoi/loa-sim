@@ -29,6 +29,9 @@
 	let limit = $state(0);
 	let clearedOnly = $state(true);
 	let result = $state<{ runs: number; shares: SkillShare[] } | null>(null);
+	/** Folded away after shares are applied; the header then says what's in use. */
+	let open = $state(true);
+	let applied = $state<{ runs: number; range: string; raid: string } | null>(null);
 
 	onDestroy(() => reader?.close());
 
@@ -109,7 +112,15 @@
 		const [from, to] = rangeOf(range);
 		return from === 0 ? 'every log in the file' : `${day(from)} – ${to === Infinity ? 'now' : day(to - 1)}`;
 	});
-	const selected = $derived.by(() => {
+	/** The raid filter as text, for the folded header. */
+	const raidLabel = $derived.by(() => {
+		if (!boss) return 'All raids';
+		const [kind, ...rest] = boss.split(':');
+		if (kind === 'raid') return rest.join(':');
+		if (kind === 'gate') return raidGateOf(mine.find((r) => matchesRaid(r))?.boss ?? '')?.label ?? rest.join(':');
+		return rest.join(':');
+	});
+		const selected = $derived.by(() => {
 		const rows = inRange(range);
 		return limit > 0 ? rows.slice(0, limit) : rows;
 	});
@@ -135,14 +146,32 @@
 
 <div class="flex flex-col gap-2 rounded-xs border border-surface-700 bg-surface-950/60 p-2.5">
 	<div class="flex flex-row flex-wrap items-center gap-2">
-		<span class="text-sm font-semibold text-surface-100">Load shares from LOA Logs</span>
-		<label class="{btnAccent} cursor-pointer">
-			{encounters ? 'Choose another file' : 'Choose encounters.db'}
-			<input type="file" accept=".db,.sqlite,application/octet-stream" class="hidden" onchange={pick} />
-		</label>
-		{#if loading}<span class="text-xs text-surface-400">Reading…</span>{/if}
-		{#if fileName && !loading}<span class="text-xs text-surface-400">{fileName} · {encounters?.length ?? 0} logs</span>{/if}
+		<button
+			type="button"
+			class="flex flex-row items-center gap-1.5 text-sm font-semibold text-surface-100 hover:text-white"
+			aria-expanded={open}
+			onclick={() => (open = !open)}
+		>
+			<svg class="size-3 shrink-0 text-surface-400 transition {open ? '' : '-rotate-90'}" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>
+			Load shares from LOA Logs
+		</button>
+		{#if open}
+			<label class="{btnAccent} cursor-pointer">
+				{encounters ? 'Choose another file' : 'Choose encounters.db'}
+				<input type="file" accept=".db,.sqlite,application/octet-stream" class="hidden" onchange={pick} />
+			</label>
+			{#if loading}<span class="text-xs text-surface-400">Reading…</span>{/if}
+			{#if fileName && !loading}<span class="text-xs text-surface-400">{fileName} · {encounters?.length ?? 0} logs</span>{/if}
+		{:else if applied}
+			<span class="text-xs text-green-400">✓ Shares from {applied.runs} run{applied.runs === 1 ? '' : 's'} in use</span>
+			<span class="text-xs text-surface-400">· {applied.range} · {applied.raid}</span>
+		{:else if encounters}
+			<span class="text-xs text-surface-400">{fileName} loaded · shares not applied yet</span>
+		{:else}
+			<span class="text-xs text-surface-500">Not loaded</span>
+		{/if}
 	</div>
+	{#if open}
 	{#if !encounters}
 		<p class="text-xs text-surface-400">
 			In LOA Logs open <b>Settings → Database → Open folder</b> and pick <code>encounters.db</code> (close LOA Logs first).
@@ -224,13 +253,17 @@
 				<button
 					type="button"
 					class={btnAccent}
-					onclick={() =>
+					onclick={() => {
 						onapply(
 							Object.fromEntries(result!.shares.map((s) => [s.id, Number(s.pct.toFixed(2))])),
 							Object.fromEntries(
 								result!.shares.flatMap((s) => (s.cooldownUse === undefined ? [] : [[s.id, Number((s.cooldownUse * 100).toFixed(1))]]))
 							)
-						)}
+						);
+						// Fold away once applied; the header says what's in use.
+						applied = { runs: result!.runs, range: RANGE_LABELS[range], raid: raidLabel };
+						open = false;
+					}}
 				>
 					Use these shares
 				</button>
@@ -239,5 +272,6 @@
 		{:else if selected.length}
 			<span class="text-xs text-surface-400">Calculating…</span>
 		{/if}
+	{/if}
 	{/if}
 </div>

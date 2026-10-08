@@ -97,7 +97,12 @@ const gemSkillGroups = {};
 for (const [id, g] of Object.entries(stats.skillGroup ?? {})) {
 	const members = (g.skills ?? []).filter((s) => gemSkills[s]);
 	if (!g.name || !g.icon || !members.length || gemSkills[id]) continue;
-	gemSkills[id] = [g.name, g.icon, gemSkills[members[0]][2], members.some((s) => gemSkills[s][3]) ? 1 : 0];
+	// Name the forms a group covers when they differ (Rending Finisher (Exploding Finisher)), up to three of them.
+	const forms = [...new Set(members.map((m) => gemSkills[m][0]).filter((n) => n !== g.name))].map((n) =>
+		n.startsWith(`${g.name}: `) ? n.slice(g.name.length + 2) : n
+	);
+	const name = forms.length && forms.length <= 3 ? `${g.name} (${forms.join(' / ')})` : g.name;
+	gemSkills[id] = [name, g.icon, gemSkills[members[0]][2], members.some((s) => gemSkills[s][3]) ? 1 : 0];
 	gemSkillGroups[id] = members.map(Number);
 }
 // A skill's damage and cooldown gems can name different groups (170008 / 170009 Rending Finisher): alias them to
