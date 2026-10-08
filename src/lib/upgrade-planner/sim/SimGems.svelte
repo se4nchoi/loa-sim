@@ -189,8 +189,8 @@
 							{@const other = inSlot(r, kind === 'damage' ? 'cooldown' : 'damage')}
 							<div class="flex h-11 w-[9.75rem] items-center justify-center rounded-xs border border-dashed border-surface-700 @max-[30rem]:w-[7rem] text-xs text-surface-500">
 								{#if other !== undefined && rowGems(r).length === 1}
-									<button type="button" class="hover:text-surface-100" onclick={() => (sim.gems[other].kind = kind)} title={`Make it a ${kind} gem`}>
-										move here
+									<button type="button" class="h-full w-full font-semibold hover:bg-surface-800 hover:text-surface-100" onclick={() => (sim.gems[other].kind = kind)} title={`Make it a ${kind} gem`}>
+										→ {kind === 'damage' ? 'DMG' : 'CD'}
 									</button>
 								{:else}—{/if}
 							</div>
