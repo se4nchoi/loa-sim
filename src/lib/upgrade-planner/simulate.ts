@@ -25,7 +25,7 @@ import {
 	type Tier
 } from './tables';
 import type { BattlePointPart, Loadout } from './types';
-import { readSidereal, siderealItemLevel, siderealWeaponPower, type SimSidereal } from './sidereal';
+import { readSidereal, siderealBattlePoints, siderealItemLevel, siderealWeaponPower, type SimSidereal } from './sidereal';
 import { astrogemTotals, coreStates, coreValueAs, engravingStates, weaponPowerOf, type CoreState } from './upgrades';
 
 /** Advanced honing level 30+ adds this much to the item's stats; fits bible's main stat to 0.05%. */
@@ -415,8 +415,15 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	const isMainStat = (i: number) => i === msIndex || i === ALL_MAIN_STATS;
 	mainStat += braceletStat(state.bracelet, isMainStat) - braceletStat(base.bracelet, isMainStat);
 	let weaponPower = weapon0;
-	if (state.sidereal && base.sidereal)
+	if (state.sidereal && base.sidereal) {
 		weaponPower *= siderealWeaponPower(state.sidereal) / siderealWeaponPower(base.sidereal);
+		// The weapon's own battle points (part 23), anchored on bible's value.
+		const dBp = siderealBattlePoints(state.sidereal) - siderealBattlePoints(base.sidereal);
+		if (dBp) {
+			const part = parts.find((p) => p.type === PartType.EstherWeapon);
+			set(PartType.EstherWeapon, () => true, (part ? partHigh(part) : 0) + dBp);
+		}
+	}
 	for (const slot of HONING_SLOTS) {
 		const from = base.gear[slot];
 		const to = state.gear[slot];

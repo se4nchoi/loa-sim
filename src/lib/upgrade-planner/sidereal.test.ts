@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 import mira from './fixtures/na-mira.json';
 import soulshan from './fixtures/na-soulshan.json';
 import { initSimState, itemLevel, simulate } from './simulate';
-import { readSidereal, setSiderealInfusion, siderealItemLevel, siderealMaxEvolution, siderealWeaponPower } from './sidereal';
-import { PartType } from './cp';
+import { readSidereal, setSiderealInfusion, siderealBattlePoints, siderealItemLevel, siderealMaxEvolution, siderealWeaponPower } from './sidereal';
+import { PartType, combatPower } from './cp';
 import { coreStates, coreValueAs, weaponPowerOf } from './upgrades';
 import { coreValue, decodeCore } from './tables';
 import type { Loadout } from './types';
 
 const loadout = mira as unknown as Loadout;
+const roleScore = (parts: Parameters<typeof combatPower>[0]) => combatPower(parts).max;
 
 describe('Sidereal owner import and progression', () => {
 	it('imports Mira’s real +8 Elgic III without adding advanced honing twice', () => {
@@ -76,3 +77,37 @@ describe('weapon core grade regression', () => {
 		expect(simulate(l, s, base).cp).toBeGreaterThan(simulate(l, base, base).cp);
 	});
 });
+
+describe('Sidereal battle points (part 23)', () => {
+	const base = initSimState(loadout);
+	const part = (s: typeof base) => simulate(loadout, s, base).parts.find((p) => p.type === PartType.EstherWeapon)?.value;
+
+	it('reproduces bible: Elgic III +8 = 190', () => {
+		expect(siderealBattlePoints(base.sidereal!)).toBe(190);
+		expect(part(base)).toBe(190);
+	});
+
+	it('follows Elgic level and evolution steps (+6 / +8, held above)', () => {
+		const s = structuredClone(base);
+		setSiderealInfusion(s.sidereal!, 2); // Elgic II +8
+		expect(s.sidereal!.evolution).toBe(8);
+		expect(part(s)).toBe(143);
+		s.sidereal!.evolution = 9;
+		expect(part(s)).toBe(143);
+		s.sidereal!.evolution = 7;
+		expect(part(s)).toBe(75);
+		setSiderealInfusion(s.sidereal!, 0);
+		s.sidereal!.evolution = 5;
+		expect(part(s)).toBe(0);
+	});
+
+	it('changing it moves CP by the part ratio, on top of Weapon Power', () => {
+		const s = structuredClone(base);
+		s.sidereal!.evolution = 7; // below the +8 step: 190 → 100
+		const withBp = simulate(loadout, s, base).cp;
+		const parts = simulate(loadout, s, base).parts.map((p) => (p.type === PartType.EstherWeapon ? { ...p, value: 190 } : p));
+		const withoutBpChange = roleScore(parts);
+		expect(withBp / withoutBpChange).toBeCloseTo((1e4 + 100) / (1e4 + 190), 9);
+	});
+});
+

@@ -1,4 +1,4 @@
-import { SIDEREAL_ADVANCED, SIDEREAL_ITEMS, SIDEREAL_STAGES } from './sidereal-data';
+import { SIDEREAL_ADVANCED, SIDEREAL_BATTLE_POINTS, SIDEREAL_ITEMS, SIDEREAL_STAGES } from './sidereal-data';
 import type { Loadout } from './types';
 
 export interface SimSidereal {
@@ -32,6 +32,14 @@ export function siderealWeaponPower(s: SimSidereal): number {
 	if (s.infusion === 3) return base;
 	const advanced = SIDEREAL_ADVANCED[s.infusion >= 2 ? 1 : 0][s.advanced] ?? 0;
 	return base + advanced;
+}
+
+/** The weapon's own battle points (part 23): by Elgic level, stepping up at +6 and +8; none without Elgic. */
+export function siderealBattlePoints(s: SimSidereal): number {
+	const steps = Object.entries(SIDEREAL_BATTLE_POINTS[s.infusion] ?? {})
+		.map(([evolution, value]) => [Number(evolution), value] as const)
+		.filter(([evolution]) => s.evolution >= evolution);
+	return steps.length ? Math.max(...steps.map(([, v]) => v)) : 0;
 }
 
 export function setSiderealInfusion(s: SimSidereal, infusion: number) {
