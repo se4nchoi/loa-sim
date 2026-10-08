@@ -53,17 +53,19 @@
 	const cpOf = (c: SavedCharacter) => c.loadout?.combatPower;
 </script>
 
-<div class="mb-4 flex flex-col gap-2 @container">
-	<div class="flex flex-row flex-wrap items-center gap-2">
+<div class="mb-4 flex flex-col gap-2">
+	<!-- One row: recent chips scroll sideways, the dropdown stays put (own row on phones). -->
+	<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 		{#if lists.recent.length > 1}
-			<span class="text-xs font-semibold tracking-wide text-surface-400 uppercase">Recent</span>
+			<div class="flex min-w-0 flex-1 flex-row items-center gap-2 overflow-x-auto [scrollbar-width:thin]">
+			<span class="shrink-0 text-xs font-semibold tracking-wide text-surface-400 uppercase">Recent</span>
 			{#each lists.recent as c (characterKey(c))}
 				{@const key = characterKey(c)}
 				{@const cp = cpOf(c)}
 				<a
 					href={openUrl(key)}
 					aria-current={key === current ? 'page' : undefined}
-					class="flex h-9 flex-row items-center gap-2 rounded-xs border px-2 text-sm {key === current
+					class="flex h-9 shrink-0 flex-row items-center gap-2 rounded-xs border px-2 text-sm whitespace-nowrap {key === current
 						? 'border-accent-500 bg-accent-900/30 text-surface-50'
 						: 'border-surface-700 bg-surface-900 text-surface-200 hover:bg-surface-800'}"
 				>
@@ -72,9 +74,10 @@
 					{#if cp}<span class="text-xs tabular-nums {cp.id === 2 ? 'text-green-400' : 'text-red-400'}">{cp.score.toFixed(2)}</span>{/if}
 				</a>
 			{/each}
+			</div>
 		{/if}
 		<select
-			class="ml-auto h-9 max-w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-sm text-surface-100 focus:border-accent-500 focus:outline-none"
+			class="h-9 w-full shrink-0 rounded-xs sm:ml-auto sm:w-56 border border-surface-600 bg-surface-800 px-2 text-sm text-surface-100 focus:border-accent-500 focus:outline-none"
 			aria-label="Switch character"
 			value=""
 			disabled={loading !== null}
