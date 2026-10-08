@@ -135,10 +135,10 @@
 <svelte:head><title>loa-sim · Combat Power Simulator</title></svelte:head>
 
 <!-- One compact character row: class emblem, name, item level · CP, then its actions. -->
-{#snippet row(c: { region: string; name: string }, classId: string | undefined, ilvl: number | undefined, cp: { score: number; support: boolean } | undefined, note: string | undefined, dismiss: { label: string; icon: 'hide' | 'show' | 'remove'; run: () => void } | null)}
+{#snippet row(c: { region: string; name: string }, classId: string | undefined, ilvl: number | undefined, cp: { score: number; support: boolean } | undefined, note: string | undefined, dismiss: { label: string; icon: 'hide' | 'show' | 'remove'; run: () => void } | null, muted = false)}
 	{@const key = characterKey(c)}
 	{@const have = savedByKey.get(key)}
-	<div class="flex flex-row items-center gap-3 px-3 py-2">
+	<div class="flex flex-row items-center gap-3 px-3 py-2 {muted ? 'bg-black/20 [&>:not(:last-child)]:opacity-40' : ''}">
 		{#if classIconUrl(classId)}
 			<img src={classIconUrl(classId)} alt={className(classId!)} title={className(classId!)} class="size-9 shrink-0" />
 		{:else}
@@ -230,12 +230,13 @@
 					isHidden ? 'hidden' : have ? `loaded ${ago(have.savedAt)}` : undefined,
 					isHidden
 						? { label: 'Show', icon: 'show', run: () => setHidden(characterKey(c), false) }
-						: { label: 'Hide', icon: 'hide', run: () => setHidden(characterKey(c), true) }
+						: { label: 'Hide', icon: 'hide', run: () => setHidden(characterKey(c), true) },
+					isHidden
 				)}
 			{/each}
 			{#if hiddenCount}
-				<button type="button" class="px-3 py-2 text-left text-xs text-surface-400 hover:text-surface-100" onclick={() => (showHidden = !showHidden)}>
-					{showHidden ? 'Done' : `${hiddenCount} hidden · show`}
+				<button type="button" class="px-3 py-2 text-left text-xs {showHidden ? 'font-semibold text-accent-300 hover:text-accent-200' : 'text-surface-400 hover:text-surface-100'}" onclick={() => (showHidden = !showHidden)}>
+					{showHidden ? '✓ Confirm' : `${hiddenCount} hidden · show`}
 				</button>
 			{/if}
 		{/if}
