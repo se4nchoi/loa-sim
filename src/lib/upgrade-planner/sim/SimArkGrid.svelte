@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { astrogemWillpower, optimizeArkGrid, withArrangement, type Arrangement } from '../arkgrid-optimize';
+	import { astrogemWillpower } from '../arkgrid-optimize';
 	import { formatPct } from '../format';
 	import { ASTROGEM_ITEMS, ASTROGEM_KINDS } from '../game-data';
 	import { coreLook, itemLook } from '../icons';
@@ -20,7 +20,7 @@
 	import ItemIcon from './ItemIcon.svelte';
 	import MenuPicker from './MenuPicker.svelte';
 	import SimCard from './SimCard.svelte';
-	import { btn, btnAccent, type MenuOption, type PreviewEdit, type SectionDelta } from './ui';
+	import { btn, type MenuOption, type PreviewEdit, type SectionDelta } from './ui';
 
 	let {
 		sim = $bindable(),
@@ -157,24 +157,6 @@
 	/** +1 level of an option, averaged over the next 5 (values round down per level, like Next Upgrades). */
 	const levelValue = (id: number) => (rows.length ? preview((s) => probe(s.arkGrid[rows[0].ci], 0, [{ id, level: 5 }])) / 5 : 0);
 	const small = (pct: number) => formatPct(pct, Math.abs(pct) < 0.1 && pct !== 0 ? 3 : 2);
-
-	// Optimizer
-	let suggestion = $state<{ arrangement: Arrangement; gainPct: number; moved: number } | null>(null);
-	function optimize() {
-		const current = $state.snapshot(sim) as SimState;
-		const arrangement = optimizeArkGrid(loadout, current, base);
-		const gainPct = preview((s) => Object.assign(s, withArrangement(s, arrangement)));
-		const moved = current.arkGrid.reduce(
-			(n, c) => n + c.gems.filter((g) => !(arrangement.cores[c.id] ?? []).some((x) => JSON.stringify(x) === JSON.stringify(g))).length,
-			0
-		);
-		suggestion = { arrangement, gainPct, moved };
-	}
-	function apply() {
-		if (!suggestion) return;
-		sim.arkGrid = withArrangement($state.snapshot(sim) as SimState, suggestion.arrangement).arkGrid;
-		suggestion = null;
-	}
 </script>
 
 <SimCard
@@ -183,33 +165,11 @@
 	info={`Core points and option totals add up from the astrogems. Click a core's name to try another grade or chaos option. Greyed options don't count for ${support ? 'support' : 'DPS'} Combat Power.`}
 >
 	{#snippet actions()}
-		<button type="button" class={btn} onclick={optimize} title="Moves your equipped astrogems between cores for the most Combat Power. bible doesn't show unequipped astrogems, so only the equipped ones are considered.">
-			Optimize placement
-		</button>
-		<button type="button" class={btn} onclick={() => ((sim.arkGrid = structuredClone($state.snapshot(base.arkGrid))), (suggestion = null))}>Reset</button>
+		<button type="button" class={btn} onclick={() => (sim.arkGrid = structuredClone($state.snapshot(base.arkGrid)))}>Reset</button>
 	{/snippet}
 	{#if rows.length === 0}
 		<p class="text-sm text-surface-400">No ark grid cores equipped.</p>
 	{:else}
-		{#if suggestion}
-			<div class="mb-3 flex flex-row flex-wrap items-center gap-2 rounded-xs border border-accent-700 bg-accent-700/15 px-3 py-2 text-sm">
-				{#if suggestion.gainPct > 0.0005}
-					<span>
-						Best arrangement: <b class="text-green-400">{formatPct(suggestion.gainPct)}%</b> CP, moving {suggestion.moved} astrogem{suggestion.moved === 1 ? '' : 's'}.
-					</span>
-					{#if suggestion.arrangement.leftOut.length}
-						<span class="text-amber-300">{suggestion.arrangement.leftOut.length} don't fit (willpower) and are left out.</span>
-					{/if}
-					<button type="button" class="{btnAccent} ml-auto" onclick={apply}>Apply</button>
-				{:else}
-					<span class="text-surface-200">
-						Your equipped astrogems are already in their best cores. Only equipped astrogems are considered, so this mostly helps
-						after you edit core points or swap a core.
-					</span>
-				{/if}
-				<button type="button" class="{btn} {suggestion.gainPct > 0.0005 ? '' : 'ml-auto'}" onclick={() => (suggestion = null)}>Dismiss</button>
-			</div>
-		{/if}
 		<div class="mb-3 flex flex-row flex-wrap gap-1.5" aria-label="Astrogem option totals">
 			{#each totals as t (t.id)}
 				<span
@@ -220,12 +180,15 @@
 					<b class="tabular-nums {t.now !== t.before ? 'text-accent-300' : t.scoring ? 'text-surface-50' : ''}">
 						Lv. {#if t.now !== t.before}{`${t.before} → `}{/if}{t.now}
 					</b>
-					{#if t.scoring}
-						<span class="ml-1 text-green-400 tabular-nums" title="Combat Power from one more level (average of the next 5)">
-							+1 ≈ {small(levelValue(t.id))}%
-						</span>
-					{/if}
 				</span>
+				{#if t.scoring}
+					<span
+						class="-ml-1 rounded-xs border border-green-900 bg-green-950/40 px-2 py-1 text-xs text-green-400 tabular-nums"
+						title={`${ASTROGEM_OPTION_NAMES[t.id]}: Combat Power from one more level (average of the next 5)`}
+					>
+						+1 Lv ≈ {small(levelValue(t.id))}%
+					</span>
+				{/if}
 			{/each}
 		</div>
 		<!-- Two columns only when the card itself is wide enough (a container query), so rows never crunch. -->
