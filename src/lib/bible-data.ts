@@ -11,7 +11,14 @@ export interface CharacterData {
 	name: string;
 	region: string;
 	header: { ilvl?: number; class?: string; title?: string; guild?: { name?: string } | null } | null;
+	/** The loadout being simulated: one of `loadouts`. */
 	loadout: Loadout | null;
+	/**
+	 * bible's raid loadouts: the latest raid snapshot, and its estimated raid loadout ("raid_merged": the best gear
+	 * it has seen, e.g. gems a snapshot caught unequipped). Missing on characters saved before they were kept.
+	 */
+	loadouts?: Partial<Record<LoadoutKind, Loadout>>;
+	loadoutKind?: LoadoutKind;
 	/** The class's Combat Power distribution, for "top X%" (missing on characters saved before it was kept). */
 	cpDistribution?: CpDistribution | null;
 }
@@ -88,9 +95,22 @@ export function decodeCharacterData(body: unknown, name: string, region: string)
 		name,
 		region,
 		header: layout?.header ?? null,
-		loadout: pickLoadout(page.loadouts ?? []),
+		...raidLoadouts(page.loadouts ?? []),
 		cpDistribution: distributionOf(page.combatPowerDistribution)
 	};
+}
+
+export type LoadoutKind = 'estimated' | 'current';
+
+/** The latest raid snapshot and bible's estimated raid loadout; the estimate is simulated by default. */
+export function raidLoadouts(all: Loadout[]): Pick<CharacterData, 'loadout' | 'loadouts' | 'loadoutKind'> {
+	const current = pickLoadout(all);
+	const estimated = all.find((l) => l.type === 'ark_passive' && l.battlePoint && l.classification === 'raid_merged') ?? null;
+	const loadouts: Partial<Record<LoadoutKind, Loadout>> = {};
+	if (current) loadouts.current = current;
+	if (estimated) loadouts.estimated = estimated;
+	const loadoutKind: LoadoutKind = estimated ? 'estimated' : 'current';
+	return { loadout: loadouts[loadoutKind] ?? null, loadouts, loadoutKind };
 }
 
 /**
@@ -99,7 +119,7 @@ export function decodeCharacterData(body: unknown, name: string, region: string)
  * Bible also keeps separate raid and chaos dungeon snapshots, both scored; the raid build wins, then the newest.
  */
 export function pickLoadout(loadouts: Loadout[]): Loadout | null {
-	const ap = loadouts.filter((l) => l.type === 'ark_passive' && l.battlePoint);
+	const ap = loadouts.filter((l) => l.type === 'ark_passive' && l.battlePoint && l.classification !== 'raid_merged');
 	const scored = ap.filter((l) => l.combatPower?.score);
 	return (
 		scored.find((l) => l.classification === 'most_recent_raid') ??

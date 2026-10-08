@@ -2,11 +2,21 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import CharacterView from '$lib/demo/CharacterView.svelte';
-	import { loadSavedCharacter } from '$lib/saved-character';
+	import type { LoadoutKind } from '$lib/bible-data';
+	import { characterKey, loadSavedCharacter, setLoadoutKind } from '$lib/saved-character';
 	import { onMount } from 'svelte';
 
 	// ?c=na/soulshan picks a saved character; without it, the most recently loaded one.
-	const saved = $derived(loadSavedCharacter(page.url.searchParams.get('c')));
+	let switched = $state<ReturnType<typeof loadSavedCharacter>>(null);
+	const wanted = $derived(page.url.searchParams.get('c'));
+	// After a loadout switch, show the updated save, but only for the character it was made on.
+	const saved = $derived(
+		switched && (!wanted || characterKey(switched) === wanted.toLowerCase()) ? switched : loadSavedCharacter(wanted)
+	);
+	/** Estimated raid loadout ↔ latest raid snapshot; remembered for the character. */
+	const onloadout = (kind: LoadoutKind) => {
+		if (saved) switched = setLoadoutKind(characterKey(saved), kind) ?? switched;
+	};
 
 	onMount(() => {
 		if (!saved) goto('/', { replaceState: true });
@@ -19,6 +29,11 @@
 
 {#if saved}
 	{#key `${saved.region}/${saved.name}`}
-		<CharacterView name={saved.name} region={saved.region} {subtitle} itemLevel={saved.header?.ilvl} loadout={saved.loadout} cpDistribution={saved.cpDistribution} />
+		<CharacterView name={saved.name} region={saved.region} {subtitle} itemLevel={saved.header?.ilvl} loadout={saved.loadout}
+			cpDistribution={saved.cpDistribution}
+			loadouts={saved.loadouts}
+			loadoutKind={saved.loadoutKind}
+			{onloadout}
+		/>
 	{/key}
 {/if}

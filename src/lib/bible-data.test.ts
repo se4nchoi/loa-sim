@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bibleDataUrl, parseCharacterInput, parsePastedData, pickLoadout } from './bible-data';
+import { bibleDataUrl, parseCharacterInput, parsePastedData, pickLoadout, raidLoadouts } from './bible-data';
 import type { Loadout } from './upgrade-planner/types';
 
 describe('parseCharacterInput', () => {
@@ -88,3 +88,28 @@ describe('pickLoadout', () => {
 		expect(pickLoadout([])).toBeNull();
 	});
 });
+
+describe('raidLoadouts', () => {
+	const raid = { ...lo(false, 3967.86), classification: 'most_recent_raid', lastUpdated: 2 };
+	const merged = { ...lo(false, 9476.77), classification: 'raid_merged', lastUpdated: 1 };
+	const chaos = { ...lo(false, 1182), classification: 'most_recent_chaos_dungeon', lastUpdated: 3 };
+
+	it("simulates bible's estimated raid loadout when there is one, and keeps the latest snapshot", () => {
+		const r = raidLoadouts([raid, chaos, merged]);
+		expect(r.loadoutKind).toBe('estimated');
+		expect(r.loadout).toBe(merged);
+		expect(r.loadouts).toEqual({ current: raid, estimated: merged });
+	});
+
+	it('uses the latest raid snapshot otherwise', () => {
+		const r = raidLoadouts([chaos, raid]);
+		expect(r.loadoutKind).toBe('current');
+		expect(r.loadout).toBe(raid);
+		expect(r.loadouts).toEqual({ current: raid });
+	});
+
+	it('never takes the merged estimate as the latest snapshot', () => {
+		expect(pickLoadout([merged, chaos])!.classification).toBe('most_recent_chaos_dungeon');
+	});
+});
+

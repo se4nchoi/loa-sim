@@ -1,7 +1,7 @@
 // Characters a player pasted, kept in their browser so return visits open straight into the simulator.
 // Several characters can be kept; the most recently loaded comes first.
 
-import type { CharacterData } from '$lib/bible-data';
+import type { CharacterData, LoadoutKind } from '$lib/bible-data';
 
 const KEY = 'loa-sim:characters';
 const LEGACY_KEY = 'loa-eff:character';
@@ -58,4 +58,16 @@ export function loadSavedCharacter(key?: string | null): SavedCharacter | null {
 
 export function removeSavedCharacter(key: string) {
 	write(read().filter((c) => characterKey(c) !== key.toLowerCase()));
+}
+
+/** Switches a saved character between its estimated raid loadout and its latest raid snapshot. */
+export function setLoadoutKind(key: string, kind: LoadoutKind): SavedCharacter | null {
+	const list = read();
+	const entry = list.find((c) => characterKey(c) === key.toLowerCase());
+	const loadout = entry?.loadouts?.[kind];
+	if (!entry || !loadout) return null;
+	entry.loadout = loadout;
+	entry.loadoutKind = kind;
+	write(list);
+	return entry;
 }

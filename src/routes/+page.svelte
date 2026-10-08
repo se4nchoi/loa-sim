@@ -131,11 +131,12 @@
 		<div class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 			<div class="bg-black/10 px-4 py-2 font-bold">Your characters</div>
 			{#each saved as c (characterKey(c))}
-				<div class="flex flex-row items-center gap-3 px-4 py-2">
-					<a href={`/sim?c=${encodeURIComponent(characterKey(c))}`} class="flex min-w-0 flex-1 flex-col hover:text-accent-200">
+				<!-- Phones: the buttons wrap under the character instead of squeezing it. -->
+				<div class="flex flex-row flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2">
+					<a href={`/sim?c=${encodeURIComponent(characterKey(c))}`} class="flex min-w-0 flex-1 flex-col hover:text-accent-200 max-sm:basis-full">
 						<span class="font-semibold">{c.name} <span class="text-xs font-normal text-surface-400">{c.region}</span></span>
 						<span class="text-xs text-surface-400">
-							{#if c.loadout?.classId}{className(c.loadout.classId)} · {/if}{#if c.header?.ilvl}Item Level {c.header.ilvl.toFixed(2)} · {/if}loaded {ago(c.savedAt)}
+							{#if c.loadout?.classId}{className(c.loadout.classId)} · {/if}{#if c.header?.ilvl}Item Level {c.header.ilvl.toFixed(2)} · {/if}{#if c.loadoutKind === 'estimated'}estimated raid loadout · {/if}loaded {ago(c.savedAt)}
 						</span>
 					</a>
 					<a href={`/sim?c=${encodeURIComponent(characterKey(c))}`} class="rounded-xs bg-accent-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-accent-600">Continue</a>
@@ -208,14 +209,15 @@
 			<span class={step}>1</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-2">
 				<label for="char" class="font-semibold">Your character</label>
-				<div class="flex flex-row gap-2">
+				<!-- Phones: Load drops to its own full-width row so the name field keeps its width. -->
+				<div class="flex flex-row gap-2 max-sm:flex-wrap">
 					<select bind:value={region} onchange={(e) => saveRegion(e.currentTarget.value)} aria-label="Region" class={field}>
 						{#each REGIONS as r (r)}<option>{r}</option>{/each}
 					</select>
 					<input id="char" bind:value={input} placeholder="Name or bible link" class="{field} min-w-0 flex-1" autocomplete="off" />
 					<button
 						type="button"
-						class="rounded-xs bg-accent-700 px-4 font-semibold text-white hover:bg-accent-600 disabled:opacity-50"
+						class="rounded-xs bg-accent-700 px-4 font-semibold text-white hover:bg-accent-600 disabled:opacity-50 max-sm:h-10 max-sm:w-full"
 						disabled={!target || loading !== null}
 						onclick={() => target && loadFromBible(target.region, target.name)}
 					>
