@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import mira from './fixtures/na-mira.json';
 import soulshan from './fixtures/na-soulshan.json';
 import { initSimState, itemLevel, simulate } from './simulate';
-import { readSidereal, setSiderealInfusion, siderealBondDps, siderealItemLevel, siderealMaxEvolution, siderealWeaponPower } from './sidereal';
+import { readSidereal, setSiderealInfusion, siderealItemLevel, siderealMaxEvolution, siderealWeaponPower } from './sidereal';
 import { PartType } from './cp';
 import { coreStates, coreValueAs, weaponPowerOf } from './upgrades';
 import { coreValue, decodeCore } from './tables';
@@ -13,7 +13,7 @@ const loadout = mira as unknown as Loadout;
 describe('Sidereal owner import and progression', () => {
 	it('imports Mira’s real +8 Elgic III without adding advanced honing twice', () => {
 		const base = initSimState(loadout);
-		expect(base.sidereal).toMatchObject({ evolution: 8, infusion: 3, advanced: 40, bond: 'unknown' });
+		expect(base.sidereal).toMatchObject({ evolution: 8, infusion: 3, advanced: 40 });
 		expect(base.gear.weapon).toBeUndefined();
 		expect(siderealItemLevel(base.sidereal!)).toBe(1775);
 		expect(siderealWeaponPower(base.sidereal!)).toBe(214400);
@@ -52,31 +52,6 @@ describe('Sidereal owner import and progression', () => {
 		setSiderealInfusion(s, 1);
 		expect(s).toMatchObject({ evolution: 8, advanced: 20 });
 		expect(siderealMaxEvolution(3)).toBe(10);
-	});
-});
-
-describe('Sidereal configurations', () => {
-	it('calculates Thirain from the actual main stat and attack power with adjustable uptime', () => {
-		const s = readSidereal(loadout)!;
-		s.bond = 'Thirain';
-		const active = siderealBondDps(s, 826335, 207151.84638474643)!;
-		expect(active).toBeCloseTo((Math.sqrt(1 + 453359 / 826335) * (1 + 16450 / 207151.84638474643) - 1) * 100, 9);
-		s.bondUptime = 25;
-		expect(siderealBondDps(s, 826335, 207151.84638474643)).toBeCloseTo(active / 4, 9);
-	});
-
-	it('preserves unknown imported effects and keeps per-bond measured estimates', () => {
-		const base = initSimState(loadout);
-		const s = structuredClone(base);
-		expect(siderealBondDps(s.sidereal!, 826335, 207152)).toBeNull();
-		s.sidereal!.bond = 'Nineveh';
-		expect(siderealBondDps(s.sidereal!, 826335, 207152)).toBeNull();
-		s.sidereal!.bondEstimates.Nineveh = 4.5;
-		expect(siderealBondDps(s.sidereal!, 826335, 207152)).toBe(4.5);
-		s.sidereal!.bond = 'Balthorr';
-		expect(siderealBondDps(s.sidereal!, 826335, 207152)).toBe(0);
-		expect(simulate(loadout, s, base).cp).toBe(simulate(loadout, base, base).cp);
-		expect(simulate(loadout, s, base).parts.find((p) => p.type === PartType.EstherWeapon)?.value).toBe(190);
 	});
 });
 

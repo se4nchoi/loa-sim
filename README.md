@@ -4,7 +4,7 @@ A lo4.app-style Combat Power simulator for NA/CE Lost Ark characters, built as a
 [lostark.bible](https://lostark.bible). Load a character, then change:
 
 - **honing** and advanced honing per armor piece and weapon (e.g. Head +21 → +22);
-- **Sidereal weapons**, when equipped: evolution, Elgic infusion I–III, advanced honing, and bond comparisons;
+- **Sidereal weapons**, when equipped: evolution, Elgic infusion I–III;
 - **accessories:** each line (in lostark.bible's High/Mid/Low colors, with every alternative's CP change shown) and
   the main stat, to compare against accessories on the market;
 - **bracelet:** combat stats and effects, scored with the game's own weights for all 136 bracelet effects;
@@ -48,11 +48,7 @@ npm test
 
 The selected region is remembered in localStorage. An explicit region in a reload link takes precedence.
 
-Sidereal owners get separate weapon controls, including +10 with Elgic III. Weapon Power changes estimate
-Combat Power while preserving the imported bond contribution. The snapshot does not identify the selected
-Sidereal, so players select it themselves. Thirain's personal DPS estimate uses game buff values and editable
-damage-weighted uptime; direct damage and rotation-dependent bonds accept measured estimates. Bond estimates
-are displayed separately from CP, and +10-specific bond improvements require a measured estimate.
+Sidereal owners can adjust evolution and Elgic infusion.
 
 ## Loading a character
 

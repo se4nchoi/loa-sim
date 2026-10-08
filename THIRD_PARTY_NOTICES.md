@@ -39,10 +39,6 @@ All game-related assets are property of their respective owners.
   from the cached Maxroll planner feed. Regenerate with `node scripts/bake-game-data.mjs`, which also runs
   `scripts/bake-sidereal-data.mjs`. Elgic III's folded advanced honing was cross-checked against the public
   NA/Mira character snapshot on 2026-10-08; its +8 weapon is item level 1775 with advancedHoning 40.
-- Thirain's buff amounts in `sidereal.ts` are game facts from
-  https://github.com/snoww/loa-logs/blob/master/src-tauri/meter-data/SkillBuff.json:
-  Knight's Pride IDs 700001103 / 700011103 / 700021103 / 700031103, and Light of Daybreak IDs
-  700001202 / 700011202 / 700021202 / 700031202. No LOA Logs implementation code is copied.
 
 ## UI frames
 

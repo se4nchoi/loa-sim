@@ -12,10 +12,8 @@
 		sim = $bindable(),
 		base,
 		delta,
-		itemIds,
-		mainStat,
-		attackPower
-	}: { sim: SimState; base: SimState; delta: SectionDelta; itemIds: Record<string, number>; mainStat: number; attackPower: number } = $props();
+		itemIds
+	}: { sim: SimState; base: SimState; delta: SectionDelta; itemIds: Record<string, number> } = $props();
 
 	const LABELS: Record<HoningSlot, string> = {
 		head: 'Head',
@@ -68,6 +66,6 @@
 		</div>
 	{/if}
 	{#if sim.sidereal && base.sidereal}
-		<SimSidereal bind:weapon={sim.sidereal} base={base.sidereal} itemId={itemIds.weapon} {mainStat} {attackPower} />
+		<SimSidereal bind:weapon={sim.sidereal} base={base.sidereal} itemId={itemIds.weapon} />
 	{/if}
 </SimCard>
