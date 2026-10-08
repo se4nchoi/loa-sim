@@ -75,7 +75,7 @@
 					href={openUrl(key)}
 					aria-current={key === current ? 'page' : undefined}
 					class="flex h-9 shrink-0 flex-row items-center gap-2 rounded-xs border px-2 text-sm whitespace-nowrap {key === current
-						? 'border-accent-500 bg-accent-900/30 text-surface-50'
+						? 'border-accent-400/40 bg-surface-800 text-surface-50'
 						: 'border-surface-700 bg-surface-900 text-surface-200 hover:bg-surface-800'}"
 				>
 					{#if classIconUrl(c.loadout?.classId)}<img src={classIconUrl(c.loadout?.classId)} alt="" class="size-6" />{/if}
