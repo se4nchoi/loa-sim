@@ -48,6 +48,10 @@ export interface Loadout {
 	type: string;
 	classId: string;
 	itemLevel: number;
+	/** Which activity bible snapshotted it from, e.g. "most_recent_raid" or "most_recent_chaos_dungeon". */
+	classification?: string;
+	/** Epoch ms of the snapshot. */
+	lastUpdated?: number;
 	combatPower?: { id: number; score: number } | null;
 	battlePoint: BattlePoint;
 	items?: LoadoutItem[];

@@ -74,6 +74,15 @@ describe('pickLoadout', () => {
 		expect(pickLoadout([lo(true, 3300), lo(false, null)])!.battlePoint.isSupport).toBe(true);
 	});
 
+	it('prefers the raid snapshot over a chaos dungeon one, then the newest', () => {
+		const chaos = { ...lo(false, 3472), classification: 'most_recent_chaos_dungeon', lastUpdated: 2 };
+		const raid = { ...lo(false, 5784), classification: 'most_recent_raid', lastUpdated: 1 };
+		expect(pickLoadout([chaos, raid])!.combatPower!.score).toBe(5784);
+		const older = { ...lo(false, 1000), lastUpdated: 1 };
+		const newer = { ...lo(false, 2000), lastUpdated: 2 };
+		expect(pickLoadout([older, newer])!.combatPower!.score).toBe(2000);
+	});
+
 	it('falls back to the first ark passive loadout', () => {
 		expect(pickLoadout([lo(true, null), lo(false, null)])!.battlePoint.isSupport).toBe(true);
 		expect(pickLoadout([])).toBeNull();

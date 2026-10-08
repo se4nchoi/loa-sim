@@ -96,10 +96,17 @@ export function decodeCharacterData(body: unknown, name: string, region: string)
 /**
  * The ark passive loadout to simulate. Support classes come with two (scored as support and as dealer); only the
  * one matching the character's build has the in-game score, so a DPS-build Bard is simulated as a dealer.
+ * Bible also keeps separate raid and chaos dungeon snapshots, both scored; the raid build wins, then the newest.
  */
 export function pickLoadout(loadouts: Loadout[]): Loadout | null {
 	const ap = loadouts.filter((l) => l.type === 'ark_passive' && l.battlePoint);
-	return ap.find((l) => l.combatPower?.score) ?? ap[0] ?? null;
+	const scored = ap.filter((l) => l.combatPower?.score);
+	return (
+		scored.find((l) => l.classification === 'most_recent_raid') ??
+		scored.sort((a, b) => (b.lastUpdated ?? 0) - (a.lastUpdated ?? 0))[0] ??
+		ap[0] ??
+		null
+	);
 }
 
 function distributionOf(raw: Record<string, Record<string, CpDigest>> | undefined): CpDistribution | null {
