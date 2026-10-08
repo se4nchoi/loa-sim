@@ -142,6 +142,22 @@
 			.sort((a, b) => Number(b.scoring) - Number(a.scoring))
 	);
 
+	// What one more core point / option level is worth from the current state. A probe astrogem carries only
+	// the points or levels, so the preview isolates them.
+	const probe = (core: SimState['arkGrid'][number], corePoints: number, opts: { id: number; level: number }[] = []) =>
+		core.gems.push({ itemId: core.gems[0]?.itemId ?? 0, corePoints, costReduc: 0, opts });
+	const GRADE_CAP: Record<CoreGrade, number> = { heroic: 10, legendary: 14, relic: 20, ancient: 20 };
+	function pointValue(ci: number, points: number, grade: CoreGrade) {
+		const next = CORE_BREAKPOINTS.find((bp) => bp > points && bp <= GRADE_CAP[grade]);
+		return {
+			one: points < 20 ? preview((s) => probe(s.arkGrid[ci], 1)) : null,
+			next: next ? { at: next, pct: preview((s) => probe(s.arkGrid[ci], next - points)) } : null
+		};
+	}
+	/** +1 level of an option, averaged over the next 5 (values round down per level, like Next Upgrades). */
+	const levelValue = (id: number) => (rows.length ? preview((s) => probe(s.arkGrid[rows[0].ci], 0, [{ id, level: 5 }])) / 5 : 0);
+	const small = (pct: number) => formatPct(pct, Math.abs(pct) < 0.1 && pct !== 0 ? 3 : 2);
+
 	// Optimizer
 	let suggestion = $state<{ arrangement: Arrangement; gainPct: number; moved: number } | null>(null);
 	function optimize() {
@@ -204,6 +220,11 @@
 					<b class="tabular-nums {t.now !== t.before ? 'text-accent-300' : t.scoring ? 'text-surface-50' : ''}">
 						Lv. {#if t.now !== t.before}{`${t.before} → `}{/if}{t.now}
 					</b>
+					{#if t.scoring}
+						<span class="ml-1 text-green-400 tabular-nums" title="Combat Power from one more level (average of the next 5)">
+							+1 ≈ {small(levelValue(t.id))}%
+						</span>
+					{/if}
 				</span>
 			{/each}
 		</div>
@@ -219,6 +240,7 @@
 							{@const points = simCorePoints(loadout, sim, base, core.id)}
 							{@const used = sim.arkGrid[ci].gems.reduce((s, g) => s + astrogemWillpower(g), 0)}
 							{@const cap = CORE_WILLPOWER[info.grade]}
+							{@const pv = pointValue(ci, points, info.grade)}
 							<div class="@container flex flex-col gap-1.5 rounded-xs bg-black/15 p-2.5">
 								<div class="flex flex-row items-center gap-2 pb-1">
 									<ItemIcon src={look.icon} grade={look.grade} size="size-9" />
@@ -238,6 +260,16 @@
 										<span class="flex flex-row flex-wrap items-center gap-x-1.5 text-xs text-surface-400">
 											<b class={points !== core.points ? 'text-accent-300' : 'text-surface-100'}>{points}P</b>
 											{#if reached(points)}<span>· {reached(points)}P effect</span>{/if}
+											{#if pv.one !== null}
+												<span class="tabular-nums" title="Combat Power from one more core point">
+													· +1P <span class={pv.one > 0.0005 ? 'text-green-400' : ''}>{small(pv.one)}%</span>
+												</span>
+											{/if}
+											{#if pv.next && pv.next.at !== points + 1}
+												<span class="tabular-nums" title={`Combat Power at the next breakpoint (${pv.next.at}P)`}>
+													· {pv.next.at}P <span class="text-green-400">{small(pv.next.pct)}%</span>
+												</span>
+											{/if}
 											<span
 												class="rounded-xs px-1.5 tabular-nums {used > cap ? 'bg-red-500/20 text-red-300' : 'bg-surface-800 text-surface-300'}"
 												title="Willpower used / available"
@@ -295,6 +327,16 @@
 														{/snippet}
 													</MenuPicker>
 												{/each}
+												{#if before && JSON.stringify(gem) !== JSON.stringify(before)}
+													<button
+														type="button"
+														class="{btn} px-2"
+														aria-label={`Reset ${kind?.name ?? 'astrogem'} ${gi + 1}`}
+														onclick={() => (sim.arkGrid[ci].gems[gi] = structuredClone($state.snapshot(before)))}
+													>
+														Reset
+													</button>
+												{/if}
 											</div>
 										</div>
 									</div>

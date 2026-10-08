@@ -150,8 +150,11 @@
 					<span class="flex-1 whitespace-nowrap">{o.label}</span>
 					{#if previews.has(o.value) && o.value !== value}
 						{@const p = previews.get(o.value)!}
-						<span class="text-xs font-semibold tabular-nums {p > 0.005 ? 'text-green-400' : p < -0.005 ? 'text-red-400' : 'text-surface-500'}">{formatPct(p)}%</span>
-						{#if raw(p)}<span class="w-12 text-right text-xs text-surface-400 tabular-nums">{raw(p)}</span>{/if}
+						<!-- Multi-column pickers (core points) stack % over raw CP so cells stay narrow. -->
+						<span class="flex {columns > 1 ? 'flex-col items-end leading-tight' : 'flex-row items-baseline gap-2'}">
+							<span class="text-xs font-semibold tabular-nums {p > 0.005 ? 'text-green-400' : p < -0.005 ? 'text-red-400' : 'text-surface-500'}">{formatPct(p)}%</span>
+							{#if raw(p)}<span class="text-right text-xs text-surface-400 tabular-nums {columns > 1 ? 'text-[10px]' : 'w-12'}">{raw(p)}</span>{/if}
+						</span>
 					{/if}
 				</button>
 			{/each}
