@@ -1,22 +1,17 @@
 import { PartType, partHigh, partRatio, ratioToPct } from './cp';
+import { ENGRAVING_ICONS } from './game-data';
+import { engravingPartTypes, roleOf, type RoleTables } from './roles';
+import { supportCombatPower, supportCoreValue } from './support';
 import {
-	ACCESSORY_LINES,
-	ASTROGEM_COEFF,
 	ASTROGEM_OPTION_NAMES,
 	CORE_BREAKPOINTS,
 	ENGRAVING_BOOK_STEPS,
 	ENGRAVING_NAMES,
-	GEM_T3,
-	GEM_T4,
 	KARMA_EVOLUTION_MAX_RANK,
-	KARMA_EVOLUTION_PER_RANK,
 	KARMA_LEAP_MAX_LEVEL,
-	KARMA_LEAP_PER_LEVEL,
 	TIERS,
-	astrogemOptionValue,
 	coreValue,
 	decodeCore,
-	engravingTable,
 	type AccessoryLine,
 	type CoreInfo,
 	type Tier
@@ -71,6 +66,16 @@ const num = (p: BattlePointPart, k: string) => (typeof p[k] === 'number' ? (p[k]
 const partsOf = (l: Loadout, type: number) => l.battlePoint.parts.filter((p) => p.type === type);
 const gain = (from: number, to: number) => ratioToPct(partRatio(from, to));
 
+/**
+ * CP % from one part moving `from` -> `to`. A dealer's score is a product, so that's the part's own ratio. A
+ * support's score is Buff Power + Shield & Heal Power, so only the part's side moves.
+ */
+export function gainIn(l: Loadout): (from: number, to: number, defense?: boolean) => number {
+	if (!l.battlePoint.isSupport) return gain;
+	const cp = supportCombatPower(l.battlePoint.parts);
+	return (from, to, defense = false) => (((defense ? cp.shieldHeal : cp.buff) * (partRatio(from, to) - 1)) / cp.total) * 100;
+}
+
 export function weaponPowerOf(l: Loadout): number {
 	const base = l.battlePoint.parts.find((p) => p.type === PartType.BaseAttack);
 	return (base && num(base, 'weaponPower')) ?? 0;
@@ -79,15 +84,17 @@ export function weaponPowerOf(l: Loadout): number {
 // --------------------------------------------------------------------------------------------- gems
 
 function gemUpgrades(l: Loadout): Upgrade[] {
+	const { gemT4, gemT3 } = roleOf(l);
+	const g = gainIn(l);
 	const groups = new Map<string, Upgrade>();
 	for (const p of partsOf(l, PartType.Gem)) {
 		const id = num(p, 'id');
 		if (!id) continue;
 		const level = Math.floor(id / 10) % 100;
 		const value = partHigh(p);
-		const table = GEM_T4[level - 1] === value ? GEM_T4 : GEM_T3[level - 1] === value ? GEM_T3 : null;
+		const table = gemT4[level - 1] === value ? gemT4 : gemT3[level - 1] === value ? gemT3 : null;
 		if (!table || level >= 10) continue;
-		const tier = table === GEM_T4 ? 'T4' : 'T3';
+		const tier = table === gemT4 ? 'T4' : 'T3';
 		const key = `gem:${tier}:${level}`;
 		const existing = groups.get(key);
 		if (existing) {
@@ -100,7 +107,7 @@ function gemUpgrades(l: Loadout): Upgrade[] {
 			category: 'gem',
 			title: `${tier} gem Lv. ${level} → ${level + 1}`,
 			detail: `1 gem at Lv. ${level}.`,
-			gainPct: gain(value, table[level]),
+			gainPct: g(value, table[level]),
 			count: 1,
 			approximate: false
 		});
@@ -121,6 +128,10 @@ export interface CoreState {
 	/** Our table's value at the current points, used to anchor deltas. */
 	modelValue: number;
 	gems: ArkGridGem[];
+	/** Scored with the support table (by exact core id). */
+	support: boolean;
+	/** Support cores that score Shield & Heal Power (part 30). */
+	defense: boolean;
 }
 
 const SHAPE_LABEL = { sun: 'Sun', moon: 'Moon', star: 'Star' };
@@ -132,26 +143,36 @@ export const coreLabel = (info: CoreInfo) =>
 
 export function coreStates(l: Loadout): CoreState[] {
 	const wp = weaponPowerOf(l);
-	const parts = partsOf(l, PartType.ArkGridCore);
-	return (l.arkGridCores ?? []).flatMap((core, index) => {
+	const support = l.battlePoint.isSupport;
+	const parts = [...partsOf(l, PartType.ArkGridCore), ...partsOf(l, PartType.ArkGridCoreDefense)];
+	return (l.arkGridCores ?? []).flatMap((core, index): CoreState[] => {
 		let info = decodeCore(core.id);
 		if (!info) return [];
 		const part = parts.find((p) => num(p, 'id') === core.id);
 		const points = (part && num(part, 'points')) ?? core.gems.reduce((s, g) => s + g.corePoints, 0);
 		const value = part ? partHigh(part) : 0;
+		if (support) {
+			const model = supportCoreValue(core.id, points);
+			return [
+				{ index, id: core.id, info, label: coreLabel(info), points, value, modelValue: model.value, gems: core.gems, support, defense: model.defense }
+			];
+		}
 		// Chaos sun/moon option tier isn't recoverable from the id alone for every variant;
 		// prefer whichever tier reproduces bible's value.
 		if (info.attr === 'chaos' && info.shape !== 'star' && coreValue(info, points, wp) !== value) {
 			const other = { ...info, tier: info.tier === 0 ? 1 : 0 };
 			if (coreValue(other, points, wp) === value) info = other;
 		}
-		return [{ index, id: core.id, info, label: coreLabel(info), points, value, modelValue: coreValue(info, points, wp), gems: core.gems }];
+		return [
+			{ index, id: core.id, info, label: coreLabel(info), points, value, modelValue: coreValue(info, points, wp), gems: core.gems, support, defense: false }
+		];
 	});
 }
 
 /** bible's value at the new point total, anchored on bible's current value. */
 export function coreValueAt(state: CoreState, points: number, weaponPower: number) {
-	return state.value + coreValue(state.info, points, weaponPower) - state.modelValue;
+	const model = state.support ? supportCoreValue(state.id, points).value : coreValue(state.info, points, weaponPower);
+	return state.value + model - state.modelValue;
 }
 
 /** Value as another core type (grade / chaos option tier) at `points`; still anchored on bible while it's the same type. */
@@ -163,8 +184,9 @@ export function coreValueAs(state: CoreState, info: CoreInfo, points: number, we
 
 function coreUpgrades(l: Loadout): Upgrade[] {
 	const wp = weaponPowerOf(l);
+	const g = gainIn(l);
 	return coreStates(l).flatMap((c) => {
-		if (c.info.supportOnly) return [];
+		if (!c.support && c.info.supportOnly) return [];
 		const cap = c.info.grade === 'heroic' ? 10 : c.info.grade === 'legendary' ? 14 : 20;
 		const next = CORE_BREAKPOINTS.find((bp) => bp > c.points && bp <= cap);
 		if (!next) return [];
@@ -175,9 +197,9 @@ function coreUpgrades(l: Loadout): Upgrade[] {
 				category: 'core' as const,
 				title: `${c.label} core → ${next}P`,
 				detail: `Needs ${next - c.points} more core point${next - c.points > 1 ? 's' : ''} from its astrogems.`,
-				gainPct: gain(c.value, to),
+				gainPct: g(c.value, to, c.defense),
 				count: 1,
-				approximate: c.info.weaponCore || c.modelValue !== c.value
+				approximate: (!c.support && c.info.weaponCore) || c.modelValue !== c.value
 			}
 		];
 	});
@@ -188,32 +210,36 @@ export interface AstrogemTotals {
 	levels: Record<number, number>;
 	/** option id → bible's current battle points */
 	values: Record<number, number>;
+	role: RoleTables;
+	/** CP % for a part change (see gainIn). */
+	gain: (from: number, to: number) => number;
 }
 
 export function astrogemTotals(l: Loadout): AstrogemTotals {
 	const levels: Record<number, number> = {};
 	const values: Record<number, number> = {};
-	for (const id of Object.keys(ASTROGEM_COEFF).map(Number)) {
+	const role = roleOf(l);
+	for (const id of role.astrogemOptions) {
 		const p = partsOf(l, PartType.ArkGridGem).find((x) => num(x, 'id') === id);
 		levels[id] = (p && num(p, 'totalLevel')) ?? 0;
 		values[id] = p ? partHigh(p) : 0;
 	}
-	return { levels, values };
+	return { levels, values, role, gain: gainIn(l) };
 }
 
 /** CP % from adding `delta` levels to an astrogem option, anchored on bible's value. */
 export function astrogemOptionGain(t: AstrogemTotals, optionId: number, delta: number) {
-	if (!(optionId in ASTROGEM_COEFF)) return 0;
+	if (!t.role.astrogemOptions.includes(optionId)) return 0;
 	const level = t.levels[optionId];
-	const to = t.values[optionId] + astrogemOptionValue(optionId, level + delta) - astrogemOptionValue(optionId, level);
-	return gain(t.values[optionId], to);
+	const value = t.role.astrogemValue;
+	const to = t.values[optionId] + value(optionId, level + delta) - value(optionId, level);
+	return t.gain(t.values[optionId], to);
 }
 
 function astrogemUpgrades(l: Loadout): Upgrade[] {
 	if (!l.arkGridCores?.some((c) => c.gems.length)) return [];
 	const t = astrogemTotals(l);
-	return Object.keys(ASTROGEM_COEFF).map((k) => {
-		const id = Number(k);
+	return t.role.astrogemOptions.map((id) => {
 		// Values are floored per total level, so a single level can round to 0. Average over 5.
 		const per = astrogemOptionGain(t, id, 5) / 5;
 		return {
@@ -260,7 +286,7 @@ export function evaluateAstrogemSwap(
 
 	const t = astrogemTotals(l);
 	let optionRatio = 1;
-	for (const id of Object.keys(ASTROGEM_COEFF).map(Number)) {
+	for (const id of t.role.astrogemOptions) {
 		const delta =
 			candidate.opts.filter((o) => o.id === id).reduce((s, o) => s + o.level, 0) -
 			(old?.opts ?? []).filter((o) => o.id === id).reduce((s, o) => s + o.level, 0);
@@ -285,22 +311,30 @@ interface EngravingState {
 	/** Column in the table = relic books read (0/5/10/15/20). */
 	col: number;
 	value: number;
+	/** Support engravings that score Shield & Heal Power (part 11). */
+	defense: boolean;
 }
 
+export const engravingName = (id: number) => ENGRAVING_NAMES[id] ?? ENGRAVING_ICONS[id]?.[1] ?? `Engraving ${id}`;
+
 export function engravingStates(l: Loadout): EngravingState[] {
-	return partsOf(l, PartType.Engraving).flatMap((p) => {
-		const id = num(p, 'id');
-		const table = id ? engravingTable(id) : undefined;
-		if (!id || !table) return [];
-		const stone = num(p, 'stonePoints') ?? 0;
-		const value = partHigh(p);
-		const col = table[stone]?.findIndex((v) => Math.abs(v - value) <= 2) ?? -1;
-		if (col < 0) return [];
-		return [{ id, name: ENGRAVING_NAMES[id] ?? `Engraving ${id}`, table, stone, col, value }];
-	});
+	const role = roleOf(l);
+	return engravingPartTypes(role)
+		.flatMap((type) => partsOf(l, type))
+		.flatMap((p) => {
+			const id = num(p, 'id');
+			const t = id ? role.engraving(id) : undefined;
+			if (!id || !t) return [];
+			const stone = num(p, 'stonePoints') ?? 0;
+			const value = partHigh(p);
+			const col = t.table[stone]?.findIndex((v) => Math.abs(v - value) <= 2) ?? -1;
+			if (col < 0) return [];
+			return [{ id, name: engravingName(id), table: t.table, stone, col, value, defense: t.defense }];
+		});
 }
 
 function engravingUpgrades(l: Loadout): Upgrade[] {
+	const g = gainIn(l);
 	return engravingStates(l).flatMap((e) =>
 		e.col < ENGRAVING_BOOK_STEPS.length - 1
 			? [
@@ -309,7 +343,7 @@ function engravingUpgrades(l: Loadout): Upgrade[] {
 						category: 'engraving' as const,
 						title: `${e.name} relic books ${ENGRAVING_BOOK_STEPS[e.col]} → ${ENGRAVING_BOOK_STEPS[e.col + 1]}`,
 						detail: 'Read 5 more relic engraving books.',
-						gainPct: gain(e.value, e.table[e.stone][e.col + 1]),
+						gainPct: g(e.value, e.table[e.stone][e.col + 1], e.defense),
 						count: 1,
 						approximate: false
 					}
@@ -339,6 +373,8 @@ const tierOf = (line: AccessoryLine, v: number): Tier | null => TIERS.find((t) =
 
 function accessoryUpgrades(l: Loadout): Upgrade[] {
 	const out: Upgrade[] = [];
+	const role = roleOf(l);
+	const g = gainIn(l);
 	const weaponPctTotal =
 		(l.items ?? [])
 			.flatMap((i) => (SLOT_FAMILY[i.slot] ? (i.data.stats ?? []) : []))
@@ -348,9 +384,9 @@ function accessoryUpgrades(l: Loadout): Upgrade[] {
 		const family = SLOT_FAMILY[item.slot];
 		if (!family) continue;
 		const lines = (item.data.stats ?? []).filter((s) => !s.base);
-		for (const line of ACCESSORY_LINES.filter((x) => x.primary && x.slots.includes(family))) {
+		for (const line of role.accessoryLines.filter((x) => x.primary && x.slots.includes(family))) {
 			let current = lines.find((s) => line.match(s))?.value ?? 0;
-			if (line.key === 'outgoing_dmg') {
+			if (line.combatEffect) {
 				// Combat-effect lines carry no value in item stats; bible's battle point equals the % × 100.
 				const part = partsOf(l, PartType.AccessoryCombatEffect).find((p) => p.slot === item.slot);
 				current = part ? partHigh(part) : 0;
@@ -360,11 +396,12 @@ function accessoryUpgrades(l: Loadout): Upgrade[] {
 			const from = current === 0 ? 'none' : (tier ?? `${current / 100}%`);
 			let gainPct: number;
 			if (line.toBattlePoints) {
-				gainPct = gain(line.toBattlePoints(current), line.toBattlePoints(line.values.high));
+				gainPct = g(line.toBattlePoints(current), line.toBattlePoints(line.values.high), line.defense);
 			} else {
 				// Weapon Power % scales base attack by √(weapon power).
 				const p = weaponPctTotal;
-				gainPct = (Math.sqrt((100 + p - current / 100 + line.values.high / 100) / (100 + p)) - 1) * 100;
+				const ratio = Math.sqrt((100 + p - current / 100 + line.values.high / 100) / (100 + p));
+				gainPct = g(0, (ratio - 1) * 1e4);
 			}
 			out.push({
 				key: `accessory:${item.slot}:${line.key}`,
@@ -390,29 +427,31 @@ function accessoryUpgrades(l: Loadout): Upgrade[] {
 
 function karmaUpgrades(l: Loadout): Upgrade[] {
 	const out: Upgrade[] = [];
+	const role = roleOf(l);
+	const g = gainIn(l);
 	const evo = partsOf(l, PartType.KarmaEvolutionRank)[0];
 	const evoValue = evo ? partHigh(evo) : 0;
-	const rank = Math.round(evoValue / KARMA_EVOLUTION_PER_RANK);
+	const rank = Math.round(evoValue / role.evolutionKarmaPerRank);
 	if (evo && rank < KARMA_EVOLUTION_MAX_RANK)
 		out.push({
 			key: `karma:evolution:${rank + 1}`,
 			category: 'karma',
 			title: `Evolution karma rank ${rank} → ${rank + 1}`,
 			detail: 'From Evolution karma experience.',
-			gainPct: gain(evoValue, evoValue + KARMA_EVOLUTION_PER_RANK),
+			gainPct: g(evoValue, evoValue + role.evolutionKarmaPerRank),
 			count: 1,
 			approximate: false
 		});
 	const leap = partsOf(l, PartType.KarmaLeapLevel)[0];
 	const leapValue = leap ? partHigh(leap) : 0;
-	const level = Math.round(leapValue / KARMA_LEAP_PER_LEVEL);
-	if (leap && level < KARMA_LEAP_MAX_LEVEL)
+	const level = role.leapKarmaPerLevel ? Math.round(leapValue / role.leapKarmaPerLevel) : 0;
+	if (leap && role.leapKarmaPerLevel && level < KARMA_LEAP_MAX_LEVEL)
 		out.push({
 			key: `karma:leap:${level + 1}`,
 			category: 'karma',
 			title: `Leap karma level ${level} → ${level + 1}`,
 			detail: 'From Leap karma experience.',
-			gainPct: gain(leapValue, leapValue + KARMA_LEAP_PER_LEVEL),
+			gainPct: g(leapValue, leapValue + role.leapKarmaPerLevel),
 			count: 1,
 			approximate: false
 		});
@@ -421,9 +460,8 @@ function karmaUpgrades(l: Loadout): Upgrade[] {
 
 // ---------------------------------------------------------------------------------------------
 
-/** Every one-step upgrade available to this loadout, best first. Dealers only. */
+/** Every one-step upgrade available to this loadout, best first (by dealer or support Combat Power). */
 export function buildUpgrades(l: Loadout): Upgrade[] {
-	if (l.battlePoint.isSupport) return [];
 	return [
 		...gemUpgrades(l),
 		...coreUpgrades(l),

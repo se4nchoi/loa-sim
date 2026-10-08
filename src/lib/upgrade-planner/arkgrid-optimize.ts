@@ -7,10 +7,11 @@
 // loses its options, which the score accounts for.
 
 import { ASTROGEM_ITEMS, ASTROGEM_KINDS } from './game-data';
-import { initSimState, simCoreInfo, type SimAstrogem, type SimState } from './simulate';
-import { ASTROGEM_COEFF, CORE_WILLPOWER, astrogemOptionValue } from './tables';
+import { roleOf } from './roles';
+import { initSimState, simCoreInfo, simCoreValue, type SimAstrogem, type SimState } from './simulate';
+import { CORE_WILLPOWER } from './tables';
 import type { Loadout } from './types';
-import { astrogemTotals, coreStates, coreValueAs, weaponPowerOf } from './upgrades';
+import { astrogemTotals, coreStates, weaponPowerOf } from './upgrades';
 
 const MAX_GEMS_PER_CORE = 4;
 
@@ -31,6 +32,7 @@ export function optimizeArkGrid(l: Loadout, state: SimState, base: SimState = in
 	const wp = weaponPowerOf(l);
 	const cores = coreStates(l);
 	const totals = astrogemTotals(l);
+	const role = roleOf(l);
 	const result: Arrangement = { cores: {}, leftOut: [] };
 
 	for (const attr of ['order', 'chaos'] as const) {
@@ -43,8 +45,9 @@ export function optimizeArkGrid(l: Loadout, state: SimState, base: SimState = in
 		const placed = side.map((c) => base.arkGrid.find((x) => x.id === c.id)?.gems.reduce((sum, g) => sum + g.corePoints, 0) ?? 0);
 		// Precomputed per core: CP factor for every point total the search can reach (0–20 placed points).
 		const info = side.map((c, ci) => simCoreInfo(c.info, sideState[ci]));
+		// (Supports: Buff and Shield & Heal cores both count as a factor here; close enough to rank placements.)
 		const coreFactor = side.map((c, ci) =>
-			Array.from({ length: 21 }, (_, points) => 1 + coreValueAs(c, info[ci], c.points - placed[ci] + points, wp) / 1e4)
+			Array.from({ length: 21 }, (_, points) => 1 + simCoreValue(c, sideState[ci], c.points - placed[ci] + points, wp).value / 1e4)
 		);
 		const cap = info.map((i) => CORE_WILLPOWER[i.grade]);
 		const wpOf = gems.map(astrogemWillpower);
@@ -52,15 +55,15 @@ export function optimizeArkGrid(l: Loadout, state: SimState, base: SimState = in
 		// Options lost by leaving gems out, as a CP factor (relative to everything equipped).
 		const levelIn = (s: SimState, id: number) =>
 			s.arkGrid.reduce((sum, c) => sum + c.gems.reduce((a, g) => a + g.opts.filter((o) => o.id === id).reduce((x, o) => x + o.level, 0), 0), 0);
-		const levelNow = Object.fromEntries(Object.keys(ASTROGEM_COEFF).map((id) => [id, levelIn(state, Number(id))]));
-		const levelBase = Object.fromEntries(Object.keys(ASTROGEM_COEFF).map((id) => [id, levelIn(base, Number(id))]));
+		const levelNow = Object.fromEntries(role.astrogemOptions.map((id) => [id, levelIn(state, id)]));
+		const levelBase = Object.fromEntries(role.astrogemOptions.map((id) => [id, levelIn(base, id)]));
 		const optionFactor = (out: number[]) => {
 			let f = 1;
-			for (const id of Object.keys(ASTROGEM_COEFF).map(Number)) {
+			for (const id of role.astrogemOptions) {
 				const removed = out.reduce((s, gi) => s + gems[gi].opts.filter((o) => o.id === id).reduce((a, o) => a + o.level, 0), 0);
 				if (!removed) continue;
 				const anchor = totals.levels[id] - levelBase[id];
-				const v = (lv: number) => totals.values[id] + astrogemOptionValue(id, anchor + lv) - astrogemOptionValue(id, totals.levels[id]);
+				const v = (lv: number) => totals.values[id] + role.astrogemValue(id, anchor + lv) - role.astrogemValue(id, totals.levels[id]);
 				f *= (1e4 + v(levelNow[id] - removed)) / (1e4 + v(levelNow[id]));
 			}
 			return f;

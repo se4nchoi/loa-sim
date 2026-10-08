@@ -119,9 +119,6 @@ describe('upgrades', () => {
 		expect(coreStates(sparse)).toEqual([]);
 	});
 
-	it('returns nothing for supports (not modelled yet)', () => {
-		expect(buildUpgrades({ ...loadout, battlePoint: { ...loadout.battlePoint, isSupport: true } })).toEqual([]);
-	});
 });
 
 describe('astrogem swap', () => {
