@@ -147,6 +147,72 @@ const bracelet = stats.battlePoint['1']
 		return { key: `${kind}:${id}`, value, family, grade, text, t4: kind === 3 || id >= 605100000 };
 	});
 
+// ------------------------------------------------------------------------------------------- ark grid cores
+
+// Core item id → option name ("Chaos Moon Core: Echoing Brand" → "Echoing Brand"), one entry per id shape/option
+// (grade digit dropped) so the simulator can name a core after a grade swap too.
+const coreNames = {};
+for (const [id, v] of Object.entries(items))
+	if (/^673\d{6}$/.test(id) && v.name) coreNames[id.slice(0, 8)] = v.name.replace(/^.*Core: /, '');
+
+// ------------------------------------------------------------------------------------------- support battle points
+
+// The game scores supports with its own battle point table (role 2): Buff Power from the "attack" parts and
+// Shield & Heal Power from the "defense" parts. Missing values are 0.
+const sbp = stats.battlePoint['2'];
+const ofType = (t) => sbp.filter((e) => e.type === t).map((e) => e.values);
+const one = (t) => ofType(t)[0]?.[0] ?? 0;
+const byLevel = (rows, key) => {
+	const out = {};
+	for (const [id, level, value = 0] of rows) (out[id] ??= [])[level - 1] = value;
+	return key ? out[key] : out;
+};
+// Engravings: code = stone × 20 + 9 + relic book step (5 steps); same [stone][books] layout as the dealer table.
+const engravingTables = (t) => {
+	const out = {};
+	for (const [id, code, value = 0] of ofType(t)) {
+		const stone = Math.floor(code / 20);
+		const col = (code % 20) - 9;
+		if (col < 0 || col > 4 || stone > 4) continue;
+		((out[id] ??= [])[stone] ??= [])[col] = value;
+	}
+	return out;
+};
+const supportBracelet = [...ofType(20).map((v) => [...v, 'attack']), ...ofType(21).map((v) => [...v, 'defense'])].map(
+	([kind, id, value, side]) => {
+		const family = kind === 3 ? `a${Math.floor(id / 10)}` : id >= 605100000 ? `c${Math.floor(id / 10)}` : `c${Math.floor((id - 1) / 4)}`;
+		const grade = kind === 3 ? (id % 10) - 1 : id >= 605100000 ? (id % 10) - 1 : (id - 1) % 4;
+		const text = clean(kind === 3 ? stats.engraving[id]?.desc?.[0] : stats.combatEffectDesc[id]);
+		return { key: `${kind}:${id}`, value, side, family, grade, text, t4: kind === 3 || id >= 605100000 };
+	}
+);
+const supportData = {
+	baseAttack: one(1),
+	baseHealth: one(2),
+	evolutionKarmaPerRank: one(8),
+	gems: { T4: byLevel(ofType(22), 4), T3: byLevel(ofType(22), 3) },
+	engravings: engravingTables(10),
+	engravingsDefense: engravingTables(11),
+	accessory: ofType(15),
+	accessoryDefense: ofType(16),
+	accessoryEffect: ofType(17),
+	braceletStat: ofType(19),
+	combatStat: Object.fromEntries(ofType(26)),
+	cores: byLevel(ofType(29)),
+	coresDefense: byLevel(ofType(30)),
+	astrogem: byLevel(ofType(31))
+};
+fs.writeFileSync(
+	'src/lib/upgrade-planner/support-data.ts',
+	`${header("Support (role 2) battle point table from the game data; see support.ts.")}
+/** Support battle points: Buff Power parts and Shield & Heal Power ("Defense") parts. */
+export const SUPPORT_BP = ${JSON.stringify(supportData)};
+
+/** Bracelet effects as the support table scores them ("attack" = Buff Power, "defense" = Shield & Heal Power). */
+export const SUPPORT_BRACELET_EFFECTS: { key: string; value: number; side: 'attack' | 'defense'; family: string; grade: number; text: string; t4: boolean }[] = ${JSON.stringify(supportBracelet)};
+`
+);
+
 fs.writeFileSync(
 	'src/lib/upgrade-planner/game-data.ts',
 	`${header('Icons are names on the official game CDN; see iconUrl().')}
@@ -170,6 +236,9 @@ export const GEM_SKILL_ALIAS: Record<number, number> = ${JSON.stringify(gemSkill
 
 /** Gem skill effect by level (index 0 = Lv. 1), in 1/100 %: damage % for damage gems, cooldown % for cooldown gems. */
 export const GEM_EFFECTS: Record<'T4' | 'T3', { damage: number[]; cooldown: number[] }> = ${JSON.stringify(gemEffects)};
+
+/** Core item id without its grade digit (first 8 digits) → option name, e.g. 67311300 → "Echoing Brand". */
+export const CORE_NAMES: Record<string, string> = ${JSON.stringify(coreNames)};
 
 /** lostark.bible engraving id → [icon, name]. */
 export const ENGRAVING_ICONS: Record<number, [icon: string, name: string]> = ${JSON.stringify(engravingIcons)};
