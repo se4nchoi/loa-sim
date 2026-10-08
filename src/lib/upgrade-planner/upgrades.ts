@@ -172,12 +172,15 @@ export function coreStates(l: Loadout): CoreState[] {
 
 /** bible's value at the new point total, anchored on bible's current value. */
 export function coreValueAt(state: CoreState, points: number, weaponPower: number) {
+	// Imported model corrections describe an active effect, never an inactive core.
+	if (points < CORE_BREAKPOINTS[0]) return 0;
 	const model = state.support ? supportCoreValue(state.id, points).value : coreValue(state.info, points, weaponPower);
 	return state.value + model - state.modelValue;
 }
 
 /** Value as another core type (grade / chaos option tier) at `points`; still anchored on bible while it's the same type. */
 export function coreValueAs(state: CoreState, info: CoreInfo, points: number, weaponPower: number) {
+	if (points < CORE_BREAKPOINTS[0]) return 0;
 	// Weapon-core values depend on stats we can only approximate. Keep the imported correction
 	// across grade changes of the same option, just as we do across point changes.
 	if (state.info.weaponCore && info.weaponCore)

@@ -8,7 +8,7 @@
 import { PartType, partHigh } from './cp';
 import { CORE_NAMES } from './game-data';
 import { SUPPORT_BP, SUPPORT_BRACELET_EFFECTS } from './support-data';
-import { CORE_BREAKPOINTS, type AccessoryLine } from './tables';
+import { CORE_BREAKPOINTS, CORE_GRADE_CAP, decodeCore, type AccessoryLine } from './tables';
 import type { BattlePointPart, Loadout } from './types';
 
 export const isSupport = (l: Loadout) => l.battlePoint.isSupport;
@@ -88,9 +88,11 @@ const CORES_DEF = SUPPORT_BP.coresDefense as Record<string, (number | null)[]>;
 export function supportCoreValue(id: number, points: number): { value: number; defense: boolean } {
 	const defense = !CORES[id] && !!CORES_DEF[id];
 	const curve = (defense ? CORES_DEF : CORES)[id] ?? [];
+	const info = decodeCore(id);
+	const capped = Math.min(points, info ? CORE_GRADE_CAP[info.grade] : 20);
 	let idx = -1;
 	CORE_BREAKPOINTS.forEach((bp, i) => {
-		if (points >= bp) idx = i;
+		if (capped >= bp) idx = i;
 	});
 	return { value: idx < 0 ? 0 : (curve[idx] ?? 0), defense };
 }

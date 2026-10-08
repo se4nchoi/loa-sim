@@ -12,6 +12,7 @@ import { roleOf } from './roles';
 import { SUPPORT_ACCESSORY_LINES, supportCoreValue, swappedCoreId, type SupportAccessoryLine } from './support';
 import {
 	ACCESSORY_LINES,
+	CORE_BREAKPOINTS,
 	KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL,
 	KARMA_LEAP_PER_LEVEL,
 	karmaRank,
@@ -371,6 +372,7 @@ export function simCoreValue(c: CoreState, core: SimCore | undefined, points: nu
 	if (!c.support) return { value: coreValueAs(c, simCoreInfo(c.info, core), points, weaponPower), defense: false };
 	const id = core?.grade !== undefined || core?.variant !== undefined ? swappedCoreId(c.id, core.grade ?? c.info.grade, core.variant) : c.id;
 	const model = supportCoreValue(id, points);
+	if (points < CORE_BREAKPOINTS[0]) return model;
 	return id === c.id ? { value: c.value + model.value - c.modelValue, defense: c.defense } : model;
 }
 
