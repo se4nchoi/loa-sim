@@ -35,8 +35,8 @@
 	<footer class="border-t border-neutral-800 bg-neutral-950">
 		<div class="mx-auto flex max-w-[1680px] flex-col gap-1 px-4 py-5 text-xs text-surface-400 sm:flex-row sm:items-center sm:justify-between">
 			<span>
-				Made with <span class="text-red-400">♥</span> by <b class="text-surface-200">Shan@Inanna</b> ·
-				<a class="underline hover:text-surface-100" href="https://github.com/se4nchoi" target="_blank" rel="noopener">github.com/se4nchoi</a>
+				Made with <span class="text-red-400">♥</span> by <b class="text-surface-200">Soulshan@Inanna</b> · Discord
+				<span class="text-surface-200 select-all">sean.choi</span>
 			</span>
 			<span>Not affiliated with Smilegate, Amazon Games or lostark.bible. Game data and icons © Smilegate RPG.</span>
 		</div>
