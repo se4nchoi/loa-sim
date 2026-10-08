@@ -170,26 +170,31 @@
 	{#if rows.length === 0}
 		<p class="text-sm text-surface-400">No ark grid cores equipped.</p>
 	{:else}
-		<div class="mb-3 flex flex-row flex-wrap gap-1.5" aria-label="Astrogem option totals">
+		<!-- Two lines: each option's total level, with what one more level is worth under it. -->
+		<div class="@container mb-3">
+		<div class="grid grid-cols-2 gap-1.5 @md:grid-cols-3 @3xl:grid-cols-6" aria-label="Astrogem option totals">
 			{#each totals as t (t.id)}
-				<span
-					class="rounded-xs border px-2 py-1 text-xs {t.scoring ? 'border-surface-600 bg-surface-800 text-surface-100' : 'border-surface-800 text-surface-500'}"
-					title={t.scoring ? `${ASTROGEM_OPTION_NAMES[t.id]}: total across all astrogems` : `${ASTROGEM_OPTION_NAMES[t.id]}: doesn't count for ${support ? 'support' : 'DPS'} Combat Power`}
-				>
-					{ASTROGEM_OPTION_SHORT[t.id]}
-					<b class="tabular-nums {t.now !== t.before ? 'text-accent-300' : t.scoring ? 'text-surface-50' : ''}">
-						Lv. {#if t.now !== t.before}{`${t.before} → `}{/if}{t.now}
-					</b>
-				</span>
-				{#if t.scoring}
+				<div class="flex min-w-0 flex-col gap-1">
 					<span
-						class="-ml-1 rounded-xs border border-green-900 bg-green-950/40 px-2 py-1 text-xs text-green-400 tabular-nums"
-						title={`${ASTROGEM_OPTION_NAMES[t.id]}: Combat Power from one more level (average of the next 5)`}
+						class="truncate rounded-xs border px-2 py-1 text-xs {t.scoring ? 'border-surface-600 bg-surface-800 text-surface-100' : 'border-surface-800 text-surface-500'}"
+						title={t.scoring ? `${ASTROGEM_OPTION_NAMES[t.id]}: total across all astrogems` : `${ASTROGEM_OPTION_NAMES[t.id]}: doesn't count for ${support ? 'support' : 'DPS'} Combat Power`}
 					>
-						+1 Lv ≈ {small(levelValue(t.id))}%
+						{ASTROGEM_OPTION_SHORT[t.id]}
+						<b class="tabular-nums {t.now !== t.before ? 'text-accent-300' : t.scoring ? 'text-surface-50' : ''}">
+							Lv. {#if t.now !== t.before}{`${t.before} → `}{/if}{t.now}
+						</b>
 					</span>
-				{/if}
+					{#if t.scoring}
+						<span
+							class="truncate rounded-xs border border-green-900 bg-green-950/40 px-2 py-1 text-xs text-green-400 tabular-nums"
+							title={`${ASTROGEM_OPTION_NAMES[t.id]}: Combat Power from one more level (average of the next 5)`}
+						>
+							+1 Lv ≈ {small(levelValue(t.id))}%
+						</span>
+					{/if}
+				</div>
 			{/each}
+		</div>
 		</div>
 		<!-- Two columns only when the card itself is wide enough (a container query), so rows never crunch. -->
 		<div class="@container">
