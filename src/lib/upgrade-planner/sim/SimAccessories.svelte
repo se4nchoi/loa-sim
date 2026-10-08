@@ -106,10 +106,15 @@
 		{#each slots as slot (slot)}
 			{@const look = itemLook(itemIds[slot])}
 			{@const range = ACCESSORY_MAIN_STAT_RANGE[familyOf(slot)]}
-			<div class="flex flex-row gap-2.5 rounded-xs bg-black/15 p-2">
-				<div class="flex w-14 shrink-0 flex-col items-center gap-1 pt-1">
+			<!-- Phones: the item and its buttons sit on a row above the lines, so the lines get the full width. -->
+			<div class="flex flex-row gap-2.5 rounded-xs bg-black/15 p-2 max-sm:flex-col max-sm:gap-1.5">
+				<div class="flex w-14 shrink-0 flex-col items-center gap-1 pt-1 max-sm:w-full max-sm:flex-row max-sm:gap-2 max-sm:pt-0">
 					<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="enlightenment" />
 					<span class="text-[11px] font-semibold text-surface-300">{LABELS[slot]}</span>
+					<div class="ml-auto flex flex-row gap-1.5 sm:hidden">
+						<button type="button" class={btn} onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goal}</button>
+						<button type="button" class={btn} onclick={() => resetSlot(slot)}>Reset</button>
+					</div>
 				</div>
 				<div class="flex min-w-0 flex-1 flex-col gap-1">
 					{#each sim.accessories[slot]! as ln, i (i)}
@@ -150,8 +155,8 @@
 								compact
 							/>
 						{/if}
-						<button type="button" class={btn} onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goal}</button>
-						<button type="button" class={btn} onclick={() => resetSlot(slot)}>Reset</button>
+						<button type="button" class="{btn} max-sm:hidden" onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goal}</button>
+						<button type="button" class="{btn} max-sm:hidden" onclick={() => resetSlot(slot)}>Reset</button>
 					</div>
 				</div>
 			</div>

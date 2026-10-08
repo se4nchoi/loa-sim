@@ -71,7 +71,7 @@
 <div class="relative max-w-full {full ? 'flex w-full' : 'inline-flex'}" bind:this={root}>
 	<button
 		type="button"
-		class="inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-xs {full ? 'w-full' : ''} border bg-surface-800/80 px-2 text-sm transition hover:border-accent-500 hover:bg-surface-700/80 {changed
+		class="inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-xs max-[360px]:gap-1 max-[360px]:px-1 {full ? 'w-full' : ''} border bg-surface-800/80 px-2 text-sm transition hover:border-accent-500 hover:bg-surface-700/80 {changed
 			? 'border-accent-500 bg-accent-500/15'
 			: 'border-surface-600'}"
 		aria-haspopup="listbox"

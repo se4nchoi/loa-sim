@@ -152,6 +152,6 @@
 			{/each}
 		</div>
 	{:else}
-		<p class="p-2 text-xs text-surface-400">Change anything on the left to see its effect on Combat Power.</p>
+		<p class="p-2 text-xs text-surface-400">Change anything to see its effect on Combat Power.</p>
 	{/if}
 </div>

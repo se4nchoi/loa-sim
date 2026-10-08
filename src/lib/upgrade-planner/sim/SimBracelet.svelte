@@ -175,19 +175,30 @@
 		{#snippet actions()}
 			<button type="button" class={btn} onclick={() => (sim.bracelet = structuredClone($state.snapshot(base.bracelet)))}>Reset</button>
 		{/snippet}
-		<div class="grid grid-cols-[max-content_1fr] gap-x-3 rounded-xs bg-black/15 p-2.5">
-			<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="leap" size="size-12" />
+		<!-- Phones: no icon, and the line type is a dropdown, so each line fits on one row. -->
+		<div class="grid grid-cols-[max-content_1fr] gap-x-3 rounded-xs bg-black/15 p-2.5 max-sm:grid-cols-1 max-sm:p-2">
+			<span class="max-sm:hidden"><ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="leap" size="size-12" /></span>
 			<div class="flex min-w-0 flex-col gap-1.5">
 				{#each sim.bracelet.lines as line, i (i)}
 					{@const before = base.bracelet?.lines[i]}
-					<div class="flex min-w-0 flex-row flex-wrap items-center gap-1.5">
-						<Segmented
+					<div class="flex min-w-0 flex-row flex-wrap items-center gap-1.5 max-sm:flex-nowrap">
+						<span class="max-sm:hidden">
+							<Segmented
+								value={kindOf(line)}
+								options={KINDS}
+								onselect={(k) => setKind(i, k)}
+								label={`Bracelet line ${i + 1} type`}
+								size="h-8 min-w-9 px-1.5 text-xs"
+							/>
+						</span>
+						<select
+							class="{selectClass(false)} w-[5.25rem] shrink-0 px-1.5 sm:hidden"
 							value={kindOf(line)}
-							options={KINDS}
-							onselect={(k) => setKind(i, k)}
-							label={`Bracelet line ${i + 1} type`}
-							size="h-8 min-w-9 px-1.5 text-xs"
-						/>
+							onchange={(e) => setKind(i, e.currentTarget.value as Kind)}
+							aria-label={`Bracelet line ${i + 1} type`}
+						>
+							{#each KINDS as k (k.value)}<option value={k.value}>{k.label}</option>{/each}
+						</select>
 						{#if kindOf(line) === 'effect'}
 							<LinePicker
 								value={effectValue(line)}
@@ -198,9 +209,9 @@
 								preview={(v) => preview((s) => (s.bracelet!.lines[i] = lineFromValue(v)))}
 							/>
 						{:else if line.kind === 'stat'}
-							<span class="flex flex-row">
+							<span class="flex flex-row max-sm:min-w-0 max-sm:flex-1">
 								<select
-									class="{selectClass(before?.kind !== 'stat' || statKey(before) !== statKey(line))} rounded-r-none"
+									class="{selectClass(before?.kind !== 'stat' || statKey(before) !== statKey(line))} rounded-r-none max-sm:min-w-0 max-sm:flex-1"
 									value={statKey(line)}
 									onchange={(e) => setStat(i, line, e.currentTarget.value)}
 									aria-label={`Bracelet line ${i + 1} stat`}

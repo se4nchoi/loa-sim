@@ -14,8 +14,8 @@
 		top = 'top-12'
 	}: { current: number; simulated: number; children: Snippet; top?: string } = $props();
 
-	// Expanded by default on phones; the bar shrinks to one line when hidden.
-	let open = $state(true);
+	// Collapsed by default so it doesn't cover the cards; the full summary opens on tap.
+	let open = $state(false);
 	const delta = $derived((simulated / current - 1) * 100);
 </script>
 
@@ -28,8 +28,9 @@
 		onclick={() => (open = !open)}
 	>
 		<span class="text-xs text-surface-400">CP</span>
-		<span class="text-sm text-surface-300 tabular-nums">{formatCp(current)}</span>
-		<span class="text-surface-500">→</span>
+		<!-- Very narrow phones drop the starting CP; the change still shows it. -->
+		<span class="text-sm text-surface-300 tabular-nums max-[400px]:hidden">{formatCp(current)}</span>
+		<span class="text-surface-500 max-[400px]:hidden">→</span>
 		<span class="text-base font-bold text-red-400 tabular-nums">{formatCp(simulated)}</span>
 		<Delta pct={delta} cp={simulated - current} class="text-xs font-semibold" />
 		<span class="ml-auto flex items-center gap-1 rounded-xs border border-surface-600 bg-surface-800 px-2 py-1 text-xs font-semibold text-surface-100">

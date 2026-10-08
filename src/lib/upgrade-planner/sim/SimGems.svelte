@@ -231,7 +231,7 @@
 
 		<!-- Narrow cards (container query) show skill icons only and drop gem icons. -->
 		<div class="@container">
-		<div class="grid items-center gap-x-2 gap-y-1 {showShares ? 'grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]' : 'grid-cols-[minmax(0,1fr)_auto_auto]'}">
+		<div class="grid items-center gap-x-2 gap-y-1 max-[360px]:gap-x-1 {showShares ? 'grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]' : 'grid-cols-[minmax(3rem,1fr)_auto_auto]'}">
 			<span class="text-xs text-surface-400">Skill</span>
 			<span class="px-1 text-xs text-surface-400">Damage</span>
 			<span class="px-1 text-xs text-surface-400">Cooldown</span>
