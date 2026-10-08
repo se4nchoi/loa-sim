@@ -26,4 +26,11 @@ describe('parseRosters', () => {
 		expect(parseRosters(null)).toEqual([]);
 		expect(parseRosters({})).toEqual([]);
 	});
+
+	it('reads the real response shape (2026-10-08: no combat power), and combat power if it ever appears', () => {
+		const real = parseRosters([{ region: 'NA', world: 'Inanna', characters: [{ name: 'Soulshan', class: 'soul_eater', ilvl: 1784.1666, lastUpdate: 1791460974 }] }]);
+		expect(real).toEqual([{ name: 'Soulshan', region: 'NA', classId: 'soul_eater', ilvl: 1784.1666, lastUpdate: 1791460974000, cp: undefined }]);
+		const withCp = parseRosters([{ region: 'NA', characters: [{ name: 'Bard', ilvl: 1780, combatPower: { id: 2, score: 4100.5 } }] }]);
+		expect(withCp[0].cp).toEqual({ score: 4100.5, support: true });
+	});
 });
