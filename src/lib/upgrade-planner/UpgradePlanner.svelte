@@ -40,6 +40,7 @@
 					</div>
 					<span class="text-right whitespace-nowrap text-green-400 tabular-nums">
 						{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span>
+						{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
 					</span>
 				</div>
 			{/each}

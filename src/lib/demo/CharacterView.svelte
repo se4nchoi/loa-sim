@@ -8,9 +8,21 @@
 		name,
 		region,
 		subtitle,
+		itemLevel,
 		loadout,
 		cpDistribution = null
-	}: { name: string; region: string; subtitle?: string; loadout: Loadout | null; cpDistribution?: CpDistribution | null } = $props();
+	}: {
+		name: string;
+		region: string;
+		/** Lines under the name (guild, snapshot time). */
+		subtitle?: string | string[];
+		itemLevel?: number | null;
+		loadout: Loadout | null;
+		cpDistribution?: CpDistribution | null;
+	} = $props();
+
+	const ilvl = $derived(itemLevel ?? loadout?.itemLevel ?? null);
+	const lines = $derived((Array.isArray(subtitle) ? subtitle : [subtitle]).filter((l): l is string => !!l));
 </script>
 
 <svelte:head><title>{name} ({region}) | loa-sim</title></svelte:head>
@@ -20,8 +32,11 @@
 		<span class="rounded-xs bg-surface-900 px-2 py-0.5">{region === 'NA' ? 'North America' : region}</span>
 		{#if loadout}<span class="rounded-xs bg-surface-900 px-2 py-0.5">{className(loadout.classId)}</span>{/if}
 	</div>
-	<h1 class="text-3xl font-bold">{name}</h1>
-	{#if subtitle}<span class="text-sm text-surface-300">{subtitle}</span>{/if}
+	<div class="flex flex-row flex-wrap items-baseline gap-x-3">
+		<h1 class="text-3xl font-bold">{name}</h1>
+		{#if ilvl}<span class="text-xl font-semibold text-surface-200 tabular-nums">Item Level {ilvl.toFixed(2)}</span>{/if}
+	</div>
+	{#each lines as line (line)}<span class="text-sm text-surface-300">{line}</span>{/each}
 	<a class="w-fit text-xs text-surface-300 underline" href={`https://lostark.bible/character/${region}/${encodeURIComponent(name)}`} target="_blank" rel="noopener">
 		View on lostark.bible
 	</a>

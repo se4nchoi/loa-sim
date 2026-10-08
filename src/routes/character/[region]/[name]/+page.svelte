@@ -2,9 +2,7 @@
 	import CharacterView from '$lib/demo/CharacterView.svelte';
 
 	let { data } = $props();
-	const subtitle = $derived(
-		[data.header?.ilvl && `Item Level ${data.header.ilvl.toFixed(2)}`, data.header?.guild?.name].filter(Boolean).join(' · ')
-	);
+	const subtitle = $derived(data.header?.guild?.name ?? '');
 </script>
 
-<CharacterView name={data.name} region={data.region} {subtitle} loadout={data.loadout} cpDistribution={data.cpDistribution} />
+<CharacterView name={data.name} region={data.region} {subtitle} itemLevel={data.header?.ilvl} loadout={data.loadout} cpDistribution={data.cpDistribution} />

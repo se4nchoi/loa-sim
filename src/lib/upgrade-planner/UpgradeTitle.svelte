@@ -17,6 +17,6 @@
 				<span style:color={color(u.roll.from)}>{label(u.roll.from)}</span>
 				<span class="text-surface-400">→</span>
 				<span style:color={color(u.roll.to)}>{label(u.roll.to)}</span>
-			</span>{/if}{#if u.count > 1}<span class="ml-1 text-xs text-surface-400">×{u.count}</span>{/if}
+			</span>{/if}{#if u.count > 1}<span class="ml-1 text-xs text-surface-400" title={`You have ${u.count} of these; the gain shown is for one`}>×{u.count}</span>{/if}
 	</span>
 </span>

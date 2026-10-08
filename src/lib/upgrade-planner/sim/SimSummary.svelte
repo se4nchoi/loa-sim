@@ -87,11 +87,11 @@
 					<option value={s.key}>{s.key.endsWith('-all') ? '' : 'Item Level '}{s.label} ({s.count.toLocaleString()} {className}s)</option>
 				{/each}
 			</select>
-			<div class="flex flex-row items-baseline gap-1.5 text-sm whitespace-nowrap tabular-nums">
-				<span class="text-surface-200">{formatTop(now)}</span>
+			<div class="flex flex-row items-baseline gap-1.5 text-lg whitespace-nowrap tabular-nums">
+				<span class="font-bold text-surface-100">{formatTop(now)}</span>
 				{#if formatTop(after) !== formatTop(now)}
-					<span class="text-surface-400">→</span>
-					<span class="font-semibold {after < now ? 'text-green-400' : 'text-red-400'}">{formatTop(after)}</span>
+					<span class="text-sm text-surface-400">→</span>
+					<span class="font-bold {after < now ? 'text-green-400' : 'text-red-400'}">{formatTop(after)}</span>
 				{/if}
 			</div>
 		</div>

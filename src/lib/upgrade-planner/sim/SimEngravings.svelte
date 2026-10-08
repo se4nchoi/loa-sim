@@ -51,13 +51,13 @@
 	{#if ids.length === 0}
 		<p class="text-sm text-surface-400">No supported engravings found.</p>
 	{:else}
-		<div class="flex flex-col divide-y divide-neutral-950">
+		<!-- Narrow cards (container query) show engraving icons only. -->
+		<div class="@container flex flex-col divide-y divide-neutral-950">
 			{#each ids as id (id)}
 				{@const e = sim.engravings[id]}
 				{@const b = base.engravings[id]}
-				<div class="flex flex-row flex-wrap items-center gap-x-2.5 gap-y-1.5 py-1.5 first:pt-0 last:pb-0">
-					<ItemIcon src={engravingIcon(shown(id))} grade={5} size="size-8" />
-					<div class="min-w-24 flex-1">
+				<div class="flex flex-row items-center gap-x-2 py-1.5 first:pt-0 last:pb-0">
+					<div class="min-w-0 flex-1">
 						<MenuPicker
 							value={shown(id)}
 							options={swapOptions(id)}
@@ -65,8 +65,12 @@
 							changed={shown(id) !== id}
 							onpick={(v) => (e.as = v === id ? undefined : v)}
 							preview={(v) => preview((s) => (s.engravings[id].as = v === id ? undefined : v))}
+							full
 						>
-							{#snippet trigger()}<span class="max-w-40 truncate text-sm font-semibold">{ENGRAVING_NAMES[shown(id)] ?? id}</span>{/snippet}
+							{#snippet trigger()}
+								<span class="-ml-1 shrink-0"><ItemIcon src={engravingIcon(shown(id))} grade={5} size="size-6" title={ENGRAVING_NAMES[shown(id)]} /></span>
+								<span class="min-w-0 truncate text-sm font-semibold @max-[17rem]:hidden" title={ENGRAVING_NAMES[shown(id)]}>{ENGRAVING_NAMES[shown(id)] ?? id}</span>
+							{/snippet}
 						</MenuPicker>
 					</div>
 					<MenuPicker

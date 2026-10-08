@@ -3,7 +3,7 @@
 	Used where a full-width line picker would be too big (engraving chips, astrogem options, gem skills).
 -->
 <script lang="ts" generics="T extends string | number">
-	import { getContext, type Snippet } from 'svelte';
+	import { getContext, tick, type Snippet } from 'svelte';
 	import { formatPct } from '../format';
 	import Glyph from './Glyph.svelte';
 	import type { MenuOption } from './ui';
@@ -17,7 +17,8 @@
 		changed = false,
 		preview,
 		align = 'left',
-		columns = 1
+		columns = 1,
+		full = false
 	}: {
 		value: T;
 		options: MenuOption<T>[];
@@ -28,6 +29,8 @@
 		preview?: (v: T) => number;
 		align?: 'left' | 'right';
 		columns?: number;
+		/** Fill the parent's width (equal-width pickers in a column). */
+		full?: boolean;
 	} = $props();
 
 	// The simulated score, so a preview can show raw CP next to its percent.
@@ -35,6 +38,21 @@
 	const raw = (pct: number) => (cpNow ? formatPct((cpNow() * pct) / 100, 1) : null);
 
 	let open = $state(false);
+	// Long single-column lists (skills, engravings) get a search box.
+	const searchable = $derived(columns === 1 && !options.some((o) => o.row) && options.length >= 12);
+	let query = $state('');
+	let search = $state<HTMLInputElement>();
+	const shown = $derived(
+		query.trim() ? options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase())) : options
+	);
+	async function toggle() {
+		open = !open;
+		query = '';
+		if (open && searchable) {
+			await tick();
+			search?.focus();
+		}
+	}
 	let root: HTMLDivElement;
 	const previews = $derived(open && preview ? new Map(options.map((o) => [o.value, preview(o.value)])) : new Map<T, number>());
 	/** Row-laid-out pickers: one labelled row per `row`, its options as compact cells. */
@@ -50,19 +68,19 @@
 	onkeydown={(e) => open && e.key === 'Escape' && (open = false)}
 />
 
-<div class="relative inline-flex max-w-full" bind:this={root}>
+<div class="relative max-w-full {full ? 'flex w-full' : 'inline-flex'}" bind:this={root}>
 	<button
 		type="button"
-		class="inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-xs border bg-surface-800/80 px-2 text-sm transition hover:border-accent-500 hover:bg-surface-700/80 {changed
+		class="inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-xs {full ? 'w-full' : ''} border bg-surface-800/80 px-2 text-sm transition hover:border-accent-500 hover:bg-surface-700/80 {changed
 			? 'border-accent-500 bg-accent-500/15'
 			: 'border-surface-600'}"
 		aria-haspopup="listbox"
 		aria-expanded={open}
 		aria-label={label}
-		onclick={() => (open = !open)}
+		onclick={toggle}
 	>
 		{@render trigger()}
-		<svg class="size-3 shrink-0 text-surface-400" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>
+		<svg class="size-3 shrink-0 text-surface-400 {full ? 'ml-auto' : ''}" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>
 	</button>
 	{#if open}
 		{#if rows}
@@ -104,7 +122,21 @@
 			class="absolute top-full z-40 mt-1 grid max-h-80 w-max max-w-[min(26rem,92vw)] min-w-full gap-px overflow-y-auto rounded-xs border border-surface-600 bg-surface-900 p-1 shadow-xl shadow-black/70 {align === 'right' ? 'right-0' : 'left-0'}"
 			style:grid-template-columns="repeat({columns}, minmax(max-content, 1fr))"
 		>
-			{#each options as o (o.value)}
+			{#if searchable}
+				<div class="sticky top-0 z-10 bg-surface-900 p-1" style:grid-column="1 / -1">
+					<input
+						bind:this={search}
+						bind:value={query}
+						type="search"
+						placeholder="Search…"
+						aria-label={`Search ${label}`}
+						class="h-8 w-full rounded-xs border border-surface-600 bg-surface-950 px-2 text-sm text-surface-100 focus:border-accent-500 focus:outline-none"
+						onkeydown={(e) => e.key === 'Enter' && shown[0] && pick(shown[0].value)}
+					/>
+				</div>
+				{#if !shown.length}<p class="px-2.5 py-2 text-sm text-surface-400">No matches.</p>{/if}
+			{/if}
+			{#each shown as o (o.value)}
 				<button
 					type="button"
 					role="option"

@@ -114,8 +114,9 @@
 {#snippet gemCell(i: number)}
 	{@const gem = sim.gems[i]}
 	{@const look = itemLook(gemId(gems[i].id, gem.kind, gem.level))}
-	<div class="flex h-11 w-[9.75rem] flex-row items-center gap-1.5 rounded-xs p-1 {gemChanged(i) ? 'bg-accent-500/10 ring-1 ring-accent-500' : ''}">
-		<ItemIcon src={look.icon} grade={look.grade} size="size-9" badge={gem.level} title={look.name} />
+	<div class="flex h-11 w-[9.75rem] flex-row items-center gap-1.5 rounded-xs p-1 @max-[30rem]:w-[7rem] {gemChanged(i) ? 'bg-accent-500/10 ring-1 ring-accent-500' : ''}">
+		<!-- Narrow cards drop the gem icon; the stepper still shows the level. -->
+		<span class="@max-[30rem]:hidden"><ItemIcon src={look.icon} grade={look.grade} size="size-9" badge={gem.level} title={look.name} /></span>
 		<Stepper bind:value={gem.level} min={1} max={10} changed={gem.level !== base.gems[i].level} label={`${skillName(gem.skill)} ${gem.kind} gem level`} width="w-6" />
 	</div>
 {/snippet}
@@ -157,6 +158,8 @@
 			</div>
 		{/if}
 
+		<!-- Narrow cards (container query) show skill icons only and drop gem icons. -->
+		<div class="@container">
 		<div class="grid items-center gap-x-2 gap-y-1 {showShares ? 'grid-cols-[minmax(0,1fr)_auto_auto_auto]' : 'grid-cols-[minmax(0,1fr)_auto_auto]'}">
 			<span class="text-xs text-surface-400">Skill</span>
 			<span class="px-1 text-xs text-surface-400">Damage</span>
@@ -171,10 +174,11 @@
 						label={`${skillName(skill)} gems: skill`}
 						changed={skill !== r.skill}
 						onpick={(v) => setRowSkill(r, v)}
+						full
 					>
 						{#snippet trigger()}
-							{#if skill && GEM_SKILLS[skill]}<img src={iconUrl(GEM_SKILLS[skill][1])} alt="" class="size-6 rounded-xs" />{/if}
-							<span class="min-w-0 truncate text-sm" title={skillName(skill)}>{skillName(skill)}</span>
+							{#if skill && GEM_SKILLS[skill]}<img src={iconUrl(GEM_SKILLS[skill][1])} alt="" class="size-6 shrink-0 rounded-xs" title={skillName(skill)} />{/if}
+							<span class="min-w-0 truncate text-sm @max-[30rem]:hidden" title={skillName(skill)}>{skillName(skill)}</span>
 						{/snippet}
 					</MenuPicker>
 					{#each KINDS as kind (kind)}
@@ -183,7 +187,7 @@
 							{@render gemCell(i)}
 						{:else}
 							{@const other = inSlot(r, kind === 'damage' ? 'cooldown' : 'damage')}
-							<div class="flex h-11 w-[9.75rem] items-center justify-center rounded-xs border border-dashed border-surface-700 text-xs text-surface-500">
+							<div class="flex h-11 w-[9.75rem] items-center justify-center rounded-xs border border-dashed border-surface-700 @max-[30rem]:w-[7rem] text-xs text-surface-500">
 								{#if other !== undefined && rowGems(r).length === 1}
 									<button type="button" class="hover:text-surface-100" onclick={() => (sim.gems[other].kind = kind)} title={`Make it a ${kind} gem`}>
 										move here
@@ -220,6 +224,7 @@
 					{/each}
 				</div>
 			{/each}
+		</div>
 		</div>
 	{/if}
 </SimCard>

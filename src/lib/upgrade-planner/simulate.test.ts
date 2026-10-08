@@ -272,3 +272,19 @@ describe('class names', () => {
 		expect(className('new_class')).toBe('New Class');
 	});
 });
+
+describe('bracelet main stat', () => {
+	it('counts index 11 (all main stats) like the class main stat', () => {
+		const l = soulshan as unknown as Loadout;
+		const base = initSimState(l);
+		const withStat = (index: number) => {
+			const s = structuredClone(base);
+			s.bracelet!.stats.push({ index, value: 1000 });
+			return simulate(l, s, base);
+		};
+		const before = simulate(l, base, base);
+		expect(withStat(11).mainStat).toBe(before.mainStat + 1000);
+		expect(withStat(11).cp).toBeCloseTo(withStat(mainStatIndex(l)).cp, 10);
+		expect(withStat(6).cp).toBeCloseTo(before.cp, 10); // Vitality: no DPS value
+	});
+});

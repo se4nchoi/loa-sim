@@ -25,6 +25,7 @@
 	} = $props();
 
 	const STAT_NAMES: Record<number, string> = {
+		6: 'Vitality',
 		15: 'Crit',
 		16: 'Specialization',
 		17: 'Domination',
@@ -35,7 +36,8 @@
 		74: 'Crit Rate %',
 		76: 'Crit Damage %'
 	};
-	const statName = (i: number) => (i === 3 || i === 4 || i === 5 ? mainStatName : (STAT_NAMES[i] ?? `Stat ${i}`));
+	// 3 / 4 / 5 are Strength / Dexterity / Intelligence; 11 is all three, which bracelets roll as the class's main stat.
+	const statName = (i: number) => (i === 3 || i === 4 || i === 5 || i === 11 ? mainStatName : (STAT_NAMES[i] ?? 'Other stat'));
 	const statChoices = $derived([15, 16, 18, 17, 19, 20]);
 	const look = $derived(itemLook(itemId));
 
@@ -75,7 +77,14 @@
 								{#each [...new Set([st.index, ...statChoices])] as idx (idx)}<option value={idx}>{statName(idx)}</option>{/each}
 							</select>
 							<span class="-ml-px">
-								<Stepper bind:value={st.value} min={0} max={9999} changed={before?.value !== st.value} label={`${statName(st.index)} value`} width="w-10" />
+								<Stepper
+									bind:value={st.value}
+									min={0}
+									max={99999}
+									changed={before?.value !== st.value}
+									label={`${statName(st.index)} value`}
+									width={st.value >= 10000 ? 'w-14' : 'w-10'}
+								/>
 							</span>
 						</span>
 					{/each}

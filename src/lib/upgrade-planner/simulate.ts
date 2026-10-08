@@ -129,6 +129,9 @@ export interface SimBracelet {
 	effects: string[];
 }
 
+/** Stat index for Strength, Dexterity and Intelligence together (bracelet main stat lines). */
+const ALL_MAIN_STATS = 11;
+
 /** Combat stats that count toward Combat Power (Crit, Specialization, Swiftness), x3 each. */
 export const COMBAT_STAT_INDICES = [15, 16, 18];
 const COMBAT_STAT_BP = 3;
@@ -326,7 +329,9 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	const msIndex = mainStatIndex(l);
 	const braceletStat = (b: SimBracelet | null, pick: (i: number) => boolean) =>
 		(b?.stats ?? []).filter((s) => pick(s.index)).reduce((sum, s) => sum + (Number(s.value) || 0), 0);
-	mainStat += braceletStat(state.bracelet, (i) => i === msIndex) - braceletStat(base.bracelet, (i) => i === msIndex);
+	// Bracelets roll main stat as index 11 (Strength, Dexterity and Intelligence at once) or as the class's own stat.
+	const isMainStat = (i: number) => i === msIndex || i === ALL_MAIN_STATS;
+	mainStat += braceletStat(state.bracelet, isMainStat) - braceletStat(base.bracelet, isMainStat);
 	let weaponPower = weapon0;
 	for (const slot of HONING_SLOTS) {
 		const from = base.gear[slot];

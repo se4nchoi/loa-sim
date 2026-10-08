@@ -13,20 +13,12 @@
 	});
 
 	const subtitle = $derived(
-		saved
-			? [
-					saved.header?.ilvl && `Item Level ${saved.header.ilvl.toFixed(2)}`,
-					saved.header?.guild?.name,
-					`snapshot loaded ${new Date(saved.savedAt).toLocaleString()}`
-				]
-					.filter(Boolean)
-					.join(' · ')
-			: ''
+		saved ? [saved.header?.guild?.name ?? '', `Snapshot loaded ${new Date(saved.savedAt).toLocaleString()}`] : []
 	);
 </script>
 
 {#if saved}
 	{#key `${saved.region}/${saved.name}`}
-		<CharacterView name={saved.name} region={saved.region} {subtitle} loadout={saved.loadout} cpDistribution={saved.cpDistribution} />
+		<CharacterView name={saved.name} region={saved.region} {subtitle} itemLevel={saved.header?.ilvl} loadout={saved.loadout} cpDistribution={saved.cpDistribution} />
 	{/key}
 {/if}

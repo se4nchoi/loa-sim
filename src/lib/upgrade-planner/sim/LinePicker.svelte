@@ -3,6 +3,7 @@
 	Every option can show the exact CP change it would cause, so lines can be compared at a glance.
 -->
 <script lang="ts">
+	import { getContext, tick } from 'svelte';
 	import { formatPct } from '../format';
 	import type { PickOption } from './ui';
 
@@ -26,12 +27,29 @@
 		changed?: boolean;
 	} = $props();
 
+	// Long lists (bracelet effects) get a search box.
+	const SEARCH_MIN = 12;
+	const cpNow = getContext<(() => number) | undefined>('loa-sim:cp');
+
 	let open = $state(false);
+	let query = $state('');
 	let root: HTMLDivElement;
+	let search = $state<HTMLInputElement>();
 	const current = $derived(display ?? options.find((o) => o.value === value));
-	const groups = $derived([...new Set(options.map((o) => o.group ?? ''))]);
+	const shown = $derived(
+		query.trim() ? options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase())) : options
+	);
+	const groups = $derived([...new Set(shown.map((o) => o.group ?? ''))]);
 	const previews = $derived(open && preview ? Object.fromEntries(options.map((o) => [o.value, preview(o.value)])) : {});
 
+	async function toggle() {
+		open = !open;
+		query = '';
+		if (open) {
+			await tick();
+			search?.focus();
+		}
+	}
 	function pick(v: string) {
 		open = false;
 		if (v !== value) onpick(v);
@@ -53,7 +71,7 @@
 		aria-haspopup="listbox"
 		aria-expanded={open}
 		aria-label={label}
-		onclick={() => (open = !open)}
+		onclick={toggle}
 	>
 		<span class="ml-1.5 min-w-0 flex-1 truncate border-l-2 pl-2 text-sm" style:border-color={current?.color ?? '#575757'} title={current?.label}>
 			{current?.label ?? 'Unknown'}
@@ -66,9 +84,23 @@
 			aria-label={label}
 			class="absolute top-full left-0 z-40 mt-1 max-h-96 w-max max-w-[min(30rem,92vw)] min-w-full overflow-y-auto rounded-xs border border-surface-600 bg-surface-900 py-1 shadow-xl shadow-black/70"
 		>
+			{#if options.length >= SEARCH_MIN}
+				<div class="sticky top-0 z-10 bg-surface-900 px-2 pt-1 pb-1.5">
+					<input
+						bind:this={search}
+						bind:value={query}
+						type="search"
+						placeholder="Search…"
+						aria-label={`Search ${label}`}
+						class="h-8 w-full rounded-xs border border-surface-600 bg-surface-950 px-2 text-sm text-surface-100 focus:border-accent-500 focus:outline-none"
+						onkeydown={(e) => e.key === 'Enter' && shown[0] && pick(shown[0].value)}
+					/>
+				</div>
+			{/if}
+			{#if !shown.length}<p class="px-3 py-2 text-sm text-surface-400">No matches.</p>{/if}
 			{#each groups as g (g)}
 				{#if g}<div class="px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-surface-400 uppercase">{g}</div>{/if}
-				{#each options.filter((o) => (o.group ?? '') === g) as o (o.value)}
+				{#each shown.filter((o) => (o.group ?? '') === g) as o (o.value)}
 					<button
 						type="button"
 						role="option"
@@ -81,6 +113,7 @@
 							<span class="text-xs text-surface-400">current</span>
 						{:else if previews[o.value] !== undefined}
 							<span class="text-sm font-semibold whitespace-nowrap tabular-nums {previewClass(previews[o.value])}">{formatPct(previews[o.value])}%</span>
+							{#if cpNow}<span class="w-12 text-right text-xs whitespace-nowrap text-surface-400 tabular-nums">{formatPct((cpNow() * previews[o.value]) / 100, 1)}</span>{/if}
 						{/if}
 					</button>
 				{/each}
