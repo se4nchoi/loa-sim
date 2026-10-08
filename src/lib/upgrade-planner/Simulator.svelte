@@ -6,7 +6,7 @@
 <script lang="ts">
 	import { setContext, untrack, type Snippet } from 'svelte';
 	import { className as classNameOf } from './class-names';
-	import { cpBrackets, cpStanding, ownRange, type CpDistribution, type IlvlRange } from './cp-distribution';
+	import { cpBrackets, cpStanding, ownRange, type CpDistribution, type CpRole, type IlvlRange } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
 	import SimArkGrid from './sim/SimArkGrid.svelte';
 	import SimBracelet from './sim/SimBracelet.svelte';
@@ -70,8 +70,10 @@
 	$effect.pre(() => {
 		range = own;
 	});
-	const brackets = $derived(cpDistribution ? cpBrackets(cpDistribution) : []);
-	const standing = $derived(cpDistribution ? cpStanding(cpDistribution, range) : null);
+	// Dealers and supports are ranked separately; the score's id says which one this is.
+	const role = $derived<CpRole>(loadout.combatPower?.id === 2 || (!loadout.combatPower && loadout.battlePoint.isSupport) ? 2 : 1);
+	const brackets = $derived(cpDistribution ? cpBrackets(cpDistribution, role) : []);
+	const standing = $derived(cpDistribution ? cpStanding(cpDistribution, range, role) : null);
 	const className = $derived(classNameOf(loadout.classId));
 
 	const gems = $derived(gemParts(loadout));

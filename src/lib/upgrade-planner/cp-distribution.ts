@@ -1,6 +1,9 @@
 // Where a Combat Power score stands among a class, from the distribution lostark.bible ships with each
-// character page (`combatPowerDistribution`): a t-digest per 10-item-level bracket ("1-1780") and one for
-// every character of the class ("1-all").
+// character page (`combatPowerDistribution`): a t-digest per role and 10-item-level bracket ("1-1780") and one
+// per role for every item level ("1-all"). The role prefix is the score's id: 1 = dealer, 2 = support.
+
+/** Combat Power role: 1 = dealer score, 2 = support score. */
+export type CpRole = 1 | 2;
 
 export interface CpDigest {
 	/** [mean, weight] pairs, sorted by mean. */
@@ -46,10 +49,13 @@ export interface CpStanding {
 }
 
 const bracketOf = (key: string) => Number(key.split('-').at(-1));
+/** This role's digests only (dealers and supports of a class are ranked separately). */
+const roleEntries = (dist: CpDistribution, role: CpRole) =>
+	Object.entries(dist.digests).filter(([k]) => k.startsWith(`${role}-`));
 
-/** Brackets with data (10-level steps: 1700, 1710, ...), ascending. */
-export const cpBrackets = (dist: CpDistribution) =>
-	Object.entries(dist.digests)
+/** Brackets with data for a role (10-level steps: 1700, 1710, ...), ascending. */
+export const cpBrackets = (dist: CpDistribution, role: CpRole) =>
+	roleEntries(dist, role)
 		.filter(([k, d]) => d?.count && !Number.isNaN(bracketOf(k)))
 		.map(([k]) => bracketOf(k))
 		.sort((a, b) => a - b);
@@ -66,9 +72,9 @@ export function mergeDigests(list: CpDigest[]): CpDigest | null {
 	};
 }
 
-/** Standing within an item level range, or across the whole class. */
-export function cpStanding(dist: CpDistribution, range: IlvlRange): CpStanding | null {
-	const entries = Object.entries(dist.digests);
+/** Standing within an item level range, or across the whole class, among characters of the same role. */
+export function cpStanding(dist: CpDistribution, range: IlvlRange, role: CpRole): CpStanding | null {
+	const entries = roleEntries(dist, role);
 	const d = range
 		? mergeDigests(entries.filter(([k]) => bracketOf(k) >= range.from && bracketOf(k) < range.to).map(([, d]) => d))
 		: (entries.find(([k]) => k.endsWith('-all'))?.[1] ?? null);
