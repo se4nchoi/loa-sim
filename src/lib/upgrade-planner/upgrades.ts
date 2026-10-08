@@ -402,16 +402,22 @@ function accessoryUpgrades(l: Loadout): Upgrade[] {
 	const out: Upgrade[] = [];
 	const role = roleOf(l);
 	const g = gainIn(l);
-	const weaponPctTotal =
+	const accessoryWeaponPct =
 		(l.items ?? [])
 			.flatMap((i) => (SLOT_FAMILY[i.slot] ? (i.data.stats ?? []) : []))
 			.filter((s) => s.type === 2 && s.index === 152)
 			.reduce((sum, s) => sum + s.value, 0) / 100;
+	// Support Weapon Power rolls affect base attack, including the existing karma/core bonuses.
+	const weaponPctTotal = accessoryWeaponPct + (role.support
+		? (l.karma?.enlightenment ?? 0) * KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL
+			+ coreStates(l).reduce((sum, c) => sum + supportWeaponCoreStats(c.id, c.points).percent, 0)
+		: 0);
 	for (const item of l.items ?? []) {
 		const family = SLOT_FAMILY[item.slot];
 		if (!family) continue;
 		const lines = (item.data.stats ?? []).filter((s) => !s.base);
-		for (const line of role.accessoryLines.filter((x) => x.primary && x.slots.includes(family))) {
+		for (const line of role.accessoryLines.filter((x) =>
+			(x.primary || (role.support && x.weapon === 'percent')) && x.slots.includes(family))) {
 			let current = lines.find((s) => line.match(s))?.value ?? 0;
 			if (line.combatEffect) {
 				// Combat-effect lines carry no value in item stats; bible's battle point equals the % × 100.

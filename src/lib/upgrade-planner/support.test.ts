@@ -161,4 +161,28 @@ describe('support simulation (Brushann)', () => {
 		const i = base.gems.findIndex((g) => g.level === 7);
 		expect(gem.gainPct).toBeCloseTo(pct(sim((s) => (s.gems[i].level = 8)).cp), 6);
 	});
+
+	it.each([0, 80, 180])('suggests support earring Weapon Power %% from %s and matches simulation', (current) => {
+		const loadout = structuredClone(l);
+		const earring = loadout.items!.find((item) => item.slot === 'ear1')!;
+		const stat = earring.data.stats!.find((s) => s.type === 2 && s.index === 152)!;
+		if (current) stat.value = current;
+		else earring.data.stats = earring.data.stats!.filter((s) => s !== stat);
+		const initial = initSimState(loadout);
+		const edited = structuredClone(initial);
+		edited.accessories.ear1 = [
+			...edited.accessories.ear1!.filter((line) => line.key !== 'weapon_pct'),
+			{ key: 'weapon_pct', tier: 'high' }
+		];
+		const before = supportCombatPower(loadout.battlePoint.parts);
+		const after = supportCombatPower(simulate(loadout, edited, initial).parts);
+		const upgrade = buildUpgrades(loadout).find((u) => u.key === 'accessory:ear1:weapon_pct')!;
+		expect(upgrade).toBeDefined();
+		expect(upgrade.roll).toEqual({ from: current === 0 ? 'none' : current === 80 ? 'low' : 'mid', to: 'high' });
+		expect(upgrade.gainPct).toBeGreaterThan(0);
+		expect(upgrade.gainPct).toBeCloseTo((after.total / before.total - 1) * 100, 6);
+		expect(after.shieldHeal).toBeCloseTo(before.shieldHeal, 6);
+		expect(buildUpgrades(loadout).some((u) => u.key === 'accessory:ear2:weapon_pct')).toBe(false);
+		expect(buildUpgrades(loadout).some((u) => u.key === 'accessory:neck:weapon_pct')).toBe(false);
+	});
 });
