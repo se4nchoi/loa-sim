@@ -312,5 +312,4 @@
 		</div>
 	</details>
 
-	<a class="w-fit text-xs text-surface-400 underline hover:text-surface-100" href="/demo">Or try the sample character (Soulshan, NA)</a>
 </div>

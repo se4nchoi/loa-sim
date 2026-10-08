@@ -10,7 +10,7 @@
 
 	const tabs = [
 		{ href: '/', label: 'Characters', active: (p: string) => p === '/' },
-		{ href: '/sim', label: 'Simulator', active: (p: string) => p.startsWith('/sim') || p.startsWith('/demo') || p.startsWith('/character') }
+		{ href: '/sim', label: 'Simulator', active: (p: string) => p.startsWith('/sim') || p.startsWith('/character') }
 	];
 </script>
 
@@ -41,7 +41,10 @@
 			<span>
 				Made with <span class="text-red-400">♥</span> by <b class="text-surface-200">Soulshan@Inanna</b>
 			</span>
-			<span>Not affiliated with Smilegate, Amazon Games or lostark.bible. Game data and icons © Smilegate RPG.</span>
+			<span>
+				Character data from <a class="underline hover:text-surface-100" href="https://lostark.bible" target="_blank" rel="noopener">lostark.bible</a>, with
+				permission. Not affiliated with Smilegate or Amazon Games. Game data and icons © Smilegate RPG.
+			</span>
 		</div>
 	</footer>
 </div>

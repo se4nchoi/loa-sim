@@ -133,7 +133,8 @@ const asTime = (v: unknown): number | undefined => {
 
 /** A combat power given as a number or as bible's { id, score } (id 2 = support). */
 const asCp = (v: unknown): RosterCharacter['cp'] => {
-	if (typeof v === 'number') return { score: v, support: false };
+	if (typeof v === 'number') return v > 0 ? { score: v, support: false } : undefined;
+	if (typeof v === 'string' && Number(v) > 0) return { score: Number(v), support: false };
 	const o = v as { id?: number; score?: number } | null;
 	return typeof o?.score === 'number' ? { score: o.score, support: o.id === 2 } : undefined;
 };
@@ -153,14 +154,13 @@ export function parseRosters(body: unknown): RosterCharacter[] {
 				classId: typeof c.class === 'string' ? c.class : typeof c.classId === 'string' ? c.classId : undefined,
 				ilvl: typeof c.ilvl === 'number' ? c.ilvl : undefined,
 				lastUpdate: asTime(c.lastUpdate),
-				cp: asCp(c.combatPower ?? c.cp)
+				cp: asCp(c.combatPower ?? c.combat_power ?? c.cp ?? c.battlePoint ?? c.bp)
 			});
 		}
 	}
 	return out.sort((a, b) => (b.ilvl ?? 0) - (a.ilvl ?? 0));
 }
 
-/** The signed-in player's characters. Throws 'signed-out' when the token is missing or no longer valid. */
 const ROSTER_KEY = 'loa-sim:bible-roster';
 /** How long a cached roster is used before it's fetched again on page load. */
 export const ROSTER_TTL_MS = 60 * 60 * 1000;
@@ -175,7 +175,8 @@ export function cachedRoster(): { at: number; roster: RosterCharacter[] } | null
 	}
 }
 
-/** The signed-in player's roster from lostark.bible; saved in this browser for the next visit. */
+/** The signed-in player's roster from lostark.bible; saved in this browser for the next visit.
+ * Throws 'signed-out' when the token is missing or no longer valid. */
 export async function fetchRoster(): Promise<RosterCharacter[]> {
 	const token = bibleToken();
 	if (!token) throw new Error('signed-out');

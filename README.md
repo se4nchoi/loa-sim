@@ -27,7 +27,7 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:5173/demo for the offline sample, or search a character on the home page.
+Then open http://localhost:5173 and load a character by name, or sign in with lostark.bible.
 
 ```bash
 npm test
