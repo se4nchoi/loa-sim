@@ -93,6 +93,7 @@ export function bibleToken(): string | null {
 			const { token, expiresAt } = JSON.parse(raw) as { token: string; expiresAt: number };
 			if (Date.now() < expiresAt) return token;
 			localStorage.removeItem(TOKEN_KEY);
+		localStorage.removeItem(ROSTER_KEY);
 		}
 	} catch {
 		/* fall through */
@@ -160,6 +161,21 @@ export function parseRosters(body: unknown): RosterCharacter[] {
 }
 
 /** The signed-in player's characters. Throws 'signed-out' when the token is missing or no longer valid. */
+const ROSTER_KEY = 'loa-sim:bible-roster';
+/** How long a cached roster is used before it's fetched again on page load. */
+export const ROSTER_TTL_MS = 60 * 60 * 1000;
+
+/** The roster saved by the last fetch in this browser, if any. */
+export function cachedRoster(): { at: number; roster: RosterCharacter[] } | null {
+	try {
+		const v = JSON.parse(localStorage.getItem(ROSTER_KEY) ?? 'null');
+		return v && typeof v.at === 'number' && Array.isArray(v.roster) ? v : null;
+	} catch {
+		return null;
+	}
+}
+
+/** The signed-in player's roster from lostark.bible; saved in this browser for the next visit. */
 export async function fetchRoster(): Promise<RosterCharacter[]> {
 	const token = bibleToken();
 	if (!token) throw new Error('signed-out');
@@ -169,5 +185,11 @@ export async function fetchRoster(): Promise<RosterCharacter[]> {
 		throw new Error('signed-out');
 	}
 	if (!res.ok) throw new Error(`lostark.bible returned ${res.status}`);
-	return parseRosters(await res.json());
+	const roster = parseRosters(await res.json());
+	try {
+		localStorage.setItem(ROSTER_KEY, JSON.stringify({ at: Date.now(), roster }));
+	} catch {
+		/* storage blocked: fetch again next time */
+	}
+	return roster;
 }

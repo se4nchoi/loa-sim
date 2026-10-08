@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { bibleToken, completeSignIn, fetchRoster, signOut, startSignIn, type RosterCharacter } from '$lib/bible-oauth';
+	import { ROSTER_TTL_MS, bibleToken, cachedRoster, completeSignIn, fetchRoster, signOut, startSignIn, type RosterCharacter } from '$lib/bible-oauth';
 	import { REGIONS, bibleDataUrl, parseCharacterInput, parsePastedData, type Region } from '$lib/bible-data';
 	import { preferredRegion, saveRegion } from '$lib/region-preference';
 	import { characterKey, listSavedCharacters, removeSavedCharacter, saveCharacter, type SavedCharacter } from '$lib/saved-character';
@@ -35,14 +35,20 @@
 	/** Character being loaded ("na/name"), for the button's busy state. */
 	let loading = $state<string | null>(null);
 
+	let rosterAt = $state<number | null>(null);
+	let refreshing = $state(false);
 	async function refreshRoster() {
 		rosterError = null;
+		refreshing = true;
 		try {
 			roster = await fetchRoster();
+			rosterAt = Date.now();
 		} catch (e) {
 			const message = e instanceof Error ? e.message : String(e);
 			if (message === 'signed-out') signedIn = false;
 			else rosterError = `Couldn't load your roster: ${message}`;
+		} finally {
+			refreshing = false;
 		}
 	}
 
@@ -62,7 +68,11 @@
 			rosterError = e instanceof Error ? e.message : String(e);
 		}
 		signedIn = !!bibleToken();
-		if (signedIn) await refreshRoster();
+		if (!signedIn) return;
+		// Show the roster saved last time right away; fetch it again only when it's old (or on ↻).
+		const cached = cachedRoster();
+		if (cached) ((roster = cached.roster), (rosterAt = cached.at));
+		if (!cached || Date.now() - cached.at > ROSTER_TTL_MS) await refreshRoster();
 	});
 
 	const target = $derived(parseCharacterInput(input, region));
@@ -206,7 +216,16 @@
 			<span class="font-bold">Roster</span>
 			<span class="text-xs text-surface-500">from lostark.bible</span>
 			{#if signedIn}
-				<button type="button" class="ml-auto text-xs text-surface-400 underline hover:text-surface-100" onclick={() => ((signedIn = false), (roster = null), signOut())}>Sign out</button>
+				<button
+					type="button"
+					class="ml-auto text-xs text-surface-400 hover:text-surface-100 disabled:opacity-50"
+					disabled={refreshing}
+					onclick={refreshRoster}
+					title="Fetch your roster from lostark.bible again"
+				>
+					{refreshing ? 'Refreshing…' : `↻${rosterAt ? ` ${ago(rosterAt)}` : ''}`}
+				</button>
+				<button type="button" class="text-xs text-surface-400 underline hover:text-surface-100" onclick={() => ((signedIn = false), (roster = null), signOut())}>Sign out</button>
 			{/if}
 		</div>
 		{#if !signedIn}
