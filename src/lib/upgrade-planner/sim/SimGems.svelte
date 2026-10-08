@@ -186,9 +186,39 @@
 						DPS estimate
 						<span class="font-bold {dps > 0 ? 'text-green-400' : dps < 0 ? 'text-red-400' : 'text-surface-200'}">{formatPct(dps)}%</span>
 						<span class="text-xs text-surface-400">· {sharedTotal.toFixed(0)}% of damage covered</span>
-						<button type="button" class="ml-1 text-xs text-surface-400 underline hover:text-surface-100"onclick={() => ((sim.skillShares = {}), (sim.skillCooldownUse = {}))}>Clear</button>
+						<button type="button" class="ml-1 text-xs text-surface-400 underline hover:text-surface-100" onclick={() => ((sim.skillShares = {}), (sim.skillCooldownUse = {}))}>Clear</button>
 					</div>
 				{/if}
+				<details class="group rounded-xs border border-surface-700 bg-black/15 px-3 py-2 text-xs text-surface-300">
+					<summary class="cursor-pointer font-semibold text-surface-100 select-none">How the DPS estimate works</summary>
+					<div class="mt-2 flex flex-col gap-2 leading-relaxed">
+						<p>
+							Combat Power counts every gem the same. Real damage depends on the skill: a gem on a skill that does 30% of your
+							damage matters 15× more than one on a skill doing 2%. The estimate adds up each skill's change, weighted by its
+							<b class="text-surface-100">Share</b> of your damage.
+						</p>
+						<p>
+							<b class="text-surface-100">Damage gems</b> multiply that skill's damage. Lv. 9 → 10 (40% → 44%) is ×1.44 / 1.40 = +2.9%
+							for the skill; at a 20% share that's about <b class="text-green-400">+0.57%</b> DPS.
+						</p>
+						<p>
+							<b class="text-surface-100">Cooldown gems</b> add casts, but only while the skill is actually waiting on its cooldown.
+							<b class="text-surface-100">CD use</b> is the share of the fight the skill spends on cooldown; the rest it sits ready while
+							you cast other things. Cooldown 20% → 24% gives
+							<b class="text-green-400">+5.3%</b> casts at 100% CD use, <b class="text-green-400">+2.6%</b> at 50%, and nothing at 0%.
+							Blank CD use counts as 100% (the best case).
+						</p>
+						<p>
+							<b class="text-surface-100">Where the numbers come from:</b> type them in, or load your LOA Logs file. Share is the average per
+							run; CD use comes from LOA Logs' "time available" (logs you recorded yourself, recent versions). Skills without a gem
+							(awakenings, identity, ...) count in the total but don't change.
+						</p>
+						<p class="text-surface-400">
+							Limits: it assumes the rest of your rotation stays the same, and doesn't model buff windows or identity timing. Logs
+							can include older builds, so pick a range after your last build change.
+						</p>
+					</div>
+				</details>
 				<LogsImport
 					{characterName}
 					onapply={(shares, cooldownUse) => {

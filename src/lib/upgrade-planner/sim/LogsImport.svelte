@@ -6,7 +6,6 @@
 	import { raidGateOf } from '$lib/logs/raids';
 	import { onDestroy } from 'svelte';
 	import { iconUrl } from '../icons';
-	import Segmented from './Segmented.svelte';
 	import { btnAccent, selectClass } from './ui';
 
 	let {
@@ -97,9 +96,21 @@
 		if (kind === 'gate') return rg !== null && `${rg.raid}:${rg.gate}` === rest.join(':');
 		return r.boss === rest.join(':');
 	};
-	const selected = $derived.by(() => {
+	/** Runs matching the raid / cleared filters inside a time preset. */
+	const inRange = (preset: RangePreset) => {
+		const [from, to] = rangeOf(preset);
+		return mine.filter((r) => matchesRaid(r) && r.start >= from && r.start < to && (!clearedOnly || r.cleared !== false));
+	};
+	const RANGES = Object.keys(RANGE_LABELS) as RangePreset[];
+	const counts = $derived(Object.fromEntries(RANGES.map((p) => [p, inRange(p).length])) as Record<RangePreset, number>);
+	const day = (t: number) => new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+	/** "Oct 1 – now", from the weekly reset (Wednesday 10:00 UTC). */
+	const rangeText = $derived.by(() => {
 		const [from, to] = rangeOf(range);
-		const rows = mine.filter((r) => matchesRaid(r) && r.start >= from && r.start < to && (!clearedOnly || r.cleared !== false));
+		return from === 0 ? 'every log in the file' : `${day(from)} – ${to === Infinity ? 'now' : day(to - 1)}`;
+	});
+	const selected = $derived.by(() => {
+		const rows = inRange(range);
 		return limit > 0 ? rows.slice(0, limit) : rows;
 	});
 
@@ -119,7 +130,6 @@
 			.catch((err) => mine === seq && (error = err.message));
 	});
 
-	const RANGE_OPTIONS = (Object.keys(RANGE_LABELS) as RangePreset[]).map((v) => ({ value: v, label: RANGE_LABELS[v] }));
 	const iconOf = (icon: string) => (icon ? iconUrl(icon.replace(/\.png$/i, '').split('/').pop()) : undefined);
 </script>
 
@@ -167,7 +177,23 @@
 			</label>
 		</div>
 		<div class="flex flex-row flex-wrap items-center gap-2">
-			<Segmented value={range} options={RANGE_OPTIONS} onselect={(v) => (range = v)} label="Time range" size="h-7 px-2 text-xs" />
+			<div class="grid w-full grid-cols-3 gap-1 sm:grid-cols-6" role="radiogroup" aria-label="Time range">
+				{#each RANGES as p (p)}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={range === p}
+						disabled={counts[p] === 0}
+						class="flex flex-col items-center rounded-xs border px-1.5 py-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-40 {range === p
+							? 'border-accent-500 bg-accent-700/40 text-white'
+							: 'border-surface-700 bg-surface-900 text-surface-300 hover:border-surface-500 hover:text-surface-100'}"
+						onclick={() => (range = p)}
+					>
+						<span class="font-semibold whitespace-nowrap">{RANGE_LABELS[p]}</span>
+						<span class="text-[11px] tabular-nums {range === p ? 'text-accent-100' : 'text-surface-500'}">{counts[p]} run{counts[p] === 1 ? '' : 's'}</span>
+					</button>
+				{/each}
+			</div>
 			<label class="flex items-center gap-1 text-xs text-surface-300">
 				Last
 				<input
@@ -181,7 +207,8 @@
 			</label>
 		</div>
 		<div class="text-xs text-surface-400">
-			{selected.length} run{selected.length === 1 ? '' : 's'} selected · pick a range after your last build change
+			<b class="text-surface-200">{selected.length} run{selected.length === 1 ? '' : 's'}</b> · {rangeText} (weeks start at the Wednesday reset) ·
+			pick a range after your last build change
 		</div>
 		{#if result && result.runs}
 			<div class="grid grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-0.5">
