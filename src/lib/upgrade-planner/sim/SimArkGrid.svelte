@@ -313,7 +313,6 @@
 												>
 													{#snippet trigger()}<span title={gem.removed ? 'None' : kind?.name} class="truncate font-semibold text-xs {info.attr === 'order' ? 'text-amber-200' : 'text-sky-200'}">{gem.removed ? 'None' : kind?.name ?? 'Astrogem'}</span>{/snippet}
 												</MenuPicker>
-												{#if isWeakest}<span class="text-xs font-semibold text-amber-300">weakest</span>{/if}
 											</div>
 										</div>
 										<div class="flex min-w-0 flex-col gap-1 border-l border-surface-700/60 pl-2">
@@ -366,7 +365,8 @@
 													{/each}
 											{:else}<span class="text-xs text-surface-500">No stats</span>{/if}
 										</div>
-										<div class="col-span-3 flex flex-wrap justify-end gap-1">
+										<div class="col-span-3 flex flex-wrap items-center justify-end gap-1">
+											{#if isWeakest}<span class="mr-auto text-xs font-semibold text-amber-300">weakest</span>{/if}
 											<button type="button" class={btnAccent} aria-label={`Max astrogem ${gi + 1}`} onclick={() => maxCore(core, gi)} title="Best max-cut Ancient astrogem that fits this core's current Willpower">Max</button>
 											{#if before && JSON.stringify(gem) !== JSON.stringify(before)}
 												<button
