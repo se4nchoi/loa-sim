@@ -57,8 +57,23 @@
 			})
 		)
 	];
-	const optionsFor = (key: string): PickOption[] =>
-		OPTIONS.some((o) => o.value === key) ? OPTIONS : [...OPTIONS, { value: key, label: 'Other (no DPS value)', color: ROLL_COLORS.none, group: 'Other' }];
+	// No duplicate lines: a stat or an effect family already on another line isn't offered.
+	const FAMILY = new Map(BRACELET_EFFECTS.map((e) => [e.key, e.family]));
+	const otherLines = (i: number) => sim.bracelet!.lines.filter((_, j) => j !== i);
+	const usedStats = (i: number) => new Set(otherLines(i).flatMap((l) => (l.kind === 'stat' ? [l.index] : [])));
+	const usedFamilies = (i: number) =>
+		new Set(otherLines(i).flatMap((l) => (l.kind === 'effect' ? [FAMILY.get(l.key) ?? l.key] : [])));
+	const statChoices = (i: number, current: number) => {
+		const used = usedStats(i);
+		return [...new Set([current, ...STAT_CHOICES])].filter((idx) => idx === current || !used.has(idx));
+	};
+	const optionsFor = (i: number, key: string): PickOption[] => {
+		const used = usedFamilies(i);
+		const free = OPTIONS.filter((o) => o.value === key || !used.has(FAMILY.get(String(o.value))!));
+		return free.some((o) => o.value === key)
+			? free
+			: [...free, { value: key, label: 'Other (no DPS value)', color: ROLL_COLORS.none, group: 'Other' }];
+	};
 
 	type Kind = BraceletLine['kind'];
 	const KINDS: { value: Kind; label: string; title: string }[] = [
@@ -67,12 +82,20 @@
 		{ value: 'empty', label: '—', title: 'No line' }
 	];
 
-	/** Switching a line's kind keeps what that line had at the start when it was the same kind. */
+	/** Switching a line's kind restores what it had at the start (if no other line has taken it since). */
 	function setKind(i: number, kind: Kind) {
 		const before = base.bracelet?.lines[i];
-		if (before?.kind === kind) sim.bracelet!.lines[i] = structuredClone($state.snapshot(before));
-		else if (kind === 'stat') sim.bracelet!.lines[i] = { kind, index: 15, value: defaultValue(15) };
-		else if (kind === 'effect') sim.bracelet!.lines[i] = { kind, key: String(OPTIONS[0].value) };
+		const taken =
+			(before?.kind === 'stat' && usedStats(i).has(before.index)) ||
+			(before?.kind === 'effect' && usedFamilies(i).has(FAMILY.get(before.key) ?? before.key));
+		if (before?.kind === kind && !taken) sim.bracelet!.lines[i] = structuredClone($state.snapshot(before));
+		else if (kind === 'stat') {
+			const index = STAT_CHOICES.find((idx) => !usedStats(i).has(idx)) ?? 15;
+			sim.bracelet!.lines[i] = { kind, index, value: defaultValue(index) };
+		} else if (kind === 'effect') {
+			const key = OPTIONS.find((o) => !usedFamilies(i).has(FAMILY.get(String(o.value))!))?.value ?? OPTIONS[0].value;
+			sim.bracelet!.lines[i] = { kind, key: String(key) };
+		}
 		else sim.bracelet!.lines[i] = { kind };
 	}
 	function setIndex(line: Extract<BraceletLine, { kind: 'stat' }>, index: number) {
@@ -110,7 +133,7 @@
 									onchange={(e) => setIndex(line, Number(e.currentTarget.value))}
 									aria-label={`Bracelet line ${i + 1} stat`}
 								>
-									{#each [...new Set([line.index, ...STAT_CHOICES])] as idx (idx)}<option value={idx}>{statName(idx)}</option>{/each}
+									{#each statChoices(i, line.index) as idx (idx)}<option value={idx}>{statName(idx)}</option>{/each}
 								</select>
 								<span class="-ml-px">
 									<Stepper
@@ -126,7 +149,7 @@
 						{:else if line.kind === 'effect'}
 							<LinePicker
 								value={line.key}
-								options={optionsFor(line.key)}
+								options={optionsFor(i, line.key)}
 								label={`Bracelet line ${i + 1} effect`}
 								changed={!sameLine(before, line)}
 								onpick={(v) => (sim.bracelet!.lines[i] = { kind: 'effect', key: v })}
