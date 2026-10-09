@@ -184,6 +184,10 @@
 	<div class="flex flex-col gap-1">
 		<h1 class="text-2xl font-bold">Combat Power Simulator</h1>
 		<p class="text-sm text-surface-300">Load a character, change its gear, and see what each change does to Combat Power.</p>
+		<ul class="list-disc pl-5 text-xs text-surface-400">
+			<li>Uses only what lostark.bible already shows publicly for a character.</li>
+			<li>Nothing is saved anywhere except your browser: loaded characters, your roster and your edits stay on this device.</li>
+		</ul>
 	</div>
 
 	<!-- Search: load any character straight into the simulator. -->
@@ -284,7 +288,6 @@
 			<li>Change honing, accessories, gems, engravings, ark grid, bracelet and karma; Combat Power updates as you go.</li>
 			<li>Data comes from lostark.bible. For current gear: set it up in game, go to character select, then press ↻.</li>
 			<li>Characters with an estimated raid loadout on lostark.bible open with it (best raid gear seen); switch to the latest snapshot on the simulator page.</li>
-			<li>Everything you load stays in this browser only.</li>
 		</ul>
 	</details>
 
