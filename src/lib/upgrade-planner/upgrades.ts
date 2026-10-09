@@ -236,7 +236,7 @@ function coreUpgrades(l: Loadout): Upgrade[] {
 				key: `core:${c.id}:${next}`,
 				category: 'core' as const,
 				title: `${c.label} core → ${next}P`,
-				detail: `Needs ${next - c.points} more core point${next - c.points > 1 ? 's' : ''} from its astrogems.`,
+				detail: '',
 				gainPct,
 				count: 1,
 				approximate: c.info.weaponCore || c.modelValue !== c.value

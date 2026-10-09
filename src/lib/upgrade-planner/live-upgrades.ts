@@ -41,13 +41,13 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 		const points = simCorePoints(l, state, base, core.id);
 		const next = CORE_BREAKPOINTS.find((p) => p > points && p <= CORE_GRADE_CAP[info.grade]);
 		if (!next) continue;
-		add({ key: `core:${core.id}:${next}`, category: 'core', title: `${coreLabel(info)} core → ${next}P`, detail: `Needs ${next - points} more core point${next - points === 1 ? '' : 's'} from its astrogems.`, approximate: info.weaponCore || core.modelValue !== core.value });
+		add({ key: `core:${core.id}:${next}`, category: 'core', title: `${coreLabel(info)} core → ${next}P`, detail: '', approximate: info.weaponCore || core.modelValue !== core.value });
 	}
 	for (const id of role.astrogemOptions) {
 		const opts = state.arkGrid.flatMap((c) => c.gems.flatMap((g) => g.removed ? [] : g.opts.filter((o) => o.id === id)));
 		if (!opts.some((o) => o.level < 5)) continue;
 		const level = opts.reduce((n, o) => n + o.level, 0);
-		add({ key: `astrogem:${id}`, category: 'astrogem', subject: 'Astrogems', title: `${ASTROGEM_OPTION_NAMES[id]} Lv. ${level} → ${level + 1}`, detail: 'One option level on an equipped astrogem (max Lv. 5 each).' });
+		add({ key: `astrogem:${id}`, category: 'astrogem', subject: 'Astrogems', title: `${ASTROGEM_OPTION_NAMES[id]} Lv. ${level} → ${level + 1}`, detail: '' });
 	}
 	for (const [id, e] of Object.entries(state.engravings)) {
 		if (e.books >= ENGRAVING_BOOK_STEPS.length - 1) continue;
@@ -73,7 +73,7 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 	for (const tree of ['enlightenment', 'leap'] as const) {
 		const level = state.karma[tree];
 		if (level === null || level >= KARMA_MAX_LEVEL || (tree === 'leap' && !role.leapKarmaPerLevel)) continue;
-		add({ key: `karma:${tree}:${level + 1}`, category: 'karma', title: `${tree === 'leap' ? 'Leap' : 'Enlightenment'} karma level ${level} → ${level + 1}`, detail: 'One Karma level.' });
+		add({ key: `karma:${tree}:${level + 1}`, category: 'karma', title: `${tree === 'leap' ? 'Leap' : 'Enlightenment'} karma level ${level} → ${level + 1}`, detail: '' });
 	}
 
 	const scored = candidates.flatMap((u) => {

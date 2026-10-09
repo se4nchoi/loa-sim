@@ -215,6 +215,9 @@
 				<section id={sectionId(g.category)} class="flex flex-col">
 					<h3 class="mb-1 text-xs font-semibold tracking-wide text-surface-400 uppercase">{CATEGORY_LABELS[g.category]}</h3>
 					{#if g.category === 'accessory' && accRolls}{@render rollPicker()}{/if}
+					{#if mode === 'gold' && !supportsGoldCost(g.list[0])}
+						<p class="mb-1 text-xs text-amber-300/90">※ Gold efficiency can't be reliably calculated for cores and astrogems.</p>
+					{/if}
 					{#if g.category === 'accessory'}
 						<!-- Whole-accessory buys fold per piece: the best buy on the summary line, the full ladder inside. -->
 						{#each bySlot(g.list) as piece (piece.slot)}
