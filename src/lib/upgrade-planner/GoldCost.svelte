@@ -21,7 +21,8 @@
 	let editing = $state(false);
 	let text = $state('');
 	let input = $state<HTMLInputElement>();
-	const typed = $derived(gold.costs[u.key]);
+	// Engraving book rows are always price per book × books; a total typed there before book prices existed is ignored.
+	const typed = $derived(u.books ? undefined : gold.costs[u.key]);
 	/** Engraving book rows are priced per book; the box edits that price. */
 	const bookPrice = $derived(u.books ? gold.bookPrices[u.books.engraving] : undefined);
 	const cost = $derived(typed ?? auto?.expected ?? bookCost(u, gold.bookPrices) ?? u.knownCost);
@@ -42,7 +43,10 @@
 	function commit() {
 		if (!editing) return;
 		editing = false;
-		if (u.books) setBookPrice(u.books.engraving, text.trim() ? parseGold(text) : null);
+		if (u.books) {
+			setBookPrice(u.books.engraving, text.trim() ? parseGold(text) : null);
+			if (gold.costs[u.key] !== undefined) setGoldCost(u.key, null); // drop an old typed total for this row
+		}
 		else setGoldCost(u.key, text.trim() ? parseGold(text) : null);
 	}
 </script>

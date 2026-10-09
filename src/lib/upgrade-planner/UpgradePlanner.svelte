@@ -50,9 +50,10 @@
 	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices, bound) : {});
 	const costs = $derived({
 		...Object.fromEntries(upgrades.flatMap((u) => (u.knownCost === undefined ? [] : [[u.key, u.knownCost]]))),
-		...Object.fromEntries(upgrades.flatMap((u) => (bookCost(u, gold.bookPrices) === undefined ? [] : [[u.key, bookCost(u, gold.bookPrices)!]]))),
 		...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])),
-		...gold.costs
+		...gold.costs,
+		// Book rows: price per book × books, over any total typed on the row before book prices existed.
+		...Object.fromEntries(upgrades.flatMap((u) => (bookCost(u, gold.bookPrices) === undefined ? [] : [[u.key, bookCost(u, gold.bookPrices)!]])))
 	});
 	const materials = $derived(materialsFor(upgrades.map((u) => u.key), simNow.gear));
 	/** Nothing priced yet: every material counts as 0 (bound). */
