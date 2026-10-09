@@ -290,7 +290,7 @@
 				Data comes from lostark.bible, as of its last snapshot. To refresh it:
 				<ol class="mt-1 list-decimal space-y-0.5 pl-5">
 					<li>In game, equip the gear you want to simulate.</li>
-					<li>Go to character select, so lostark.bible picks up the change.</li>
+					<li>Go to character select or switch characters, so lostark.bible picks up the change.</li>
 					<li>Check the character's lostark.bible page shows the new gear.</li>
 					<li>Press ↻ on the character here. A character loaded in the last 5 minutes comes back unchanged; wait a few minutes and press it again.</li>
 				</ol>
