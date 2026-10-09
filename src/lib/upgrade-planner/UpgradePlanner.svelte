@@ -26,8 +26,10 @@
 		onapply,
 		simState,
 		simBase,
-		currentCp
-	}: { loadout: Loadout; limit?: number; simState?: SimState; simBase?: SimState; currentCp?: number; /** Returns false when it couldn't be applied. */ onapply?: (u: Upgrade) => boolean } = $props();
+		currentCp,
+		characterKey = '',
+		characterName
+	}: { characterKey?: string; characterName?: string; loadout: Loadout; limit?: number; simState?: SimState; simBase?: SimState; currentCp?: number; /** Returns false when it couldn't be applied. */ onapply?: (u: Upgrade) => boolean } = $props();
 
 	/** Brief feedback on the row just applied. */
 	let flash = $state<{ key: string; ok: boolean } | null>(null);
@@ -41,12 +43,14 @@
 
 	const simNow = $derived(simState ? $state.snapshot(simState) : initSimState(loadout));
 	const upgrades = $derived(liveUpgrades(loadout, simNow, simBase ?? initSimState(loadout)));
+	/** This character's bound honing mats. */
+	const bound = $derived(gold.bound[characterKey] ?? {});
 	// Honing rows are priced from material prices; a cost typed on the row wins.
-	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices, gold.owned) : {});
+	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices, bound) : {});
 	const costs = $derived({ ...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])), ...gold.costs });
 	const materials = $derived(materialsFor(upgrades.map((u) => u.key), simNow.gear));
 	/** Nothing priced yet: every material counts as 0 (bound). */
-	const unsetPrices = $derived(materials.every((id) => gold.prices[id] === undefined && gold.owned[id] === undefined));
+	const unsetPrices = $derived(materials.every((id) => gold.prices[id] === undefined && bound[id] === undefined));
 	let pricesOpen = $state(false);
 	const cp = $derived(currentCp ?? loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
 	let dialogOpen = $state(false);
@@ -156,7 +160,7 @@
 </div>
 
 {#if pricesOpen}
-	<MaterialPrices ids={materials} onclose={() => (pricesOpen = false)} />
+	<MaterialPrices ids={materials} {characterKey} {characterName} onclose={() => (pricesOpen = false)} />
 {/if}
 
 {#if dialogOpen}

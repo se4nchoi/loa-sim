@@ -31,8 +31,16 @@
 		loadout,
 		sidebar,
 		characterName,
+		characterKey,
 		cpDistribution = null
-	}: { loadout: Loadout; sidebar?: Snippet; characterName?: string; cpDistribution?: CpDistribution | null } = $props();
+	}: {
+		loadout: Loadout;
+		sidebar?: Snippet;
+		characterName?: string;
+		/** "na/soulshan": keys what is kept per character (bound honing mats). */
+		characterKey?: string;
+		cpDistribution?: CpDistribution | null;
+	} = $props();
 
 	const base = $derived(initSimState(loadout));
 	let sim = $state(untrack(() => initSimState(loadout)));
@@ -216,7 +224,7 @@
 				{/each}
 			</div>
 		</nav>
-		<UpgradePlanner {loadout} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
+		<UpgradePlanner {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
 		{@render sidebar?.()}
 	</div>
 </div>

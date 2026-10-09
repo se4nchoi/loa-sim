@@ -4,11 +4,24 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { formatGold, gold, parseOwned, parsePrice, setMaterialOwned, setMaterialPrice } from './gold-costs.svelte';
+	import { formatGold, gold, parseOwned, parsePrice, setMaterialBound, setMaterialPrice } from './gold-costs.svelte';
 	import { PLENTY, SHARDS, materialIcon, materialName } from './honing-cost';
 	import { iconUrl } from './icons';
 
-	let { ids, onclose }: { /** Material ids to ask for (plus 'shards'). */ ids: string[]; onclose: () => void } = $props();
+	let {
+		ids,
+		characterKey,
+		characterName,
+		onclose
+	}: {
+		/** Material ids to ask for (plus 'shards'). */
+		ids: string[];
+		/** Bound mats are kept per character; market prices are shared. */
+		characterKey: string;
+		characterName?: string;
+		onclose: () => void;
+	} = $props();
+	const bound = $derived(gold.bound[characterKey] ?? {});
 
 	let dialog: HTMLDialogElement;
 	onMount(() => dialog.showModal());
@@ -18,10 +31,10 @@
 	const unitLabel = (id: string) => (unit(id) === 1 ? 'each' : `per ${unit(id).toLocaleString()}`);
 	const shown = (id: string) => formatGold((gold.prices[id] ?? 0) * unit(id));
 
-	const shownOwned = (id: string) => (!gold.owned[id] ? '0' : gold.owned[id] >= PLENTY ? '∞' : gold.owned[id].toLocaleString());
+	const shownOwned = (id: string) => (!bound[id] ? '0' : bound[id] >= PLENTY ? '∞' : bound[id].toLocaleString());
 	function commitOwned(id: string, text: string) {
 		const v = parseOwned(text);
-		if (v !== null) setMaterialOwned(id, v);
+		if (v !== null) setMaterialBound(characterKey, id, v);
 	}
 
 	function commit(id: string, text: string) {
@@ -55,7 +68,8 @@
 				<li>Bound mats are used first, then the market buy is simulated</li>
 				<li>Put a big number (9999999999) to force 0 gold for the mat</li>
 				<li>Calculates the average-tap and pity-tap cost of each honing step</li>
-				<li class="text-amber-300/80">Each upgrade is priced on its own: every one assumes all your bound mats are available to it (3k leapstones count in full for each)</li>
+				<li>Bound mats are per character{characterName ? ` (${characterName})` : ''}; market prices are shared</li>
+				<li class="text-amber-300/80">Each upgrade is priced on its own: every one assumes all of this character's bound mats are available to it (3k leapstones count in full for each)</li>
 			</ul>
 			<div class="grid grid-cols-[2rem_minmax(0,1fr)_7.5rem_6rem_3.5rem] items-center gap-x-2 gap-y-1.5">
 				<span></span>
@@ -76,8 +90,7 @@
 							onchange={(e) => commitOwned(id, e.currentTarget.value)}
 							aria-label={`${materialName(id)} bound`}
 							inputmode="numeric"
-							class="h-8 w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-right tabular-nums hover:border-surface-400 focus:border-accent-500 focus:outline-none {gold
-								.owned[id]
+							class="h-8 w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-right tabular-nums hover:border-surface-400 focus:border-accent-500 focus:outline-none {bound[id]
 								? 'text-surface-50'
 								: 'text-surface-400'}"
 						/>

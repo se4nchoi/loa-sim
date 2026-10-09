@@ -23,14 +23,15 @@ function read(): Record<string, number> {
 export const gold = $state<{
 	costs: Record<string, number>;
 	prices: MaterialPrices;
-	owned: MaterialOwned;
+	/** Bound honing mats per character key. */
+	bound: Record<string, MaterialOwned>;
 	pricesAt: number | null;
 	mode: RankMode;
 	loaded: boolean;
 }>({
 	costs: {},
 	prices: {},
-	owned: {},
+	bound: {},
 	pricesAt: null,
 	mode: 'cp',
 	loaded: false
@@ -41,7 +42,7 @@ export function loadGold() {
 	gold.costs = read();
 	try {
 		const p = JSON.parse(localStorage.getItem(PRICES_KEY) ?? 'null');
-		if (p && typeof p.prices === 'object') ((gold.prices = p.prices), (gold.owned = p.owned ?? {}), (gold.pricesAt = p.at ?? null));
+		if (p && typeof p.prices === 'object') ((gold.prices = p.prices), (gold.bound = p.bound ?? {}), (gold.pricesAt = p.at ?? null));
 	} catch {
 		/* none yet */
 	}
@@ -66,7 +67,7 @@ export function setGoldCost(key: string, cost: number | null) {
 function saveMaterials() {
 	gold.pricesAt = Date.now();
 	try {
-		localStorage.setItem(PRICES_KEY, JSON.stringify({ prices: gold.prices, owned: gold.owned, at: gold.pricesAt }));
+		localStorage.setItem(PRICES_KEY, JSON.stringify({ prices: gold.prices, bound: gold.bound, at: gold.pricesAt }));
 	} catch {
 		/* storage blocked: lasts for this visit */
 	}
@@ -79,10 +80,11 @@ export function setMaterialPrice(id: string, price: number | null) {
 	saveMaterials();
 }
 
-/** Bound units of a honing material, used before buying; PLENTY for "plenty". */
-export function setMaterialOwned(id: string, amount: number | null) {
-	if (!amount) delete gold.owned[id];
-	else gold.owned[id] = amount;
+/** A character's bound units of a honing material, used before buying; PLENTY for "plenty". */
+export function setMaterialBound(characterKey: string, id: string, amount: number | null) {
+	const mine = (gold.bound[characterKey] ??= {});
+	if (!amount) delete mine[id];
+	else mine[id] = amount;
 	saveMaterials();
 }
 
