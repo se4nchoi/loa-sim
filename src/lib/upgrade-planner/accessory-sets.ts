@@ -7,7 +7,7 @@
 
 import { roleOf } from './roles';
 import { ACCESSORY_SLOTS, familyOf, simulate, type AccessorySlot, type SimLine, type SimState } from './simulate';
-import type { Tier } from './tables';
+import { formatLineValue, type Tier } from './tables';
 import type { Loadout } from './types';
 import type { Upgrade } from './upgrades';
 
@@ -33,6 +33,36 @@ export function parseAccessorySetKey(key: string): AccessorySet | null {
 	const [kind, slot, lines] = key.split(':');
 	if (kind !== 'accset' || !ACCESSORY_SLOTS.includes(slot as AccessorySlot) || !lines) return null;
 	return { slot: slot as AccessorySlot, lines: lines.split(',').map((p) => ({ key: p.slice(0, p.lastIndexOf('.')), tier: p.slice(p.lastIndexOf('.') + 1) as Tier })) };
+}
+
+/** Identical target rolls share one price across the two earring / ring slots. */
+export function accessoryPriceKey(key: string, prices: Record<string, number>): string {
+	if (!key.startsWith('accset:')) return key;
+	const set = parseAccessorySetKey(key);
+	if (!set) return key;
+	const signature = (s: AccessorySet) => s.lines.map((ln) => `${ln.key}.${ln.tier}`).sort().join(',');
+	const slot = familyOf(set.slot) === 'ear' ? 'ear1' : familyOf(set.slot) === 'finger' ? 'finger1' : 'neck';
+	const canonical = `accset:${slot}:${signature(set)}`;
+	if (prices[canonical] !== undefined) return canonical;
+	return Object.keys(prices).sort().find((candidate) => {
+		const other = parseAccessorySetKey(candidate);
+		return other && familyOf(other.slot) === familyOf(set.slot) && signature(other) === signature(set);
+	}) ?? canonical;
+}
+
+/** One price row per roll set, with the original slot-specific CP gains and Apply targets. */
+export function groupAccessoryUpgrades(upgrades: Upgrade[]) {
+	return (['neck', 'ear', 'finger'] as const).map((family, i) => {
+		const options = new Map<string, Upgrade[]>();
+		for (const u of upgrades) {
+			const set = parseAccessorySetKey(u.key);
+			const fallback = u.subject?.startsWith('Earring') ? 'ear' : u.subject?.startsWith('Ring') ? 'finger' : u.subject === 'Necklace' ? 'neck' : null;
+			if ((set ? familyOf(set.slot) : fallback) !== family) continue;
+			const key = accessoryPriceKey(u.key, {});
+			options.set(key, [...(options.get(key) ?? []), u]);
+		}
+		return { name: ['Necklace', 'Earrings 1/2', 'Rings 1/2'][i], options: [...options.entries()].map(([key, variants]) => ({ key, variants })) };
+	});
 }
 
 /** The slot's lines replaced by exactly the set's lines (missing ones become a non-scoring "other" line). */
@@ -116,7 +146,10 @@ export function accessorySetUpgrades(l: Loadout, state: SimState, base: SimState
 				subject: SLOT_NAMES[slot],
 				title: [m1, m2, t3].filter(Boolean).map((x) => nameOf(x.key)).join(' · ') + (t3 ? '' : ' · None'),
 				// Main lines best-in-slot first: High-Mid is the BiS roll, Mid-High its reverse.
-				lines: [...o.set.lines].sort((x, y) => order(x.key) - order(y.key)).map((x) => ({ name: nameOf(x.key), tier: x.tier })),
+				lines: [...o.set.lines].sort((x, y) => order(x.key) - order(y.key)).map((x) => {
+					const line = role.accessoryLines.find((line) => line.key === x.key)!;
+					return { name: nameOf(x.key), tier: x.tier, value: formatLineValue(line, line.values[x.tier]) };
+				}),
 				detail: '',
 				gainPct: o.gain,
 				count: 1,

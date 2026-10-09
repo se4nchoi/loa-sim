@@ -7,6 +7,7 @@
 	import { formatCp, formatPct } from '../format';
 	import Delta from './Delta.svelte';
 	import { btn, type SectionDelta, type SimSection } from './ui';
+	import { GOLD_ICON } from '../icons';
 
 	let {
 		current,
@@ -24,7 +25,8 @@
 		onredo,
 		canUndo,
 		canRedo,
-		split = null
+		split = null,
+		onbudget
 	}: {
 		current: number;
 		simulated: number;
@@ -44,6 +46,7 @@
 		canRedo: boolean;
 		/** Supports: Buff Power and Shield & Heal Power (bible's breakdown) and their % change. */
 		split?: { buff: { value: number; pct: number }; shieldHeal: { value: number; pct: number } } | null;
+		onbudget?: () => void;
 	} = $props();
 
 	const LABELS: Record<SimSection, string> = {
@@ -89,7 +92,7 @@
 	<div class="flex flex-row gap-1.5 px-2 py-2">
 		<button type="button" class="{btn} flex-1 disabled:opacity-40" disabled={!canUndo} onclick={onundo} title="Undo (Ctrl+Z)">↶ Undo</button>
 		<button type="button" class="{btn} flex-1 disabled:opacity-40" disabled={!canRedo} onclick={onredo} title="Redo (Ctrl+Y)">↷ Redo</button>
-		<button type="button" class="{btn} flex-1" onclick={onreset}>Reset</button>
+		<button type="button" class="{btn} flex-1" onclick={onreset} aria-label="Reset simulation">Reset</button>
 	</div>
 	<div class="flex flex-col gap-1 p-2">
 		<span class="text-xs text-surface-400">Current</span>
@@ -105,6 +108,7 @@
 				{ilvlBefore.toFixed(2)}{#if ilvlAfter !== ilvlBefore} → <span class={color(ilvlAfter - ilvlBefore)}>{ilvlAfter.toFixed(2)}</span>{/if}
 			</span>
 		{/if}
+		{#if onbudget}<button type="button" onclick={onbudget} class="mt-2 hidden h-8 w-full items-center justify-center gap-1.5 rounded-xs border border-amber-300/70 bg-amber-500/5 px-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/15 lg:inline-flex" aria-haspopup="dialog"><img src={GOLD_ICON} alt="" class="size-4" />Budget for current changes</button>{/if}
 		{#if split}
 			<div
 				class="mt-1 grid grid-cols-[1fr_max-content_max-content] items-baseline gap-x-2 text-sm"

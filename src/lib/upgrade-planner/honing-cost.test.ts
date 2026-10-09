@@ -1,12 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { KARMA_COSTS } from './karma-cost-data';
 import { HONING_COSTS } from './honing-cost-data';
-import { PLENTY, SHARDS, autoHoningCosts, breathStrategy, honingCost, tapsFor } from './honing-cost';
+import { PLENTY, SHARDS, autoHoningCosts, breathStrategy, honingCost, inventoryMaterials, tapsFor } from './honing-cost';
 import { BRACER_TAPS } from './bracer-cost-data';
 
 const free = (tap: ReturnType<typeof tapsFor>) => Object.fromEntries([...Object.keys(tap!.mats), SHARDS].map((id) => [id, 0]));
 
 describe('honing cost', () => {
+	it('shows bound inventory for the equipped progression, including mixed gear', () => {
+		const serca = inventoryMaterials({ weapon: {}, head: {} });
+		expect(serca).toContain('66102007');
+		expect(serca).toContain('66102107');
+		expect(serca).not.toContain('66102006');
+		expect(serca).not.toContain('66110225');
+		const mixed = inventoryMaterials({ weapon: { set: 'aegir' }, head: {} });
+		expect(mixed).toContain('66102006');
+		expect(mixed).toContain('66102107');
+		expect(mixed).toContain('66110225');
+		expect(mixed).toContain('66110226');
+	});
+	it('does not automatically exchange regular bound materials for Serca honing', () => {
+		const tap = tapsFor('serca', 'weapon', 1)!;
+		const prices = { '66102007': 30, '66110226': 15 };
+		expect(honingCost(tap, prices, { '66102006': 500, '66110225': 500 }).expected).toBe(honingCost(tap, prices).expected);
+	});
 	it('changes +22 to +23 armor strategy with bound regular materials or bound breath', () => {
 		const tap = tapsFor('serca', 'head', 23)!;
 		// Fixed hypothetical unit prices; changing only stock must change the selected strategy.

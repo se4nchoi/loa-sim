@@ -221,3 +221,10 @@ export function materialsFor(keys: string[], gear: GearSets): string[] {
 	const order = (id: string) => (id.startsWith('6611022') ? 0 : id.startsWith('66102') ? 1 : id.startsWith('6861') ? 2 : 3);
 	return [...[...ids].sort((a, b) => order(a) - order(b) || a.localeCompare(b)), ...(ids.size ? [SHARDS] : [])];
 }
+
+/** Inventory follows equipped gear, independently of which upgrades remain available. */
+export function inventoryMaterials(gear: GearSets, hasBracer = false): string[] {
+	const keys = Object.entries(gear).filter(([, item]) => item).map(([slot]) => `honing:${slot}:1`);
+	if (hasBracer) keys.push('bracer:epic:1');
+	return materialsFor(keys, gear);
+}

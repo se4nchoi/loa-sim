@@ -1,6 +1,7 @@
 <!-- A Next Upgrades row's gold cost: calculated honing estimates or editable prices for other upgrades. -->
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { goldPriceButton } from './sim/ui';
 	import { GOLD_ICON } from './icons';
 	import { bookCost, formatGold, gold, manualGoldCost, parseGold, setBookPrice, setGoldCost } from './gold-costs.svelte';
 	import { breathStrategy, type HoningCost } from './honing-cost';
@@ -11,13 +12,16 @@
 	let {
 		u,
 		auto,
-		showPer = true
+		showPer = true,
+		onedit
 	}: {
 		u: Upgrade;
 		/** Cost calculated from material prices. Equipment honing cannot be overridden by a typed total. */
 		auto?: HoningCost;
 		/** Show gold per 1% next to the cost (the sidebar shows it by the gain). */
 		showPer?: boolean;
+		/** Open the shared price editor elsewhere, rather than editing inline. */
+		onedit?: () => void;
 	} = $props();
 
 	let editing = $state(false);
@@ -40,6 +44,7 @@
 
 	async function edit() {
 		if (!canEdit) return;
+		if (onedit) return onedit();
 		text = u.books ? (bookPrice !== undefined ? formatGold(bookPrice) : '') : typed ? formatGold(typed) : '';
 		editing = true;
 		await tick();
@@ -76,9 +81,7 @@
 			type="button"
 			disabled={!canEdit}
 			onclick={edit}
-			class="col-start-1 inline-flex h-6 items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold whitespace-nowrap tabular-nums transition {cost !== undefined
-				? 'border-amber-400/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
-				: 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'}"
+			class="col-start-1 {goldPriceButton(cost)}"
 			title={u.books
 				? `Price of one ${u.books.name} relic book; this row reads ${u.books.count}${bookPrice !== undefined ? ` (${formatGold(bookPrice)} × ${u.books.count})` : ''}`
 				: typed

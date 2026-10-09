@@ -7,6 +7,7 @@
 	import { onMount } from 'svelte';
 	import { formatGold, gold, parseOwned, parsePrice, setMaterialBound, setMaterialPrice } from './gold-costs.svelte';
 	import { PLENTY, SHARDS, materialIcon, materialName } from './honing-cost';
+	import { HONING_MATERIALS } from './honing-cost-data';
 	import { iconUrl } from './icons';
 
 	let {
@@ -23,6 +24,9 @@
 		onclose: () => void;
 	} = $props();
 	const bound = $derived(gold.bound[characterKey] ?? {});
+	const upperIds = ['66110226', '66102007', '66102107', '6861013', '66111131', '66111132', SHARDS];
+	const lowerIds = ['66110225', '66102006', '66102106', '6861012'];
+	const editableIds = $derived([...new Set([...upperIds, ...lowerIds, ...ids, ...Object.keys(HONING_MATERIALS)])]);
 
 	let dialog: HTMLDialogElement;
 	let card = $state<HTMLDivElement>();
@@ -78,6 +82,7 @@
 				<li>Put a big number (9999999999) to force 0 gold for the mat</li>
 				<li>Calculates the average-tap and pity-tap cost of each honing step</li>
 				<li>Character-bound mats are saved per character; market prices are shared</li>
+				<li>Inventory shows materials for the current gear. Update it after exchanging materials in-game.</li>
 				<li class="text-amber-300/80">Each upgrade is priced on its own: every one assumes all of this character's bound mats are available to it (3k leapstones count in full for an armor tap or a weapon tap)</li>
 			</ul>
 			<!-- Phones: icon only (the name is its tooltip / label), so the two inputs keep their room. -->
@@ -87,7 +92,8 @@
 				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-100 uppercase">Character-bound</span>
 				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-100 uppercase">Market</span>
 				<span></span>
-				{#each ids as id (id)}
+				{#each editableIds as id (id)}
+					{#if id === lowerIds[0]}<span class="col-span-full mt-2 border-t border-surface-700 pt-2 text-xs font-semibold text-surface-400">Lower T4 materials</span>{/if}
 					<div class="contents">
 						{#if materialIcon(id)}
 							<img src={iconUrl(materialIcon(id))} alt={materialName(id)} title={materialName(id)} class="size-8 shrink-0 rounded-xs bg-black/30" />
@@ -95,6 +101,7 @@
 							<span class="size-8 shrink-0 rounded-xs bg-black/30"></span>
 						{/if}
 						<span class="min-w-0 leading-tight text-surface-100 max-sm:hidden">{materialName(id)}</span>
+						{#if ids.includes(id)}
 						<input
 							value={shownOwned(id)}
 							onchange={(e) => commitOwned(id, e.currentTarget.value)}
@@ -104,6 +111,7 @@
 								? 'text-surface-50'
 								: 'text-surface-400'}"
 						/>
+						{:else}<span class="text-right text-surface-600" title="Not used by current gear">—</span>{/if}
 						<input
 							value={shown(id)}
 							aria-label={`${materialName(id)} market price (${unitLabel(id)})`}

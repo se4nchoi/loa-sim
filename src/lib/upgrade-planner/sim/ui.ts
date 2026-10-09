@@ -14,6 +14,11 @@ export const btn =
 export const btnAccent =
 	'inline-flex h-7 items-center justify-center rounded-xs border border-accent-700 bg-accent-700/30 px-2.5 text-xs font-semibold text-accent-100 transition hover:bg-accent-700/50';
 
+export const goldPriceButton = (cost?: number) =>
+	`inline-flex h-6 items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold whitespace-nowrap tabular-nums transition ${cost !== undefined
+		? 'border-amber-400/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
+		: 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'}`;
+
 export const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
 
 /** Simulator sections and the parts of the state each one owns. */

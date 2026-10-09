@@ -8,11 +8,12 @@
 	import { useDrawerDrag } from './sim/BottomDrawer.svelte';
 	import GoldCost from './GoldCost.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
-	import { autoHoningCosts, materialsFor } from './honing-cost';
+	import { autoHoningCosts, inventoryMaterials, materialsFor } from './honing-cost';
 	import { bookCost, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
+	import { accessoryPriceKey } from './accessory-sets';
 	import { rollsFor, setAccRolls } from './acc-rolls.svelte';
 	import { initSimState, type SimState } from './simulate';
 	import { roleOf } from './roles';
@@ -32,8 +33,10 @@
 		characterKey = '',
 		characterName,
 		class: cls = '',
-		scroll = false
-	}: { /** Scroll the list inside the card at every width (the phone drawer); otherwise only on desktop. */ scroll?: boolean; class?: string; characterKey?: string; characterName?: string; loadout: Loadout; limit?: number; simState?: SimState; simBase?: SimState; currentCp?: number; /** Returns false when it couldn't be applied. */ onapply?: (u: Upgrade) => boolean } = $props();
+		scroll = false,
+		pricingRequest = null,
+		onpricingclose
+	}: { pricingRequest?: Upgrade | null; onpricingclose?: () => void; /** Scroll the list inside the card at every width (the phone drawer); otherwise only on desktop. */ scroll?: boolean; class?: string; characterKey?: string; characterName?: string; loadout: Loadout; limit?: number; simState?: SimState; simBase?: SimState; currentCp?: number; /** Returns false when it couldn't be applied. */ onapply?: (u: Upgrade) => boolean } = $props();
 
 	/** Brief feedback on the row just applied. */
 	let flash = $state<{ key: string; ok: boolean } | null>(null);
@@ -53,7 +56,12 @@
 		const timer = setTimeout(() => (simNow = next), 150);
 		return () => clearTimeout(timer);
 	});
-	const upgrades = $derived(liveUpgrades(loadout, simNow, simBase ?? initSimState(loadout), rollsFor(characterKey)));
+	const upgrades = $derived.by(() => {
+		const list = liveUpgrades(loadout, simNow, simBase ?? initSimState(loadout), rollsFor(characterKey));
+		// A planned accessory may already be equipped in the edited state; keep its shared price editable.
+		if (pricingRequest && !list.some((u) => u.key === pricingRequest.key)) list.push({ ...pricingRequest, gainPct: 0 });
+		return list;
+	});
 	const goldUpgrades = $derived(upgrades.filter(supportsGoldCost));
 	/** This character's bound honing mats. */
 	const bound = $derived(gold.bound[characterKey] ?? {});
@@ -80,6 +88,12 @@
 	const drawerDrag = useDrawerDrag();
 	/** Upgrade to scroll to when All Upgrades opens from a row click. */
 	let focusKey = $state<string | null>(null);
+	$effect(() => {
+		if (!pricingRequest) return;
+		setRankMode('gold');
+		focusKey = pricingRequest.key;
+		dialogOpen = true;
+	});
 
 	onMount(loadGold);
 	/** Most CP first, or (with gold costs entered) least gold per 1% CP first. */
@@ -90,7 +104,7 @@
 			? [...priced, ...topDistinct(upgrades.filter((u) => !supportsGoldCost(u) || costs[u.key] === undefined), limit - priced.length)]
 			: topDistinct(upgrades, limit)
 	);
-	const unpriced = $derived(goldUpgrades.filter((u) => u.category !== 'honing' && costs[u.key] === undefined).length);
+	const unpriced = $derived(new Set(goldUpgrades.filter((u) => u.category !== 'honing' && costs[u.key] === undefined).map((u) => accessoryPriceKey(u.key, {}))).size);
 </script>
 
 <div class="flex min-h-0 flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
@@ -200,9 +214,9 @@
 </div>
 
 {#if pricesOpen}
-	<MaterialPrices ids={materials} {characterKey} {characterName} onclose={() => (pricesOpen = false)} />
+	<MaterialPrices ids={inventoryMaterials(simNow.gear, !!simNow.bracer)} {characterKey} {characterName} onclose={() => (pricesOpen = false)} />
 {/if}
 
 {#if dialogOpen}
-	<UpgradeDialog {upgrades} {cp} accRolls={rollsFor(characterKey)} onaccrolls={(r) => setAccRolls(characterKey, r)} {auto} {costs} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => ((dialogOpen = false), (focusKey = null))} />
+	<UpgradeDialog {upgrades} {cp} accRolls={rollsFor(characterKey)} onaccrolls={(r) => setAccRolls(characterKey, r)} {auto} {costs} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => { dialogOpen = false; focusKey = null; if (pricingRequest) onpricingclose?.(); }} />
 {/if}

@@ -5,6 +5,13 @@ import type { Upgrade } from './upgrades';
 const up = (key: string, gainPct: number) => ({ key, gainPct, category: 'gem', title: key, detail: '', count: 1, approximate: false }) as Upgrade;
 
 describe('gold costs', () => {
+	it('shares accessory prices across display line order without mixing different rolls', () => {
+		const u = { ...up('accset:ear1:atk_pct.high,weapon_pct.mid', 1), category: 'accessory' as const };
+		const prices = { 'accset:ear1:weapon_pct.mid,atk_pct.high': 50000 };
+		expect(manualGoldCost(u, prices)).toBe(50000);
+		expect(goldPerPct(u, prices)).toBe(50000);
+		expect(manualGoldCost({ ...u, key: 'accset:ear1:atk_pct.mid,weapon_pct.high' }, prices)).toBeUndefined();
+	});
 	it('ignores saved manual equipment honing totals while preserving other upgrade inputs', () => {
 		const gear = { ...up('honing:weapon:25', 1), category: 'honing' as const };
 		const bracer = { ...gear, key: 'bracer:epic:1' };

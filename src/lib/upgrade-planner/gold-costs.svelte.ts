@@ -3,6 +3,7 @@
 
 import { PLENTY, type MaterialOwned, type MaterialPrices } from './honing-cost';
 import type { Upgrade } from './upgrades';
+import { accessoryPriceKey } from './accessory-sets';
 
 const KEY = 'loa-sim:gold-costs';
 const PRICES_KEY = 'loa-sim:material-prices';
@@ -65,6 +66,10 @@ export function loadGold() {
 }
 
 export function setGoldCost(key: string, cost: number | null) {
+	key = accessoryPriceKey(key, {});
+	if (key.startsWith('accset:')) for (const candidate of Object.keys(gold.costs)) {
+		if (candidate !== key && accessoryPriceKey(candidate, {}) === key) delete gold.costs[candidate];
+	}
 	if (cost === null) delete gold.costs[key];
 	else gold.costs[key] = cost;
 	try {
@@ -160,12 +165,12 @@ export function formatGold(g: number): string {
 export const supportsGoldCost = (u: Upgrade) => u.category !== 'core' && u.category !== 'astrogem';
 
 /** Equipment honing is priced from materials; old manually entered totals no longer override it. */
-export const manualGoldCost = (u: Upgrade, costs: Record<string, number>) => u.category === 'honing' ? undefined : costs[u.key];
+export const manualGoldCost = (u: Upgrade, costs: Record<string, number>) => u.category === 'honing' ? undefined : costs[accessoryPriceKey(u.key, costs)];
 
 /** Gold per 1% Combat Power (lower is better); null without a cost or a gain. */
 export const goldPerPct = (u: Upgrade, costs: Record<string, number>) => {
 	if (!supportsGoldCost(u)) return null;
-	const cost = costs[u.key];
+	const cost = costs[accessoryPriceKey(u.key, costs)];
 	return cost !== undefined && u.gainPct > 0 ? cost / u.gainPct : null;
 };
 

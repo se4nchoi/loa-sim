@@ -10,6 +10,9 @@
 	import { applyUpgrade } from './apply-upgrade';
 	import { roleOf } from './roles';
 	import UpgradePlanner from './UpgradePlanner.svelte';
+	import SimBudget from './SimBudget.svelte';
+	import { budgetChanges, budgetPriceUpgrades } from './sim-budget';
+	import { inventoryMaterials } from './honing-cost';
 	import { folded, toggleFold } from './sim/folded.svelte';
 	import FoldChip from './sim/FoldChip.svelte';
 	import BottomDrawer from './sim/BottomDrawer.svelte';
@@ -105,6 +108,8 @@
 	});
 	/** Phones: the Next Upgrades drawer (see BottomDrawer). */
 	let drawerOpen = $state(false);
+	let budgetOpen = $state(false);
+	let budgetPricing = $state<Upgrade | null>(null);
 	/** Dock the CP bar at the top first (scroll it up if it's still mid-page), so it shows above the drawer. */
 	function openDrawer() {
 		const bar = document.querySelector<HTMLElement>('[data-cp-bar]');
@@ -309,11 +314,12 @@
 		onredo={redo}
 		canUndo={past.length > 0}
 		canRedo={future.length > 0}
+		onbudget={() => budgetOpen = true}
 	/>
 {/snippet}
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
-<MobileSummaryBar {current} {simulated} nav={jumpChips}>{@render summary()}</MobileSummaryBar>
+<MobileSummaryBar {current} {simulated} nav={jumpChips} onbudget={() => budgetOpen = true}>{@render summary()}</MobileSummaryBar>
 <div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
 	<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
 	<div class="flex min-w-0 flex-col gap-2">
@@ -348,7 +354,7 @@
 			</button>
 			<div hidden={folded.nav}>{@render jumpChips("p-2")}</div>
 		</nav>
-		{#if wide}<UpgradePlanner class="lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />{/if}
+		{#if wide}<UpgradePlanner class="lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
 		{@render sidebar?.()}
 	</div>
 </div>
@@ -370,3 +376,8 @@
 <BottomDrawer bind:open={drawerOpen} label="Next Upgrades" top={drawerTop}>
 	<UpgradePlanner scroll class="min-h-0 flex-1 rounded-none shadow-none" limit={1000} {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
 </BottomDrawer>
+
+{#if budgetOpen}
+	{#if !wide}<UpgradePlanner class="hidden" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
+	<SimBudget changes={budgetChanges(loadout, base, snapshot())} inventoryIds={inventoryMaterials(sim.gear, !!sim.bracer)} priceUpgrades={budgetPriceUpgrades(loadout, base, snapshot())} onprice={(u) => budgetPricing = u} {current} {simulated} {characterKey} {characterName} onclose={() => { budgetOpen = false; budgetPricing = null; }} />
+{/if}

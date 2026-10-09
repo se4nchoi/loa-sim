@@ -7,7 +7,7 @@
 	import GoldCost from './GoldCost.svelte';
 	import { byGold, formatGold, goldPerPct, supportsGoldCost, type RankMode } from './gold-costs.svelte';
 	import type { HoningCost } from './honing-cost';
-	import { ACC_ROLLS, type AccRoll } from './accessory-sets';
+	import { ACC_ROLLS, groupAccessoryUpgrades, type AccRoll } from './accessory-sets';
 	import { CATEGORY_LABELS, type Upgrade, type UpgradeCategory } from './upgrades';
 
 	let {
@@ -55,18 +55,17 @@
 	const sorted = (list: Upgrade[]) => {
 		const by = new Map<UpgradeCategory, Upgrade[]>();
 		for (const u of list) by.set(u.category, [...(by.get(u.category) ?? []), u]);
+		// Keep the picker and quick navigation in place even when no accessory rolls are offered.
+		if (accRolls && !by.has('accessory')) by.set('accessory', []);
 		return [...by.entries()]
 			.map(([category, items]) => ({ category, list: items.toSorted((a, b) => b.gainPct - a.gainPct) }))
-			.sort((a, b) => b.list[0].gainPct - a.list[0].gainPct);
+			.sort((a, b) => (b.list[0]?.gainPct ?? 0) - (a.list[0]?.gainPct ?? 0));
 	};
 	// While open, the order stays as it was when the dialog opened (an Apply or a filter would otherwise reshuffle
 	// rows under the cursor); values still update, gone rows drop out, new ones join the end. Reopening re-sorts.
 	const opened = untrack(() => sorted(upgrades));
 	const categoryAt = new Map(opened.map((g, i) => [g.category, i]));
 	const rowAt = new Map(opened.flatMap((g) => g.list).map((u, i) => [u.key, i]));
-	const pieceAt = new Map(
-		opened.flatMap((g) => g.list.filter((u) => u.category === 'accessory')).map((u) => u.subject ?? '').filter((v, i, all) => all.indexOf(v) === i).map((slot, i) => [slot, i])
-	);
 	/** Order by where it was at opening; newcomers (unknown) after, by gain. */
 	const byOpened = <T,>(at: Map<T, number>, x: T, y: T, tie = 0) => {
 		const a = at.get(x), b = at.get(y);
@@ -75,7 +74,7 @@
 	const groups = $derived(
 		sorted(upgrades)
 			.map((g) => ({ ...g, list: g.list.toSorted((a, b) => byOpened(rowAt, a.key, b.key, b.gainPct - a.gainPct)) }))
-			.sort((a, b) => byOpened(categoryAt, a.category, b.category, b.list[0].gainPct - a.list[0].gainPct))
+			.sort((a, b) => byOpened(categoryAt, a.category, b.category, (b.list[0]?.gainPct ?? 0) - (a.list[0]?.gainPct ?? 0)))
 	);
 	// Sticky category bar: jump to a section; the one scrolled to is highlighted.
 	let scroller = $state<HTMLDivElement>();
@@ -100,12 +99,6 @@
 		}
 		active = current ?? groups[0]?.category ?? null;
 	}
-	/** Accessory rows by piece (Necklace, Earring 1, …), each best first. */
-	const bySlot = (list: Upgrade[]) => {
-		const by = new Map<string, Upgrade[]>();
-		for (const u of list) by.set(u.subject ?? '', [...(by.get(u.subject ?? '') ?? []), u]);
-		return [...by.entries()].map(([slot, items]) => ({ slot, list: items })).sort((a, b) => byOpened(pieceAt, a.slot, b.slot, b.list[0].gainPct - a.list[0].gainPct));
-	};
 	// Accessory roll picker: toggles stay a draft until Apply rebuilds the ladder.
 	let draft = $state<AccRoll[]>(untrack(() => [...(accRolls ?? [])]));
 	const same = (a: AccRoll[], b: AccRoll[]) => a.length === b.length && a.every((r) => b.includes(r));
@@ -163,6 +156,22 @@
 	</div>
 {/snippet}
 
+{#snippet accessoryRow(variants: Upgrade[])}
+	{@const u = variants.find((v) => v.key === focusKey) ?? variants[0]}
+	<div data-key={u.key} class="flex items-start gap-3 border-t border-neutral-950 py-2 {variants.some((v) => v.key === focusKey) ? 'animate-[upgrade-focus_1.6s_ease-out] rounded-xs' : ''}">
+		<div class="flex min-w-0 flex-1 flex-col gap-0.5">
+			{#each u.lines ?? [] as line (line.name)}
+				<div class="grid grid-cols-[minmax(0,8.5rem)_max-content] items-baseline gap-2 text-sm leading-snug"><span class="min-w-0 text-surface-100">{line.name}</span><span class="font-semibold" style:color={ROLL_COLORS[line.tier as keyof typeof ROLL_COLORS]}>{line.value ?? line.tier}</span></div>
+			{/each}
+			{#if (u.lines?.length ?? 0) < 3}<span class="text-xs text-surface-500">None</span>{/if}
+			{#if mode === 'gold'}<GoldCost {u} />{/if}
+		</div>
+		<div class="flex shrink-0 flex-col gap-2">
+			{#each variants as target (target.key)}<div class="flex items-center gap-2"><div class="text-right"><span class="block text-[11px] text-surface-400">{target.subject}</span><span class="text-sm font-semibold text-green-400 tabular-nums">{target.approximate ? '≈' : ''}{formatPct(target.gainPct)}%</span></div>{#if onapply}<button type="button" class="{btn} w-14 px-1.5" onclick={() => onapply(target)} title={`Apply to ${target.subject}`}>{flash?.key === target.key ? (flash.ok ? '✓' : 'Done') : 'Apply'}</button>{/if}</div>{/each}
+		</div>
+	</div>
+{/snippet}
+
 <!-- Focusable itself (tabindex -1) so opening focuses the dialog, not its first input or Close. -->
 <dialog
 	bind:this={dialog}
@@ -193,7 +202,7 @@
 								? 'border-accent-500/60 bg-surface-800 text-surface-50'
 								: 'border-surface-700 text-surface-300 hover:border-surface-500 hover:text-surface-50'}"
 						>
-							{SHORT[g.category] ?? CATEGORY_LABELS[g.category]} <span class="font-normal text-surface-500">{g.list.length}</span>
+								{SHORT[g.category] ?? CATEGORY_LABELS[g.category]} <span class="font-normal text-surface-500">{g.category === 'accessory' ? groupAccessoryUpgrades(g.list).reduce((n, piece) => n + piece.options.length, 0) : g.list.length}</span>
 						</button>
 					{/each}
 				</div>
@@ -216,36 +225,30 @@
 				<section id={sectionId(g.category)} class="flex flex-col">
 					<h3 class="mb-1 text-xs font-semibold tracking-wide text-surface-400 uppercase">{CATEGORY_LABELS[g.category]}</h3>
 					{#if g.category === 'accessory' && accRolls}{@render rollPicker()}{/if}
-					{#if mode === 'gold' && !supportsGoldCost(g.list[0])}
+					{#if mode === 'gold' && g.list.length && !supportsGoldCost(g.list[0])}
 						<p class="mb-1 text-xs text-amber-300/90">※ Gold efficiency can't be reliably calculated for cores and astrogems.</p>
 					{/if}
 					{#if g.category === 'accessory'}
 						<!-- Whole-accessory buys fold per piece: the best buy on the summary line, the full ladder inside. -->
-						{#each bySlot(g.list) as piece (piece.slot)}
-							<details class="group border-t border-neutral-950" open={piece.list.some((u) => u.key === focusKey)}>
+						{#each groupAccessoryUpgrades(g.list) as piece (piece.name)}
+							<details class="group border-t border-neutral-950" open={piece.options.some((o) => o.variants.some((u) => u.key === focusKey))}>
 								<summary class="flex cursor-pointer list-none flex-row items-center gap-3 py-2 hover:bg-black/15 [&::-webkit-details-marker]:hidden">
 									<span class="w-3 text-xs text-surface-500 transition-transform group-open:rotate-90">▸</span>
-									<span class="min-w-0 flex-1"><UpgradeTitle compact u={piece.list[0]} /></span>
-									<span class="text-xs text-surface-500">{piece.list.length} option{piece.list.length > 1 ? 's' : ''}</span>
-									<span class="text-sm font-semibold text-green-400 tabular-nums">up to {piece.list[0].approximate ? '≈' : ''}{formatPct(piece.list[0].gainPct)}%</span>
+									<span class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-xs"><span class="w-22 shrink-0 text-sm text-surface-100">{piece.name}</span>{#each accRolls ?? [] as roll (roll)}<span class="inline-flex items-center rounded-xs border border-surface-600 bg-black/15 px-1.5 py-0.5 font-semibold">{#each [...roll] as tier, i (i)}{#if i}<span class="text-surface-500">-</span>{/if}<span style:color={ROLL_COLORS[({ h: 'high', m: 'mid', l: 'low' } as const)[tier as 'h' | 'm' | 'l']]}>{tier.toUpperCase()}</span>{/each}</span>{/each}</span>
+									<span class="text-xs text-surface-500">{piece.options.length} option{piece.options.length === 1 ? '' : 's'}</span>
+									{#if piece.options.length}<span class="text-sm font-semibold text-green-400 tabular-nums">up to {piece.options.some((o) => o.variants.some((u) => u.approximate)) ? '≈' : ''}{formatPct(Math.max(...piece.options.flatMap((o) => o.variants.map((u) => u.gainPct))))}%</span>{/if}
 								</summary>
 								<div class="pl-6">
-									{#each piece.list as u (u.key)}{@render row(u)}{/each}
+									{#each piece.options as option (option.key)}{@render accessoryRow(option.variants)}{/each}
 								</div>
 							</details>
 						{/each}
+						{#if !g.list.length}<p class="mt-2 text-xs text-surface-400">No accessory with the applied rolls beats what you have.</p>{/if}
 					{:else}
 						{#each g.list as u (u.key)}{@render row(u)}{/each}
 					{/if}
 				</section>
 			{/each}
-			{#if accRolls && !groups.some((g) => g.category === 'accessory')}
-				<section class="flex flex-col">
-					<h3 class="mb-1 text-xs font-semibold tracking-wide text-surface-400 uppercase">{CATEGORY_LABELS.accessory}</h3>
-					{@render rollPicker()}
-					<p class="text-xs text-surface-400">No accessory with the applied rolls beats what you have.</p>
-				</section>
-			{/if}
 		</div>
 	</div>
 </dialog>
