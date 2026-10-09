@@ -123,7 +123,9 @@
 						{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span>
 						{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
 						{#if gold.mode === 'gold' && goldPerPct(u, costs)}
-							<span class="block text-[11px] text-amber-300/90" title="Gold per 1% Combat Power">{formatGold(goldPerPct(u, costs)!)} / 1%</span>
+							<span class="block text-[11px] text-amber-300/90" title={auto[u.key] && !gold.costs[u.key] ? 'Gold per 1% Combat Power, from the average honing cost' : 'Gold per 1% Combat Power'}
+								>{formatGold(goldPerPct(u, costs)!)} / 1%{#if auto[u.key] && !gold.costs[u.key]}<span class="text-surface-400"> avg</span>{/if}</span
+							>
 						{/if}
 					</span>
 					{#if onapply}

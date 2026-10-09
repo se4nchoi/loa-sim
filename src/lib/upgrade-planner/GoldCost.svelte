@@ -26,8 +26,8 @@
 	const per = $derived(cost && u.gainPct > 0 ? cost / u.gainPct : null);
 	const autoTitle = $derived(
 		auto
-			? `Average from your material prices: ${formatGold(auto.expected)} over ${auto.taps.toFixed(1)} taps${auto.breath ? ' with full breath' : ''}. ` +
-					`Worst case ${formatGold(auto.worst)} (${auto.maxTaps} taps, then the meter forces success). Click to type your own cost instead.`
+			? `Average ${formatGold(auto.expected)} over ${auto.taps.toFixed(1)} taps${auto.breath ? ' with full breath' : ''} (used for gold per 1%). ` +
+					`Pity ${formatGold(auto.worst)} at ${auto.maxTaps} taps, when the meter forces success. Click to type your own cost instead.`
 			: ''
 	);
 
@@ -67,6 +67,6 @@
 		title={typed ? 'Edit the gold cost (empty to clear)' : auto ? autoTitle : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 	>
 		<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-		{#if cost}{!typed ? '≈' : ''}{formatGold(cost)}{#if !typed && auto}<span class="font-normal text-surface-400">avg · {formatGold(auto.worst)} max</span>{/if}{#if per && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%</span>{/if}{:else}Add gold cost{/if}
+		{#if cost}{!typed ? '≈' : ''}{formatGold(cost)}{#if !typed && auto}<span class="font-normal text-surface-400">avg{#if showPer} · {formatGold(auto.worst)} pity{/if}</span>{/if}{#if per && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%{!typed && auto ? ' (avg)' : ''}</span>{/if}{:else}Add gold cost{/if}
 	</button>
 {/if}
