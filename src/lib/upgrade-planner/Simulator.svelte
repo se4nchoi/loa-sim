@@ -46,6 +46,52 @@
 	} = $props();
 
 	const base = $derived(initSimState(loadout));
+	const SECTION_TITLES = ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'];
+	const sectionId = (title: string) => `sim-${title.toLowerCase().replaceAll(' ', '-')}`;
+	/** The section under the sticky area (site header + phone CP bar): its chip lights up. */
+	let activeSection = $state<string | null>(null);
+	$effect(() => {
+		const bar = document.querySelector<HTMLElement>('[data-cp-bar]');
+		const root = document.documentElement;
+		// Where sticky things end: card headers stick there, and the scroll spy reads sections against it.
+		const stickyTop = () => 48 + (bar?.offsetHeight ?? 0);
+		const sync = () => root.style.setProperty('--sim-sticky-top', `${stickyTop()}px`);
+		const spy = () => {
+			const line = stickyTop() + 12;
+			let current: string | null = null;
+			for (const title of SECTION_TITLES) {
+				const el = document.getElementById(sectionId(title));
+				if (el && el.getBoundingClientRect().top <= line) current = sectionId(title);
+			}
+			if (current !== activeSection) activeSection = current;
+		};
+		sync();
+		spy();
+		const resized = new ResizeObserver(() => (sync(), spy()));
+		if (bar) resized.observe(bar);
+		const changed = bar ? new MutationObserver(() => (sync(), spy())) : null;
+		changed?.observe(bar!, { childList: true, subtree: true });
+		window.addEventListener('scroll', spy, { passive: true });
+		window.addEventListener('resize', spy);
+		return () => {
+			resized.disconnect();
+			changed?.disconnect();
+			window.removeEventListener('scroll', spy);
+			window.removeEventListener('resize', spy);
+			root.style.removeProperty('--sim-sticky-top');
+		};
+	});
+	// Keep the active chip in view inside its sideways row (both rows: phone bar and desktop sidebar).
+	$effect(() => {
+		if (!activeSection) return;
+		for (const chip of document.querySelectorAll<HTMLElement>(`[data-section="${activeSection}"]`)) {
+			const row = chip.parentElement;
+			if (!row) continue;
+			const left = chip.offsetLeft - row.offsetLeft;
+			if (left < row.scrollLeft || left + chip.offsetWidth > row.scrollLeft + row.clientWidth)
+				row.scrollTo({ left: Math.max(0, left - 16), behavior: 'smooth' });
+		}
+	});
 	/** Phones: the Next Upgrades drawer (see BottomDrawer). */
 	let drawerOpen = $state(false);
 	/** Dock the CP bar at the top first (scroll it up if it's still mid-page), so it shows above the drawer. */
@@ -216,12 +262,12 @@
 			e.preventDefault();
 		}}
 	>
-		{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'] as title}
+		{#each SECTION_TITLES as title}
 			<a
-				href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`}
+				href={`#${sectionId(title)}`}
 				onclick={async (e) => {
 					// Smooth scroll in place: no instant jump (it read as a flash) and no history entry per tap.
-					const target = document.getElementById(`sim-${title.toLowerCase().replaceAll(' ', '-')}`);
+					const target = document.getElementById(sectionId(title));
 					if (!target) return;
 					e.preventDefault();
 					if (drawerOpen) {
@@ -230,7 +276,11 @@
 					}
 					target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 				}}
-				class="shrink-0 rounded-xs border border-surface-700 bg-surface-800 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a
+				data-section={sectionId(title)}
+				aria-current={activeSection === sectionId(title) ? 'location' : undefined}
+				class="shrink-0 rounded-xs border px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors {activeSection === sectionId(title)
+					? 'border-accent-500 bg-accent-700/40 text-surface-50'
+					: 'border-surface-700 bg-surface-800 text-surface-200 hover:bg-surface-700 hover:text-surface-50'}">{title}</a
 			>
 		{/each}
 	</div>
