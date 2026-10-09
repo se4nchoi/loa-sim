@@ -65,16 +65,16 @@
 		</div>
 		<div class="flex max-h-[70vh] flex-col gap-3 overflow-y-auto px-4 py-3 text-sm">
 			<ul class="list-disc pl-5 text-xs text-surface-400">
-				<li>Bound mats are used first, then the market buy is simulated</li>
+				<li>Character-bound mats are used first, then the market buy is simulated</li>
 				<li>Put a big number (9999999999) to force 0 gold for the mat</li>
 				<li>Calculates the average-tap and pity-tap cost of each honing step</li>
-				<li>Bound mats are per character{characterName ? ` (${characterName})` : ''}; market prices are shared</li>
+				<li>Character-bound mats are saved per character; market prices are shared</li>
 				<li class="text-amber-300/80">Each upgrade is priced on its own: every one assumes all of this character's bound mats are available to it (3k leapstones count in full for each)</li>
 			</ul>
-			<div class="grid grid-cols-[2rem_minmax(0,1fr)_7.5rem_6rem_3.5rem] items-center gap-x-2 gap-y-1.5">
+			<div class="grid grid-cols-[2rem_minmax(0,1fr)_8rem_6rem_3.5rem] items-center gap-x-2 gap-y-1.5">
 				<span></span>
 				<span></span>
-				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Bound</span>
+				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Character-bound</span>
 				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Market</span>
 				<span></span>
 				{#each ids as id (id)}
