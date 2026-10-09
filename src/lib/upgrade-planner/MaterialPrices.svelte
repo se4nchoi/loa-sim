@@ -49,8 +49,12 @@
 	);
 </script>
 
+<!-- The dialog takes focus itself, not its first input: on phones that popped the keyboard and jerked the sheet. -->
+<!-- svelte-ignore a11y_autofocus -->
 <dialog
 	bind:this={dialog}
+	autofocus
+	tabindex="-1"
 	{onclose}
 	onclick={(e) => e.target === dialog && dialog.close()}
 	aria-labelledby="material-prices-title"

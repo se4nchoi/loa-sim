@@ -41,7 +41,7 @@
 		<p class="text-sm text-surface-400">No supported T4 gear found; honing can't be simulated for this loadout.</p>
 	{/if}
 		<div class="grid w-fit grid-cols-[max-content_minmax(4rem,8rem)_max-content_max-content_max-content_3rem] items-center gap-x-4 gap-y-3.5 max-sm:w-full max-sm:grid-cols-[max-content_minmax(0,1fr)_max-content_3rem] max-sm:gap-x-2">
-			<!-- Phones: the piece name sits under its icon (no name column), so nothing is cut off. -->
+			<!-- Phones: icon only (no name column), so the steppers keep their room. -->
 			<span></span>
 			<span class="text-xs text-surface-400 max-sm:hidden">Piece</span>
 			<span class="text-center text-xs text-surface-400">Honing</span>
@@ -52,10 +52,7 @@
 				{@const g = sim.gear[slot]!}
 				{@const b = base.gear[slot]!}
 				{@const look = itemLook(itemIds[slot])}
-				<span class="flex flex-col items-center gap-0.5">
-					<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="evolution" inherited={isInheritedGear(itemIds[slot])} />
-					<span class="text-[10px] leading-none font-semibold text-surface-300 sm:hidden">{LABELS[slot]}</span>
-				</span>
+				<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="evolution" inherited={isInheritedGear(itemIds[slot])} />
 				<span class="min-w-0 truncate text-sm font-semibold text-surface-100 max-sm:hidden">{LABELS[slot]}</span>
 				<Stepper bind:value={g.honing} min={0} max={25} prefix="+" changed={g.honing !== b.honing} label={`${LABELS[slot]} honing`} width="w-7" />
 				{#if g.set === 'aegir'}
