@@ -193,6 +193,13 @@
 		{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'] as title}
 			<a
 				href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`}
+				onclick={(e) => {
+					// Smooth scroll in place: no instant jump (it read as a flash) and no history entry per tap.
+					const target = document.getElementById(`sim-${title.toLowerCase().replaceAll(' ', '-')}`);
+					if (!target) return;
+					e.preventDefault();
+					target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}}
 				class="shrink-0 rounded-xs border border-surface-700 bg-surface-800 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a
 			>
 		{/each}
