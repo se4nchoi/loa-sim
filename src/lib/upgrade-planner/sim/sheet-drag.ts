@@ -41,7 +41,8 @@ export function sheetDrag(node: HTMLElement, options: SheetDragOptions) {
 		dy = e.clientY - start.y;
 		if (Math.abs(dy) > 4) moved = true;
 		sheet.style.transition = 'none';
-		sheet.style.transform = `translateY(${dy > 0 ? dy : dy / 4}px)`; // a little resistance pulling up
+		// Down only: pulling up would lift the sheet's bottom edge off the screen and show the page beneath.
+		sheet.style.transform = `translateY(${Math.max(0, dy)}px)`;
 	};
 	const up = () => {
 		const sheet = opts.sheet();
