@@ -225,7 +225,7 @@
 		<nav aria-label="Simulator cards" class="flex shrink-0 flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 			<button
 				type="button"
-				class="group flex flex-row items-center gap-1 bg-black/10 px-3 py-2 text-left font-bold text-surface-100 hover:bg-black/20"
+				class="group flex flex-row items-center gap-2 p-2 text-left text-xs text-surface-400 hover:text-surface-100"
 				aria-expanded={!folded.nav}
 				onclick={() => toggleFold('nav')}
 			>
