@@ -35,7 +35,7 @@
 			if (e.key === 'Enter') commit();
 			if (e.key === 'Escape') editing = false;
 		}}
-		placeholder="e.g. 45k"
+		placeholder="e.g. 45k or 5.5m"
 		aria-label={`Gold cost of ${u.title}${u.count > 1 ? ' (one)' : ''}`}
 		class="mt-0.5 h-6 w-24 rounded-xs border border-surface-600 bg-surface-800 px-1.5 text-xs text-surface-100 tabular-nums focus:border-accent-500 focus:outline-none"
 	/>

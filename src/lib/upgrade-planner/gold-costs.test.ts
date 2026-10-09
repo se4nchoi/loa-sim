@@ -8,6 +8,13 @@ describe('gold costs', () => {
 	it('reads gold the way players type it', () => {
 		expect(parseGold('45k')).toBe(45000);
 		expect(parseGold('1.2m')).toBe(1200000);
+		expect(parseGold('5.5m')).toBe(5500000);
+		expect(parseGold('5.5 million')).toBe(5500000);
+		expect(parseGold('5.5mil')).toBe(5500000);
+		expect(parseGold('45 thousand')).toBe(45000);
+		expect(parseGold('45k gold')).toBe(45000);
+		expect(parseGold('45000g')).toBe(45000);
+		expect(parseGold('5.5 bananas')).toBeNull();
 		expect(parseGold(' 45,000 ')).toBe(45000);
 		expect(parseGold('850')).toBe(850);
 		expect(parseGold('')).toBeNull();

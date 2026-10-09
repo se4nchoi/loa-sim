@@ -50,11 +50,14 @@ export function setRankMode(mode: RankMode) {
 	}
 }
 
-/** "45k", "1.2m", "45,000", "45000" → gold; null for empty or unreadable input. */
+const UNITS: Record<string, number> = { '': 1, k: 1e3, thousand: 1e3, m: 1e6, mil: 1e6, million: 1e6 };
+
+/** "45k", "5.5m", "5.5 million", "45,000", "45000 gold" → gold; null for empty or unreadable input. */
 export function parseGold(text: string): number | null {
-	const m = text.trim().toLowerCase().replaceAll(',', '').match(/^(\d+(?:\.\d+)?)\s*([km]?)$/);
-	if (!m) return null;
-	const n = Number(m[1]) * (m[2] === 'm' ? 1e6 : m[2] === 'k' ? 1e3 : 1);
+	const plain = text.trim().toLowerCase().replaceAll(',', '').replace(/\s*(gold|g)$/, '');
+	const m = plain.match(/^(\d+(?:\.\d+)?)\s*([a-z]*)$/);
+	if (!m || !(m[2] in UNITS)) return null;
+	const n = Number(m[1]) * UNITS[m[2]];
 	return n > 0 ? Math.round(n) : null;
 }
 
