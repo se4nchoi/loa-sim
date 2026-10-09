@@ -220,16 +220,17 @@
 	     and scrolls its own list. -->
 	<div class="flex flex-col gap-2 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
 		<div class="shrink-0 max-lg:hidden">{@render summary()}</div>
-		<nav aria-label="Simulator cards" class="card shrink-0 p-2 {folded.nav ? 'py-1' : ''}">
+		<!-- Same card shape as Next Upgrades: a fixed header strip, the links fold away beneath it. -->
+		<nav aria-label="Simulator cards" class="flex shrink-0 flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 			<button
 				type="button"
-				class="flex w-full flex-row items-center text-left text-xs text-surface-400 hover:text-surface-100 {folded.nav ? '' : 'mb-1.5'}"
+				class="flex flex-row items-center gap-1 bg-black/10 px-3 py-2 text-left font-bold text-surface-100 hover:bg-black/20"
 				aria-expanded={!folded.nav}
 				onclick={() => toggleFold('nav')}
 			>
-				<span class="inline-block w-3 text-surface-500">{folded.nav ? '▸' : '▾'}</span>Jump to
+				Jump to<span class="ml-auto text-xs font-normal text-surface-400">{folded.nav ? '▸' : '▾'}</span>
 			</button>
-			<div class="grid grid-cols-4 gap-1.5" hidden={folded.nav}>
+			<div class="grid grid-cols-4 gap-1.5 p-2" hidden={folded.nav}>
 				{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'] as title}
 					<a href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`} class="truncate rounded-xs border border-surface-700 bg-surface-800 px-0.5 py-1.5 text-center text-[11px] font-semibold tracking-tight text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a>
 				{/each}
