@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { byGold, formatGold, goldPerPct, parseGold } from './gold-costs.svelte';
+import { byGold, formatGold, goldPerPct, parseGold, parseOwned } from './gold-costs.svelte';
 import type { Upgrade } from './upgrades';
 
 const up = (key: string, gainPct: number) => ({ key, gainPct, category: 'gem', title: key, detail: '', count: 1, approximate: false }) as Upgrade;
@@ -38,5 +38,15 @@ describe('gold costs', () => {
 		expect(goldPerPct(b, costs)).toBe(40000);
 		expect(goldPerPct(c, costs)).toBeNull();
 		expect(byGold([a, b, c], costs).map((u) => u.key)).toEqual(['b', 'a']);
+	});
+
+	it('reads owned amounts, with ∞ / 99999 meaning plenty', () => {
+		expect(parseOwned('0')).toBe(0);
+		expect(parseOwned('')).toBe(0);
+		expect(parseOwned('3,000')).toBe(3000);
+		expect(parseOwned('12k')).toBe(12000);
+		expect(parseOwned('∞')).toBe(1e12);
+		expect(parseOwned('99999')).toBe(1e12);
+		expect(parseOwned('lots')).toBeNull();
 	});
 });

@@ -1,14 +1,18 @@
-// Gold cost of one normal honing step from the player's material prices, using the game's honing table
+// Gold cost of one normal honing step from the player's materials, using the game's honing table
 // (honing-cost-data.ts): each failure raises the chance (up to a cap) and fills artisan's energy; a full meter makes
-// the next tap certain. Breath can be added to every tap; whichever of "no breath" and "full breath" is cheaper on
-// average is used.
+// the next tap certain. Owned (bound) materials are used first and the rest is bought at market price. Breath can be
+// added to every tap; whichever of "no breath" and "full breath" is cheaper on average is used.
 
 import { HONING_COSTS, HONING_MATERIALS, type HoningSet, type HoningTap } from './honing-cost-data';
 import type { HoningSlot } from './honing-data';
 
-/** Gold per unit, by material item id; `shards` is gold per shard. Missing = 0 (bound / already owned). */
+/** Gold per unit, by material item id; `shards` is gold per shard. Missing = 0. */
 export type MaterialPrices = Record<string, number>;
+/** Units owned (bound or banked), by the same ids; used before buying. Missing = 0. */
+export type MaterialOwned = Record<string, number>;
 export const SHARDS = 'shards';
+/** Stands for "plenty" (typed as ∞ or a very large number). */
+export const PLENTY = 1e12;
 
 export interface HoningCost {
 	/** Average gold to reach the level. */
@@ -24,33 +28,38 @@ export interface HoningCost {
 export const tapsFor = (set: HoningSet, slot: HoningSlot, toLevel: number): HoningTap | undefined =>
 	HONING_COSTS[set][slot === 'weapon' ? 'weapon' : 'armor'][toLevel - 1];
 
-/** Every price a step needs: its materials, shards and (optionally) breath. */
-export const pricesNeeded = (tap: HoningTap) => [...Object.keys(tap.mats), SHARDS];
-
-function run(tap: HoningTap, breath: boolean) {
+/** Chance the step succeeds on tap n + 1, for every n up to the tap the meter forces. */
+function successByTap(tap: HoningTap, breath: boolean): number[] {
 	const extra = breath ? tap.breath.rate * tap.breath.max : 0;
-	let reach = 1; // chance this tap happens
-	let taps = 0;
+	const out: number[] = [];
+	let reach = 1; // chance tap n + 1 happens
 	let energy = 0; // 1 = full meter
 	for (let n = 0; ; n++) {
 		const chance = energy >= 1 ? 1 : Math.min(1, (tap.success + Math.min(n * tap.failBonus, tap.failMax) + extra) / 10000);
-		taps += reach;
-		if (chance >= 1) return { taps, maxTaps: n + 1 };
+		out.push(reach * chance);
+		if (chance >= 1) return out;
 		energy += (chance * 10000) / tap.energy;
 		reach *= 1 - chance;
 	}
 }
 
-/** Expected and worst-case gold for one honing step. Unpriced materials count as 0 (bound / already owned). */
-export function honingCost(tap: HoningTap, prices: MaterialPrices): HoningCost {
-	const price = (id: string) => prices[id] ?? 0;
-	const perTap = tap.gold + tap.shards * price(SHARDS) + Object.entries(tap.mats).reduce((g, [id, n]) => g + n * price(id), 0);
-	const options = [
-		{ breath: false, cost: perTap, ...run(tap, false) },
-		{ breath: true, cost: perTap + tap.breath.max * price(String(tap.breath.id)), ...run(tap, true) }
-	];
-	const best = options.reduce((a, b) => (b.cost * b.taps < a.cost * a.taps ? b : a));
-	return { expected: best.cost * best.taps, worst: best.cost * best.maxTaps, taps: best.taps, maxTaps: best.maxTaps, breath: best.breath };
+/** Expected and worst-case gold for one honing step: gold per tap, plus whatever materials must be bought. */
+export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: MaterialOwned = {}): HoningCost {
+	const use: [string, number][] = [[SHARDS, tap.shards], ...Object.entries(tap.mats)];
+	const bought = (id: string, perTap: number, taps: number) => (prices[id] ?? 0) * Math.max(0, perTap * taps - (owned[id] ?? 0));
+	const options = [false, true].map((breath) => {
+		const mats = breath ? [...use, [String(tap.breath.id), tap.breath.max] as [string, number]] : use;
+		const costOf = (taps: number) => taps * tap.gold + mats.reduce((g, [id, n]) => g + bought(id, n, taps), 0);
+		const dist = successByTap(tap, breath);
+		return {
+			breath,
+			expected: dist.reduce((g, p, n) => g + p * costOf(n + 1), 0),
+			worst: costOf(dist.length),
+			taps: dist.reduce((t, p, n) => t + p * (n + 1), 0),
+			maxTaps: dist.length
+		};
+	});
+	return options.reduce((a, b) => (b.expected < a.expected ? b : a));
 }
 
 export const materialName = (id: string) => (id === SHARDS ? 'Destiny Shard' : (HONING_MATERIALS[id]?.[0] ?? id));
@@ -66,12 +75,12 @@ const honingStep = (key: string) => {
 type GearSets = Partial<Record<HoningSlot, { set?: 'aegir' }>>;
 
 /** Calculated costs for the honing rows among `keys`. */
-export function autoHoningCosts(keys: string[], gear: GearSets, prices: MaterialPrices): Record<string, HoningCost> {
+export function autoHoningCosts(keys: string[], gear: GearSets, prices: MaterialPrices, owned: MaterialOwned = {}): Record<string, HoningCost> {
 	const out: Record<string, HoningCost> = {};
 	for (const key of keys) {
 		const step = honingStep(key);
 		const tap = step && tapsFor(setOf(gear[step.slot]), step.slot, step.to);
-		const cost = tap && honingCost(tap, prices);
+		const cost = tap && honingCost(tap, prices, owned);
 		if (cost) out[key] = cost;
 	}
 	return out;

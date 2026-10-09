@@ -1,7 +1,7 @@
 // Gold costs players enter for Next Upgrades rows (NA has no market API). Kept per upgrade key in this browser and
 // shared by every character, so "T4 gem Lv. 7 → 8" is priced once. Ranking by gold uses gold per 1% Combat Power.
 
-import type { MaterialPrices } from './honing-cost';
+import { PLENTY, type MaterialOwned, type MaterialPrices } from './honing-cost';
 import type { Upgrade } from './upgrades';
 
 const KEY = 'loa-sim:gold-costs';
@@ -20,9 +20,17 @@ function read(): Record<string, number> {
 }
 
 /** Shared between the sidebar card and the All Upgrades dialog. Filled on first use in the browser. */
-export const gold = $state<{ costs: Record<string, number>; prices: MaterialPrices; pricesAt: number | null; mode: RankMode; loaded: boolean }>({
+export const gold = $state<{
+	costs: Record<string, number>;
+	prices: MaterialPrices;
+	owned: MaterialOwned;
+	pricesAt: number | null;
+	mode: RankMode;
+	loaded: boolean;
+}>({
 	costs: {},
 	prices: {},
+	owned: {},
 	pricesAt: null,
 	mode: 'cp',
 	loaded: false
@@ -33,7 +41,7 @@ export function loadGold() {
 	gold.costs = read();
 	try {
 		const p = JSON.parse(localStorage.getItem(PRICES_KEY) ?? 'null');
-		if (p && typeof p.prices === 'object') ((gold.prices = p.prices), (gold.pricesAt = p.at ?? null));
+		if (p && typeof p.prices === 'object') ((gold.prices = p.prices), (gold.owned = p.owned ?? {}), (gold.pricesAt = p.at ?? null));
 	} catch {
 		/* none yet */
 	}
@@ -55,16 +63,36 @@ export function setGoldCost(key: string, cost: number | null) {
 	}
 }
 
+function saveMaterials() {
+	gold.pricesAt = Date.now();
+	try {
+		localStorage.setItem(PRICES_KEY, JSON.stringify({ prices: gold.prices, owned: gold.owned, at: gold.pricesAt }));
+	} catch {
+		/* storage blocked: lasts for this visit */
+	}
+}
+
 /** Gold per unit for a honing material (null clears it). */
 export function setMaterialPrice(id: string, price: number | null) {
 	if (price === null) delete gold.prices[id];
 	else gold.prices[id] = price;
-	gold.pricesAt = Date.now();
-	try {
-		localStorage.setItem(PRICES_KEY, JSON.stringify({ prices: gold.prices, at: gold.pricesAt }));
-	} catch {
-		/* storage blocked: lasts for this visit */
-	}
+	saveMaterials();
+}
+
+/** Units of a honing material already owned (bound), used before buying; PLENTY for "plenty". */
+export function setMaterialOwned(id: string, amount: number | null) {
+	if (!amount) delete gold.owned[id];
+	else gold.owned[id] = amount;
+	saveMaterials();
+}
+
+/** Owned amount as typed: "∞" / "inf" / "all" / 99999+ mean plenty; "12k", "3,000" are counts. */
+export function parseOwned(text: string): number | null {
+	const t = text.trim().toLowerCase();
+	if (!t || /^0+$/.test(t)) return 0;
+	if (['∞', 'inf', 'infinite', 'all', 'plenty'].includes(t)) return PLENTY;
+	const n = parseGold(t);
+	return n === null ? null : n >= 99999 ? PLENTY : n;
 }
 
 export function setRankMode(mode: RankMode) {

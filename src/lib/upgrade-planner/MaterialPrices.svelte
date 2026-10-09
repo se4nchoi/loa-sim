@@ -4,8 +4,8 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { formatGold, gold, parsePrice, setMaterialPrice } from './gold-costs.svelte';
-	import { SHARDS, materialIcon, materialName } from './honing-cost';
+	import { formatGold, gold, parseOwned, parsePrice, setMaterialOwned, setMaterialPrice } from './gold-costs.svelte';
+	import { PLENTY, SHARDS, materialIcon, materialName } from './honing-cost';
 	import { iconUrl } from './icons';
 
 	let { ids, onclose }: { /** Material ids to ask for (plus 'shards'). */ ids: string[]; onclose: () => void } = $props();
@@ -17,6 +17,12 @@
 	const unit = (id: string) => (id === SHARDS ? 1000 : id.startsWith('66102') ? 100 : 1);
 	const unitLabel = (id: string) => (unit(id) === 1 ? 'each' : `per ${unit(id).toLocaleString()}`);
 	const shown = (id: string) => formatGold((gold.prices[id] ?? 0) * unit(id));
+
+	const shownOwned = (id: string) => (!gold.owned[id] ? '0' : gold.owned[id] >= PLENTY ? '∞' : gold.owned[id].toLocaleString());
+	function commitOwned(id: string, text: string) {
+		const v = parseOwned(text);
+		if (v !== null) setMaterialOwned(id, v);
+	}
 
 	function commit(id: string, text: string) {
 		if (!text.trim()) return setMaterialPrice(id, 0);
@@ -37,7 +43,7 @@
 	aria-labelledby="material-prices-title"
 	class="fixed top-[80px] m-0 max-h-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 sm:left-1/2 sm:-translate-x-1/2"
 >
-	<div class="flex w-[520px] flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-[100vw]">
+	<div class="flex w-[600px] flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-[100vw]">
 		<div class="flex flex-row items-center justify-between px-4 py-2.5 font-bold">
 			<span id="material-prices-title">Honing material prices</span>
 			<button type="button" class="text-surface-300 hover:text-surface-50" aria-label="Close" onclick={() => dialog.close()}>
@@ -46,28 +52,45 @@
 		</div>
 		<div class="flex max-h-[70vh] flex-col gap-3 overflow-y-auto px-4 py-3 text-sm">
 			<ul class="list-disc pl-5 text-xs text-surface-400">
-				<li><b class="text-surface-200">0</b> = bound mats</li>
+				<li><b class="text-surface-200">Owned</b> (bound) mats are used first; the rest is bought at market price</li>
+				<li><b class="text-surface-200">∞</b> or <b class="text-surface-200">99999</b> = plenty owned; market price <b class="text-surface-200">0</b> = free</li>
 				<li>Calculates the average-tap and pity-tap cost of each honing step</li>
 			</ul>
-			<div class="flex flex-col divide-y divide-neutral-950">
+			<div class="grid grid-cols-[2rem_minmax(0,1fr)_5.5rem_6rem_3.5rem] items-center gap-x-2 gap-y-1.5">
+				<span></span>
+				<span></span>
+				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Owned</span>
+				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Market</span>
+				<span></span>
 				{#each ids as id (id)}
-					<label class="flex flex-row items-center gap-3 py-1.5">
+					<div class="contents">
 						{#if materialIcon(id)}
 							<img src={iconUrl(materialIcon(id))} alt="" class="size-8 shrink-0 rounded-xs bg-black/30" />
 						{:else}
 							<span class="size-8 shrink-0 rounded-xs bg-black/30"></span>
 						{/if}
-						<span class="min-w-0 flex-1 leading-tight text-surface-100">{materialName(id)}</span>
+						<span class="min-w-0 leading-tight text-surface-100">{materialName(id)}</span>
 						<input
-							value={shown(id)}
-							onchange={(e) => commit(id, e.currentTarget.value)}
-							inputmode="decimal"
-							class="h-8 w-24 rounded-xs border border-surface-600 bg-surface-800 px-2 text-right tabular-nums hover:border-surface-400 focus:border-accent-500 focus:outline-none {gold.prices[id]
+							value={shownOwned(id)}
+							onchange={(e) => commitOwned(id, e.currentTarget.value)}
+							aria-label={`${materialName(id)} owned`}
+							inputmode="numeric"
+							class="h-8 w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-right tabular-nums hover:border-surface-400 focus:border-accent-500 focus:outline-none {gold
+								.owned[id]
 								? 'text-surface-50'
 								: 'text-surface-400'}"
 						/>
-						<span class="w-20 shrink-0 text-xs text-surface-400">{unitLabel(id)}</span>
-					</label>
+						<input
+							value={shown(id)}
+							aria-label={`${materialName(id)} market price (${unitLabel(id)})`}
+							onchange={(e) => commit(id, e.currentTarget.value)}
+							inputmode="decimal"
+							class="h-8 w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-right tabular-nums hover:border-surface-400 focus:border-accent-500 focus:outline-none {gold.prices[id]
+								? 'text-surface-50'
+								: 'text-surface-400'}"
+						/>
+						<span class="text-xs text-surface-400">{unitLabel(id)}</span>
+					</div>
 				{/each}
 			</div>
 			<p class="text-xs text-surface-500">Last changed: {changed}</p>

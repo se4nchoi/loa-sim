@@ -41,4 +41,23 @@ describe('honing cost', () => {
 		expect(honingCost(tap, { ...prices, ...{ [Object.keys(tap.mats)[0]]: 100 } })!.breath).toBe(true); // free breath helps
 		expect(honingCost(tap, { ...prices, [String(tap.breath.id)]: 1e6 })!.breath).toBe(false); // absurdly priced breath doesn't
 	});
+
+	it('uses owned materials first and buys the rest', () => {
+		const tap = { ...tapsFor('serca', 'head', 1)!, success: 10000 }; // one certain tap
+		const [id, n] = Object.entries(tap.mats)[0];
+		const prices = { [id]: 10 };
+		const breathOff = { [String(tap.breath.id)]: 1e9 };
+		expect(honingCost(tap, { ...prices, ...breathOff }).expected).toBe(tap.gold + n * 10);
+		expect(honingCost(tap, { ...prices, ...breathOff }, { [id]: n - 2 }).expected).toBe(tap.gold + 2 * 10);
+		expect(honingCost(tap, { ...prices, ...breathOff }, { [id]: 1e12 }).expected).toBe(tap.gold);
+	});
+
+	it('owned materials cover the early taps of a long step, so the worst case costs more per tap later', () => {
+		const tap = tapsFor('serca', 'weapon', 20)!;
+		const prices = { ...Object.fromEntries(Object.keys(tap.mats).map((id) => [id, 1])), [String(tap.breath.id)]: 1e9 };
+		const none = honingCost(tap, prices);
+		const some = honingCost(tap, prices, Object.fromEntries(Object.entries(tap.mats).map(([id, n]) => [id, n * 5])));
+		expect(some.expected).toBeLessThan(none.expected);
+		expect(none.worst - some.worst).toBeCloseTo(Object.values(tap.mats).reduce((a, n) => a + n * 5, 0), 6);
+	});
 });
