@@ -74,7 +74,7 @@
 							<div class="flex min-w-0 flex-1 flex-col">
 									<UpgradeTitle {u} />
 								<span class="text-xs text-surface-400">{u.detail}</span>
-								<GoldCost {u} />
+								{#if mode === 'gold'}<GoldCost {u} />{/if}
 							</div>
 							<div class="flex shrink-0 flex-col text-right">
 								<span class="text-sm font-semibold text-green-400 tabular-nums">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>

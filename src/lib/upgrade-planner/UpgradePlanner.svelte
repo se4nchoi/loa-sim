@@ -86,7 +86,7 @@
 					<div class="flex min-w-0 flex-col">
 						<UpgradeTitle {u} />
 						{#if !u.subject}<span class="text-xs text-surface-500">{CATEGORY_LABELS[u.category]}</span>{/if}
-						<GoldCost {u} />
+						{#if gold.mode === 'gold'}<GoldCost {u} />{/if}
 					</div>
 					<span class="text-right whitespace-nowrap text-green-400 tabular-nums">
 						{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span>
