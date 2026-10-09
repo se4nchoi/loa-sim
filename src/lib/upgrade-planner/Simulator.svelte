@@ -179,6 +179,26 @@
 
 <svelte:window {onkeydown} />
 
+{#snippet jumpChips(pad: string)}
+	<!-- One row, scrolled sideways (no scrollbar; the mouse wheel scrolls it too), like the character chips. -->
+	<div
+		class="flex flex-row gap-1.5 overflow-x-auto {pad} [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
+		onwheel={(e) => {
+			const el = e.currentTarget;
+			if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+			el.scrollLeft += e.deltaY;
+			e.preventDefault();
+		}}
+	>
+		{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'] as title}
+			<a
+				href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`}
+				class="shrink-0 rounded-xs border border-surface-700 bg-surface-800 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a
+			>
+		{/each}
+	</div>
+{/snippet}
+
 {#snippet summary()}
 	<SimSummary
 		{current}
@@ -201,31 +221,31 @@
 {/snippet}
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
-<MobileSummaryBar {current} {simulated}>{@render summary()}</MobileSummaryBar>
+<MobileSummaryBar {current} {simulated} nav={jumpChips}>{@render summary()}</MobileSummaryBar>
 <div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
 	<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
 	<div class="flex min-w-0 flex-col gap-2">
 		<div class="grid grid-cols-2 items-start gap-2 max-xl:grid-cols-1">
 			<div class="flex min-w-0 flex-col gap-2">
-				<section id="sim-equipment" aria-label="Equipment" class="scroll-mt-28"><SimGear bind:sim {base} {itemIds} classId={loadout.classId} delta={sections.gear} /></section>
-				<section id="sim-accessories" aria-label="Accessories" class="scroll-mt-28"><SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} /></section>
-				<section id="sim-bracelet" aria-label="Bracelet" class="scroll-mt-28"><SimBracelet bind:sim {base} {loadout} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} /></section>
+				<section id="sim-equipment" aria-label="Equipment" class="scroll-mt-28 max-lg:scroll-mt-32"><SimGear bind:sim {base} {itemIds} classId={loadout.classId} delta={sections.gear} /></section>
+				<section id="sim-accessories" aria-label="Accessories" class="scroll-mt-28 max-lg:scroll-mt-32"><SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} /></section>
+				<section id="sim-bracelet" aria-label="Bracelet" class="scroll-mt-28 max-lg:scroll-mt-32"><SimBracelet bind:sim {base} {loadout} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} /></section>
 			</div>
 			<div class="flex min-w-0 flex-col gap-2">
-				<section id="sim-gems" aria-label="Gems" class="scroll-mt-28"><SimGems bind:sim {base} {gems} {characterName} delta={sections.gems} /></section>
-				<section id="sim-engravings" aria-label="Engravings" class="scroll-mt-28"><SimEngravings bind:sim {base} {preview} delta={sections.engravings} /></section>
-				<section id="sim-karma" aria-label="Karma" class="scroll-mt-28"><SimKarma bind:sim {base} delta={sections.karma} /></section>
-				<section id="sim-skins" aria-label="Skins" class="scroll-mt-28"><SimSkins bind:sim {base} {itemIds} {mainStatName} delta={sections.skins} /></section>
+				<section id="sim-gems" aria-label="Gems" class="scroll-mt-28 max-lg:scroll-mt-32"><SimGems bind:sim {base} {gems} {characterName} delta={sections.gems} /></section>
+				<section id="sim-engravings" aria-label="Engravings" class="scroll-mt-28 max-lg:scroll-mt-32"><SimEngravings bind:sim {base} {preview} delta={sections.engravings} /></section>
+				<section id="sim-karma" aria-label="Karma" class="scroll-mt-28 max-lg:scroll-mt-32"><SimKarma bind:sim {base} delta={sections.karma} /></section>
+				<section id="sim-skins" aria-label="Skins" class="scroll-mt-28 max-lg:scroll-mt-32"><SimSkins bind:sim {base} {itemIds} {mainStatName} delta={sections.skins} /></section>
 			</div>
 		</div>
-		<section id="sim-ark-grid" aria-label="Ark Grid" class="scroll-mt-28"><SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} /></section>
+		<section id="sim-ark-grid" aria-label="Ark Grid" class="scroll-mt-28 max-lg:scroll-mt-32"><SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} /></section>
 	</div>
 	<!-- Sticky sidebar, as tall as the window: the CP card and section links stay whole, Next Upgrades takes the rest
 	     and scrolls its own list. -->
 	<div class="flex flex-col gap-2 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
 		<div class="shrink-0 max-lg:hidden">{@render summary()}</div>
 		<!-- Same card shape as Next Upgrades: a fixed header strip, the links fold away beneath it. -->
-		<nav aria-label="Simulator cards" class="flex shrink-0 flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
+		<nav aria-label="Simulator cards" class="flex shrink-0 flex-col max-lg:hidden divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 			<button
 				type="button"
 				class="group flex flex-row items-center gap-2 p-2 text-left text-xs text-surface-400 hover:text-surface-100"
@@ -234,24 +254,7 @@
 			>
 				Jump to<span class="ml-auto"><FoldChip open={!folded.nav} /></span>
 			</button>
-			<!-- One row, scrolled sideways (no scrollbar; the mouse wheel scrolls it too), like the character chips. -->
-			<div
-				class="flex flex-row gap-1.5 overflow-x-auto p-2 [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
-				hidden={folded.nav}
-				onwheel={(e) => {
-					const el = e.currentTarget;
-					if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-					el.scrollLeft += e.deltaY;
-					e.preventDefault();
-				}}
-			>
-				{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'] as title}
-					<a
-						href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`}
-						class="shrink-0 rounded-xs border border-surface-700 bg-surface-800 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a
-					>
-				{/each}
-			</div>
+			<div hidden={folded.nav}>{@render jumpChips("p-2")}</div>
 		</nav>
 		<UpgradePlanner class="max-lg:hidden lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
 		{@render sidebar?.()}

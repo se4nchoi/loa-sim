@@ -11,8 +11,9 @@
 		current,
 		simulated,
 		children,
-		top = 'top-12'
-	}: { current: number; simulated: number; children: Snippet; top?: string } = $props();
+		top = 'top-12',
+		nav
+	}: { current: number; simulated: number; children: Snippet; top?: string; /** Section links, always shown under the CP line. */ nav?: Snippet<[string]> } = $props();
 
 	// Collapsed by default so it doesn't cover the cards; the full summary opens on tap.
 	let open = $state(false);
@@ -46,6 +47,7 @@
 			<svg class="size-3 transition {open ? 'rotate-180' : ''}" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>
 		</span>
 	</button>
+	{#if nav}<nav aria-label="Simulator sections" class="-mx-4 mt-1.5">{@render nav('px-4 pb-0.5')}</nav>{/if}
 	{#if open}
 		<div id="mobile-summary" class="mt-2 pb-1">{@render children()}</div>
 	{/if}
