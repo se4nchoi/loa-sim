@@ -1,5 +1,5 @@
 // Suggestions are generated from the edited state and priced by the same simulation as Apply.
-import { accessorySetUpgrades } from './accessory-sets';
+import { accessorySetUpgrades, type AccRoll } from './accessory-sets';
 import { applyUpgrade } from './apply-upgrade';
 import { bracerUpgrades } from './bracer-upgrades';
 import { honingUpgrades } from './honing-upgrades';
@@ -11,7 +11,8 @@ import { coreLabel, coreStates, engravingName, type Upgrade } from './upgrades';
 
 const RANK_START = [0, 1, 5, 9, 13, 17, 21];
 
-export function liveUpgrades(l: Loadout, state: SimState, base: SimState): Upgrade[] {
+/** accRolls: which main-line rolls the accessory ladder offers (default: see DEFAULT_ACC_ROLLS). */
+export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRolls?: AccRoll[]): Upgrade[] {
 	const cp = simulate(l, state, base).cp;
 	if (!(cp > 0)) return [];
 	const role = roleOf(l);
@@ -80,7 +81,7 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState): Upgra
 		if (!applyUpgrade(l, next, base, u)) return [];
 		return [{ ...u, gainPct: (simulate(l, next, base).cp / cp - 1) * 100 }];
 	});
-	return [...scored, ...accessorySetUpgrades(l, state, base), ...honingUpgrades(l, state, base), ...bracerUpgrades(l, state, base)]
+	return [...scored, ...accessorySetUpgrades(l, state, base, accRolls), ...honingUpgrades(l, state, base), ...bracerUpgrades(l, state, base)]
 		.filter((u) => u.gainPct > 0.0005)
 		.sort((a, b) => b.gainPct - a.gainPct);
 }

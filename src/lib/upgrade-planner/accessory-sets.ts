@@ -1,8 +1,9 @@
 // Whole-accessory upgrades: an accessory's lines can't be changed one at a time (polishing rolls them at random), so the
-// next step is buying another one, all three lines at once. Per slot the candidates are the full grid: each main line at
-// Mid or High, and the third line (the slot's best secondary line) at none / Low / Mid / High. Each is scored by
-// simulating the slot with exactly those three lines; the current accessory is the bottom line, so options that don't
-// beat it, or are no better than a cheaper roll, are dropped and what's left is the ladder.
+// next step is buying another one, all three lines at once. Per slot the candidates are the main-line rolls the player
+// picked (High-High, High-Mid and its reverse, High-Low, Low-High, Mid-Mid), each with the third line (the slot's best
+// secondary line) at none / Low / Mid / High. Each is scored by simulating the slot with exactly those three lines; the
+// current accessory is the bottom line, so options that don't beat it, or are no better than a cheaper roll, are
+// dropped and what's left is the ladder.
 
 import { roleOf } from './roles';
 import { ACCESSORY_SLOTS, familyOf, simulate, type AccessorySlot, type SimLine, type SimState } from './simulate';
@@ -13,6 +14,24 @@ import type { Upgrade } from './upgrades';
 const SLOT_NAMES: Record<AccessorySlot, string> = { neck: 'Necklace', ear1: 'Earring 1', ear2: 'Earring 2', finger1: 'Ring 1', finger2: 'Ring 2' };
 const RANK: Record<Tier | 'none', number> = { none: 0, low: 1, mid: 2, high: 3 };
 const THIRD: (Tier | 'none')[] = ['none', 'low', 'mid', 'high'];
+
+/** Main-line rolls, BiS line first: hm also offers its reverse Mid-High. */
+export type AccRoll = 'hh' | 'hm' | 'hl' | 'lh' | 'mm';
+export const ACC_ROLLS: { roll: AccRoll; label: string; also?: string }[] = [
+	{ roll: 'hh', label: 'H-H' },
+	{ roll: 'hm', label: 'H-M', also: 'M-H' },
+	{ roll: 'hl', label: 'H-L' },
+	{ roll: 'lh', label: 'L-H' },
+	{ roll: 'mm', label: 'M-M' }
+];
+export const DEFAULT_ACC_ROLLS: AccRoll[] = ['hh', 'hm', 'hl', 'mm'];
+const PAIRS: Record<AccRoll, [Tier, Tier][]> = {
+	hh: [['high', 'high']],
+	hm: [['high', 'mid'], ['mid', 'high']],
+	hl: [['high', 'low']],
+	lh: [['low', 'high']],
+	mm: [['mid', 'mid']]
+};
 
 export interface AccessorySet {
 	slot: AccessorySlot;
@@ -36,7 +55,9 @@ export function applyAccessorySet(state: SimState, set: AccessorySet): boolean {
 	return true;
 }
 
-export function accessorySetUpgrades(l: Loadout, state: SimState, base: SimState): Upgrade[] {
+export function accessorySetUpgrades(l: Loadout, state: SimState, base: SimState, rolls: AccRoll[] = DEFAULT_ACC_ROLLS): Upgrade[] {
+	const pairs = rolls.flatMap((r) => PAIRS[r] ?? []);
+	if (!pairs.length) return [];
 	const role = roleOf(l);
 	const cp = simulate(l, state, base).cp;
 	if (!(cp > 0)) return [];
@@ -79,24 +100,25 @@ export function accessorySetUpgrades(l: Loadout, state: SimState, base: SimState
 		const bHigh = gainOf({ slot, lines: [{ key: a.key, tier: 'mid' }, { key: b.key, tier: 'high' }] });
 		const highMid = aHigh >= bHigh ? [a.key, b.key] : [b.key, a.key];
 		const order = (key: string) => (key === highMid[0] ? 0 : key === highMid[1] ? 1 : 2);
-		// Cheapest first: Mid-Mid, Mid-High (High on the weaker line, the cheaper reverse of the best-in-slot High-Mid),
-		// High-Mid, High-High.
-		const mainSets: { key: string; tier: Tier }[][] = [
-			[{ key: highMid[0], tier: 'mid' }, { key: highMid[1], tier: 'mid' }],
-			[{ key: highMid[0], tier: 'mid' }, { key: highMid[1], tier: 'high' }],
-			[{ key: highMid[0], tier: 'high' }, { key: highMid[1], tier: 'mid' }],
-			highHigh
-		];
-		const options = mainSets.flatMap((mainLines, m) =>
+		// The picked main rolls (x on the BiS-High line, y on the other), times every third roll.
+		const options = pairs.flatMap(([x, y]) =>
 			(third ? THIRD : (['none'] as const)).map((t) => {
+				const mainLines = [{ key: highMid[0], tier: x }, { key: highMid[1], tier: y }];
 				const set: AccessorySet = { slot, lines: t === 'none' ? mainLines : [...mainLines, { key: third!, tier: t }] };
-				return { set, rank: [m, RANK[t]], gain: gainOf(set) };
+				return { set, x: RANK[x], y: RANK[y], t: RANK[t], gain: gainOf(set) };
 			})
 		);
-		// Keep a buy only if it beats the current accessory and every lower roll of it.
-		const kept = options.filter(
-			(o) => o.gain > 0.0005 && !options.some((p) => p !== o && p.rank[0] <= o.rank[0] && p.rank[1] <= o.rank[1] && p.gain >= o.gain)
-		);
+		// p is no pricier than o: its rolls are each at or below o's (High-Low under High-Mid, Mid-Mid under High-Mid),
+		// and Mid-High, the reverse, counts as cheaper than High-Mid.
+		type Option = (typeof options)[number];
+		const noPricier = (p: Option, o: Option) => {
+			const [ph, pl, oh, ol] = [Math.max(p.x, p.y), Math.min(p.x, p.y), Math.max(o.x, o.y), Math.min(o.x, o.y)];
+			if (p.t > o.t || ph > oh || pl > ol) return false;
+			if (ph !== oh || pl !== ol) return true;
+			return p.x === o.x || (ph === RANK.high && pl === RANK.mid && p.x < o.x);
+		};
+		// The current accessory is the bottom line: keep a buy only if it beats it and every cheaper roll.
+		const kept = options.filter((o) => o.gain > 0.0005 && !options.some((p) => p !== o && noPricier(p, o) && p.gain >= o.gain));
 		for (const o of kept) {
 			const [m1, m2, t3] = o.set.lines;
 			out.push({

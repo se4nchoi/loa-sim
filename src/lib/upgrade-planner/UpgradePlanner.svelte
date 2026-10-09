@@ -13,6 +13,7 @@
 	import Segmented from './sim/Segmented.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
+	import { rollsFor, setAccRolls } from './acc-rolls.svelte';
 	import { initSimState, type SimState } from './simulate';
 	import { roleOf } from './roles';
 	import type { Loadout } from './types';
@@ -52,7 +53,7 @@
 		const timer = setTimeout(() => (simNow = next), 150);
 		return () => clearTimeout(timer);
 	});
-	const upgrades = $derived(liveUpgrades(loadout, simNow, simBase ?? initSimState(loadout)));
+	const upgrades = $derived(liveUpgrades(loadout, simNow, simBase ?? initSimState(loadout), rollsFor(characterKey)));
 	const goldUpgrades = $derived(upgrades.filter(supportsGoldCost));
 	/** This character's bound honing mats. */
 	const bound = $derived(gold.bound[characterKey] ?? {});
@@ -203,5 +204,5 @@
 {/if}
 
 {#if dialogOpen}
-	<UpgradeDialog {upgrades} {cp} {auto} {costs} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => ((dialogOpen = false), (focusKey = null))} />
+	<UpgradeDialog {upgrades} {cp} accRolls={rollsFor(characterKey)} onaccrolls={(r) => setAccRolls(characterKey, r)} {auto} {costs} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => ((dialogOpen = false), (focusKey = null))} />
 {/if}

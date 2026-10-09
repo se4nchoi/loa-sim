@@ -3,6 +3,7 @@ import { applyUpgrade } from './apply-upgrade';
 import { PartType, partHigh } from './cp';
 import brushann from './fixtures/na-brushann.json';
 import soulshan from './fixtures/na-soulshan.json';
+import type { AccRoll } from './accessory-sets';
 import { liveUpgrades } from './live-upgrades';
 import { initSimState, simulate } from './simulate';
 import { supportCombatPower, supportEngravingIds, supportEngravingTable } from './support';
@@ -92,12 +93,26 @@ it('imports equipped utility engravings and allows swapping them without inventi
 	expect(simulate(l, next, base).cp).toBeGreaterThan(simulate(l, base, base).cp);
 });
 
-it('a weak accessory offers Mid-Mid as the bottom rung, and only rolls that beat it', () => {
+describe('accessory rolls picker', () => {
 	const l = soulshan as unknown as Loadout;
 	const base = initSimState(l);
-	const current = structuredClone(base);
-	current.accessories.neck = [{ key: 'other', label: 'Other' }, { key: 'other', label: 'Other' }, { key: 'other', label: 'Other' }];
-	const ladder = liveUpgrades(l, current, base).filter((u) => u.group === 'accset:neck');
-	expect(ladder.some((u) => u.lines!.slice(0, 2).every((x) => x.tier === 'mid'))).toBe(true);
-	for (const u of ladder) expect(u.gainPct).toBeGreaterThan(0);
+	const weak = structuredClone(base);
+	for (const slot of ['neck', 'ear1', 'ear2', 'finger1', 'finger2'] as const)
+		weak.accessories[slot] = [{ key: 'other', label: 'Other' }, { key: 'other', label: 'Other' }, { key: 'other', label: 'Other' }];
+	const neck = (rolls: AccRoll[]) => liveUpgrades(l, weak, base, rolls).filter((u) => u.group === 'accset:neck');
+	const mains = (u: ReturnType<typeof neck>[number]) => u.lines!.slice(0, 2).map((x) => x.tier[0]).join('');
+	it('offers only the picked main rolls, all beating the current accessory', () => {
+		expect(new Set(neck(['mm']).map(mains))).toEqual(new Set(['mm']));
+		expect(new Set(neck(['hl', 'mm']).map(mains))).toEqual(new Set(['hl', 'mm']));
+		expect(new Set(neck(['hm']).map(mains))).toEqual(new Set(['hm', 'mh']));
+		for (const u of neck(['hh', 'hm', 'hl', 'lh', 'mm'])) expect(u.gainPct).toBeGreaterThan(0);
+		expect(neck([])).toEqual([]);
+	});
+	it('stays quick with every roll picked', () => {
+		const all: AccRoll[] = ['hh', 'hm', 'hl', 'lh', 'mm'];
+		liveUpgrades(l, weak, base, all);
+		const t = performance.now();
+		for (let i = 0; i < 5; i++) liveUpgrades(l, weak, base, all);
+		expect((performance.now() - t) / 5).toBeLessThan(200);
+	});
 });

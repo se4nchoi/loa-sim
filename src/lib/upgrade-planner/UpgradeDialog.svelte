@@ -7,6 +7,7 @@
 	import GoldCost from './GoldCost.svelte';
 	import { byGold, formatGold, goldPerPct, supportsGoldCost, type RankMode } from './gold-costs.svelte';
 	import type { HoningCost } from './honing-cost';
+	import { ACC_ROLLS, type AccRoll } from './accessory-sets';
 	import { CATEGORY_LABELS, type Upgrade, type UpgradeCategory } from './upgrades';
 
 	let {
@@ -18,7 +19,9 @@
 		mode = 'cp',
 		focusKey = null,
 		auto = {},
-		costs = {}
+		costs = {},
+		accRolls,
+		onaccrolls
 	}: {
 		upgrades: Upgrade[];
 		cp: number;
@@ -34,6 +37,9 @@
 		auto?: Record<string, HoningCost>;
 		/** Gold cost per row: typed, else calculated. */
 		costs?: Record<string, number>;
+		/** Main-line rolls the accessory ladder offers; the picker changes them on Apply. */
+		accRolls?: AccRoll[];
+		onaccrolls?: (rolls: AccRoll[]) => void;
 	} = $props();
 
 	let dialog: HTMLDialogElement;
@@ -100,8 +106,38 @@
 		for (const u of list) by.set(u.subject ?? '', [...(by.get(u.subject ?? '') ?? []), u]);
 		return [...by.entries()].map(([slot, items]) => ({ slot, list: items })).sort((a, b) => byOpened(pieceAt, a.slot, b.slot, b.list[0].gainPct - a.list[0].gainPct));
 	};
+	// Accessory roll picker: toggles stay a draft until Apply rebuilds the ladder.
+	let draft = $state<AccRoll[]>(untrack(() => [...(accRolls ?? [])]));
+	const same = (a: AccRoll[], b: AccRoll[]) => a.length === b.length && a.every((r) => b.includes(r));
+	const pending = $derived(!!accRolls && !same(draft, accRolls));
+	function applyRolls() {
+		// The rebuilt ladder sorts by gain (its rows are new to the frozen order).
+		for (const key of [...rowAt.keys()]) if (key.startsWith('accset:')) rowAt.delete(key);
+		onaccrolls?.([...draft]);
+	}
 	const best = $derived(mode === 'gold' ? byGold(upgrades, costs).slice(0, 3) : upgrades.slice(0, 3));
 </script>
+
+{#snippet rollPicker()}
+	<div class="mb-1.5 flex flex-row flex-wrap items-center gap-1.5" role="group" aria-label="Accessory rolls to offer">
+		{#each ACC_ROLLS as r (r.roll)}
+			{@const on = draft.includes(r.roll)}
+			<button
+				type="button"
+				aria-pressed={on}
+				title={r.also ? `${r.label} and its reverse ${r.also}` : r.label}
+				class="flex h-12 w-14 flex-col items-center justify-center rounded-xs text-sm font-semibold hover:bg-surface-800 {on
+					? 'bg-accent-500/20 text-surface-50 ring-1 ring-accent-500'
+					: 'bg-surface-950 text-surface-400'}"
+				onclick={() => (draft = on ? draft.filter((x) => x !== r.roll) : [...draft, r.roll])}
+			>
+				{r.label}
+				{#if r.also}<span class="text-[10px] leading-tight font-normal text-surface-400">+ {r.also}</span>{/if}
+			</button>
+		{/each}
+		<button type="button" class="{btn} h-12 px-3" disabled={!pending} class:opacity-40={!pending} onclick={applyRolls}>Apply</button>
+	</div>
+{/snippet}
 
 {#snippet row(u: Upgrade)}
 	<div
@@ -177,6 +213,7 @@
 			{#each groups as g (g.category)}
 				<section id={sectionId(g.category)} class="flex flex-col">
 					<h3 class="mb-1 text-xs font-semibold tracking-wide text-surface-400 uppercase">{CATEGORY_LABELS[g.category]}</h3>
+					{#if g.category === 'accessory' && accRolls}{@render rollPicker()}{/if}
 					{#if g.category === 'accessory'}
 						<!-- Whole-accessory buys fold per piece: the best buy on the summary line, the full ladder inside. -->
 						{#each bySlot(g.list) as piece (piece.slot)}
@@ -197,6 +234,13 @@
 					{/if}
 				</section>
 			{/each}
+			{#if accRolls && !groups.some((g) => g.category === 'accessory')}
+				<section class="flex flex-col">
+					<h3 class="mb-1 text-xs font-semibold tracking-wide text-surface-400 uppercase">{CATEGORY_LABELS.accessory}</h3>
+					{@render rollPicker()}
+					<p class="text-xs text-surface-400">No accessory with the applied rolls beats what you have.</p>
+				</section>
+			{/if}
 		</div>
 	</div>
 </dialog>
