@@ -18,16 +18,17 @@ describe('honing cost', () => {
 
 	it('+25 (0.5%, growing to 1%) is forced by artisan’s energy after a couple hundred taps', () => {
 		const tap = tapsFor('serca', 'weapon', 25)!;
-		const c = honingCost(tap, free(tap))!;
+		const c = honingCost(tap, { ...free(tap), [String(tap.breath.id)]: 1e9 })!; // no breath
+		expect(c.breath).toBe(false);
 		expect(c.maxTaps).toBeGreaterThan(200);
 		expect(c.maxTaps).toBeLessThan(240);
 		expect(c.taps).toBeLessThan(c.maxTaps);
 		expect(c.worst).toBe(tap.gold * c.maxTaps);
 	});
 
-	it('prices materials and shards per unit, and needs every price', () => {
+	it('prices materials and shards per unit; unpriced ones cost nothing', () => {
 		const tap = tapsFor('serca', 'head', 10)!;
-		expect(honingCost(tap, {})).toBeNull();
+		expect(honingCost(tap, {}).expected).toBeCloseTo(honingCost(tap, free(tap)).expected, 6);
 		const prices = { ...free(tap), [SHARDS]: 0.1 };
 		const base = honingCost(tap, free(tap))!;
 		const withShards = honingCost(tap, prices)!;

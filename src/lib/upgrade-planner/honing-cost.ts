@@ -6,7 +6,7 @@
 import { HONING_COSTS, HONING_MATERIALS, type HoningSet, type HoningTap } from './honing-cost-data';
 import type { HoningSlot } from './honing-data';
 
-/** Gold per unit, by material item id; `shards` is gold per shard. Missing = not priced yet. */
+/** Gold per unit, by material item id; `shards` is gold per shard. Missing = 0 (bound / already owned). */
 export type MaterialPrices = Record<string, number>;
 export const SHARDS = 'shards';
 
@@ -41,19 +41,21 @@ function run(tap: HoningTap, breath: boolean) {
 	}
 }
 
-/** Expected and worst-case gold for one honing step; null while a needed price is missing. */
-export function honingCost(tap: HoningTap, prices: MaterialPrices): HoningCost | null {
-	if (pricesNeeded(tap).some((id) => prices[id] === undefined)) return null;
-	const perTap = tap.gold + tap.shards * prices[SHARDS] + Object.entries(tap.mats).reduce((g, [id, n]) => g + n * prices[id], 0);
-	const breathPrice = prices[String(tap.breath.id)];
-	const options = [{ breath: false, cost: perTap, ...run(tap, false) }];
-	if (breathPrice !== undefined) options.push({ breath: true, cost: perTap + tap.breath.max * breathPrice, ...run(tap, true) });
+/** Expected and worst-case gold for one honing step. Unpriced materials count as 0 (bound / already owned). */
+export function honingCost(tap: HoningTap, prices: MaterialPrices): HoningCost {
+	const price = (id: string) => prices[id] ?? 0;
+	const perTap = tap.gold + tap.shards * price(SHARDS) + Object.entries(tap.mats).reduce((g, [id, n]) => g + n * price(id), 0);
+	const options = [
+		{ breath: false, cost: perTap, ...run(tap, false) },
+		{ breath: true, cost: perTap + tap.breath.max * price(String(tap.breath.id)), ...run(tap, true) }
+	];
 	const best = options.reduce((a, b) => (b.cost * b.taps < a.cost * a.taps ? b : a));
 	return { expected: best.cost * best.taps, worst: best.cost * best.maxTaps, taps: best.taps, maxTaps: best.maxTaps, breath: best.breath };
 }
 
 export const materialName = (id: string) => (id === SHARDS ? 'Destiny Shard' : (HONING_MATERIALS[id]?.[0] ?? id));
-export const materialIcon = (id: string) => (id === SHARDS ? undefined : HONING_MATERIALS[id]?.[1]);
+/** Shards come in pouches of 500 / 1,000 / 2,000; the 1,000 pouch stands for them. */
+export const materialIcon = (id: string) => (id === SHARDS ? 'Use_12_92' : HONING_MATERIALS[id]?.[1]);
 
 /** Gear set of a slot in the simulator state (Serca unless marked Aegir). */
 const setOf = (gear: { set?: 'aegir' } | undefined): HoningSet => (gear?.set === 'aegir' ? 'aegir' : 'serca');
@@ -63,7 +65,7 @@ const honingStep = (key: string) => {
 };
 type GearSets = Partial<Record<HoningSlot, { set?: 'aegir' }>>;
 
-/** Calculated costs for the honing rows among `keys` (rows whose prices are all set). */
+/** Calculated costs for the honing rows among `keys`. */
 export function autoHoningCosts(keys: string[], gear: GearSets, prices: MaterialPrices): Record<string, HoningCost> {
 	const out: Record<string, HoningCost> = {};
 	for (const key of keys) {

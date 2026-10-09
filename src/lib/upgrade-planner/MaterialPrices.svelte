@@ -1,6 +1,6 @@
 <!--
 	Honing material prices (NA has no market API): typed once, kept in this browser, used to price every honing
-	row in Next Upgrades. Prices are entered the way the market lists them (stones per 100, shards per 1,000).
+	row in Next Upgrades. Entered the way the market lists them (stones per 100, shards per 1,000); 0 = bound.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -16,15 +16,18 @@
 	/** Units the market sells in: destruction / guardian stones by 100, shards by 1,000. */
 	const unit = (id: string) => (id === SHARDS ? 1000 : id.startsWith('66102') ? 100 : 1);
 	const unitLabel = (id: string) => (unit(id) === 1 ? 'each' : `per ${unit(id).toLocaleString()}`);
-	const shown = (id: string) => (gold.prices[id] === undefined ? '' : formatGold(gold.prices[id] * unit(id)));
+	const shown = (id: string) => formatGold((gold.prices[id] ?? 0) * unit(id));
 
 	function commit(id: string, text: string) {
-		if (!text.trim()) return setMaterialPrice(id, null);
+		if (!text.trim()) return setMaterialPrice(id, 0);
 		const v = parsePrice(text);
 		if (v !== null) setMaterialPrice(id, v / unit(id));
 	}
-	const missing = $derived(ids.filter((id) => gold.prices[id] === undefined).length);
-	const ago = $derived(gold.pricesAt ? Math.round((Date.now() - gold.pricesAt) / 86400000) : null);
+	const changed = $derived(
+		gold.pricesAt
+			? new Date(gold.pricesAt).toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+			: '—'
+	);
 </script>
 
 <dialog
@@ -34,7 +37,7 @@
 	aria-labelledby="material-prices-title"
 	class="fixed top-[80px] m-0 max-h-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 sm:left-1/2 sm:-translate-x-1/2"
 >
-	<div class="flex w-[440px] flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-[100vw]">
+	<div class="flex w-[520px] flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-[100vw]">
 		<div class="flex flex-row items-center justify-between px-4 py-2.5 font-bold">
 			<span id="material-prices-title">Honing material prices</span>
 			<button type="button" class="text-surface-300 hover:text-surface-50" aria-label="Close" onclick={() => dialog.close()}>
@@ -42,10 +45,10 @@
 			</button>
 		</div>
 		<div class="flex max-h-[70vh] flex-col gap-3 overflow-y-auto px-4 py-3 text-sm">
-			<p class="text-xs text-surface-400">
-				Market prices in gold, as listed. Enter <b class="text-surface-200">0</b> for materials you already have plenty of. Honing rows in Next
-				Upgrades then show their average cost (and the worst case, when the meter forces success).
-			</p>
+			<ul class="list-disc pl-5 text-xs text-surface-400">
+				<li><b class="text-surface-200">0</b> = bound mats</li>
+				<li>Calculates the average-tap and pity-tap cost of each honing step</li>
+			</ul>
 			<div class="flex flex-col divide-y divide-neutral-950">
 				{#each ids as id (id)}
 					<label class="flex flex-row items-center gap-3 py-1.5">
@@ -54,24 +57,20 @@
 						{:else}
 							<span class="size-8 shrink-0 rounded-xs bg-black/30"></span>
 						{/if}
-						<span class="min-w-0 flex-1 truncate text-surface-100">{materialName(id)}</span>
+						<span class="min-w-0 flex-1 leading-tight text-surface-100">{materialName(id)}</span>
 						<input
 							value={shown(id)}
 							onchange={(e) => commit(id, e.currentTarget.value)}
-							placeholder="price"
 							inputmode="decimal"
-							class="h-8 w-24 rounded-xs border px-2 text-right tabular-nums focus:border-accent-500 focus:outline-none {gold.prices[id] === undefined
-								? 'border-amber-400/60 border-dashed bg-surface-800'
-								: 'border-surface-600 bg-surface-800 hover:border-surface-400'}"
+							class="h-8 w-24 rounded-xs border border-surface-600 bg-surface-800 px-2 text-right tabular-nums hover:border-surface-400 focus:border-accent-500 focus:outline-none {gold.prices[id]
+								? 'text-surface-50'
+								: 'text-surface-400'}"
 						/>
 						<span class="w-20 shrink-0 text-xs text-surface-400">{unitLabel(id)}</span>
 					</label>
 				{/each}
 			</div>
-			<p class="text-xs text-surface-500">
-				{missing ? `${missing} price${missing > 1 ? 's' : ''} to go.` : 'All set.'}
-				{#if ago !== null}Last changed {ago === 0 ? 'today' : `${ago} day${ago > 1 ? 's' : ''} ago`}; NA prices move, so check now and then.{/if}
-			</p>
+			<p class="text-xs text-surface-500">Last changed: {changed}</p>
 		</div>
 	</div>
 </dialog>

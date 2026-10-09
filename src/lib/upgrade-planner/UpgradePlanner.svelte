@@ -45,7 +45,8 @@
 	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices) : {});
 	const costs = $derived({ ...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])), ...gold.costs });
 	const materials = $derived(materialsFor(upgrades.map((u) => u.key), simNow.gear));
-	const missingPrices = $derived(materials.filter((id) => gold.prices[id] === undefined).length);
+	/** Nothing priced yet: every material counts as 0 (bound). */
+	const unsetPrices = $derived(materials.every((id) => gold.prices[id] === undefined));
 	let pricesOpen = $state(false);
 	const cp = $derived(currentCp ?? loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
 	let dialogOpen = $state(false);
@@ -85,14 +86,14 @@
 			{#if gold.mode === 'gold' && materials.length}
 				<button
 					type="button"
-					class="col-span-full mx-1 mb-1 flex flex-row items-center justify-between rounded-xs border px-2 py-1 text-xs transition {missingPrices
+					class="col-span-full mx-1 mb-1 flex flex-row items-center justify-between rounded-xs border px-2 py-1 text-xs transition {unsetPrices
 						? 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'
 						: 'border-surface-700 text-surface-300 hover:border-surface-500 hover:text-surface-50'}"
 					aria-haspopup="dialog"
 					onclick={() => (pricesOpen = true)}
 				>
 					<span class="font-semibold">Honing material prices</span>
-					<span>{missingPrices ? `${missingPrices} to set` : 'Edit'}</span>
+					<span>{unsetPrices ? 'All 0 · set' : 'Edit'}</span>
 				</button>
 			{/if}
 			{#each shown as u, i (u.key)}
