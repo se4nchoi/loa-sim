@@ -70,7 +70,7 @@
 	{#if loadoutOptions.length > 1 && loadoutKind && onloadout}
 		<div class="mt-1"><Segmented value={loadoutKind} options={loadoutOptions} onselect={onloadout} label="Loadout to simulate" size="h-8 px-3 text-xs" /></div>
 	{/if}
-	<a class="w-fit text-xs text-surface-300 underline" href={`https://lostark.bible/character/${region}/${encodeURIComponent(name)}`} target="_blank" rel="noopener">
+	<a class="w-fit text-xs text-surface-300 underline hover:text-surface-50" href={`https://lostark.bible/character/${region}/${encodeURIComponent(name)}`} target="_blank" rel="noopener">
 		View on lostark.bible
 	</a>
 </div>

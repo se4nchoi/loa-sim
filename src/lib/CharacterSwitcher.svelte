@@ -87,7 +87,7 @@
 			</div>
 		{/if}
 		<select
-			class="h-9 w-full shrink-0 rounded-xs sm:ml-auto sm:w-56 border border-surface-600 bg-surface-800 px-2 text-sm text-surface-100 focus:border-accent-500 focus:outline-none"
+			class="h-9 w-full shrink-0 rounded-xs sm:ml-auto sm:w-56 border border-surface-600 bg-surface-800 px-2 text-sm text-surface-100 hover:border-surface-400 focus:border-accent-500 focus:outline-none"
 			aria-label="Switch character"
 			value=""
 			disabled={loading !== null}

@@ -135,7 +135,7 @@
 		const m = Math.round((Date.now() - t) / 60000);
 		return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`;
 	};
-	const field = 'h-10 rounded-xs border border-surface-600 bg-surface-800 px-3 text-surface-100 focus:border-accent-500 focus:outline-none';
+	const field = 'h-10 rounded-xs border border-surface-600 bg-surface-800 px-3 text-surface-100 hover:border-surface-400 focus:border-accent-500 focus:outline-none';
 	const primary = 'rounded-xs bg-accent-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-accent-600 disabled:opacity-50';
 	const secondary = 'rounded-xs border border-surface-600 px-2.5 py-1.5 text-sm text-surface-200 hover:bg-surface-800 disabled:opacity-50';
 </script>
@@ -282,7 +282,7 @@
 	{/if}
 
 	<details class="rounded-xs bg-surface-900 px-3 py-2 text-sm text-surface-300 shadow-sm shadow-neutral-800">
-		<summary class="cursor-pointer font-semibold text-surface-100">How to use</summary>
+		<summary class="cursor-pointer font-semibold text-surface-100 hover:text-accent-200">How to use</summary>
 		<ul class="mt-2 list-disc space-y-1 pl-5">
 			<li>Load a character by name, or sign in and pick one from your roster.</li>
 			<li>Change honing, accessories, gems, engravings, ark grid, bracelet and karma; Combat Power updates as you go.</li>
@@ -300,12 +300,12 @@
 	</details>
 
 	<details bind:open={showPaste} class="rounded-xs bg-surface-900 px-3 py-2 text-sm text-surface-300 shadow-sm shadow-neutral-800">
-		<summary class="cursor-pointer font-semibold text-surface-100">Load not working?</summary>
+		<summary class="cursor-pointer font-semibold text-surface-100 hover:text-accent-200">Load not working?</summary>
 		<div class="mt-2 flex flex-col gap-2">
 			<span class="font-semibold text-surface-100">Manual load</span>
 			{#if target}
 				<span>
-					Open <a class="text-accent-300 underline" href={bibleDataUrl(target.region, target.name)} target="_blank" rel="noopener">{target.name}'s data ↗</a>,
+					Open <a class="text-accent-300 underline hover:text-accent-200" href={bibleDataUrl(target.region, target.name)} target="_blank" rel="noopener">{target.name}'s data ↗</a>,
 					select all (<kbd>Ctrl</kbd>+<kbd>A</kbd>), copy, and paste it here.
 				</span>
 			{:else}

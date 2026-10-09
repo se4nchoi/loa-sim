@@ -22,7 +22,7 @@
 <div class="sticky {top} z-40 -mx-4 mb-2 border-b border-neutral-800 bg-neutral-950/95 px-4 py-1.5 shadow-md shadow-black/40 backdrop-blur lg:hidden">
 	<button
 		type="button"
-		class="flex w-full flex-row items-center gap-2 text-left"
+		class="flex w-full flex-row items-center gap-2 text-left hover:opacity-90"
 		aria-expanded={open}
 		aria-controls="mobile-summary"
 		onclick={() => (open = !open)}

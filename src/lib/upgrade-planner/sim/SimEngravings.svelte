@@ -170,7 +170,7 @@
 		{/if}
 		{#if ids.length > 1}
 			<details class="group mt-2 min-w-0 rounded-xs border border-surface-700 bg-black/15 p-3 text-xs text-surface-300 open:h-[29rem]" aria-label="Stone kit suggestions">
-				<summary class="flex h-7 cursor-pointer list-none items-center gap-2 font-semibold text-surface-100 [&::-webkit-details-marker]:hidden">
+				<summary class="flex h-7 cursor-pointer list-none items-center gap-2 font-semibold text-surface-100 hover:text-accent-200 [&::-webkit-details-marker]:hidden">
 					<ItemIcon src={iconUrl('Use_13_225')} grade={6} size="size-7" title="Soaring Stone Engraving Setting Kit" />
 					<span>Suggested Stone Kit Engravings</span>
 					<span class="ml-auto text-surface-400 transition-transform group-open:rotate-90" aria-hidden="true">▸</span>

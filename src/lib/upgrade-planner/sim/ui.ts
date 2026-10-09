@@ -1,7 +1,7 @@
 import type { SimState } from '../simulate';
 
 export const selectClass = (changed: boolean) =>
-	`h-8 rounded-xs border bg-surface-950 px-2 text-sm text-surface-100 focus:outline-none focus:border-accent-500 ${
+	`h-8 rounded-xs border bg-surface-950 px-2 text-sm text-surface-100 hover:border-surface-500 focus:outline-none focus:border-accent-500 ${
 		changed ? 'border-accent-500 bg-accent-500/10' : 'border-surface-700'
 	}`;
 

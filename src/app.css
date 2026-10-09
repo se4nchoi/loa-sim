@@ -51,6 +51,19 @@ body {
 	font-family: var(--font-sans);
 }
 
+/* Tailwind v4 leaves buttons with the default arrow; every clickable control gets the hand cursor. */
+@layer base {
+	button:not(:disabled),
+	[role='button']:not([aria-disabled='true']),
+	select:not(:disabled),
+	summary,
+	input[type='checkbox']:not(:disabled),
+	input[type='radio']:not(:disabled),
+	input[type='range']:not(:disabled) {
+		cursor: pointer;
+	}
+}
+
 /* Thin dark scrollbars that match the surface palette (page and every scrolling panel). */
 * {
 	scrollbar-width: thin;

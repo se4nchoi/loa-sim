@@ -120,7 +120,7 @@
 				{/if}
 				<span class="flex-1"></span>
 				<button
-					class="text-xs text-surface-300 underline hover:text-surface-300"
+					class="text-xs text-surface-300 underline hover:text-surface-50"
 					type="button"
 					aria-haspopup="dialog"
 					onclick={() => (dialogOpen = true)}

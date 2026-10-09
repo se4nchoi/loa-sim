@@ -195,7 +195,7 @@
 					</div>
 				{/if}
 				<details class="group rounded-xs border border-surface-700 bg-black/15 px-3 py-2 text-xs text-surface-300">
-					<summary class="cursor-pointer font-semibold text-surface-100 select-none">How the DPS estimate works</summary>
+					<summary class="cursor-pointer font-semibold text-surface-100 select-none hover:text-accent-200">How the DPS estimate works</summary>
 					<div class="mt-2 flex flex-col gap-2 leading-relaxed">
 						<p>
 							Combat Power counts every gem the same. Real damage depends on the skill: a gem on a skill that does 30% of your
