@@ -48,6 +48,16 @@
 	const base = $derived(initSimState(loadout));
 	/** Phones: the Next Upgrades drawer (see BottomDrawer). */
 	let drawerOpen = $state(false);
+	/** Dock the CP bar at the top first (scroll it up if it's still mid-page), so it shows above the drawer. */
+	function openDrawer() {
+		const bar = document.querySelector<HTMLElement>('[data-cp-bar]');
+		if (bar) {
+			const dockAt = parseFloat(getComputedStyle(bar).top) || 0;
+			const gap = bar.getBoundingClientRect().top - dockAt;
+			if (gap > 1) window.scrollBy({ top: gap, behavior: 'instant' });
+		}
+		drawerOpen = true;
+	}
 	let sim = $state(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
@@ -276,7 +286,7 @@
 		type="button"
 		class="fixed inset-x-3 bottom-3 z-30 flex h-12 flex-row items-center justify-between rounded-xs border border-accent-500/50 bg-surface-900/95 px-4 text-sm font-bold text-surface-50 shadow-lg shadow-black/60 backdrop-blur lg:hidden"
 		aria-haspopup="dialog"
-		onclick={() => (drawerOpen = true)}
+		onclick={openDrawer}
 	>
 		Next Upgrades
 		<svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>

@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { formatPct } from './format';
+	import { useDrawerDrag } from './sim/BottomDrawer.svelte';
 	import GoldCost from './GoldCost.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
 	import { autoHoningCosts, materialsFor } from './honing-cost';
@@ -66,6 +67,7 @@
 	let pricesOpen = $state(false);
 	const cp = $derived(currentCp ?? loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
 	let dialogOpen = $state(false);
+	const drawerDrag = useDrawerDrag();
 	/** Upgrade to scroll to when All Upgrades opens from a row click. */
 	let focusKey = $state<string | null>(null);
 
@@ -82,7 +84,8 @@
 </script>
 
 <div class="flex min-h-0 flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
-	<div class="flex shrink-0 flex-row items-center gap-2 bg-black/10 px-3 py-2 font-bold">
+	<!-- In the phone drawer this row is also a drag-to-close zone (its toggle buttons still tap). -->
+	<div class="flex shrink-0 flex-row items-center gap-2 bg-black/10 px-3 py-2 font-bold" use:drawerDrag>
 		<div class="flex flex-row items-start">Next Upgrades</div>
 		<div class="ml-auto">
 			<Segmented
