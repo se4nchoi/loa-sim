@@ -79,20 +79,20 @@ export function setMaterialPrice(id: string, price: number | null) {
 	saveMaterials();
 }
 
-/** Units of a honing material already owned (bound), used before buying; PLENTY for "plenty". */
+/** Bound units of a honing material, used before buying; PLENTY for "plenty". */
 export function setMaterialOwned(id: string, amount: number | null) {
 	if (!amount) delete gold.owned[id];
 	else gold.owned[id] = amount;
 	saveMaterials();
 }
 
-/** Owned amount as typed: "∞" / "inf" / "all" / 99999+ mean plenty; "12k", "3,000" are counts. */
+/** Bound amount as typed: "12k", "3,000" are counts; "∞" / "inf" / "all" mean plenty. */
 export function parseOwned(text: string): number | null {
 	const t = text.trim().toLowerCase();
 	if (!t || /^0+$/.test(t)) return 0;
 	if (['∞', 'inf', 'infinite', 'all', 'plenty'].includes(t)) return PLENTY;
 	const n = parseGold(t);
-	return n === null ? null : n >= 99999 ? PLENTY : n;
+	return n === null ? null : Math.min(n, PLENTY);
 }
 
 export function setRankMode(mode: RankMode) {

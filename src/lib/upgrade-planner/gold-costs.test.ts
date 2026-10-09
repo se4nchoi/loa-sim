@@ -40,13 +40,14 @@ describe('gold costs', () => {
 		expect(byGold([a, b, c], costs).map((u) => u.key)).toEqual(['b', 'a']);
 	});
 
-	it('reads owned amounts, with ∞ / 99999 meaning plenty', () => {
+	it('reads bound amounts, with ∞ meaning plenty', () => {
 		expect(parseOwned('0')).toBe(0);
 		expect(parseOwned('')).toBe(0);
 		expect(parseOwned('3,000')).toBe(3000);
 		expect(parseOwned('12k')).toBe(12000);
 		expect(parseOwned('∞')).toBe(1e12);
-		expect(parseOwned('99999')).toBe(1e12);
+		expect(parseOwned('9999999999')).toBe(9999999999);
+		expect(parseOwned('99999')).toBe(99999);
 		expect(parseOwned('lots')).toBeNull();
 	});
 });

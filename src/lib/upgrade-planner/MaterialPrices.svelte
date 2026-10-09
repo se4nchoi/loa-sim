@@ -52,14 +52,14 @@
 		</div>
 		<div class="flex max-h-[70vh] flex-col gap-3 overflow-y-auto px-4 py-3 text-sm">
 			<ul class="list-disc pl-5 text-xs text-surface-400">
-				<li><b class="text-surface-200">Owned</b> (bound) mats are used first; the rest is bought at market price</li>
-				<li><b class="text-surface-200">∞</b> or <b class="text-surface-200">99999</b> = plenty owned; market price <b class="text-surface-200">0</b> = free</li>
+				<li>Bound mats are used first, then the market buy is simulated</li>
+				<li>Put a big number (9999999999) to force 0 gold for the mat</li>
 				<li>Calculates the average-tap and pity-tap cost of each honing step</li>
 			</ul>
-			<div class="grid grid-cols-[2rem_minmax(0,1fr)_5.5rem_6rem_3.5rem] items-center gap-x-2 gap-y-1.5">
+			<div class="grid grid-cols-[2rem_minmax(0,1fr)_7.5rem_6rem_3.5rem] items-center gap-x-2 gap-y-1.5">
 				<span></span>
 				<span></span>
-				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Owned</span>
+				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Bound</span>
 				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Market</span>
 				<span></span>
 				{#each ids as id (id)}
@@ -73,7 +73,7 @@
 						<input
 							value={shownOwned(id)}
 							onchange={(e) => commitOwned(id, e.currentTarget.value)}
-							aria-label={`${materialName(id)} owned`}
+							aria-label={`${materialName(id)} bound`}
 							inputmode="numeric"
 							class="h-8 w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-right tabular-nums hover:border-surface-400 focus:border-accent-500 focus:outline-none {gold
 								.owned[id]
