@@ -38,6 +38,7 @@
 	let dialog: HTMLDialogElement;
 	onMount(() => {
 		dialog.showModal();
+		dialog.focus(); // the dialog itself, not a control: no keyboard popping up, no focus ring on Close
 		if (focusKey) dialog.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.scrollIntoView({ block: 'center' });
 		track();
 	});
@@ -76,16 +77,14 @@
 	const best = $derived(mode === 'gold' ? byGold(upgrades, costs).slice(0, 3) : upgrades.slice(0, 3));
 </script>
 
-<!-- The dialog takes focus itself, not its first input: on phones that popped the keyboard and jerked the sheet. -->
-<!-- svelte-ignore a11y_autofocus -->
+<!-- Focusable itself (tabindex -1) so opening focuses the dialog, not its first input or Close. -->
 <dialog
 	bind:this={dialog}
-	autofocus
 	tabindex="-1"
 	{onclose}
 	onclick={(e) => e.target === dialog && dialog.close()}
 	aria-labelledby="upgrade-planner-title"
-	class="fixed top-[80px] m-0 max-h-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
+	class="fixed top-[80px] m-0 max-h-none outline-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
 >
 	<div class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 		<div class="flex flex-row items-center justify-between px-4 py-2.5 font-bold">

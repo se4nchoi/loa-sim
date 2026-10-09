@@ -24,7 +24,10 @@
 	const bound = $derived(gold.bound[characterKey] ?? {});
 
 	let dialog: HTMLDialogElement;
-	onMount(() => dialog.showModal());
+	onMount(() => {
+		dialog.showModal();
+		dialog.focus(); // the dialog itself, not a control: no keyboard popping up, no focus ring on Close
+	});
 
 	/** Units the market sells in: destruction / guardian stones by 100, shards by 1,000. */
 	const unit = (id: string) => (id === SHARDS ? 1000 : id.startsWith('66102') ? 100 : 1);
@@ -49,16 +52,14 @@
 	);
 </script>
 
-<!-- The dialog takes focus itself, not its first input: on phones that popped the keyboard and jerked the sheet. -->
-<!-- svelte-ignore a11y_autofocus -->
+<!-- Focusable itself (tabindex -1) so opening focuses the dialog, not its first input or Close. -->
 <dialog
 	bind:this={dialog}
-	autofocus
 	tabindex="-1"
 	{onclose}
 	onclick={(e) => e.target === dialog && dialog.close()}
 	aria-labelledby="material-prices-title"
-	class="fixed top-[80px] m-0 max-h-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
+	class="fixed top-[80px] m-0 max-h-none outline-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
 >
 	<div class="flex w-[600px] flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 		<div class="flex flex-row items-center justify-between px-4 py-2.5 font-bold">
