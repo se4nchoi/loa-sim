@@ -7,7 +7,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
-	import { fade, fly } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
 
 	let { open = $bindable(false), label, header, children }: { open: boolean; label: string; header?: Snippet; children: Snippet } = $props();
 
@@ -60,12 +60,8 @@
 
 {#if open}
 	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-	<div
-		class="fixed inset-0 z-50 bg-black/60 lg:hidden"
-		style:opacity={sheet && drag > 0 ? Math.max(0.2, 1 - drag / sheet.offsetHeight) : undefined}
-		transition:fade={{ duration: 220 }}
-		onclick={() => (open = false)}
-	></div>
+	<!-- Clear (no dimming), so the page and its CP bar stay readable; a tap on it still closes the drawer. -->
+	<div class="fixed inset-0 z-50 lg:hidden" onclick={() => (open = false)}></div>
 	<div
 		bind:this={sheet}
 		class="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col rounded-t-xl border-t border-surface-700 bg-surface-900 shadow-2xl shadow-black lg:hidden"
