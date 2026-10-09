@@ -3,6 +3,8 @@
 	import { formatCp, formatPct } from './format';
 	import { btn } from './sim/ui';
 	import UpgradeTitle from './UpgradeTitle.svelte';
+	import GoldCost from './GoldCost.svelte';
+	import { byGold, formatGold, gold, goldPerPct, type RankMode } from './gold-costs.svelte';
 	import { CATEGORY_LABELS, type Upgrade, type UpgradeCategory } from './upgrades';
 
 	let {
@@ -10,7 +12,8 @@
 		cp,
 		onclose,
 		onapply,
-		flash = null
+		flash = null,
+		mode = 'cp'
 	}: {
 		upgrades: Upgrade[];
 		cp: number;
@@ -18,6 +21,8 @@
 		onapply?: (u: Upgrade) => void;
 		/** The row just applied, for feedback. */
 		flash?: { key: string; ok: boolean } | null;
+		/** Which upgrades the top three cards show: biggest gain, or least gold per 1% CP. */
+		mode?: RankMode;
 	} = $props();
 
 	let dialog: HTMLDialogElement;
@@ -31,7 +36,7 @@
 			.map(([category, list]) => ({ category, list: list.toSorted((a, b) => b.gainPct - a.gainPct) }))
 			.sort((a, b) => b.list[0].gainPct - a.list[0].gainPct);
 	});
-	const best = $derived(upgrades.slice(0, 3));
+	const best = $derived(mode === 'gold' ? byGold(upgrades, gold.costs).slice(0, 3) : upgrades.slice(0, 3));
 </script>
 
 <dialog
@@ -56,6 +61,7 @@
 							<span class="text-[11px] font-semibold tracking-wide text-surface-400 uppercase">#{i + 1} · {CATEGORY_LABELS[u.category]}</span>
 								<UpgradeTitle {u} />
 							<span class="text-lg font-bold text-green-400">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>
+							{#if mode === 'gold'}<span class="text-xs text-amber-300/90 tabular-nums">{formatGold(goldPerPct(u, gold.costs)!)} gold per 1%</span>{/if}
 						</div>
 					{/each}
 				</div>
@@ -68,6 +74,7 @@
 							<div class="flex min-w-0 flex-1 flex-col">
 									<UpgradeTitle {u} />
 								<span class="text-xs text-surface-400">{u.detail}</span>
+								<GoldCost {u} />
 							</div>
 							<div class="flex shrink-0 flex-col text-right">
 								<span class="text-sm font-semibold text-green-400 tabular-nums">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>

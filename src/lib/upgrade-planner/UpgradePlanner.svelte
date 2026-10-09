@@ -5,6 +5,10 @@
 -->
 <script lang="ts">
 	import { formatPct } from './format';
+	import GoldCost from './GoldCost.svelte';
+	import { byGold, gold, loadGold, setRankMode } from './gold-costs.svelte';
+	import Segmented from './sim/Segmented.svelte';
+	import { onMount } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
 	import { initSimState, type SimState } from './simulate';
 	import { roleOf } from './roles';
@@ -36,17 +40,45 @@
 	const upgrades = $derived(liveUpgrades(loadout, simState ? $state.snapshot(simState) : initSimState(loadout), simBase ?? initSimState(loadout)));
 	const cp = $derived(currentCp ?? loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
 	let dialogOpen = $state(false);
+
+	onMount(loadGold);
+	/** Most CP first, or (with gold costs entered) least gold per 1% CP first. */
+	// In gold mode, unpriced rows (biggest gain first) fill the card so costs can be added right here.
+	const priced = $derived(gold.mode === 'gold' ? topDistinct(byGold(upgrades, gold.costs), limit) : []);
+	const shown = $derived(
+		gold.mode === 'gold'
+			? [...priced, ...topDistinct(upgrades.filter((u) => !gold.costs[u.key]), limit - priced.length)]
+			: topDistinct(upgrades, limit)
+	);
+	const unpriced = $derived(upgrades.filter((u) => !gold.costs[u.key]).length);
 </script>
 
 <div class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
-	<div class="flex flex-row items-center bg-black/10 px-3 py-2 font-bold">
+	<div class="flex flex-row items-center gap-2 bg-black/10 px-3 py-2 font-bold">
 		<div class="flex flex-row items-start">Next Upgrades</div>
+		<div class="ml-auto">
+			<Segmented
+				value={gold.mode}
+				options={[
+					{ value: 'cp', label: 'Most CP', title: 'Biggest Combat Power gain first' },
+					{ value: 'gold', label: 'Per gold', title: 'Least gold per 1% Combat Power first (enter gold costs on the rows)' }
+				]}
+				onselect={setRankMode}
+				label="Rank upgrades by"
+				size="h-6 px-2 text-xs"
+			/>
+		</div>
 	</div>
 	{#if upgrades.length === 0}
 		<p class="p-2 text-sm text-surface-300">No one-step upgrades found for this loadout.</p>
 	{:else}
 		<div class="grid gap-x-2 p-1 {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
-			{#each topDistinct(upgrades, limit) as u (u.key)}
+			{#each shown as u, i (u.key)}
+				{#if gold.mode === 'gold' && i === priced.length}
+					<p class="col-span-full px-1.5 pt-1 text-xs text-surface-400">
+						{priced.length ? 'Not priced yet:' : 'NA has no market data, so enter what each upgrade costs you (e.g. 45k) to rank by gold per 1% CP:'}
+					</p>
+				{/if}
 				<div
 					class="col-span-full grid grid-cols-subgrid items-center rounded-xs px-1.5 py-1 transition duration-75 hover:bg-black/20"
 					title={u.detail}
@@ -54,6 +86,7 @@
 					<div class="flex min-w-0 flex-col">
 						<UpgradeTitle {u} />
 						{#if !u.subject}<span class="text-xs text-surface-500">{CATEGORY_LABELS[u.category]}</span>{/if}
+						<GoldCost {u} />
 					</div>
 					<span class="text-right whitespace-nowrap text-green-400 tabular-nums">
 						{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span>
@@ -66,7 +99,11 @@
 					{/if}
 				</div>
 			{/each}
-			<div class="col-span-full w-full px-1 text-right">
+			<div class="col-span-full flex w-full flex-row items-center gap-2 px-1">
+				{#if gold.mode === 'gold' && priced.length && unpriced}
+					<span class="text-xs text-surface-500">{unpriced} without a gold cost</span>
+				{/if}
+				<span class="flex-1"></span>
 				<button
 					class="text-xs text-surface-300 underline hover:text-surface-300"
 					type="button"
@@ -81,5 +118,5 @@
 </div>
 
 {#if dialogOpen}
-	<UpgradeDialog {upgrades} {cp} onapply={onapply ? apply : undefined} {flash} onclose={() => (dialogOpen = false)} />
+	<UpgradeDialog {upgrades} {cp} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} onclose={() => (dialogOpen = false)} />
 {/if}
