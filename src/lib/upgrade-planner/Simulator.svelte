@@ -215,17 +215,18 @@
 		</div>
 		<section id="sim-ark-grid" aria-label="Ark Grid" class="scroll-mt-28"><SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} /></section>
 	</div>
-	<!-- Sticky sidebar; scrolls on its own when taller than the window (e.g. a long Next Upgrades card). -->
-	<div class="flex flex-col gap-2 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
-		<div class="max-lg:hidden">{@render summary()}</div>
-		<nav aria-label="Simulator cards" class="card p-3">
-			<div class="grid grid-cols-2 gap-2">
+	<!-- Sticky sidebar, as tall as the window: the CP card and section links stay whole, Next Upgrades takes the rest
+	     and scrolls its own list. -->
+	<div class="flex flex-col gap-2 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
+		<div class="shrink-0 max-lg:hidden">{@render summary()}</div>
+		<nav aria-label="Simulator cards" class="card shrink-0 p-2">
+			<div class="grid grid-cols-4 gap-1.5">
 				{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'] as title}
-					<a href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`} class="rounded-xs border border-surface-700 bg-surface-800 px-2 py-2 text-center text-xs font-semibold text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a>
+					<a href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`} class="truncate rounded-xs border border-surface-700 bg-surface-800 px-0.5 py-1.5 text-center text-[11px] font-semibold tracking-tight text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a>
 				{/each}
 			</div>
 		</nav>
-		<UpgradePlanner {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
+		<UpgradePlanner class="lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
 		{@render sidebar?.()}
 	</div>
 </div>

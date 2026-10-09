@@ -28,8 +28,9 @@
 		simBase,
 		currentCp,
 		characterKey = '',
-		characterName
-	}: { characterKey?: string; characterName?: string; loadout: Loadout; limit?: number; simState?: SimState; simBase?: SimState; currentCp?: number; /** Returns false when it couldn't be applied. */ onapply?: (u: Upgrade) => boolean } = $props();
+		characterName,
+		class: cls = ''
+	}: { class?: string; characterKey?: string; characterName?: string; loadout: Loadout; limit?: number; simState?: SimState; simBase?: SimState; currentCp?: number; /** Returns false when it couldn't be applied. */ onapply?: (u: Upgrade) => boolean } = $props();
 
 	/** Brief feedback on the row just applied. */
 	let flash = $state<{ key: string; ok: boolean } | null>(null);
@@ -72,8 +73,8 @@
 	const unpriced = $derived(upgrades.filter((u) => costs[u.key] === undefined).length);
 </script>
 
-<div class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
-	<div class="flex flex-row items-center gap-2 bg-black/10 px-3 py-2 font-bold">
+<div class="flex min-h-0 flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
+	<div class="flex shrink-0 flex-row items-center gap-2 bg-black/10 px-3 py-2 font-bold">
 		<div class="flex flex-row items-start">Next Upgrades</div>
 		<div class="ml-auto">
 			<Segmented
@@ -91,20 +92,33 @@
 	{#if upgrades.length === 0}
 		<p class="p-2 text-sm text-surface-300">No one-step upgrades found for this loadout.</p>
 	{:else}
-		<div class="grid gap-x-2 p-1 {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
+		<!-- Kept above the list so they stay in reach when the list scrolls. -->
+		<div class="flex shrink-0 flex-row flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1.5 whitespace-nowrap">
 			{#if gold.mode === 'gold' && materials.length}
 				<button
 					type="button"
-					class="col-span-full mx-1 mb-1 flex flex-row items-center justify-between rounded-xs border px-2 py-1 text-xs transition {unsetPrices
+					class="flex flex-row items-center gap-1.5 rounded-xs border px-2 py-0.5 text-xs transition {unsetPrices
 						? 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'
 						: 'border-surface-700 text-surface-300 hover:border-surface-500 hover:text-surface-50'}"
 					aria-haspopup="dialog"
 					onclick={() => (pricesOpen = true)}
 				>
-					<span class="font-semibold">Honing material prices</span>
-					<span>{unsetPrices ? 'All 0 · set' : 'Edit'}</span>
+					<span class="font-semibold">Material prices</span>
+					<span class="opacity-80">{unsetPrices ? 'all 0' : 'edit'}</span>
 				</button>
 			{/if}
+			<span class="flex-1"></span>
+			<button
+				class="text-xs text-surface-300 underline hover:text-surface-50"
+				type="button"
+				aria-haspopup="dialog"
+				onclick={() => (dialogOpen = true)}
+				title={gold.mode === 'gold' && unpriced ? 'Upgrades with no gold cost yet can be priced in All Upgrades' : undefined}
+			>
+				All Upgrades ({upgrades.length}){#if gold.mode === 'gold' && unpriced}<span class="text-amber-300/80"> · {unpriced} unpriced</span>{/if}
+			</button>
+		</div>
+		<div class="grid min-h-0 gap-x-2 overflow-y-auto overscroll-contain p-1 {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
 			{#each shown as u, i (u.key)}
 				{@const honing = gold.mode === 'gold' && auto[u.key] && !gold.costs[u.key] ? auto[u.key] : null}
 				{#if gold.mode === 'gold' && i === priced.length}
@@ -147,28 +161,6 @@
 					{/if}
 				</div>
 			{/each}
-			<div class="col-span-full flex w-full flex-row items-center gap-2 px-1">
-				{#if gold.mode === 'gold' && priced.length && unpriced}
-					<button
-						type="button"
-						class="text-xs text-amber-300/80 underline hover:text-amber-200"
-						aria-haspopup="dialog"
-						onclick={() => (dialogOpen = true)}
-						title="Upgrades with no gold cost yet; add prices in All Upgrades to rank them"
-					>
-						Price {unpriced} more
-					</button>
-				{/if}
-				<span class="flex-1"></span>
-				<button
-					class="text-xs text-surface-300 underline hover:text-surface-50"
-					type="button"
-					aria-haspopup="dialog"
-					onclick={() => (dialogOpen = true)}
-				>
-					All Upgrades ({upgrades.length})
-				</button>
-			</div>
 		</div>
 	{/if}
 </div>
