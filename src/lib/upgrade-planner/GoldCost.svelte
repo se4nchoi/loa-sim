@@ -87,7 +87,7 @@
 			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
 			{#if cost === 0 && !typed}Free{#if showPer}<span class="font-normal text-surface-300">· {u.detail}</span>{/if}{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1% {!typed && auto ? 'avg' : ''}</span>{/if}{:else}{u.books ? 'Add book price' : 'Add gold cost'}{/if}
 		</button>
-		{#if auto?.breakdown && !typed}
+		{#if auto?.breakdown}
 			<button type="button" class="{btn} col-start-2 row-start-1 h-6 px-1.5 text-[11px]" onclick={() => (showBreakdown = true)} aria-label={`Material breakdown for ${u.title}`} title="Bound materials used and market purchases">Details</button>
 		{/if}
 		{#if u.books && bookPrice !== undefined && !typed}
@@ -107,5 +107,5 @@
 {/if}
 
 {#if showBreakdown && auto?.breakdown}
-	<HoningBreakdown cost={auto} title={u.title} onclose={() => (showBreakdown = false)} />
+	<HoningBreakdown cost={auto} title={u.title} manualCost={typed} onclose={() => (showBreakdown = false)} />
 {/if}
