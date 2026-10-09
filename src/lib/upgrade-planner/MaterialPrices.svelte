@@ -69,7 +69,7 @@
 				<li>Put a big number (9999999999) to force 0 gold for the mat</li>
 				<li>Calculates the average-tap and pity-tap cost of each honing step</li>
 				<li>Character-bound mats are saved per character; market prices are shared</li>
-				<li class="text-amber-300/80">Each upgrade is priced on its own: every one assumes all of this character's bound mats are available to it (3k leapstones count in full for each)</li>
+				<li class="text-amber-300/80">Each upgrade is priced on its own: every one assumes all of this character's bound mats are available to it (3k leapstones count in full for an armor tap and a weapon tap)</li>
 			</ul>
 			<div class="grid grid-cols-[2rem_minmax(0,1fr)_8rem_6rem_3.5rem] items-center gap-x-2 gap-y-1.5">
 				<span></span>
