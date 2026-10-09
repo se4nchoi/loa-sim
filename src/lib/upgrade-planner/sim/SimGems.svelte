@@ -166,10 +166,9 @@
 			</button>
 		{/if}
 	{/snippet}
-	{#if editable.length === 0}
-		<p class="text-sm text-surface-400">No gems equipped.</p>
-	{:else}
-		<div class="mb-3 flex flex-row flex-wrap items-center gap-1.5">
+	{#snippet toolbar()}
+		<!-- Sticks with the card header, so bulk levels and Reset stay in reach while scrolling the gem list. -->
+		<div class="flex flex-row flex-wrap items-center gap-1.5" hidden={editable.length === 0}>
 			{#each [10, 9, 8, 7, 6] as lv (lv)}
 				<button type="button" class={lv === 10 ? btnAccent : btn} onclick={() => setAll(() => lv)}>All Lv. {lv}</button>
 			{/each}
@@ -183,7 +182,10 @@
 				showShares = false;
 			}}>Reset</button>
 		</div>
-
+	{/snippet}
+	{#if editable.length === 0}
+		<p class="text-sm text-surface-400">No gems equipped.</p>
+	{:else}
 		{#if showShares}
 			<div class="mb-3 flex flex-col gap-2">
 				{#if dps !== null}

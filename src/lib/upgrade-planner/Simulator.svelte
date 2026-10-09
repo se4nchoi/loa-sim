@@ -251,10 +251,12 @@
 <svelte:window {onkeydown} />
 
 {#snippet jumpChips(pad: string)}
-	<!-- One row, scrolled sideways (no scrollbar; the mouse wheel scrolls it too), like the character chips. -->
+	<!-- One row, scrolled sideways (no scrollbar; the mouse wheel scrolls it too), like the character chips. The padding
+	     sits outside the scroller, so chips are clipped short of the edges instead of running into them. -->
+	<div class={pad}>
 	<div
 		data-scroll-x
-		class="flex flex-row gap-1.5 overflow-x-auto {pad} [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
+		class="flex flex-row gap-1.5 overflow-x-auto [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
 		onwheel={(e) => {
 			const el = e.currentTarget;
 			if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
@@ -283,6 +285,7 @@
 					: 'border-surface-700 bg-surface-800 text-surface-200 hover:bg-surface-700 hover:text-surface-50'}">{title}</a
 			>
 		{/each}
+	</div>
 	</div>
 {/snippet}
 
