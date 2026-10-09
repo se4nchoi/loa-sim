@@ -3,7 +3,7 @@
 	import { tick } from 'svelte';
 	import { GOLD_ICON } from './icons';
 	import { bookCost, formatGold, gold, manualGoldCost, parseGold, setBookPrice, setGoldCost } from './gold-costs.svelte';
-	import type { HoningCost } from './honing-cost';
+	import { breathStrategy, type HoningCost } from './honing-cost';
 	import type { Upgrade } from './upgrades';
 	import HoningBreakdown from './HoningBreakdown.svelte';
 	const detailsButton = 'inline-flex h-6 w-6 items-center justify-center rounded-xs border border-surface-700 bg-surface-800 text-xs font-semibold text-surface-100 transition hover:border-surface-500 hover:bg-surface-700 active:bg-surface-600';
@@ -33,7 +33,7 @@
 	const per = $derived(cost !== undefined && u.gainPct > 0 ? cost / u.gainPct : null);
 	const autoTitle = $derived(
 		auto
-			? `Average ${formatGold(auto.expected)} over ${auto.taps.toFixed(1)} taps${auto.breath ? ` with full ${auto.breathLabel}` : ''} (used for gold per 1%). ` +
+			? `Average ${formatGold(auto.expected)} over ${auto.taps.toFixed(1)} taps (used for gold per 1%). ${breathStrategy(auto)} ` +
 					`Pity ${formatGold(auto.worst)} at ${auto.maxTaps} taps, when the meter forces success. ${u.category === 'karma' ? 'Assumes unlimited Destiny Stones. ' : ''}${canEdit ? 'Click to type your own cost instead.' : 'Calculated from your material prices and bound stock.'}`
 			: ''
 	);
@@ -88,7 +88,7 @@
 						: !canEdit ? (cost === 0 ? u.detail : 'No calculated cost is available for this upgrade yet.') : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 		>
 			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-			{#if cost === 0 && !typed}Free{#if showPer}<span class="font-normal text-surface-300">· {u.detail}</span>{/if}{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1% {!typed && auto ? 'avg' : ''}</span>{/if}{:else}{!canEdit ? 'Cost unavailable' : u.books ? 'Add book price' : 'Add gold cost'}{/if}
+			{#if cost === 0 && !typed}Free{#if showPer}<span class="font-normal text-surface-300">· {u.detail}</span>{/if}{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%</span>{/if}{:else}{!canEdit ? 'Cost unavailable' : u.books ? 'Add book price' : 'Add gold cost'}{/if}
 		</button>
 		{#if auto?.breakdown}
 			<button type="button" class="{detailsButton} col-start-2 row-start-1" onclick={() => (breakdownMode = 'average')} aria-label={`Average material breakdown for ${u.title}`} title="Average bound materials used and market purchases">?</button>
@@ -103,7 +103,7 @@
 				title={`Pity: ${auto.maxTaps} taps, when ${u.category === 'karma' ? 'the Karma pity meter' : "artisan's energy"} forces success${u.category === 'karma' ? '. Assumes unlimited Destiny Stones.' : ''}`}
 			>
 				<img src={GOLD_ICON} alt="" class="size-4 shrink-0" /><span class="ml-auto">{formatGold(auto.worst)}</span><span class="w-6 text-left font-normal text-orange-300/70">pity</span>
-				{#if showPer && u.gainPct > 0}<span class="font-normal text-orange-200/80">· {formatGold(auto.worst / u.gainPct)} per 1% pity</span>{/if}
+				{#if showPer && u.gainPct > 0}<span class="font-normal text-orange-200/80">· {formatGold(auto.worst / u.gainPct)} per 1%</span>{/if}
 			</span>
 			{#if auto.breakdown}
 				<button type="button" class="{detailsButton} col-start-2 row-start-2" onclick={() => (breakdownMode = 'pity')} aria-label={`Pity material breakdown for ${u.title}`} title="Bound materials used and market purchases at pity">?</button>

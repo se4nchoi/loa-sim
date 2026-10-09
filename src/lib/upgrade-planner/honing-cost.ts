@@ -1,7 +1,7 @@
 // Gold cost of one normal honing step from the player's materials, using the game's honing table
 // (honing-cost-data.ts): each failure raises the chance (up to a cap) and fills artisan's energy; a full meter makes
 // the next tap certain. Owned (bound) materials are used first and the rest is bought at market price. Breath can be
-// added to every tap; whichever of "no breath" and "full breath" is cheaper on average is used.
+// compared as no breath, full breath, or full breath for an initial run of taps, then none.
 
 import { BRACER_LIMITS, type BracerGrade } from './bracer';
 import { BRACER_TAPS } from './bracer-cost-data';
@@ -18,7 +18,7 @@ export const SHARDS = 'shards';
 export const PLENTY = 1e12;
 
 export interface HoningMaterialBreakdown {
-	materials: { id: string; bound: number; bought: number; price: number; gold: number }[];
+	materials: { id: string; perTap: number; once: number; until?: number; bound: number; bought: number; price: number; gold: number }[];
 	tapGold: number;
 }
 
@@ -33,6 +33,11 @@ export interface HoningCost {
 	/** Whether breath is used, and which (e.g. "Lava's Breath + Glacier's Breath"). */
 	breath: boolean;
 	breathLabel: string;
+	/** Use full breath for these initial taps, then stop (never spend breath on a guaranteed tap). */
+	breathTaps?: number;
+	breathMode?: 'none' | 'full' | 'cutoff';
+	/** Best candidate for each breath combination and strategy family. */
+	strategies?: { label: string; materialIds: string[]; selected: boolean }[];
 	breakdown?: { average: HoningMaterialBreakdown; pity: HoningMaterialBreakdown };
 }
 
@@ -40,14 +45,18 @@ export const tapsFor = (set: HoningSet, slot: HoningSlot, toLevel: number): Honi
 	HONING_COSTS[set][slot === 'weapon' ? 'weapon' : 'armor'][toLevel - 1];
 
 /** Chance the step succeeds on tap n + 1, for every n up to the tap the meter forces. */
-function successByTap(tap: HoningTap, extra: number): number[] {
+function successByTap(tap: HoningTap, extra: number, until = 0): { dist: number[]; breathTaps: number } {
 	const out: number[] = [];
+	let breathTaps = 0;
 	let reach = 1; // chance tap n + 1 happens
 	let energy = 0; // 1 = full meter
 	for (let n = 0; ; n++) {
-		const chance = energy >= 1 ? 1 : Math.min(1, (tap.success + Math.min(n * tap.failBonus, tap.failMax) + extra) / 10000);
+		const base = energy >= 1 ? 10000 : tap.success + Math.min(n * tap.failBonus, tap.failMax);
+		const addBreath = n < until && base < 10000;
+		if (addBreath) breathTaps++;
+		const chance = Math.min(1, (base + (addBreath ? extra : 0)) / 10000);
 		out.push(reach * chance);
-		if (chance >= 1) return out;
+		if (chance >= 1) return { dist: out, breathTaps };
 		// Fixed-fill meters use integer units so repeated fractions cannot delay pity by a tap.
 		energy = tap.meterPerFail !== undefined ? ((n + 1) * tap.meterPerFail) / 10000 : energy + (chance * 10000) / tap.energy;
 		reach *= 1 - chance;
@@ -59,35 +68,52 @@ function successByTap(tap: HoningTap, extra: number): number[] {
  * materials must be bought once bound ones run out.
  */
 export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: MaterialOwned = {}): HoningCost {
-	// [id, per tap, one-time]
-	const use: [string, number, number][] = [[SHARDS, tap.shards, tap.growth ?? 0], ...Object.entries(tap.mats).map(([id, n]) => [id, n, 0] as [string, number, number])];
-	const bought = (id: string, perTap: number, once: number, taps: number) =>
-		(prices[id] ?? 0) * Math.max(0, once + perTap * taps - (owned[id] ?? 0));
-	// Every combination of the step's breaths (none, each, all), each used in full.
+	// [id, per tap, one-time, optional last tap using this material]
+	type Requirement = [string, number, number, number?];
+	const use: Requirement[] = [[SHARDS, tap.shards, tap.growth ?? 0], ...Object.entries(tap.mats).map(([id, n]) => [id, n, 0] as Requirement)];
+	const totalAt = ([, n, once, until = Infinity]: Requirement, taps: number) => once + n * Math.min(taps, until);
+	// Every combination of breaths, and every initial full-breath cutoff. This includes stopping at
+	// the failure-bonus cap, but also lets prices and bound inventory favor an earlier/later cutoff.
+	// This is a prefix-strategy comparison, not a global search of arbitrary per-tap quantities.
 	const kinds = [tap.breath, tap.moreBreath].filter((b): b is NonNullable<typeof b> => !!b && b.max > 0);
 	const combos = kinds.reduce<(typeof kinds)[]>((all, b) => [...all, ...all.map((c) => [...c, b])], [[]]);
-	const options = combos.map((breaths) => {
-		const mats = [...use, ...breaths.map((b) => [String(b.id), b.max, 0] as [string, number, number])];
-		const costOf = (taps: number) => taps * tap.gold + mats.reduce((g, [id, n, once]) => g + bought(id, n, once, taps), 0);
-		const dist = successByTap(tap, breaths.reduce((x, b) => x + b.rate * b.max, 0));
-		return {
-			mats, dist,
-			cost: {
-				breath: breaths.length > 0,
-				breathLabel: breaths.map((b) => materialName(String(b.id))).join(' + '),
-				expected: dist.reduce((g, p, n) => g + p * costOf(n + 1), 0),
-				worst: costOf(dist.length),
-				taps: dist.reduce((t, p, n) => t + p * (n + 1), 0),
-				maxTaps: dist.length
-			}
-		};
+	const options = combos.flatMap((breaths) => {
+		const extra = breaths.reduce((x, b) => x + b.rate * b.max, 0);
+		const maxUntil = breaths.length ? successByTap(tap, extra, Infinity).breathTaps : 0;
+		const cutoffs = breaths.length ? Array.from({ length: maxUntil }, (_, n) => n + 1) : [0];
+		return cutoffs.map((until) => {
+			const breathMode: 'none' | 'full' | 'cutoff' = !breaths.length ? 'none' : until === maxUntil ? 'full' : 'cutoff';
+			const { dist, breathTaps } = successByTap(tap, extra, until);
+			const mats: Requirement[] = [...use, ...breaths.map((b) => [String(b.id), b.max, 0, breathTaps] as Requirement)];
+			const costOf = (taps: number) => taps * tap.gold + mats.reduce((g, mat) => g + (prices[mat[0]] ?? 0) * Math.max(0, totalAt(mat, taps) - (owned[mat[0]] ?? 0)), 0);
+			return {
+				mats, dist, materialIds: breaths.map((b) => String(b.id)),
+				cost: {
+					breath: breaths.length > 0,
+					breathLabel: breaths.map((b) => materialName(String(b.id))).join(' + '),
+					breathTaps,
+					breathMode,
+					expected: dist.reduce((g, p, n) => g + p * costOf(n + 1), 0),
+					worst: costOf(dist.length),
+					taps: dist.reduce((t, p, n) => t + p * (n + 1), 0),
+					maxTaps: dist.length
+				}
+			};
+		});
 	});
 	const best = options.reduce((a, b) => (b.cost.expected < a.cost.expected ? b : a));
+	const strategies = new Map<string, typeof best>();
+	for (const option of options) {
+		const key = `${option.cost.breathMode}:${option.materialIds.join(',')}`;
+		const previous = strategies.get(key);
+		if (!previous || option.cost.expected < previous.cost.expected) strategies.set(key, option);
+	}
 	const breakdown = (average: boolean): HoningMaterialBreakdown => ({
 		tapGold: tap.gold * (average ? best.cost.taps : best.cost.maxTaps),
-		materials: best.mats.filter(([, n, once]) => n > 0 || once > 0).map(([id, n, once]) => {
+		materials: best.mats.filter(([, n, once]) => n > 0 || once > 0).map((mat) => {
+			const [id, n, once, until] = mat;
 			const at = (taps: number) => {
-				const total = once + n * taps;
+				const total = totalAt(mat, taps);
 				return { bound: Math.min(total, owned[id] ?? 0), bought: Math.max(0, total - (owned[id] ?? 0)) };
 			};
 			const quantity = average
@@ -97,11 +123,21 @@ export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: Materi
 				}, { bound: 0, bought: 0 })
 				: at(best.cost.maxTaps);
 			const price = prices[id] ?? 0;
-			return { id, ...quantity, price, gold: quantity.bought * price };
+			return { id, perTap: n, once, until, ...quantity, price, gold: quantity.bought * price };
 		})
 	});
-	return { ...best.cost, ...(best.mats.some(([, n, once]) => n > 0 || once > 0) ? { breakdown: { average: breakdown(true), pity: breakdown(false) } } : {}) };
+	return {
+		...best.cost,
+		strategies: [...strategies.values()]
+			.sort((a, b) => ['none', 'full', 'cutoff'].indexOf(a.cost.breathMode) - ['none', 'full', 'cutoff'].indexOf(b.cost.breathMode))
+			.map((option) => ({ label: breathStrategy(option.cost), materialIds: option.materialIds, selected: option === best })),
+		...(best.mats.some(([, n, once]) => n > 0 || once > 0) ? { breakdown: { average: breakdown(true), pity: breakdown(false) } } : {})
+	};
 }
+
+export const breathStrategy = (cost: HoningCost): string => cost.breath
+	? cost.breathMode === 'full' ? `Full ${cost.breathLabel}.` : `Full ${cost.breathLabel} for the first ${cost.breathTaps} tap${cost.breathTaps === 1 ? '' : 's'}, then no breath.`
+	: 'No breath.';
 
 export const materialName = (id: string) => (id === SHARDS ? 'Destiny Shard' : (HONING_MATERIALS[id]?.[0] ?? id));
 /** Shards come in pouches of 500 / 1,000 / 2,000; the 1,000 pouch stands for them. */
