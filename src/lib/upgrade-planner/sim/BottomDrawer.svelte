@@ -36,6 +36,16 @@
 
 	$effect(() => {
 		if (!open) return;
+		// The drawer is phones-only (lg:hidden): widening the window to desktop closes it, so its scroll lock doesn't
+		// linger on a page that no longer shows it.
+		const desktop = matchMedia('(min-width: 1024px)');
+		if (desktop.matches) {
+			open = false;
+			return;
+		}
+		const onWiden = () => desktop.matches && (open = false);
+		desktop.addEventListener('change', onWiden);
+		window.addEventListener('resize', onWiden);
 		const before = document.body.style.overflow;
 		document.body.style.overflow = 'hidden';
 		const onKey = (e: KeyboardEvent) => e.key === 'Escape' && (open = false);
@@ -52,6 +62,8 @@
 			document.body.style.overflow = before;
 			window.removeEventListener('keydown', onKey);
 			document.removeEventListener('touchmove', onTouchMove);
+			desktop.removeEventListener('change', onWiden);
+			window.removeEventListener('resize', onWiden);
 		};
 	});
 </script>
