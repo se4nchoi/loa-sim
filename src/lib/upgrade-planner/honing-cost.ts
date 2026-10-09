@@ -3,6 +3,8 @@
 // the next tap certain. Owned (bound) materials are used first and the rest is bought at market price. Breath can be
 // added to every tap; whichever of "no breath" and "full breath" is cheaper on average is used.
 
+import { BRACER_LIMITS, type BracerGrade } from './bracer';
+import { BRACER_TAPS } from './bracer-cost-data';
 import { HONING_COSTS, HONING_MATERIALS, type HoningSet, type HoningTap } from './honing-cost-data';
 import type { HoningSlot } from './honing-data';
 
@@ -43,13 +45,19 @@ function successByTap(tap: HoningTap, breath: boolean): number[] {
 	}
 }
 
-/** Expected and worst-case gold for one honing step: gold per tap, plus whatever materials must be bought. */
+/**
+ * Expected and worst-case gold for one honing step: the one-time growth (shards), gold per tap, and whatever
+ * materials must be bought once bound ones run out.
+ */
 export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: MaterialOwned = {}): HoningCost {
-	const use: [string, number][] = [[SHARDS, tap.shards], ...Object.entries(tap.mats)];
-	const bought = (id: string, perTap: number, taps: number) => (prices[id] ?? 0) * Math.max(0, perTap * taps - (owned[id] ?? 0));
+	// [id, per tap, one-time]
+	const use: [string, number, number][] = [[SHARDS, tap.shards, tap.growth ?? 0], ...Object.entries(tap.mats).map(([id, n]) => [id, n, 0] as [string, number, number])];
+	const bought = (id: string, perTap: number, once: number, taps: number) =>
+		(prices[id] ?? 0) * Math.max(0, once + perTap * taps - (owned[id] ?? 0));
 	const options = [false, true].map((breath) => {
-		const mats = breath ? [...use, [String(tap.breath.id), tap.breath.max] as [string, number]] : use;
-		const costOf = (taps: number) => taps * tap.gold + mats.reduce((g, [id, n]) => g + bought(id, n, taps), 0);
+		if (breath && !tap.breath.max) return null;
+		const mats = breath ? [...use, [String(tap.breath.id), tap.breath.max, 0] as [string, number, number]] : use;
+		const costOf = (taps: number) => taps * tap.gold + mats.reduce((g, [id, n, once]) => g + bought(id, n, once, taps), 0);
 		const dist = successByTap(tap, breath);
 		return {
 			breath,
@@ -59,7 +67,7 @@ export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: Materi
 			maxTaps: dist.length
 		};
 	});
-	return options.reduce((a, b) => (b.expected < a.expected ? b : a));
+	return options.filter((o) => o !== null).reduce((a, b) => (b.expected < a.expected ? b : a));
 }
 
 export const materialName = (id: string) => (id === SHARDS ? 'Destiny Shard' : (HONING_MATERIALS[id]?.[0] ?? id));
@@ -68,18 +76,23 @@ export const materialIcon = (id: string) => (id === SHARDS ? 'Use_12_92' : HONIN
 
 /** Gear set of a slot in the simulator state (Serca unless marked Aegir). */
 const setOf = (gear: { set?: 'aegir' } | undefined): HoningSet => (gear?.set === 'aegir' ? 'aegir' : 'serca');
-const honingStep = (key: string) => {
-	const [kind, slot, to] = key.split(':');
-	return kind === 'honing' ? { slot: slot as HoningSlot, to: Number(to) } : null;
-};
 type GearSets = Partial<Record<HoningSlot, { set?: 'aegir' }>>;
+
+/** The honing table row behind a Next Upgrades key: gear "honing:<slot>:<to>", or a bracer honing step
+ *  "bracer:<grade>:<to>" (not the free first bracer or a limit break, which keep the step but raise the grade). */
+function tapForKey(key: string, gear: GearSets): HoningTap | undefined {
+	const [kind, a, b] = key.split(':');
+	const to = Number(b);
+	if (kind === 'honing') return tapsFor(setOf(gear[a as HoningSlot]), a as HoningSlot, to);
+	if (kind === 'bracer' && a in BRACER_LIMITS && to > BRACER_LIMITS[a as BracerGrade][0]) return BRACER_TAPS[to - 1];
+	return undefined;
+}
 
 /** Calculated costs for the honing rows among `keys`. */
 export function autoHoningCosts(keys: string[], gear: GearSets, prices: MaterialPrices, owned: MaterialOwned = {}): Record<string, HoningCost> {
 	const out: Record<string, HoningCost> = {};
 	for (const key of keys) {
-		const step = honingStep(key);
-		const tap = step && tapsFor(setOf(gear[step.slot]), step.slot, step.to);
+		const tap = tapForKey(key, gear);
 		const cost = tap && honingCost(tap, prices, owned);
 		if (cost) out[key] = cost;
 	}
@@ -90,11 +103,10 @@ export function autoHoningCosts(keys: string[], gear: GearSets, prices: Material
 export function materialsFor(keys: string[], gear: GearSets): string[] {
 	const ids = new Set<string>();
 	for (const key of keys) {
-		const step = honingStep(key);
-		const tap = step && tapsFor(setOf(gear[step.slot]), step.slot, step.to);
+		const tap = tapForKey(key, gear);
 		if (!tap) continue;
 		for (const id of Object.keys(tap.mats)) ids.add(id);
-		ids.add(String(tap.breath.id));
+		if (tap.breath.max) ids.add(String(tap.breath.id));
 	}
 	const order = (id: string) => (id.startsWith('6611022') ? 0 : id.startsWith('66102') ? 1 : id.startsWith('6861') ? 2 : 3);
 	return [...[...ids].sort((a, b) => order(a) - order(b) || a.localeCompare(b)), ...(ids.size ? [SHARDS] : [])];

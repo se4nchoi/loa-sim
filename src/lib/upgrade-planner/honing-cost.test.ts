@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HONING_COSTS } from './honing-cost-data';
-import { SHARDS, honingCost, tapsFor } from './honing-cost';
+import { SHARDS, autoHoningCosts, honingCost, tapsFor } from './honing-cost';
+import { BRACER_TAPS } from './bracer-cost-data';
 
 const free = (tap: ReturnType<typeof tapsFor>) => Object.fromEntries([...Object.keys(tap!.mats), SHARDS].map((id) => [id, 0]));
 
@@ -32,7 +33,7 @@ describe('honing cost', () => {
 		const prices = { ...free(tap), [SHARDS]: 0.1 };
 		const base = honingCost(tap, free(tap))!;
 		const withShards = honingCost(tap, prices)!;
-		expect(withShards.expected - base.expected).toBeCloseTo(tap.shards * 0.1 * base.taps, 6);
+		expect(withShards.expected - base.expected).toBeCloseTo((tap.growth + tap.shards * base.taps) * 0.1, 6); // one-time growth + per tap
 	});
 
 	it('uses breath only when it lowers the average cost', () => {
@@ -59,5 +60,23 @@ describe('honing cost', () => {
 		const some = honingCost(tap, prices, Object.fromEntries(Object.entries(tap.mats).map(([id, n]) => [id, n * 5])));
 		expect(some.expected).toBeLessThan(none.expected);
 		expect(none.worst - some.worst).toBeCloseTo(Object.values(tap.mats).reduce((a, n) => a + n * 5, 0), 6);
+	});
+
+	it('counts the one-time growth shards once, not per tap', () => {
+		const tap = tapsFor('serca', 'weapon', 1)!;
+		expect(tap.growth).toBe(35000); // cumulative exp 35,000 at +1
+		expect(tapsFor('serca', 'weapon', 2)!.growth).toBe(35000); // 70,000 − 35,000
+		const certain = { ...tap, success: 10000 };
+		const c = honingCost(certain, { [SHARDS]: 1, [String(tap.breath.id)]: 1e9 });
+		expect(c.expected).toBe(certain.gold + certain.growth + certain.shards);
+	});
+
+	it('prices bracer honing steps from the KR table, but not the free first bracer or limit breaks', () => {
+		expect(BRACER_TAPS).toHaveLength(25);
+		const costs = autoHoningCosts(['bracer:epic:0', 'bracer:epic:5', 'bracer:legendary:10', 'bracer:legendary:11', 'bracer:ancient:25'], {}, {});
+		expect(Object.keys(costs).sort()).toEqual(['bracer:ancient:25', 'bracer:epic:5', 'bracer:legendary:11']);
+		expect(costs['bracer:epic:5'].taps).toBeGreaterThan(1);
+		expect(costs['bracer:epic:5'].breath).toBe(false); // no breath data for bracers
+		expect(costs['bracer:ancient:25'].maxTaps).toBeGreaterThan(costs['bracer:epic:5'].maxTaps);
 	});
 });

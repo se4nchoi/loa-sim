@@ -69,7 +69,8 @@ export const AEGIR_HONING_TABLE: typeof HONING_TABLE = ${JSON.stringify(aegirHon
 // ------------------------------------------------------------------------------------------- honing costs
 
 // Per tap of normal honing, by target level (+1…+25): success chance, its growth on failure, breath, artisan's
-// energy, and the gold / silver / shards / materials consumed. Armor pieces share one table. The material list is
+// energy, and the gold / silver / shards / materials consumed. Armor pieces share one table. Before tapping, each
+// level needs a one-time "growth" paid in shards (enhanceCommon.exp is cumulative from +0; feedType 18 = shards). The material list is
 // the item's per-level entry ("itemQuality" in the feed, keyed levelOption#(100 + level)); the rest is the
 // enhanceCommon row it links to. Chances are in 1/10000.
 const GOLD = 2, SILVER = 1, SHARDS = 18;
@@ -81,7 +82,10 @@ function honingCosts(levelOffset) {
 			const c = entry && stats.enhanceCommon[entry.common];
 			if (!c) throw new Error(`missing honing cost for ${kind} +${i + 1}`);
 			const breath = c.additive[0];
+			const prev = i > 0 && stats.enhanceCommon[stats.itemQuality[`${levelOption - levelOffset}#${100 + i}`].common];
+			if (c.feedType !== SHARDS) throw new Error(`unexpected growth currency for ${kind} +${i + 1}`);
 			return {
+				growth: c.exp - (prev ? prev.exp : 0),
 				success: c.success, failBonus: c.failBonus, failMax: c.failMax, energy: c.threshold,
 				breath: { id: breath.id, rate: breath.rate, max: breath.max },
 				gold: c.money[GOLD] ?? 0, silver: c.money[SILVER] ?? 0, shards: c.money[SHARDS] ?? 0,
@@ -104,6 +108,8 @@ fs.writeFileSync(
 	'src/lib/upgrade-planner/honing-cost-data.ts',
 	`${header('Normal honing costs per tap for T4 Serca and Aegir gear, by target level (index 0 = +1).')}
 export interface HoningTap {
+	/** One-time shards to grow the item to this level before tapping. */
+	growth: number;
 	/** Base success chance, its growth per failure and the cap on that growth (1/10000). */
 	success: number;
 	failBonus: number;

@@ -33,6 +33,10 @@ All game-related assets are property of their respective owners.
   energy, and gold / silver / shards / materials per tap for T4 Serca and Aegir gear, from the game's item and
   enhance tables in the same Maxroll planner feed. Game facts; the cost model in `honing-cost.ts` is our own.
 
+- Bracer (완갑) honing costs (`src/lib/upgrade-planner/bracer-cost-data.ts`): success rate, growth shards and
+  per-tap materials / gold by step, from Smilegate's KR patch notice "8월 5일(수) 업데이트 내역 안내",
+  https://lostark.game.onstove.com/News/Notice/Views/13508. Game facts.
+
 - Gem, engraving, accessory and karma battle-point values: "딜러 전투력 로직 분석 (25년 7월 9일 패치 반영)",
   https://www.inven.co.kr/board/lostark/4821/106546. Values are game facts, cross-checked against lostark.bible.
 - Accessory option values per grade: as shown in game.
