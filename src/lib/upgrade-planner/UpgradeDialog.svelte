@@ -5,7 +5,7 @@
 	import { btn } from './sim/ui';
 	import UpgradeTitle from './UpgradeTitle.svelte';
 	import GoldCost from './GoldCost.svelte';
-	import { byGold, formatGold, goldPerPct, supportsGoldCost, type RankMode } from './gold-costs.svelte';
+	import { byGold, formatGold, goldPerPct, supportsGoldCost, type RankMode, gold, setHideTripleHigh } from './gold-costs.svelte';
 	import type { HoningCost } from './honing-cost';
 	import { CATEGORY_LABELS, type Upgrade, type UpgradeCategory } from './upgrades';
 
@@ -159,6 +159,12 @@
 			{#each groups as g (g.category)}
 				<section id={sectionId(g.category)} class="flex flex-col">
 					<h3 class="mb-1 text-xs font-semibold tracking-wide text-surface-400 uppercase">{CATEGORY_LABELS[g.category]}</h3>
+					{#if g.category === 'accessory'}
+						<label class="mb-1 flex w-fit cursor-pointer flex-row items-center gap-1.5 text-xs text-surface-400 hover:text-surface-100">
+							<input type="checkbox" class="accent-accent-500" checked={gold.hideTripleHigh} onchange={(e) => setHideTripleHigh(e.currentTarget.checked)} />
+							Hide High-High-High
+						</label>
+					{/if}
 					{#if g.category === 'accessory'}
 						<!-- Whole-accessory buys fold per piece: the best buy on the summary line, the full ladder inside. -->
 						{#each bySlot(g.list) as piece (piece.slot)}

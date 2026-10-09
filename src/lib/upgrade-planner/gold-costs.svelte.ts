@@ -8,6 +8,7 @@ const KEY = 'loa-sim:gold-costs';
 const PRICES_KEY = 'loa-sim:material-prices';
 const MODE_KEY = 'loa-sim:upgrade-rank';
 const BOOKS_KEY = 'loa-sim:book-prices';
+const HIDE_HHH_KEY = 'loa-sim:hide-hhh';
 
 export type RankMode = 'cp' | 'gold';
 
@@ -29,6 +30,8 @@ export const gold = $state<{
 	pricesAt: number | null;
 	/** Gold per relic engraving book, by engraving id; shared by every character. */
 	bookPrices: Record<string, number>;
+	/** Leave High-High-High accessories out of Next Upgrades (unreachable for most players). */
+	hideTripleHigh: boolean;
 	mode: RankMode;
 	loaded: boolean;
 }>({
@@ -37,6 +40,7 @@ export const gold = $state<{
 	bound: {},
 	pricesAt: null,
 	bookPrices: {},
+	hideTripleHigh: false,
 	mode: 'cp',
 	loaded: false
 });
@@ -55,6 +59,11 @@ export function loadGold() {
 		if (b && typeof b === 'object') gold.bookPrices = b;
 	} catch {
 		/* none yet */
+	}
+	try {
+		gold.hideTripleHigh = localStorage.getItem(HIDE_HHH_KEY) === '1';
+	} catch {
+		/* default */
 	}
 	try {
 		gold.mode = localStorage.getItem(MODE_KEY) === 'gold' ? 'gold' : 'cp';
@@ -121,6 +130,18 @@ export function setBookPrice(engraving: number, price: number | null) {
 /** Book rows cost price per book × books read, once that engraving's book price is set. */
 export const bookCost = (u: Upgrade, bookPrices: Record<string, number>) =>
 	u.books && bookPrices[u.books.engraving] !== undefined ? bookPrices[u.books.engraving] * u.books.count : undefined;
+
+export function setHideTripleHigh(hide: boolean) {
+	gold.hideTripleHigh = hide;
+	try {
+		localStorage.setItem(HIDE_HHH_KEY, hide ? '1' : '0');
+	} catch {
+		/* default next time */
+	}
+}
+
+/** A whole accessory with all three lines at High. */
+export const isTripleHigh = (u: Upgrade) => u.lines?.length === 3 && u.lines.every((l) => l.tier === 'high');
 
 export function setRankMode(mode: RankMode) {
 	gold.mode = mode;
