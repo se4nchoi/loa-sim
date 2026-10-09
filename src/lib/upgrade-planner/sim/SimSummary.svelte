@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formatTop, type CpStanding, type IlvlRange } from '../cp-distribution';
 	import { folded, toggleFold } from './folded.svelte';
+	import FoldChip from './FoldChip.svelte';
 	import Segmented from './Segmented.svelte';
 	import Stepper from './Stepper.svelte';
 	import { formatCp, formatPct } from '../format';
@@ -121,25 +122,26 @@
 		<div class="flex flex-col gap-1.5 p-2">
 			<button
 				type="button"
-				class="group flex flex-row items-baseline justify-between gap-2 text-left"
+				class="group flex flex-row items-center justify-between gap-2 text-left"
 				aria-expanded={!folded.standing}
 				onclick={() => toggleFold('standing')}
 				title={folded.standing ? 'Show standing details' : 'Fold standing'}
 			>
 				<span class="text-xs text-surface-400 group-hover:text-surface-100" title={`Combat Power among ${className}s on lostark.bible`}>
-					<span class="inline-block w-3 text-surface-500">{folded.standing ? '▸' : '▾'}</span>Standing
+					Standing
 				</span>
 				{#if folded.standing && standing}
 					{@const now = standing.top(current)}
 					{@const after = standing.top(simulated)}
-					<span class="text-sm font-bold whitespace-nowrap text-surface-100 tabular-nums">
+					<span class="ml-auto text-sm font-bold whitespace-nowrap text-surface-100 tabular-nums">
 						{formatTop(now)}{#if formatTop(after) !== formatTop(now)}<span class="font-normal text-surface-400"> → </span><span class={after < now ? 'text-green-400' : 'text-red-400'}>{formatTop(after)}</span>{/if}
 					</span>
 				{:else}
-					<span class="text-xs text-surface-500">
+					<span class="ml-auto truncate text-xs text-surface-500">
 						{range ? `Item Level ${range.from}–${range.to}` : 'All item levels'} · {standing ? `${standing.count.toLocaleString()} ${className}s` : 'no data'}
 					</span>
 				{/if}
+				<FoldChip open={!folded.standing} />
 			</button>
 			{#if folded.standing}
 				<!-- folded: the one line above -->

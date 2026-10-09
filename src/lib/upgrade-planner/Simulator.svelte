@@ -11,6 +11,7 @@
 	import { roleOf } from './roles';
 	import UpgradePlanner from './UpgradePlanner.svelte';
 	import { folded, toggleFold } from './sim/folded.svelte';
+	import FoldChip from './sim/FoldChip.svelte';
 	import { supportCombatPower } from './support';
 	import { cpBrackets, cpStanding, ownRange, type CpDistribution, type CpRole, type IlvlRange } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
@@ -224,11 +225,11 @@
 		<nav aria-label="Simulator cards" class="flex shrink-0 flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 			<button
 				type="button"
-				class="flex flex-row items-center gap-1 bg-black/10 px-3 py-2 text-left font-bold text-surface-100 hover:bg-black/20"
+				class="group flex flex-row items-center gap-1 bg-black/10 px-3 py-2 text-left font-bold text-surface-100 hover:bg-black/20"
 				aria-expanded={!folded.nav}
 				onclick={() => toggleFold('nav')}
 			>
-				Jump to<span class="ml-auto text-xs font-normal text-surface-400">{folded.nav ? '▸' : '▾'}</span>
+				Jump to<span class="ml-auto"><FoldChip open={!folded.nav} /></span>
 			</button>
 			<div class="grid grid-cols-4 gap-1.5 p-2" hidden={folded.nav}>
 				{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'] as title}
