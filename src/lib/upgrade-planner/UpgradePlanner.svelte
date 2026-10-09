@@ -101,6 +101,7 @@
 				</button>
 			{/if}
 			{#each shown as u, i (u.key)}
+				{@const honing = gold.mode === 'gold' && auto[u.key] && !gold.costs[u.key] ? auto[u.key] : null}
 				{#if gold.mode === 'gold' && i === priced.length}
 					{#if priced.length}
 						<p class="col-span-full mt-1 border-t border-neutral-950 px-1.5 pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Not priced yet</p>
@@ -119,18 +120,19 @@
 						{#if !u.subject}<span class="text-xs text-surface-500">{CATEGORY_LABELS[u.category]}</span>{/if}
 						{#if gold.mode === 'gold'}<GoldCost {u} auto={auto[u.key]} showPer={false} />{/if}
 					</div>
-					<span class="text-right whitespace-nowrap text-green-400 tabular-nums">
+					<!-- On calculated honing rows the gold per 1% lines sit level with the avg / pity boxes. -->
+					<span class="text-right whitespace-nowrap text-green-400 tabular-nums {honing ? 'self-end' : ''}">
 						{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span>
 						{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
-						{#if gold.mode === 'gold' && goldPerPct(u, costs)}
-							<span class="block text-[11px] text-amber-300/90" title={auto[u.key] && !gold.costs[u.key] ? 'Gold per 1% Combat Power, from the average honing cost' : 'Gold per 1% Combat Power'}
-								>{formatGold(goldPerPct(u, costs)!)} / 1%{#if auto[u.key] && !gold.costs[u.key]}<span class="text-surface-400"> avg</span>{/if}</span
+						{#if honing}
+							<span class="mt-0.5 flex h-6 items-center justify-end text-[11px] text-amber-300/90" title="Gold per 1% Combat Power, from the average honing cost"
+								>{formatGold(honing.expected / u.gainPct)} / 1%&nbsp;<span class="text-surface-400">avg</span></span
 							>
-							{#if auto[u.key] && !gold.costs[u.key]}
-								<span class="block text-[11px] text-orange-300" title="Gold per 1% Combat Power at pity">
-									{formatGold(auto[u.key].worst / u.gainPct)} / 1%<span class="text-surface-400"> pity</span>
-								</span>
-							{/if}
+							<span class="mt-0.5 flex h-6 items-center justify-end text-[11px] text-orange-300" title="Gold per 1% Combat Power at pity"
+								>{formatGold(honing.worst / u.gainPct)} / 1%&nbsp;<span class="text-surface-400">pity</span></span
+							>
+						{:else if gold.mode === 'gold' && goldPerPct(u, costs)}
+							<span class="block text-[11px] text-amber-300/90" title="Gold per 1% Combat Power">{formatGold(goldPerPct(u, costs)!)} / 1%</span>
 						{/if}
 					</span>
 					{#if onapply}

@@ -58,25 +58,28 @@
 		class="mt-0.5 h-6 w-24 rounded-xs border border-surface-600 bg-surface-800 px-1.5 text-xs text-surface-100 tabular-nums focus:border-accent-500 focus:outline-none"
 	/>
 {:else}
-	<button
-		type="button"
-		onclick={edit}
-		class="mt-0.5 inline-flex h-6 w-fit items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold tabular-nums transition {cost
-			? 'border-amber-400/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
-			: 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'}"
-		title={typed ? 'Edit the gold cost (empty to clear)' : auto ? autoTitle : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
-	>
-		<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-		{#if cost}{!typed ? '≈' : ''}{formatGold(cost)}{#if !typed && auto}<span class="font-normal text-surface-400">avg</span>{/if}{#if per && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%{!typed && auto ? ' (avg)' : ''}</span>{/if}{:else}Add gold cost{/if}
-	</button>
-	{#if auto && !typed}
-		<!-- Pity: every tap fails until the meter forces success. -->
-		<span
-			class="mt-0.5 flex h-6 w-fit items-center gap-1 rounded-xs border border-orange-400/50 bg-orange-500/10 px-1.5 text-xs font-semibold text-orange-300 tabular-nums"
-			title={`Pity: ${auto.maxTaps} taps, when artisan's energy forces success`}
+	<!-- Average and pity boxes share one grid column, so they are the same width. -->
+	<div class="mt-0.5 inline-grid w-fit gap-0.5">
+		<button
+			type="button"
+			onclick={edit}
+			class="inline-flex h-6 items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold tabular-nums transition {cost
+				? 'border-amber-400/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
+				: 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'}"
+			title={typed ? 'Edit the gold cost (empty to clear)' : auto ? autoTitle : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 		>
-			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />{formatGold(auto.worst)}<span class="font-normal text-orange-300/70">pity</span>
-			{#if showPer && u.gainPct > 0}<span class="font-normal text-orange-200/80">· {formatGold(auto.worst / u.gainPct)} per 1% (pity)</span>{/if}
-		</span>
-	{/if}
+			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
+			{#if cost}{!typed ? '≈' : ''}{formatGold(cost)}{#if !typed && auto}<span class="font-normal text-surface-400">avg</span>{/if}{#if per && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1% {!typed && auto ? 'avg' : ''}</span>{/if}{:else}Add gold cost{/if}
+		</button>
+		{#if auto && !typed}
+			<!-- Pity: every tap fails until the meter forces success. -->
+			<span
+				class="flex h-6 items-center gap-1 rounded-xs border border-orange-400/50 bg-orange-500/10 px-1.5 text-xs font-semibold text-orange-300 tabular-nums"
+				title={`Pity: ${auto.maxTaps} taps, when artisan's energy forces success`}
+			>
+				<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />{formatGold(auto.worst)}<span class="font-normal text-orange-300/70">pity</span>
+				{#if showPer && u.gainPct > 0}<span class="font-normal text-orange-200/80">· {formatGold(auto.worst / u.gainPct)} per 1% pity</span>{/if}
+			</span>
+		{/if}
+	</div>
 {/if}
