@@ -59,6 +59,9 @@
 	// 3 / 4 / 5 are Strength / Dexterity / Intelligence; 11 is all three, which bracelets roll as the class's main stat.
 	const isMainStat = (key: string) => ['2:3', '2:4', '2:5', '2:11'].includes(key);
 	const statName = (key: string) => (isMainStat(key) ? mainStatName : (STAT_NAMES[key] ?? 'Other stat'));
+	/** Short labels for the stat dropdown, so every line's stepper lines up (the full name stays in its tooltip). */
+	const SHORT: Record<string, string> = { '2:16': 'Spec', '2:18': 'Swift', '2:17': 'Dom', '2:19': 'Endur', '2:20': 'Exp' };
+	const statShort = (key: string) => SHORT[key] ?? statName(key);
 	const STAT_CHOICES = ['2:15', '2:16', '2:18', '2:17', '2:19', '2:20', '2:11', '2:6'];
 	/** A typical T4 roll, used when a line switches to this stat. */
 	const DEFAULT_VALUE: Record<string, number> = { '2:11': 12000, '2:6': 4000 };
@@ -216,12 +219,13 @@
 						{:else if line.kind === 'stat'}
 							<span class="flex flex-row max-sm:min-w-0 max-sm:flex-1">
 								<select
-									class="{selectClass(before?.kind !== 'stat' || statKey(before) !== statKey(line))} rounded-r-none max-sm:min-w-0 max-sm:flex-1"
+									class="{selectClass(before?.kind !== 'stat' || statKey(before) !== statKey(line))} w-28 rounded-r-none max-sm:w-auto max-sm:min-w-0 max-sm:flex-1"
 									value={statKey(line)}
+									title={statName(statKey(line))}
 									onchange={(e) => setStat(i, line, e.currentTarget.value)}
 									aria-label={`Bracelet line ${i + 1} stat`}
 								>
-									{#each statChoices(i, statKey(line)) as k (k)}<option value={k}>{statName(k)}</option>{/each}
+									{#each statChoices(i, statKey(line)) as k (k)}<option value={k} title={statName(k)}>{statShort(k)}</option>{/each}
 								</select>
 								<span class="-ml-px">
 									<Stepper
