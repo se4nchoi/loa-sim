@@ -150,8 +150,8 @@
 					}}
 				>
 					<div class="flex min-w-0 flex-col">
-						<UpgradeTitle {u} />
-						{#if !u.subject}<span class="text-xs text-surface-500">{CATEGORY_LABELS[u.category]}</span>{/if}
+						<!-- Rows without a subject (karma, gems, engravings) show their category in the same spot, above the title. -->
+						<UpgradeTitle u={u.subject ? u : { ...u, subject: CATEGORY_LABELS[u.category] }} />
 						{#if gold.mode === 'gold' && supportsGoldCost(u)}<GoldCost {u} auto={auto[u.key]} showPer={false} />{/if}
 					</div>
 					<!-- On calculated honing rows the gold per 1% lines sit level with the avg / pity boxes. -->
