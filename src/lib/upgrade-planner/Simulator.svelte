@@ -57,11 +57,22 @@
 			if (gap > 1) window.scrollBy({ top: gap, behavior: 'instant' });
 		}
 		drawerOpen = true;
-		// With the chips hidden the bar is shorter: the drawer reaches up to touch it.
-		tick().then(() => (drawerTop = document.querySelector<HTMLElement>('[data-cp-bar]')?.getBoundingClientRect().bottom ?? 0));
 	}
-	/** Where the docked CP bar ends, so the drawer's top meets it (0 = default height). */
+	/** Where the docked CP bar ends, so the drawer's top meets it; follows the bar as it grows (Show) or shrinks. */
 	let drawerTop = $state(0);
+	$effect(() => {
+		if (!drawerOpen) return;
+		const bar = document.querySelector<HTMLElement>('[data-cp-bar]');
+		if (!bar) return;
+		const measure = () => (drawerTop = bar.getBoundingClientRect().bottom);
+		measure();
+		// Size changes (fonts, rotation) and content changes (Show / Hide) both move the bar's bottom edge.
+		const resized = new ResizeObserver(measure);
+		resized.observe(bar);
+		const changed = new MutationObserver(measure);
+		changed.observe(bar, { childList: true, subtree: true });
+		return () => (resized.disconnect(), changed.disconnect());
+	});
 	let sim = $state(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
@@ -207,11 +218,15 @@
 		{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'] as title}
 			<a
 				href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`}
-				onclick={(e) => {
+				onclick={async (e) => {
 					// Smooth scroll in place: no instant jump (it read as a flash) and no history entry per tap.
 					const target = document.getElementById(`sim-${title.toLowerCase().replaceAll(' ', '-')}`);
 					if (!target) return;
 					e.preventDefault();
+					if (drawerOpen) {
+						drawerOpen = false; // a section tap from the drawer closes it, then goes there
+						await tick();
+					}
 					target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 				}}
 				class="shrink-0 rounded-xs border border-surface-700 bg-surface-800 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a
@@ -242,8 +257,7 @@
 {/snippet}
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
-<!-- The section chips hide while the drawer is open (the page behind is locked then). -->
-<MobileSummaryBar {current} {simulated} nav={drawerOpen ? undefined : jumpChips}>{@render summary()}</MobileSummaryBar>
+<MobileSummaryBar {current} {simulated} nav={jumpChips}>{@render summary()}</MobileSummaryBar>
 <div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
 	<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
 	<div class="flex min-w-0 flex-col gap-2">
