@@ -26,7 +26,7 @@
 	const per = $derived(cost !== undefined && u.gainPct > 0 ? cost / u.gainPct : null);
 	const autoTitle = $derived(
 		auto
-			? `Average ${formatGold(auto.expected)} over ${auto.taps.toFixed(1)} taps${auto.breath ? ' with full breath' : ''} (used for gold per 1%). ` +
+			? `Average ${formatGold(auto.expected)} over ${auto.taps.toFixed(1)} taps${auto.breath ? ` with full ${auto.breathLabel}` : ''} (used for gold per 1%). ` +
 					`Pity ${formatGold(auto.worst)} at ${auto.maxTaps} taps, when the meter forces success. Click to type your own cost instead.`
 			: ''
 	);

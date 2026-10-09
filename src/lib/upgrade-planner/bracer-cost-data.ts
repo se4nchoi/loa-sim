@@ -2,8 +2,10 @@
 // "완갑 단계별 재련 성공률과 필요 재료": https://lostark.game.onstove.com/News/Notice/Views/13508
 // The notice gives each step's success rate, the one-time growth (장비 성장: shards) and the per-tap cost
 // (shards, crystallized destruction / guardian stones, Great Destiny Leapstones, Superior Abidos Fusion, gold).
-// It says artisan's energy applies but not how the chance grows on failure, so the gear rule is assumed
-// (+10% of the base per failure, up to double), and breath is left out (the notice names it without amounts).
+// The notice names artisan's energy and both breaths without the numbers; those (+10% of the base per failure,
+// up to 10 failures; Lava's and Glacier's Breath each adding up to half the base) are KR game facts as listed in
+// LOPEC's enhancement calculator (https://www.lopec.kr/tool/enhancement, 2026-10-09), which matches every
+// material, shard and gold figure of the notice.
 
 import type { HoningTap } from './honing-cost-data';
 
@@ -11,6 +13,10 @@ const DESTRUCTION = '66102007'; // 운명의 파괴석 결정
 const GUARDIAN = '66102107'; // 운명의 수호석 결정
 const LEAPSTONE = '66110226'; // 위대한 운명의 돌파석
 const FUSION = '6861013'; // 상급 아비도스 융화 재료
+const LAVA = 66111131; // 용암의 숨결
+const GLACIER = 66111132; // 빙하의 숨결
+/** Breath per 5 steps: [chance per breath (1/10000), max per type]. Each type maxes at half the base chance. */
+const BREATH: [number, number][] = [[37.5, 20], [20, 25], [10, 25], [5, 30], [2.5, 30]];
 
 // step: [success %, growth shards, shards, destruction, guardian, leapstones, fusion, gold] (silver left out)
 const ROWS: [number, number, number, number, number, number, number, number][] = [
@@ -42,13 +48,14 @@ const ROWS: [number, number, number, number, number, number, number, number][] =
 ];
 
 /** Honing to bracer step 1…25 (index 0 = step 1), in the gear table's shape. */
-export const BRACER_TAPS: HoningTap[] = ROWS.map(([pct, growth, shards, destruction, guardian, leapstones, fusion, gold]) => ({
+export const BRACER_TAPS: HoningTap[] = ROWS.map(([pct, growth, shards, destruction, guardian, leapstones, fusion, gold], i) => ({
 	growth,
 	success: pct * 100,
 	failBonus: pct * 10,
 	failMax: pct * 100,
 	energy: 21500,
-	breath: { id: 0, rate: 0, max: 0 },
+	breath: { id: LAVA, rate: BREATH[Math.floor(i / 5)][0], max: BREATH[Math.floor(i / 5)][1] },
+	moreBreath: { id: GLACIER, rate: BREATH[Math.floor(i / 5)][0], max: BREATH[Math.floor(i / 5)][1] },
 	gold,
 	silver: 0,
 	shards,

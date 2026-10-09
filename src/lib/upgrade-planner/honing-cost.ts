@@ -24,15 +24,16 @@ export interface HoningCost {
 	/** Average and maximum taps. */
 	taps: number;
 	maxTaps: number;
+	/** Whether breath is used, and which (e.g. "Lava's Breath + Glacier's Breath"). */
 	breath: boolean;
+	breathLabel: string;
 }
 
 export const tapsFor = (set: HoningSet, slot: HoningSlot, toLevel: number): HoningTap | undefined =>
 	HONING_COSTS[set][slot === 'weapon' ? 'weapon' : 'armor'][toLevel - 1];
 
 /** Chance the step succeeds on tap n + 1, for every n up to the tap the meter forces. */
-function successByTap(tap: HoningTap, breath: boolean): number[] {
-	const extra = breath ? tap.breath.rate * tap.breath.max : 0;
+function successByTap(tap: HoningTap, extra: number): number[] {
 	const out: number[] = [];
 	let reach = 1; // chance tap n + 1 happens
 	let energy = 0; // 1 = full meter
@@ -54,20 +55,23 @@ export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: Materi
 	const use: [string, number, number][] = [[SHARDS, tap.shards, tap.growth ?? 0], ...Object.entries(tap.mats).map(([id, n]) => [id, n, 0] as [string, number, number])];
 	const bought = (id: string, perTap: number, once: number, taps: number) =>
 		(prices[id] ?? 0) * Math.max(0, once + perTap * taps - (owned[id] ?? 0));
-	const options = [false, true].map((breath) => {
-		if (breath && !tap.breath.max) return null;
-		const mats = breath ? [...use, [String(tap.breath.id), tap.breath.max, 0] as [string, number, number]] : use;
+	// Every combination of the step's breaths (none, each, all), each used in full.
+	const kinds = [tap.breath, tap.moreBreath].filter((b): b is NonNullable<typeof b> => !!b && b.max > 0);
+	const combos = kinds.reduce<(typeof kinds)[]>((all, b) => [...all, ...all.map((c) => [...c, b])], [[]]);
+	const options = combos.map((breaths) => {
+		const mats = [...use, ...breaths.map((b) => [String(b.id), b.max, 0] as [string, number, number])];
 		const costOf = (taps: number) => taps * tap.gold + mats.reduce((g, [id, n, once]) => g + bought(id, n, once, taps), 0);
-		const dist = successByTap(tap, breath);
+		const dist = successByTap(tap, breaths.reduce((x, b) => x + b.rate * b.max, 0));
 		return {
-			breath,
+			breath: breaths.length > 0,
+			breathLabel: breaths.map((b) => materialName(String(b.id))).join(' + '),
 			expected: dist.reduce((g, p, n) => g + p * costOf(n + 1), 0),
 			worst: costOf(dist.length),
 			taps: dist.reduce((t, p, n) => t + p * (n + 1), 0),
 			maxTaps: dist.length
 		};
 	});
-	return options.filter((o) => o !== null).reduce((a, b) => (b.expected < a.expected ? b : a));
+	return options.reduce((a, b) => (b.expected < a.expected ? b : a));
 }
 
 export const materialName = (id: string) => (id === SHARDS ? 'Destiny Shard' : (HONING_MATERIALS[id]?.[0] ?? id));
@@ -106,7 +110,7 @@ export function materialsFor(keys: string[], gear: GearSets): string[] {
 		const tap = tapForKey(key, gear);
 		if (!tap) continue;
 		for (const id of Object.keys(tap.mats)) ids.add(id);
-		if (tap.breath.max) ids.add(String(tap.breath.id));
+		for (const b of [tap.breath, tap.moreBreath]) if (b?.max) ids.add(String(b.id));
 	}
 	const order = (id: string) => (id.startsWith('6611022') ? 0 : id.startsWith('66102') ? 1 : id.startsWith('6861') ? 2 : 3);
 	return [...[...ids].sort((a, b) => order(a) - order(b) || a.localeCompare(b)), ...(ids.size ? [SHARDS] : [])];

@@ -118,6 +118,8 @@ export interface HoningTap {
 	energy: number;
 	/** Breath item: +rate (1/10000) each, up to max per tap. */
 	breath: { id: number; rate: number; max: number };
+	/** A second breath that can be added on top (bracers take Lava's and Glacier's Breath). */
+	moreBreath?: { id: number; rate: number; max: number };
 	gold: number;
 	silver: number;
 	shards: number;

@@ -76,7 +76,16 @@ describe('honing cost', () => {
 		const costs = autoHoningCosts(['bracer:epic:0', 'bracer:epic:5', 'bracer:legendary:10', 'bracer:legendary:11', 'bracer:ancient:25'], {}, {});
 		expect(Object.keys(costs).sort()).toEqual(['bracer:ancient:25', 'bracer:epic:5', 'bracer:legendary:11']);
 		expect(costs['bracer:epic:5'].taps).toBeGreaterThan(1);
-		expect(costs['bracer:epic:5'].breath).toBe(false); // no breath data for bracers
+		expect(costs['bracer:epic:5'].breathLabel).toBe("Lava's Breath + Glacier's Breath"); // free breath: both used
 		expect(costs['bracer:ancient:25'].maxTaps).toBeGreaterThan(costs['bracer:epic:5'].maxTaps);
+	});
+
+	it('bracer breath: each type adds up to half the base chance, both double it', () => {
+		const tap = BRACER_TAPS[0];
+		expect(tap.breath.rate * tap.breath.max).toBe(tap.success / 2);
+		expect(tap.moreBreath!.rate * tap.moreBreath!.max).toBe(tap.success / 2);
+		const priced = { [String(tap.breath.id)]: 1e9 }; // Lava's priced out, Glacier's free
+		const c = honingCost(tap, priced);
+		expect(c.breathLabel).toBe("Glacier's Breath");
 	});
 });

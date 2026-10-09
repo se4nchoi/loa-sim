@@ -35,7 +35,9 @@ All game-related assets are property of their respective owners.
 
 - Bracer (완갑) honing costs (`src/lib/upgrade-planner/bracer-cost-data.ts`): success rate, growth shards and
   per-tap materials / gold by step, from Smilegate's KR patch notice "8월 5일(수) 업데이트 내역 안내",
-  https://lostark.game.onstove.com/News/Notice/Views/13508. Game facts.
+  https://lostark.game.onstove.com/News/Notice/Views/13508. The failure bonus and breath amounts the notice
+  leaves out are KR game facts as listed in LOPEC's enhancement calculator (https://www.lopec.kr/tool/enhancement),
+  whose table matches the notice's figures; only those numbers are used, not LOPEC's code.
 
 - Gem, engraving, accessory and karma battle-point values: "딜러 전투력 로직 분석 (25년 7월 9일 패치 반영)",
   https://www.inven.co.kr/board/lostark/4821/106546. Values are game facts, cross-checked against lostark.bible.
