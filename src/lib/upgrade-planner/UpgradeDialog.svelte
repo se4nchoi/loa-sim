@@ -76,8 +76,36 @@
 		}
 		active = current ?? groups[0]?.category ?? null;
 	}
+	/** Accessory rows by piece (Necklace, Earring 1, …), each best first. */
+	const bySlot = (list: Upgrade[]) => {
+		const by = new Map<string, Upgrade[]>();
+		for (const u of list) by.set(u.subject ?? '', [...(by.get(u.subject ?? '') ?? []), u]);
+		return [...by.entries()].map(([slot, items]) => ({ slot, list: items }));
+	};
 	const best = $derived(mode === 'gold' ? byGold(upgrades, costs).slice(0, 3) : upgrades.slice(0, 3));
 </script>
+
+{#snippet row(u: Upgrade)}
+	<div
+		data-key={u.key}
+		class="flex flex-row items-center gap-3 border-t border-neutral-950 py-2 {u.key === focusKey ? 'animate-[upgrade-focus_1.6s_ease-out] rounded-xs' : ''}"
+	>
+		<div class="flex min-w-0 flex-1 flex-col">
+				<UpgradeTitle {u} />
+			{#if u.detail}<span class="text-xs text-surface-400">{u.detail}</span>{/if}
+			{#if mode === 'gold' && supportsGoldCost(u)}<GoldCost {u} auto={auto[u.key]} />{/if}
+		</div>
+		<div class="flex shrink-0 flex-col text-right">
+			<span class="text-sm font-semibold text-green-400 tabular-nums">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>
+			<span class="text-xs text-surface-500 tabular-nums">{formatCp(cp * (1 + u.gainPct / 100))}</span>
+		</div>
+		{#if onapply}
+			<button type="button" class="{btn} w-14 shrink-0 px-1.5" onclick={() => onapply(u)} title="Make this change in the simulator">
+				{flash?.key === u.key ? (flash.ok ? '✓' : 'Done') : 'Apply'}
+			</button>
+		{/if}
+	</div>
+{/snippet}
 
 <!-- Focusable itself (tabindex -1) so opening focuses the dialog, not its first input or Close. -->
 <dialog
@@ -131,27 +159,24 @@
 			{#each groups as g (g.category)}
 				<section id={sectionId(g.category)} class="flex flex-col">
 					<h3 class="mb-1 text-xs font-semibold tracking-wide text-surface-400 uppercase">{CATEGORY_LABELS[g.category]}</h3>
-					{#each g.list as u (u.key)}
-						<div
-							data-key={u.key}
-							class="flex flex-row items-center gap-3 border-t border-neutral-950 py-2 {u.key === focusKey ? 'animate-[upgrade-focus_1.6s_ease-out] rounded-xs' : ''}"
-						>
-							<div class="flex min-w-0 flex-1 flex-col">
-									<UpgradeTitle {u} />
-								{#if u.detail}<span class="text-xs text-surface-400">{u.detail}</span>{/if}
-								{#if mode === 'gold' && supportsGoldCost(u)}<GoldCost {u} auto={auto[u.key]} />{/if}
-							</div>
-							<div class="flex shrink-0 flex-col text-right">
-								<span class="text-sm font-semibold text-green-400 tabular-nums">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>
-								<span class="text-xs text-surface-500 tabular-nums">{formatCp(cp * (1 + u.gainPct / 100))}</span>
-							</div>
-							{#if onapply}
-								<button type="button" class="{btn} w-14 shrink-0 px-1.5" onclick={() => onapply(u)} title="Make this change in the simulator">
-									{flash?.key === u.key ? (flash.ok ? '✓' : 'Done') : 'Apply'}
-								</button>
-							{/if}
-						</div>
-					{/each}
+					{#if g.category === 'accessory'}
+						<!-- Whole-accessory buys fold per piece: the best buy on the summary line, the full ladder inside. -->
+						{#each bySlot(g.list) as piece (piece.slot)}
+							<details class="group border-t border-neutral-950" open={piece.list.some((u) => u.key === focusKey)}>
+								<summary class="flex cursor-pointer list-none flex-row items-center gap-3 py-2 hover:bg-black/15 [&::-webkit-details-marker]:hidden">
+									<span class="w-3 text-xs text-surface-500 transition-transform group-open:rotate-90">▸</span>
+									<span class="min-w-0 flex-1"><UpgradeTitle compact u={piece.list[0]} /></span>
+									<span class="text-xs text-surface-500">{piece.list.length} option{piece.list.length > 1 ? 's' : ''}</span>
+									<span class="text-sm font-semibold text-green-400 tabular-nums">up to {piece.list[0].approximate ? '≈' : ''}{formatPct(piece.list[0].gainPct)}%</span>
+								</summary>
+								<div class="pl-6">
+									{#each piece.list as u (u.key)}{@render row(u)}{/each}
+								</div>
+							</details>
+						{/each}
+					{:else}
+						{#each g.list as u (u.key)}{@render row(u)}{/each}
+					{/if}
 				</section>
 			{/each}
 		</div>
