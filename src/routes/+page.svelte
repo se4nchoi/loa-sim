@@ -300,8 +300,9 @@
 	</details>
 
 	<details bind:open={showPaste} class="rounded-xs bg-surface-900 px-3 py-2 text-sm text-surface-300 shadow-sm shadow-neutral-800">
-		<summary class="cursor-pointer font-semibold text-surface-100">Paste data instead</summary>
+		<summary class="cursor-pointer font-semibold text-surface-100">Load not working?</summary>
 		<div class="mt-2 flex flex-col gap-2">
+			<span class="font-semibold text-surface-100">Manual load</span>
 			{#if target}
 				<span>
 					Open <a class="text-accent-300 underline" href={bibleDataUrl(target.region, target.name)} target="_blank" rel="noopener">{target.name}'s data ↗</a>,
