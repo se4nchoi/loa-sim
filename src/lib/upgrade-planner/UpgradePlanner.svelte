@@ -9,7 +9,7 @@
 	import GoldCost from './GoldCost.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
 	import { autoHoningCosts, materialsFor } from './honing-cost';
-	import { bookCost, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, setRankMode, supportsGoldCost, isTripleHigh, setHideTripleHigh } from './gold-costs.svelte';
+	import { bookCost, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
@@ -52,9 +52,7 @@
 		const timer = setTimeout(() => (simNow = next), 150);
 		return () => clearTimeout(timer);
 	});
-	const upgrades = $derived(
-		liveUpgrades(loadout, simNow, simBase ?? initSimState(loadout)).filter((u) => !(gold.hideTripleHigh && isTripleHigh(u)))
-	);
+	const upgrades = $derived(liveUpgrades(loadout, simNow, simBase ?? initSimState(loadout)));
 	const goldUpgrades = $derived(upgrades.filter(supportsGoldCost));
 	/** This character's bound honing mats. */
 	const bound = $derived(gold.bound[characterKey] ?? {});
@@ -145,10 +143,6 @@
 				{#if gold.mode === 'gold' && unpriced}<span class="text-amber-300">{unpriced} missing price{unpriced > 1 ? 's' : ''}</span>{:else}All Upgrades ({upgrades.length}){/if}
 			</button>
 		</div>
-		<label class="flex shrink-0 cursor-pointer flex-row items-center gap-1.5 px-3 pb-1.5 text-xs text-surface-400 hover:text-surface-100">
-			<input type="checkbox" class="accent-accent-500" checked={gold.hideTripleHigh} onchange={(e) => setHideTripleHigh(e.currentTarget.checked)} />
-			Hide High-High-High accessories
-		</label>
 		<div class="grid gap-x-2 p-1 {scroll ? 'min-h-0 overflow-y-auto overscroll-contain' : 'lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain'} {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
 			{#each shown as u, i (u.key)}
 				{@const honing = gold.mode === 'gold' && auto[u.key] && manualGoldCost(u, gold.costs) === undefined ? auto[u.key] : null}
