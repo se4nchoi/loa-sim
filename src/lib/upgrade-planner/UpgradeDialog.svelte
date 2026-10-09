@@ -138,7 +138,7 @@
 						>
 							<div class="flex min-w-0 flex-1 flex-col">
 									<UpgradeTitle {u} />
-								<span class="text-xs text-surface-400">{u.detail}</span>
+								{#if u.detail}<span class="text-xs text-surface-400">{u.detail}</span>{/if}
 								{#if mode === 'gold' && supportsGoldCost(u)}<GoldCost {u} auto={auto[u.key]} />{/if}
 							</div>
 							<div class="flex shrink-0 flex-col text-right">

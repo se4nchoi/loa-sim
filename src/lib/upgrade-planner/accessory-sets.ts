@@ -85,7 +85,7 @@ export function accessorySetUpgrades(l: Loadout, state: SimState, base: SimState
 				subject: SLOT_NAMES[slot],
 				title: [m1, m2, t3].filter(Boolean).map((x) => nameOf(x.key)).join(' · ') + (t3 ? '' : ' · —'),
 				lines: o.set.lines.map((x) => ({ name: nameOf(x.key), tier: x.tier })),
-				detail: `Buy ${slot.startsWith('ear') ? 'an' : 'a'} ${SLOT_NAMES[slot].replace(/ \d$/, '').toLowerCase()} with ${o.set.lines.map((x) => `${nameOf(x.key)} ${x.tier}`).join(', ')}${t3 ? '' : ' and no useful third line'}. Price it as one market purchase.`,
+				detail: '',
 				gainPct: o.gain,
 				count: 1,
 				approximate: o.set.lines.some((x) => !role.accessoryLines.find((y) => y.key === x.key)?.toBattlePoints),
