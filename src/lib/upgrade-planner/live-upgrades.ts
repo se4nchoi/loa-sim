@@ -1,14 +1,14 @@
 // Suggestions are generated from the edited state and priced by the same simulation as Apply.
+import { accessorySetUpgrades } from './accessory-sets';
 import { applyUpgrade } from './apply-upgrade';
 import { bracerUpgrades } from './bracer-upgrades';
 import { honingUpgrades } from './honing-upgrades';
 import { roleOf } from './roles';
-import { ACCESSORY_SLOTS, familyOf, gemParts, isOtherLine, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
+import { gemParts, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
 import { ASTROGEM_OPTION_NAMES, CORE_BREAKPOINTS, CORE_GRADE_CAP, ENGRAVING_BOOK_STEPS, KARMA_MAX_LEVEL, karmaRank } from './tables';
 import type { Loadout } from './types';
 import { coreLabel, coreStates, engravingName, type Upgrade } from './upgrades';
 
-const SLOT_NAMES = { neck: 'Necklace', ear1: 'Earring 1', ear2: 'Earring 2', finger1: 'Ring 1', finger2: 'Ring 2' };
 const RANK_START = [0, 1, 5, 9, 13, 17, 21];
 
 export function liveUpgrades(l: Loadout, state: SimState, base: SimState): Upgrade[] {
@@ -59,16 +59,7 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState): Upgra
 			books: { engraving: read, name: engravingName(read), count: ENGRAVING_BOOK_STEPS[e.books + 1] - ENGRAVING_BOOK_STEPS[e.books] }
 		});
 	}
-	for (const slot of ACCESSORY_SLOTS) {
-		const lines = state.accessories[slot];
-		if (!lines) continue;
-		for (const line of role.accessoryLines.filter((x) => (x.primary || (role.support && x.weapon === 'percent')) && x.slots.includes(familyOf(slot)))) {
-			const current = lines.find((ln) => !isOtherLine(ln) && ln.key === line.key);
-			if (current && !isOtherLine(current) && current.tier === 'high') continue;
-			const from = current && !isOtherLine(current) ? current.tier : 'none';
-			add({ key: `accessory:${slot}:${line.key}`, category: 'accessory', title: line.name, subject: SLOT_NAMES[slot], roll: { from, to: 'high' }, group: `accessory:${slot}`, detail: `${from === 'none' ? 'Replace a secondary line with' : 'Raise the roll to'} ${line.name} +${line.values.high / 100}% (new accessory).`, approximate: !line.toBattlePoints });
-		}
-	}
+	// Accessories are bought whole (lines can't be changed one at a time): see accessory-sets.ts.
 	const evolution = state.karma.evolution;
 	if (role.support && evolution !== null && evolution < KARMA_MAX_LEVEL)
 		add({ key: `karma:evolution-level:${evolution + 1}`, category: 'karma', group: 'karma:evolution', title: `Evolution karma level ${evolution} → ${evolution + 1}`, detail: 'One Evolution level: +400 Max HP before Max HP multipliers; rank bonus at levels 1, 5, 9, 13, 17 and 21.' });
@@ -89,7 +80,7 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState): Upgra
 		if (!applyUpgrade(l, next, base, u)) return [];
 		return [{ ...u, gainPct: (simulate(l, next, base).cp / cp - 1) * 100 }];
 	});
-	return [...scored, ...honingUpgrades(l, state, base), ...bracerUpgrades(l, state, base)]
+	return [...scored, ...accessorySetUpgrades(l, state, base), ...honingUpgrades(l, state, base), ...bracerUpgrades(l, state, base)]
 		.filter((u) => u.gainPct > 0.0005)
 		.sort((a, b) => b.gainPct - a.gainPct);
 }

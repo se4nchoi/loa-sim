@@ -1,6 +1,7 @@
 // Applies a Next Upgrades suggestion to the simulator state, so the player can see it in every card.
 // Suggestions are keyed by what they change (see upgrades.ts); each one becomes the matching edit.
 
+import { applyAccessorySet, parseAccessorySetKey } from './accessory-sets';
 import { roleOf } from './roles';
 import { nextBracer } from './bracer';
 import type { HoningSlot } from './honing-data';
@@ -75,6 +76,11 @@ export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade
 			if (!e || col < 0) return false;
 			e.books = Math.max(e.books, col);
 			return true;
+		}
+		case 'accset': {
+			// accset:<slot>:<line>.<tier>,… → a new accessory with exactly those lines.
+			const set = parseAccessorySetKey(u.key);
+			return !!set && applyAccessorySet(s, set);
 		}
 		case 'accessory': {
 			// accessory:<slot>:<line> → that line at High, replacing a non-scoring or secondary line if it's missing.

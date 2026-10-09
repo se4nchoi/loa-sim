@@ -32,6 +32,8 @@ export interface Upgrade {
 	subject?: string;
 	/** Accessory roll change, shown in the roll colors (from: low / mid / none or a percent). */
 	roll?: { from: string; to: string };
+	/** A whole accessory's lines with their rolls, shown in the roll colors. */
+	lines?: { name: string; tier: string }[];
 	/** Combat power gained, in percent of current CP. */
 	gainPct: number;
 	/** How many identical upgrades this row stands for (e.g. ten Lv. 9 gems). Gain is per one. */

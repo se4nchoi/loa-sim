@@ -4,7 +4,7 @@ import { PartType, partHigh } from './cp';
 import brushann from './fixtures/na-brushann.json';
 import soulshan from './fixtures/na-soulshan.json';
 import { liveUpgrades } from './live-upgrades';
-import { initSimState, isOtherLine, simulate } from './simulate';
+import { initSimState, simulate } from './simulate';
 import { supportCombatPower, supportEngravingIds, supportEngravingTable } from './support';
 import type { Loadout } from './types';
 
@@ -34,11 +34,15 @@ describe.each([['dealer', soulshan], ['support', brushann]])('live Next Upgrades
 		current.gems.forEach((g) => g.level = 10);
 		current.gear.weapon!.honing = 25;
 		Object.values(current.engravings).forEach((e) => e.books = 4);
-		for (const lines of Object.values(current.accessories))
-			for (const line of lines ?? []) if (!isOtherLine(line)) line.tier = 'high';
+		// Accessories are bought whole: buy each slot's best offer until none is left (at most one buy per slot).
+		for (let i = 0; i < 5; i++) {
+			const best = liveUpgrades(l, current, base).find((u) => u.key.startsWith('accset:'));
+			if (!best) break;
+			expect(applyUpgrade(l, current, base, best), best.key).toBe(true);
+		}
 		const rows = liveUpgrades(l, current, base);
 		expect(rows.some((u) => u.category === 'gem' || u.category === 'engraving' || u.key.startsWith('honing:weapon:'))).toBe(false);
-		expect(rows.some((u) => u.category === 'accessory' && u.roll?.from !== 'none')).toBe(false);
+		expect(rows.some((u) => u.category === 'accessory')).toBe(false);
 	});
 });
 
