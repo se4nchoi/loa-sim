@@ -19,7 +19,12 @@
 	import { fly } from 'svelte/transition';
 	import { sheetDrag } from './sheet-drag';
 
-	let { open = $bindable(false), label, children }: { open: boolean; label: string; children: Snippet } = $props();
+	let {
+		open = $bindable(false),
+		label,
+		top = 0,
+		children
+	}: { open: boolean; label: string; /** Px from the top of the screen the sheet may reach (e.g. below a pinned bar); 0 = default. */ top?: number; children: Snippet } = $props();
 
 	let sheet = $state<HTMLDivElement>();
 	const options = () => ({ sheet: () => sheet, close: () => (open = false) });
@@ -48,6 +53,7 @@
 	<div class="fixed inset-0 z-50 lg:hidden" onclick={() => (open = false)}></div>
 	<div
 		bind:this={sheet}
+		style:max-height={top > 0 ? `calc(100dvh - ${Math.round(top)}px)` : undefined}
 		class="fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-8.25rem)] flex-col rounded-t-xl border-t border-surface-700 bg-surface-900 shadow-2xl shadow-black lg:hidden"
 		role="dialog"
 		aria-modal="true"

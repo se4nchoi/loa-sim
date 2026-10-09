@@ -5,7 +5,7 @@
 	The sidebar holds the Combat Power card and Next Upgrades (whose Apply buttons edit the simulation).
 -->
 <script lang="ts">
-	import { setContext, untrack, type Snippet } from 'svelte';
+	import { setContext, untrack, type Snippet, tick } from 'svelte';
 	import { className as classNameOf } from './class-names';
 	import { applyUpgrade } from './apply-upgrade';
 	import { roleOf } from './roles';
@@ -57,7 +57,11 @@
 			if (gap > 1) window.scrollBy({ top: gap, behavior: 'instant' });
 		}
 		drawerOpen = true;
+		// With the chips hidden the bar is shorter: the drawer reaches up to touch it.
+		tick().then(() => (drawerTop = document.querySelector<HTMLElement>('[data-cp-bar]')?.getBoundingClientRect().bottom ?? 0));
 	}
+	/** Where the docked CP bar ends, so the drawer's top meets it (0 = default height). */
+	let drawerTop = $state(0);
 	let sim = $state(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
@@ -238,7 +242,8 @@
 {/snippet}
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
-<MobileSummaryBar {current} {simulated} nav={jumpChips}>{@render summary()}</MobileSummaryBar>
+<!-- The section chips hide while the drawer is open (the page behind is locked then). -->
+<MobileSummaryBar {current} {simulated} nav={drawerOpen ? undefined : jumpChips}>{@render summary()}</MobileSummaryBar>
 <div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
 	<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
 	<div class="flex min-w-0 flex-col gap-2">
@@ -292,6 +297,6 @@
 		<svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
 	</button>
 {/if}
-<BottomDrawer bind:open={drawerOpen} label="Next Upgrades">
+<BottomDrawer bind:open={drawerOpen} label="Next Upgrades" top={drawerTop}>
 	<UpgradePlanner scroll class="min-h-0 flex-1 rounded-none shadow-none" limit={1000} {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
 </BottomDrawer>

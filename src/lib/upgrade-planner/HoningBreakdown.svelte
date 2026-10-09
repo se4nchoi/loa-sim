@@ -24,7 +24,7 @@
 <!-- Phones: a bottom sheet; the header is the drag-to-close zone, with a grabber. -->
 <div bind:this={card} class="flex max-h-[85vh] flex-col bg-surface-900 max-sm:rounded-t-xl max-sm:border-t max-sm:border-surface-700 max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 	<div class="flex flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3 max-sm:pt-2" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), slideOut: true, enabled: () => matchMedia('(max-width: 639px)').matches }}>
-		<span class="mx-auto mb-1 block h-1.5 w-12 basis-full rounded-full bg-surface-500 sm:hidden" style="max-width:3rem"></span>
+		<span class="flex basis-full justify-center pb-1 sm:hidden"><span class="h-1.5 w-12 rounded-full bg-surface-500"></span></span>
 		<div class="min-w-0 flex-1">
 			<h2 class="font-semibold">Honing material breakdown</h2>
 			<p class="mt-1 text-xs text-surface-400">{title}</p>
