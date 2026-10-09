@@ -72,6 +72,8 @@
 	});
 	const materials = $derived(materialsFor(upgrades.map((u) => u.key), simNow.gear));
 	/** Nothing priced yet: every material counts as 0 (bound). */
+	/** No character-bound mats entered for this character: honing is priced as if every mat were bought. */
+	const noBound = $derived(materials.every((id) => !bound[id]));
 	const unsetPrices = $derived(materials.every((id) => gold.prices[id] === undefined && bound[id] === undefined));
 	let pricesOpen = $state(false);
 	const cp = $derived(currentCp ?? loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
@@ -122,9 +124,16 @@
 						: 'border-surface-700 bg-surface-800 text-surface-100 hover:border-surface-500 hover:bg-surface-700'}"
 					aria-haspopup="dialog"
 					onclick={() => (pricesOpen = true)}
-					title="Honing material prices (character-bound and market)"
+					title={noBound
+						? `No character-bound mats set for ${characterName ?? 'this character'}: honing costs assume every mat is bought`
+						: 'Honing material prices (character-bound and market)'}
 				>
+					{#if noBound}
+						<!-- Red badge: honing costs are inflated until this character's bound mats are entered. -->
+						<span class="flex size-4 shrink-0 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white" aria-hidden="true">!</span>
+					{/if}
 					Material prices<span class="font-normal opacity-70">{unsetPrices ? '· all 0' : ''}</span>
+					{#if noBound && !unsetPrices}<span class="truncate font-normal text-red-300">· bound not set</span>{/if}
 				</button>
 			{/if}
 			<button
