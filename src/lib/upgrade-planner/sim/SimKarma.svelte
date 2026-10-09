@@ -45,7 +45,7 @@
 {#if trees.length}
 	<SimCard title="Karma" {delta}>
 		{#snippet actions()}
-			<button type="button" class={btnAccent} onclick={() => trees.forEach((t) => (sim.karma[t.key] = KARMA_MAX_LEVEL))}>All max</button>
+			<button type="button" class={btnAccent} onclick={() => trees.forEach((t) => (sim.karma[t.key] = KARMA_MAX_LEVEL))} title="Every karma tree at its max level">Max</button>
 			<button type="button" class={btn} onclick={() => (sim.karma = { ...base.karma })}>Reset</button>
 		{/snippet}
 		<div class="grid grid-cols-3 gap-2 max-md:grid-cols-1">

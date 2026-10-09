@@ -26,7 +26,7 @@
 
 <SimCard title="Skins" {delta} info="Weapon, head, chest and pants skins add main stat: Rare +0.5%, Epic +1%, Legendary +2% per piece. Four Legendary pieces give +8%. Other cosmetic bonuses are preserved. The imported total also includes skins worn underneath appearance overrides.">
 	{#snippet actions()}
-		<button type="button" class={btnAccent} onclick={() => (sim.skins = { ...sim.skins, bonus: 8, parts: [2, 2, 2, 2] })}>All legendary</button>
+		<button type="button" class={btnAccent} onclick={() => (sim.skins = { ...sim.skins, bonus: 8, parts: [2, 2, 2, 2] })} title="All four pieces legendary (+8%)">Max</button>
 		<button type="button" class={btn} onclick={() => (sim.skins = { ...base.skins })}>Reset</button>
 	{/snippet}
 	<div class="flex flex-wrap items-end gap-3">

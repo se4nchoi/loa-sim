@@ -202,7 +202,7 @@
 	info={`Click a core or astrogem name to change its type, or its WP value to edit Willpower efficiency (0–5). Choose None to unequip an astrogem and free Willpower. Other types keep grade, points, Willpower reduction and option levels; incompatible options are replaced. Choices exceeding the simulated core's Willpower are disabled. Greyed stat options don't count for ${support ? 'support' : 'DPS'} Combat Power.`}
 >
 	{#snippet actions()}
-		<button type="button" class={btnAccent} onclick={() => rows.forEach(({ core }) => maxCore(core))} title="Max every core and its astrogems within Willpower capacity">All max</button>
+		<button type="button" class={btnAccent} onclick={() => rows.forEach(({ core }) => maxCore(core))} title="Max every core and its astrogems within Willpower capacity">Max</button>
 		<button type="button" class={btn} onclick={() => (sim.arkGrid = structuredClone($state.snapshot(base.arkGrid)))}>Reset</button>
 	{/snippet}
 	{#if rows.length === 0}

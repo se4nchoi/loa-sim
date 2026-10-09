@@ -13,6 +13,7 @@
 	import { folded, toggleFold } from './sim/folded.svelte';
 	import FoldChip from './sim/FoldChip.svelte';
 	import BottomDrawer from './sim/BottomDrawer.svelte';
+	import HScroll from './sim/HScroll.svelte';
 	import { supportCombatPower } from './support';
 	import { cpBrackets, cpStanding, ownRange, type CpDistribution, type CpRole, type IlvlRange } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
@@ -254,16 +255,7 @@
 	<!-- One row, scrolled sideways (no scrollbar; the mouse wheel scrolls it too), like the character chips. The padding
 	     sits outside the scroller, so chips are clipped short of the edges instead of running into them. -->
 	<div class={pad}>
-	<div
-		data-scroll-x
-		class="flex flex-row gap-1.5 overflow-x-auto [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
-		onwheel={(e) => {
-			const el = e.currentTarget;
-			if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-			el.scrollLeft += e.deltaY;
-			e.preventDefault();
-		}}
-	>
+	<HScroll class="gap-1.5">
 		{#each SECTION_TITLES as title}
 			<a
 				href={`#${sectionId(title)}`}
@@ -285,7 +277,7 @@
 					: 'border-surface-700 bg-surface-800 text-surface-200 hover:bg-surface-700 hover:text-surface-50'}">{title}</a
 			>
 		{/each}
-	</div>
+	</HScroll>
 	</div>
 {/snippet}
 

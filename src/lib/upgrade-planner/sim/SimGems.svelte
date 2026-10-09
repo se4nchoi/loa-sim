@@ -10,6 +10,7 @@
 	import LogsImport from './LogsImport.svelte';
 	import MenuPicker from './MenuPicker.svelte';
 	import SimCard from './SimCard.svelte';
+	import HScroll from './HScroll.svelte';
 	import Stepper from './Stepper.svelte';
 	import { btn, btnAccent, type MenuOption, type SectionDelta } from './ui';
 
@@ -167,15 +168,17 @@
 		{/if}
 	{/snippet}
 	{#snippet toolbar()}
-		<!-- Sticks with the card header, so bulk levels and Reset stay in reach while scrolling the gem list. -->
-		<div class="flex flex-row flex-wrap items-center gap-1.5" hidden={editable.length === 0}>
-			{#each [10, 9, 8, 7, 6] as lv (lv)}
-				<button type="button" class={lv === 10 ? btnAccent : btn} onclick={() => setAll(() => lv)}>All Lv. {lv}</button>
-			{/each}
-			<span class="mx-1 h-5 w-px bg-surface-700"></span>
-			<button type="button" class={btn} onclick={() => setAll((v) => v - 1)}>All −1</button>
-			<button type="button" class={btn} onclick={() => setAll((v) => v + 1)}>All +1</button>
-			<button type="button" class="{btn} ml-auto" onclick={() => {
+		<!-- Sticks with the card header: one sideways-scrolling row of bulk levels, Reset pinned on the right. -->
+		<div class="flex min-w-0 flex-row items-center gap-2" hidden={editable.length === 0}>
+			<HScroll class="flex-1 items-center gap-1.5">
+				{#each [10, 9, 8, 7, 6] as lv (lv)}
+					<button type="button" class="{lv === 10 ? btnAccent : btn} shrink-0 whitespace-nowrap" onclick={() => setAll(() => lv)} title={`Every gem at Lv. ${lv}`}>{lv === 10 ? 'Max' : `Lv. ${lv}`}</button>
+				{/each}
+				<span class="mx-1 h-5 w-px shrink-0 bg-surface-700"></span>
+				<button type="button" class="{btn} shrink-0 whitespace-nowrap" onclick={() => setAll((v) => v - 1)}>All −1</button>
+				<button type="button" class="{btn} shrink-0 whitespace-nowrap" onclick={() => setAll((v) => v + 1)}>All +1</button>
+			</HScroll>
+			<button type="button" class="{btn} shrink-0" onclick={() => {
 				sim.gems = structuredClone($state.snapshot(base.gems));
 				sim.skillShares = {};
 				sim.skillCooldownUse = {};

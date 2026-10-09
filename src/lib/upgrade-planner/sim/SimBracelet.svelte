@@ -185,7 +185,7 @@
 {#if sim.bracelet}
 	<SimCard title="Bracelet" {delta} info="Each of the five lines can be a stat, an effect, or empty.">
 		{#snippet actions()}
-			<button type="button" class={btnAccent} onclick={() => (sim.bracelet = maxBracelet(loadout, maxScore(loadout, $state.snapshot(sim), $state.snapshot(base))))} title="Highest simulated CP from two max stat rolls and three distinct high-roll effects">All max</button>
+			<button type="button" class={btnAccent} onclick={() => (sim.bracelet = maxBracelet(loadout, maxScore(loadout, $state.snapshot(sim), $state.snapshot(base))))} title="Highest simulated CP from two max stat rolls and three distinct high-roll effects">Max</button>
 			<button type="button" class={btn} onclick={() => (sim.bracelet = structuredClone($state.snapshot(base.bracelet)))}>Reset</button>
 		{/snippet}
 		<!-- Phones: the icon (with the item name) sits above the lines, and the line type is a dropdown so each line fits. -->

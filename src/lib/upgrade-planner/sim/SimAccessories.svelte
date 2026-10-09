@@ -100,7 +100,7 @@
 
 <SimCard title="Accessories" {delta} info="Open a line to compare every alternative. Weapon Power lines are approximate.">
 	{#snippet actions()}
-		<button type="button" class={btnAccent} onclick={() => slots.forEach(maxDps)}>All max {goal} lines</button>
+		<button type="button" class={btnAccent} onclick={() => slots.forEach(maxDps)} title={`Every accessory: both main ${goal} lines at High`}>Max {goal}</button>
 		<button type="button" class={btn} onclick={() => {
 			sim.accessories = structuredClone($state.snapshot(base.accessories));
 			sim.accessoryStats = structuredClone($state.snapshot(base.accessoryStats));

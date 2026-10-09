@@ -85,7 +85,7 @@
 
 <SimCard title="Engravings" {delta}>
 	{#snippet actions()}
-		<button type="button" class={btnAccent} onclick={() => ids.forEach((id) => (sim.engravings[id].books = ENGRAVING_BOOK_STEPS.length - 1))}>All max</button>
+		<button type="button" class={btnAccent} onclick={() => ids.forEach((id) => (sim.engravings[id].books = ENGRAVING_BOOK_STEPS.length - 1))} title="Every engraving at 20 relic books">Max</button>
 		<button type="button" class={btn} onclick={() => (sim.engravings = structuredClone($state.snapshot(base.engravings)))}>Reset</button>
 	{/snippet}
 	{#if ids.length === 0 && role().engravingIds().length === 0}
