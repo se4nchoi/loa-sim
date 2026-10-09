@@ -130,9 +130,14 @@
 		new Set(
 			otherLines(i).flatMap((l) => (l.kind === 'effect' ? [familyOf(l.key)] : isStatEffect(l) ? [familyOf(statEffectValue(l))] : []))
 		);
+	/** A bracelet rolls at most two combat stats (Crit, Spec, Swift, Dom, Endur, Exp). */
+	const COMBAT = new Set(['2:15', '2:16', '2:17', '2:18', '2:19', '2:20']);
+	const MAX_COMBAT = 2;
+	const combatFull = (i: number) => [...usedStats(i)].filter((k) => COMBAT.has(k)).length >= MAX_COMBAT;
 	const statChoices = (i: number, current: string) => {
 		const used = usedStats(i);
-		return [...new Set([current, ...STAT_CHOICES])].filter((k) => k === current || !used.has(k));
+		const full = combatFull(i);
+		return [...new Set([current, ...STAT_CHOICES])].filter((k) => k === current || (!used.has(k) && !(full && COMBAT.has(k))));
 	};
 	const effectValue = (l: BraceletLine) => (l.kind === 'effect' ? l.key : isStatEffect(l) ? statEffectValue(l) : '');
 	const optionsFor = (i: number, current: string): PickOption[] => {
@@ -158,11 +163,11 @@
 	function setKind(i: number, kind: Kind) {
 		const before = base.bracelet?.lines[i];
 		const taken =
-			(before?.kind === 'stat' && usedStats(i).has(statKey(before))) ||
+			(before?.kind === 'stat' && (usedStats(i).has(statKey(before)) || (COMBAT.has(statKey(before)) && combatFull(i)))) ||
 			(before && kindOf(before) === 'effect' && usedFamilies(i).has(familyOf(effectValue(before))));
 		if (before && kindOf(before) === kind && !taken) sim.bracelet!.lines[i] = structuredClone($state.snapshot(before));
 		else if (kind === 'stat') {
-			const key = STAT_CHOICES.find((k) => !usedStats(i).has(k)) ?? '2:15';
+			const key = STAT_CHOICES.find((k) => !usedStats(i).has(k) && !(COMBAT.has(k) && combatFull(i))) ?? '2:6';
 			sim.bracelet!.lines[i] = { kind, ...parseKey(key), value: DEFAULT_VALUE[key] ?? 100 };
 		} else if (kind === 'effect') {
 			const v = OPTIONS.find((o) => !usedFamilies(i).has(familyOf(String(o.value))))?.value ?? OPTIONS[0].value;
