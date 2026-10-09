@@ -12,6 +12,8 @@
 	import UpgradePlanner from './UpgradePlanner.svelte';
 	import { folded, toggleFold } from './sim/folded.svelte';
 	import FoldChip from './sim/FoldChip.svelte';
+	import { formatCp } from './format';
+	import Delta from './sim/Delta.svelte';
 	import { supportCombatPower } from './support';
 	import { cpBrackets, cpStanding, ownRange, type CpDistribution, type CpRole, type IlvlRange } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
@@ -45,6 +47,19 @@
 	} = $props();
 
 	const base = $derived(initSimState(loadout));
+	/** Phones: the Next Upgrades drawer. Escape closes it; the page behind doesn't scroll while it's open. */
+	let drawerOpen = $state(false);
+	$effect(() => {
+		if (!drawerOpen) return;
+		const before = document.body.style.overflow;
+		document.body.style.overflow = 'hidden';
+		const onKey = (e: KeyboardEvent) => e.key === 'Escape' && (drawerOpen = false);
+		window.addEventListener('keydown', onKey);
+		return () => {
+			document.body.style.overflow = before;
+			window.removeEventListener('keydown', onKey);
+		};
+	});
 	let sim = $state(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
@@ -237,7 +252,44 @@
 				{/each}
 			</div>
 		</nav>
-		<UpgradePlanner class="lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
+		<UpgradePlanner class="max-lg:hidden lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
 		{@render sidebar?.()}
 	</div>
 </div>
+
+<!-- Phones: Next Upgrades lives in a bottom drawer, opened from a pinned button (the page would otherwise put it
+     below every card). The CP bar on top stays visible above the drawer's backdrop. -->
+<div class="h-16 lg:hidden" aria-hidden="true"></div>
+{#if !drawerOpen}
+	<button
+		type="button"
+		class="fixed inset-x-3 bottom-3 z-30 flex h-12 flex-row items-center justify-between rounded-xs border border-accent-500/50 bg-surface-900/95 px-4 text-sm font-bold text-surface-50 shadow-lg shadow-black/60 backdrop-blur lg:hidden"
+		aria-haspopup="dialog"
+		onclick={() => (drawerOpen = true)}
+	>
+		Next Upgrades
+		<svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
+	</button>
+{:else}
+	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+	<div class="fixed inset-0 z-50 bg-black/60 lg:hidden" onclick={() => (drawerOpen = false)}></div>
+	<div
+		class="fixed inset-x-0 bottom-0 z-50 flex max-h-[82vh] flex-col rounded-t-md border-t border-surface-700 bg-surface-900 shadow-2xl shadow-black lg:hidden"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Next Upgrades"
+	>
+		<!-- Handle + the CP change, so Apply's effect shows without leaving the drawer. -->
+		<button type="button" class="flex shrink-0 flex-col items-center gap-1.5 px-4 pt-2 pb-1.5" onclick={() => (drawerOpen = false)} aria-label="Close Next Upgrades">
+			<span class="h-1 w-10 rounded-full bg-surface-600"></span>
+			<span class="flex w-full flex-row items-baseline gap-2">
+				<span class="text-xs text-surface-400">CP</span>
+				<span class="text-sm text-surface-300 tabular-nums">{formatCp(current)}</span>
+				<span class="text-surface-500">→</span>
+				<span class="text-base font-bold text-red-400 tabular-nums">{formatCp(simulated)}</span>
+				<Delta pct={(simulated / current - 1) * 100} cp={simulated - current} class="text-xs font-semibold" />
+			</span>
+		</button>
+		<UpgradePlanner scroll class="min-h-0 flex-1 rounded-none shadow-none" limit={10} {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
+	</div>
+{/if}

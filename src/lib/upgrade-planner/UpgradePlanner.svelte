@@ -29,8 +29,9 @@
 		currentCp,
 		characterKey = '',
 		characterName,
-		class: cls = ''
-	}: { class?: string; characterKey?: string; characterName?: string; loadout: Loadout; limit?: number; simState?: SimState; simBase?: SimState; currentCp?: number; /** Returns false when it couldn't be applied. */ onapply?: (u: Upgrade) => boolean } = $props();
+		class: cls = '',
+		scroll = false
+	}: { /** Scroll the list inside the card at every width (the phone drawer); otherwise only on desktop. */ scroll?: boolean; class?: string; characterKey?: string; characterName?: string; loadout: Loadout; limit?: number; simState?: SimState; simBase?: SimState; currentCp?: number; /** Returns false when it couldn't be applied. */ onapply?: (u: Upgrade) => boolean } = $props();
 
 	/** Brief feedback on the row just applied. */
 	let flash = $state<{ key: string; ok: boolean } | null>(null);
@@ -124,7 +125,7 @@
 				{#if gold.mode === 'gold' && unpriced}<span class="text-amber-300">Price {unpriced} more</span>{:else}All Upgrades ({upgrades.length}){/if}
 			</button>
 		</div>
-		<div class="grid gap-x-2 p-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
+		<div class="grid gap-x-2 p-1 {scroll ? 'min-h-0 overflow-y-auto overscroll-contain' : 'lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain'} {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
 			{#each shown as u, i (u.key)}
 				{@const honing = gold.mode === 'gold' && auto[u.key] && manualGoldCost(u, gold.costs) === undefined ? auto[u.key] : null}
 				{#if gold.mode === 'gold' && i === priced.length}
