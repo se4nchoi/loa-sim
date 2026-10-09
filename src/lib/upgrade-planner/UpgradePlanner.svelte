@@ -124,7 +124,7 @@
 				{#if gold.mode === 'gold' && unpriced}<span class="text-amber-300">Price {unpriced} more</span>{:else}All Upgrades ({upgrades.length}){/if}
 			</button>
 		</div>
-		<div class="grid min-h-0 gap-x-2 overflow-y-auto overscroll-contain p-1 {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
+		<div class="grid gap-x-2 p-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
 			{#each shown as u, i (u.key)}
 				{@const honing = gold.mode === 'gold' && auto[u.key] && manualGoldCost(u, gold.costs) === undefined ? auto[u.key] : null}
 				{#if gold.mode === 'gold' && i === priced.length}
