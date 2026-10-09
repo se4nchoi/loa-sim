@@ -1,5 +1,5 @@
 <!--
-	Simulator page header strip: the characters viewed most recently, and a dropdown of the whole character list
+	Simulator page header strip: chips for the loaded characters in the Characters tab's order, and a dropdown of the whole character list
 	(synced roster without hidden characters, then characters loaded by name). Picking a roster character that
 	isn't loaded yet loads it from lostark.bible first.
 -->
@@ -7,7 +7,7 @@
 	import { goto } from '$app/navigation';
 	import { cachedRoster, hiddenRosterKeys } from '$lib/bible-oauth';
 	import { loadCharacter } from '$lib/load-character';
-	import { MAX_RECENT, characterKey, listSavedCharacters, recentKeys, type SavedCharacter } from '$lib/saved-character';
+	import { characterKey, listSavedCharacters, type SavedCharacter } from '$lib/saved-character';
 	import { classIconUrl } from '$lib/upgrade-planner/class-icons';
 
 	let { current }: { /** Key of the character on screen ("na/soulshan"). */ current: string } = $props();
@@ -25,7 +25,8 @@
 		const rosterKeys = new Set((cachedRoster()?.roster ?? []).map((c) => characterKey(c)));
 		return {
 			byKey,
-			recent: (recentKeys().includes(current) ? recentKeys() : [current, ...recentKeys()]).slice(0, MAX_RECENT).flatMap((k) => byKey.get(k) ?? []),
+			// Chips follow the Characters tab: roster order (hidden left out), then searched characters; loaded ones only.
+			chips: [...roster.flatMap((c) => byKey.get(characterKey(c)) ?? []), ...saved.filter((c) => !rosterKeys.has(characterKey(c)))],
 			roster: roster.map((c) => ({ ...c, key: characterKey(c), loaded: byKey.has(characterKey(c)) })),
 			typed: saved.filter((c) => !rosterKeys.has(characterKey(c)))
 		};
@@ -54,13 +55,13 @@
 </script>
 
 <div class="mb-4 flex flex-col gap-2">
-	<!-- One row: recent chips scroll sideways, the dropdown stays put (own row on phones). -->
+	<!-- One row: character chips scroll sideways, the dropdown stays put (own row on phones). -->
 	<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-		{#if lists.recent.length > 1}
+		{#if lists.chips.length > 1}
 			<!-- No visible scrollbar (it would make the row taller than the dropdown); the mouse wheel scrolls sideways. -->
 			<div
 				class="flex min-w-0 flex-1 flex-row items-center gap-2 overflow-x-auto [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
-				aria-label="Recent characters"
+				aria-label="Your characters"
 				onwheel={(e) => {
 					const el = e.currentTarget;
 					if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
@@ -68,7 +69,7 @@
 					e.preventDefault();
 				}}
 			>
-			{#each lists.recent as c (characterKey(c))}
+			{#each lists.chips as c (characterKey(c))}
 				{@const key = characterKey(c)}
 				{@const cp = cpOf(c)}
 				<a
