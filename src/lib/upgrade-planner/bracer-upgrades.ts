@@ -26,6 +26,8 @@ export function bracerUpgrades(l: Loadout, state = initSimState(l), base: SimSta
 		gainPct: (after / before - 1) * 100,
 		count: 1,
 		approximate: true,
+		// The first bracer drops from the first Belgardin clear: free, so it tops the gold ranking.
+		...(!from ? { knownCost: 0 } : {}),
 		group: 'honing:bracer'
 	}];
 }

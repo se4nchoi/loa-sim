@@ -215,7 +215,8 @@
 		</div>
 		<section id="sim-ark-grid" aria-label="Ark Grid" class="scroll-mt-28"><SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} /></section>
 	</div>
-	<div class="flex flex-col gap-2 lg:sticky lg:top-16">
+	<!-- Sticky sidebar; scrolls on its own when taller than the window (e.g. a long Next Upgrades card). -->
+	<div class="flex flex-col gap-2 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
 		<div class="max-lg:hidden">{@render summary()}</div>
 		<nav aria-label="Simulator cards" class="card p-3">
 			<div class="grid grid-cols-2 gap-2">

@@ -22,8 +22,8 @@
 	let text = $state('');
 	let input = $state<HTMLInputElement>();
 	const typed = $derived(gold.costs[u.key]);
-	const cost = $derived(typed ?? auto?.expected);
-	const per = $derived(cost && u.gainPct > 0 ? cost / u.gainPct : null);
+	const cost = $derived(typed ?? auto?.expected ?? u.knownCost);
+	const per = $derived(cost !== undefined && u.gainPct > 0 ? cost / u.gainPct : null);
 	const autoTitle = $derived(
 		auto
 			? `Average ${formatGold(auto.expected)} over ${auto.taps.toFixed(1)} taps${auto.breath ? ' with full breath' : ''} (used for gold per 1%). ` +
@@ -63,13 +63,13 @@
 		<button
 			type="button"
 			onclick={edit}
-			class="inline-flex h-6 items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold tabular-nums transition {cost
+			class="inline-flex h-6 items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold tabular-nums transition {cost !== undefined
 				? 'border-amber-400/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
 				: 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'}"
 			title={typed ? 'Edit the gold cost (empty to clear)' : auto ? autoTitle : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 		>
 			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-			{#if cost}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{!typed ? '≈' : ''}{formatGold(cost)}{/if}{#if per && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1% {!typed && auto ? 'avg' : ''}</span>{/if}{:else}Add gold cost{/if}
+			{#if cost === 0 && !typed}Free{#if showPer}<span class="font-normal text-surface-300">· {u.detail}</span>{/if}{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{!typed ? '≈' : ''}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1% {!typed && auto ? 'avg' : ''}</span>{/if}{:else}Add gold cost{/if}
 		</button>
 		{#if auto && !typed}
 			<!-- Pity: every tap fails until the meter forces success. -->

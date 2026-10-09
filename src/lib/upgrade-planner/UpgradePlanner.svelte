@@ -47,7 +47,11 @@
 	const bound = $derived(gold.bound[characterKey] ?? {});
 	// Honing rows are priced from material prices; a cost typed on the row wins.
 	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices, bound) : {});
-	const costs = $derived({ ...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])), ...gold.costs });
+	const costs = $derived({
+		...Object.fromEntries(upgrades.flatMap((u) => (u.knownCost === undefined ? [] : [[u.key, u.knownCost]]))),
+		...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])),
+		...gold.costs
+	});
 	const materials = $derived(materialsFor(upgrades.map((u) => u.key), simNow.gear));
 	/** Nothing priced yet: every material counts as 0 (bound). */
 	const unsetPrices = $derived(materials.every((id) => gold.prices[id] === undefined && bound[id] === undefined));
@@ -61,10 +65,10 @@
 	const priced = $derived(gold.mode === 'gold' ? topDistinct(byGold(upgrades, costs), limit) : []);
 	const shown = $derived(
 		gold.mode === 'gold'
-			? [...priced, ...topDistinct(upgrades.filter((u) => !costs[u.key]), limit - priced.length)]
+			? [...priced, ...topDistinct(upgrades.filter((u) => costs[u.key] === undefined), limit - priced.length)]
 			: topDistinct(upgrades, limit)
 	);
-	const unpriced = $derived(upgrades.filter((u) => !costs[u.key]).length);
+	const unpriced = $derived(upgrades.filter((u) => costs[u.key] === undefined).length);
 </script>
 
 <div class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">

@@ -134,7 +134,7 @@ export function formatGold(g: number): string {
 /** Gold per 1% Combat Power (lower is better); null without a cost or a gain. */
 export const goldPerPct = (u: Upgrade, costs: Record<string, number>) => {
 	const cost = costs[u.key];
-	return cost && u.gainPct > 0 ? cost / u.gainPct : null;
+	return cost !== undefined && u.gainPct > 0 ? cost / u.gainPct : null;
 };
 
 /** Priced upgrades, most efficient first. */

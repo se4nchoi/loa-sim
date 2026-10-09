@@ -38,6 +38,8 @@ export interface Upgrade {
 	count: number;
 	/** True when the value relies on an assumption rather than an exact table. */
 	approximate: boolean;
+	/** Gold cost known without asking the player (e.g. 0 for a free drop); a typed cost still wins. */
+	knownCost?: number;
 	/** Alternatives that exclude each other (e.g. ability stone patterns) share a group. */
 	group?: string;
 }
