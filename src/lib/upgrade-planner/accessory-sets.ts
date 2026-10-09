@@ -1,8 +1,8 @@
 // Whole-accessory upgrades: an accessory's lines can't be changed one at a time (polishing rolls them at random), so the
-// next step is buying another one, all three lines at once. Per slot this offers a short ladder of buys: the two
-// main lines at High/Mid or High/High, and the third line (the slot's best secondary line) at none / Low / Mid / High.
-// Each is scored by simulating the slot with exactly those three lines; options that don't beat the current
-// accessory, or are no better than a lower roll, are dropped.
+// next step is buying another one, all three lines at once. Per slot the candidates are the full grid: each main line at
+// Mid or High, and the third line (the slot's best secondary line) at none / Low / Mid / High. Each is scored by
+// simulating the slot with exactly those three lines; the current accessory is the bottom line, so options that don't
+// beat it, or are no better than a cheaper roll, are dropped and what's left is the ladder.
 
 import { roleOf } from './roles';
 import { ACCESSORY_SLOTS, familyOf, simulate, type AccessorySlot, type SimLine, type SimState } from './simulate';
@@ -79,8 +79,10 @@ export function accessorySetUpgrades(l: Loadout, state: SimState, base: SimState
 		const bHigh = gainOf({ slot, lines: [{ key: a.key, tier: 'mid' }, { key: b.key, tier: 'high' }] });
 		const highMid = aHigh >= bHigh ? [a.key, b.key] : [b.key, a.key];
 		const order = (key: string) => (key === highMid[0] ? 0 : key === highMid[1] ? 1 : 2);
-		// Mid-High (High on the weaker line) is the cheaper reverse of the best-in-slot High-Mid.
+		// Cheapest first: Mid-Mid, Mid-High (High on the weaker line, the cheaper reverse of the best-in-slot High-Mid),
+		// High-Mid, High-High.
 		const mainSets: { key: string; tier: Tier }[][] = [
+			[{ key: highMid[0], tier: 'mid' }, { key: highMid[1], tier: 'mid' }],
 			[{ key: highMid[0], tier: 'mid' }, { key: highMid[1], tier: 'high' }],
 			[{ key: highMid[0], tier: 'high' }, { key: highMid[1], tier: 'mid' }],
 			highHigh

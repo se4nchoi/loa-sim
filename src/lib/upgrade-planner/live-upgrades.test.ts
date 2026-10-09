@@ -91,3 +91,13 @@ it('imports equipped utility engravings and allows swapping them without inventi
 	next.engravings[1240].as = 1236;
 	expect(simulate(l, next, base).cp).toBeGreaterThan(simulate(l, base, base).cp);
 });
+
+it('a weak accessory offers Mid-Mid as the bottom rung, and only rolls that beat it', () => {
+	const l = soulshan as unknown as Loadout;
+	const base = initSimState(l);
+	const current = structuredClone(base);
+	current.accessories.neck = [{ key: 'other', label: 'Other' }, { key: 'other', label: 'Other' }, { key: 'other', label: 'Other' }];
+	const ladder = liveUpgrades(l, current, base).filter((u) => u.group === 'accset:neck');
+	expect(ladder.some((u) => u.lines!.slice(0, 2).every((x) => x.tier === 'mid'))).toBe(true);
+	for (const u of ladder) expect(u.gainPct).toBeGreaterThan(0);
+});
