@@ -83,7 +83,7 @@ export function accessorySetUpgrades(l: Loadout, state: SimState, base: SimState
 				key: accessorySetKey(o.set),
 				category: 'accessory',
 				subject: SLOT_NAMES[slot],
-				title: [m1, m2, t3].filter(Boolean).map((x) => nameOf(x.key)).join(' · ') + (t3 ? '' : ' · —'),
+				title: [m1, m2, t3].filter(Boolean).map((x) => nameOf(x.key)).join(' · ') + (t3 ? '' : ' · None'),
 				lines: o.set.lines.map((x) => ({ name: nameOf(x.key), tier: x.tier })),
 				detail: '',
 				gainPct: o.gain,

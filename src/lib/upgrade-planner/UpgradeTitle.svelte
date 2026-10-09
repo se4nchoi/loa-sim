@@ -12,9 +12,9 @@
 <span class="flex min-w-0 flex-col {cls}">
 	{#if u.subject}<span class="text-xs text-surface-400">{u.subject}</span>{/if}
 	{#if u.lines && compact}
-		<!-- A whole accessory, short: its rolls in order, in the roll colors (— = no useful third line). -->
+		<!-- A whole accessory, short: its rolls in order, in the roll colors (X = no third line). -->
 		<span class="text-sm font-semibold" title={u.lines.map((line) => `${line.name} ${label(line.tier)}`).join(' · ')}>
-			{#each [...u.lines, ...(u.lines.length < 3 ? [null] : [])] as line, i (i)}{#if i}<span class="text-surface-500">-</span>{/if}{#if line}<span style:color={color(line.tier)}>{label(line.tier)}</span>{:else}<span class="text-surface-500">—</span>{/if}{/each}
+			{#each [...u.lines, ...(u.lines.length < 3 ? [null] : [])] as line, i (i)}{#if i}<span class="text-surface-500">-</span>{/if}{#if line}<span style:color={color(line.tier)}>{label(line.tier)}</span>{:else}<span class="text-surface-500">X</span>{/if}{/each}
 		</span>
 	{:else if u.lines}
 		<!-- A whole accessory: each line with its roll, in the roll colors. -->
@@ -22,7 +22,7 @@
 			{#each u.lines as line (line.name)}
 				<span>{line.name} <b style:color={color(line.tier)} class="font-semibold">{label(line.tier)}</b></span>
 			{/each}
-			{#if u.lines.length < 3}<span class="text-xs text-surface-500">No useful 3rd line</span>{/if}
+			{#if u.lines.length < 3}<span class="text-surface-500">None</span>{/if}
 		</span>
 	{:else}
 	<span class="text-sm text-surface-100">
