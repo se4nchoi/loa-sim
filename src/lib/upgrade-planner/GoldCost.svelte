@@ -1,6 +1,7 @@
 <!-- A Next Upgrades row's gold cost: "+ gold" or "45k · 38.2k per 1%", editable in place. -->
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { GOLD_ICON } from './icons';
 	import { formatGold, gold, goldPerPct, parseGold, setGoldCost } from './gold-costs.svelte';
 	import type { Upgrade } from './upgrades';
 
@@ -47,7 +48,7 @@
 			: 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'}"
 		title={cost ? 'Edit the gold cost (empty to clear)' : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 	>
-		<svg viewBox="0 0 16 16" class="size-3.5 shrink-0" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="#f5c542" stroke="#a87b12" /><circle cx="8" cy="8" r="3.5" fill="none" stroke="#a87b12" /></svg>
+		<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
 		{#if cost}{formatGold(cost)}{#if per}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%</span>{/if}{:else}Add gold cost{/if}
 	</button>
 {/if}
