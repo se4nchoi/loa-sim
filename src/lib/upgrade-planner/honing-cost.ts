@@ -6,6 +6,7 @@
 import { BRACER_LIMITS, type BracerGrade } from './bracer';
 import { BRACER_TAPS } from './bracer-cost-data';
 import { HONING_COSTS, HONING_MATERIALS, type HoningSet, type HoningTap } from './honing-cost-data';
+import { KARMA_COSTS, type KarmaTree } from './karma-cost-data';
 import type { HoningSlot } from './honing-data';
 
 /** Gold per unit, by material item id; `shards` is gold per shard. Missing = 0. */
@@ -41,7 +42,8 @@ function successByTap(tap: HoningTap, extra: number): number[] {
 		const chance = energy >= 1 ? 1 : Math.min(1, (tap.success + Math.min(n * tap.failBonus, tap.failMax) + extra) / 10000);
 		out.push(reach * chance);
 		if (chance >= 1) return out;
-		energy += (chance * 10000) / tap.energy;
+		// Fixed-fill meters use integer units so repeated fractions cannot delay pity by a tap.
+		energy = tap.meterPerFail !== undefined ? ((n + 1) * tap.meterPerFail) / 10000 : energy + (chance * 10000) / tap.energy;
 		reach *= 1 - chance;
 	}
 }
@@ -92,10 +94,51 @@ function tapForKey(key: string, gear: GearSets): HoningTap | undefined {
 	return undefined;
 }
 
-/** Calculated costs for the honing rows among `keys`. */
-export function autoHoningCosts(keys: string[], gear: GearSets, prices: MaterialPrices, owned: MaterialOwned = {}): Record<string, HoningCost> {
+/** A karma try leaving `level`, priced in gold only (Destiny Stones counted as plentiful). */
+const karmaTap = (tree: KarmaTree, level: number): HoningTap | undefined => {
+	const k = KARMA_COSTS[tree][level];
+	return k && { growth: 0, success: k.success, failBonus: 0, failMax: 0, energy: 1, meterPerFail: k.meter, breath: { id: 0, rate: 0, max: 0 }, gold: k.gold, silver: 0, shards: 0, mats: {} };
+};
+/** Levels where a karma rank starts (rank 1 at level 1, then every 4 levels). */
+const KARMA_RANK_START = [0, 1, 5, 9, 13, 17, 21];
+export type KarmaLevels = Partial<Record<KarmaTree, number | null>>;
+
+/** Karma rows: one level ("karma:<tree>:<to>", "karma:evolution-level:<to>") or a whole rank ("karma:evolution:<rank>"). */
+function karmaCost(key: string, karma: KarmaLevels): HoningCost | undefined {
+	const [kind, what, b] = key.split(':');
+	if (kind !== 'karma' || !['evolution', 'evolution-level', 'enlightenment', 'leap'].includes(what)) return undefined;
+	const to = Number(b);
+	const tree: KarmaTree = what === 'leap' || what === 'enlightenment' ? what : 'evolution';
+	const from = what === 'evolution' ? karma.evolution : to - 1;
+	const until = what === 'evolution' ? KARMA_RANK_START[to] : to;
+	if (from === null || from === undefined || !Number.isInteger(from) || from < 0 || !Number.isInteger(until) || until > 30 || until <= from) return undefined;
+	let sum: HoningCost | undefined;
+	for (let level = from; level < until; level++) {
+		const tap = karmaTap(tree, level);
+		if (!tap) return undefined;
+		const c = honingCost(tap, {});
+		sum = sum
+			? { ...sum, expected: sum.expected + c.expected, worst: sum.worst + c.worst, taps: sum.taps + c.taps, maxTaps: sum.maxTaps + c.maxTaps }
+			: c;
+	}
+	return sum;
+}
+
+/** Calculated costs for the honing (and karma) rows among `keys`. */
+export function autoHoningCosts(
+	keys: string[],
+	gear: GearSets,
+	prices: MaterialPrices,
+	owned: MaterialOwned = {},
+	karma: KarmaLevels = {}
+): Record<string, HoningCost> {
 	const out: Record<string, HoningCost> = {};
 	for (const key of keys) {
+		const k = karmaCost(key, karma);
+		if (k) {
+			out[key] = k;
+			continue;
+		}
 		const tap = tapForKey(key, gear);
 		const cost = tap && honingCost(tap, prices, owned);
 		if (cost) out[key] = cost;

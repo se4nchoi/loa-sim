@@ -156,8 +156,12 @@ export function formatGold(g: number): string {
 	return `${Math.round(g)}`;
 }
 
+/** Ark Grid rolls remain CP suggestions without a predictable gold cost. */
+export const supportsGoldCost = (u: Upgrade) => u.category !== 'core' && u.category !== 'astrogem';
+
 /** Gold per 1% Combat Power (lower is better); null without a cost or a gain. */
 export const goldPerPct = (u: Upgrade, costs: Record<string, number>) => {
+	if (!supportsGoldCost(u)) return null;
 	const cost = costs[u.key];
 	return cost !== undefined && u.gainPct > 0 ? cost / u.gainPct : null;
 };

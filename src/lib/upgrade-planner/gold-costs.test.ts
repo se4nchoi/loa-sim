@@ -5,6 +5,15 @@ import type { Upgrade } from './upgrades';
 const up = (key: string, gainPct: number) => ({ key, gainPct, category: 'gem', title: key, detail: '', count: 1, approximate: false }) as Upgrade;
 
 describe('gold costs', () => {
+	it('excludes Ark Grid suggestions from gold efficiency even with old saved prices', () => {
+		const core = { ...up('core:1:20', 1), category: 'core' as const };
+		const astrogem = { ...up('astrogem:2001', 0.5), category: 'astrogem' as const };
+		const gem = up('gem:4:9', 0.25);
+		const costs = { [core.key]: 100, [astrogem.key]: 100, [gem.key]: 10000 };
+		expect(goldPerPct(core, costs)).toBeNull();
+		expect(goldPerPct(astrogem, costs)).toBeNull();
+		expect(byGold([core, astrogem, gem], costs)).toEqual([gem]);
+	});
 	it('reads gold the way players type it', () => {
 		expect(parseGold('45k')).toBe(45000);
 		expect(parseGold('1.2m')).toBe(1200000);

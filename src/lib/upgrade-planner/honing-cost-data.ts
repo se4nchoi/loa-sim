@@ -10,6 +10,8 @@ export interface HoningTap {
 	failMax: number;
 	/** Artisan's energy: each failure adds (final chance / energy × 10000); success is certain at 100%. */
 	energy: number;
+	/** Instead, a fixed meter fill per failure (1/10000), as karma has. */
+	meterPerFail?: number;
 	/** Breath item: +rate (1/10000) each, up to max per tap. */
 	breath: { id: number; rate: number; max: number };
 	/** A second breath that can be added on top (bracers take Lava's and Glacier's Breath). */

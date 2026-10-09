@@ -116,6 +116,8 @@ export interface HoningTap {
 	failMax: number;
 	/** Artisan's energy: each failure adds (final chance / energy × 10000); success is certain at 100%. */
 	energy: number;
+	/** Instead, a fixed meter fill per failure (1/10000), as karma has. */
+	meterPerFail?: number;
 	/** Breath item: +rate (1/10000) each, up to max per tap. */
 	breath: { id: number; rate: number; max: number };
 	/** A second breath that can be added on top (bracers take Lava's and Glacier's Breath). */
@@ -133,6 +135,32 @@ export const HONING_COSTS: Record<HoningSet, Record<'weapon' | 'armor', HoningTa
 
 /** Item id → [name, icon] for every material above. */
 export const HONING_MATERIALS: Record<string, [string, string]> = ${JSON.stringify(costMaterials, null, '	')};
+`
+);
+
+// ------------------------------------------------------------------------------------------- karma costs
+
+// Karma level-ups (Evolution / Enlightenment / Leap share one table): per try, a success chance and a pity meter that
+// fills by `care` on each failure (a full meter makes the next try certain), for 900 gold + 1 Destiny Stone. Indexed by
+// the level being left (0 = unlocking the tree). A rank's last level has chance 0; the next rank's row for that level
+// carries the roll. Chances and meter in 1/10000.
+const KARMA_TREES = { 10000: 'evolution', 20000: 'enlightenment', 30000: 'leap' };
+const karmaCosts = {};
+for (const [id, name] of Object.entries(KARMA_TREES)) {
+	const tree = stats.karma[id];
+	const steps = [{ success: 10000, meter: 0, gold: tree.money[GOLD] ?? 0 }];
+	for (let level = 1; level < 30; level++) {
+		const row = Object.values(tree.ranks).map((r) => r.levels[level]).find((l) => l && l.prob > 0);
+		if (!row) throw new Error(`missing karma level ${level} in ${name}`);
+		steps.push({ success: row.prob, meter: row.care, gold: row.money[GOLD] ?? 0 });
+	}
+	karmaCosts[name] = steps;
+}
+fs.writeFileSync(
+	'src/lib/upgrade-planner/karma-cost-data.ts',
+	`${header('Karma level-up chances, pity meter and gold per try, by the level being left (0 = unlock).')}
+export type KarmaTree = 'evolution' | 'enlightenment' | 'leap';
+export const KARMA_COSTS: Record<KarmaTree, { success: number; meter: number; gold: number }[]> = ${JSON.stringify(karmaCosts)};
 `
 );
 

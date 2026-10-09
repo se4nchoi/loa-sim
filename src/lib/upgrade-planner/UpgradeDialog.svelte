@@ -4,7 +4,7 @@
 	import { btn } from './sim/ui';
 	import UpgradeTitle from './UpgradeTitle.svelte';
 	import GoldCost from './GoldCost.svelte';
-	import { byGold, formatGold, goldPerPct, type RankMode } from './gold-costs.svelte';
+	import { byGold, formatGold, goldPerPct, supportsGoldCost, type RankMode } from './gold-costs.svelte';
 	import type { HoningCost } from './honing-cost';
 	import { CATEGORY_LABELS, type Upgrade, type UpgradeCategory } from './upgrades';
 
@@ -132,7 +132,7 @@
 							<div class="flex min-w-0 flex-1 flex-col">
 									<UpgradeTitle {u} />
 								<span class="text-xs text-surface-400">{u.detail}</span>
-								{#if mode === 'gold'}<GoldCost {u} auto={auto[u.key]} />{/if}
+								{#if mode === 'gold' && supportsGoldCost(u)}<GoldCost {u} auto={auto[u.key]} />{/if}
 							</div>
 							<div class="flex shrink-0 flex-col text-right">
 								<span class="text-sm font-semibold text-green-400 tabular-nums">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>

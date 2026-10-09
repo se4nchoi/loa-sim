@@ -8,7 +8,7 @@
 	import GoldCost from './GoldCost.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
 	import { autoHoningCosts, materialsFor } from './honing-cost';
-	import { bookCost, byGold, formatGold, gold, goldPerPct, loadGold, setRankMode } from './gold-costs.svelte';
+	import { bookCost, byGold, formatGold, gold, goldPerPct, loadGold, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { onMount } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
@@ -44,10 +44,11 @@
 
 	const simNow = $derived(simState ? $state.snapshot(simState) : initSimState(loadout));
 	const upgrades = $derived(liveUpgrades(loadout, simNow, simBase ?? initSimState(loadout)));
+	const goldUpgrades = $derived(upgrades.filter(supportsGoldCost));
 	/** This character's bound honing mats. */
 	const bound = $derived(gold.bound[characterKey] ?? {});
 	// Honing rows are priced from material prices; a cost typed on the row wins.
-	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices, bound) : {});
+	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices, bound, simNow.karma) : {});
 	const costs = $derived({
 		...Object.fromEntries(upgrades.flatMap((u) => (u.knownCost === undefined ? [] : [[u.key, u.knownCost]]))),
 		...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])),
@@ -70,10 +71,10 @@
 	const priced = $derived(gold.mode === 'gold' ? topDistinct(byGold(upgrades, costs), limit) : []);
 	const shown = $derived(
 		gold.mode === 'gold'
-			? [...priced, ...topDistinct(upgrades.filter((u) => costs[u.key] === undefined), limit - priced.length)]
+			? [...priced, ...topDistinct(upgrades.filter((u) => !supportsGoldCost(u) || costs[u.key] === undefined), limit - priced.length)]
 			: topDistinct(upgrades, limit)
 	);
-	const unpriced = $derived(upgrades.filter((u) => costs[u.key] === undefined).length);
+	const unpriced = $derived(goldUpgrades.filter((u) => costs[u.key] === undefined).length);
 </script>
 
 <div class="flex min-h-0 flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
@@ -125,10 +126,10 @@
 				{@const honing = gold.mode === 'gold' && auto[u.key] && !gold.costs[u.key] ? auto[u.key] : null}
 				{#if gold.mode === 'gold' && i === priced.length}
 					{#if priced.length}
-						<p class="col-span-full mt-1 border-t border-neutral-950 px-1.5 pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Not priced yet</p>
+						<p class="col-span-full mt-1 border-t border-neutral-950 px-1.5 pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Other CP upgrades</p>
 					{:else}
 						<p class="col-span-full px-1.5 py-1.5 text-xs text-surface-400">
-							NA has no market data, so enter what each upgrade costs you to rank by gold per 1% CP.
+							Enter upgrade costs to rank by gold per 1% CP. Ark Grid suggestions are ranked by CP only.
 						</p>
 					{/if}
 				{/if}
@@ -147,7 +148,7 @@
 					<div class="flex min-w-0 flex-col">
 						<UpgradeTitle {u} />
 						{#if !u.subject}<span class="text-xs text-surface-500">{CATEGORY_LABELS[u.category]}</span>{/if}
-						{#if gold.mode === 'gold'}<GoldCost {u} auto={auto[u.key]} showPer={false} />{/if}
+						{#if gold.mode === 'gold' && supportsGoldCost(u)}<GoldCost {u} auto={auto[u.key]} showPer={false} />{/if}
 					</div>
 					<!-- On calculated honing rows the gold per 1% lines sit level with the avg / pity boxes. -->
 					<span class="text-right whitespace-nowrap text-green-400 tabular-nums {honing ? 'self-end' : ''}">
