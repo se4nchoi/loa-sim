@@ -1,8 +1,8 @@
-<!-- A Next Upgrades row's gold cost: "+ gold" or "45k · 38.2k per 1%", editable in place. -->
+<!-- A Next Upgrades row's gold cost: calculated honing estimates or editable prices for other upgrades. -->
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { GOLD_ICON } from './icons';
-	import { bookCost, formatGold, gold, parseGold, setBookPrice, setGoldCost } from './gold-costs.svelte';
+	import { bookCost, formatGold, gold, manualGoldCost, parseGold, setBookPrice, setGoldCost } from './gold-costs.svelte';
 	import type { HoningCost } from './honing-cost';
 	import type { Upgrade } from './upgrades';
 	import HoningBreakdown from './HoningBreakdown.svelte';
@@ -14,18 +14,19 @@
 		showPer = true
 	}: {
 		u: Upgrade;
-		/** Cost calculated from material prices (honing); a typed cost overrides it. */
+		/** Cost calculated from material prices. Equipment honing cannot be overridden by a typed total. */
 		auto?: HoningCost;
 		/** Show gold per 1% next to the cost (the sidebar shows it by the gain). */
 		showPer?: boolean;
 	} = $props();
 
 	let editing = $state(false);
-	let showBreakdown = $state(false);
+	let breakdownMode = $state<'average' | 'pity' | null>(null);
 	let text = $state('');
 	let input = $state<HTMLInputElement>();
 	// Engraving book rows are always price per book × books; a total typed there before book prices existed is ignored.
-	const typed = $derived(u.books ? undefined : gold.costs[u.key]);
+	const canEdit = $derived(u.category !== 'honing');
+	const typed = $derived(u.books ? undefined : manualGoldCost(u, gold.costs));
 	/** Engraving book rows are priced per book; the box edits that price. */
 	const bookPrice = $derived(u.books ? gold.bookPrices[u.books.engraving] : undefined);
 	const cost = $derived(typed ?? auto?.expected ?? bookCost(u, gold.bookPrices) ?? u.knownCost);
@@ -33,11 +34,12 @@
 	const autoTitle = $derived(
 		auto
 			? `Average ${formatGold(auto.expected)} over ${auto.taps.toFixed(1)} taps${auto.breath ? ` with full ${auto.breathLabel}` : ''} (used for gold per 1%). ` +
-					`Pity ${formatGold(auto.worst)} at ${auto.maxTaps} taps, when the meter forces success. ${u.category === 'karma' ? 'Assumes unlimited Destiny Stones. ' : ''}Click to type your own cost instead.`
+					`Pity ${formatGold(auto.worst)} at ${auto.maxTaps} taps, when the meter forces success. ${u.category === 'karma' ? 'Assumes unlimited Destiny Stones. ' : ''}${canEdit ? 'Click to type your own cost instead.' : 'Calculated from your material prices and bound stock.'}`
 			: ''
 	);
 
 	async function edit() {
+		if (!canEdit) return;
 		text = u.books ? (bookPrice !== undefined ? formatGold(bookPrice) : '') : typed ? formatGold(typed) : '';
 		editing = true;
 		await tick();
@@ -72,6 +74,7 @@
 	<div class="mt-0.5 inline-grid w-fit grid-cols-[auto_auto] gap-0.5">
 		<button
 			type="button"
+			disabled={!canEdit}
 			onclick={edit}
 			class="col-start-1 inline-flex h-6 items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold tabular-nums transition {cost !== undefined
 				? 'border-amber-400/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
@@ -82,13 +85,13 @@
 					? 'Edit the gold cost (empty to clear)'
 					: auto
 						? autoTitle
-						: `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
+						: !canEdit ? (cost === 0 ? u.detail : 'No calculated cost is available for this upgrade yet.') : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 		>
 			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-			{#if cost === 0 && !typed}Free{#if showPer}<span class="font-normal text-surface-300">· {u.detail}</span>{/if}{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1% {!typed && auto ? 'avg' : ''}</span>{/if}{:else}{u.books ? 'Add book price' : 'Add gold cost'}{/if}
+			{#if cost === 0 && !typed}Free{#if showPer}<span class="font-normal text-surface-300">· {u.detail}</span>{/if}{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1% {!typed && auto ? 'avg' : ''}</span>{/if}{:else}{!canEdit ? 'Cost unavailable' : u.books ? 'Add book price' : 'Add gold cost'}{/if}
 		</button>
 		{#if auto?.breakdown}
-			<button type="button" class="{btn} col-start-2 row-start-1 h-6 px-1.5 text-[11px]" onclick={() => (showBreakdown = true)} aria-label={`Material breakdown for ${u.title}`} title="Bound materials used and market purchases">Details</button>
+			<button type="button" class="{btn} col-start-2 row-start-1 h-6 px-1.5 text-[11px]" onclick={() => (breakdownMode = 'average')} aria-label={`Average material breakdown for ${u.title}`} title="Average bound materials used and market purchases">Details</button>
 		{/if}
 		{#if u.books && bookPrice !== undefined && !typed}
 			<span class="col-start-1 text-[11px] text-surface-400 tabular-nums">{formatGold(bookPrice)} / book × {u.books.count}</span>
@@ -102,10 +105,13 @@
 				<img src={GOLD_ICON} alt="" class="size-4 shrink-0" /><span class="ml-auto">{formatGold(auto.worst)}</span><span class="w-6 text-left font-normal text-orange-300/70">pity</span>
 				{#if showPer && u.gainPct > 0}<span class="font-normal text-orange-200/80">· {formatGold(auto.worst / u.gainPct)} per 1% pity</span>{/if}
 			</span>
+			{#if auto.breakdown}
+				<button type="button" class="{btn} col-start-2 row-start-2 h-6 px-1.5 text-[11px]" onclick={() => (breakdownMode = 'pity')} aria-label={`Pity material breakdown for ${u.title}`} title="Bound materials used and market purchases at pity">Details</button>
+			{/if}
 		{/if}
 	</div>
 {/if}
 
-{#if showBreakdown && auto?.breakdown}
-	<HoningBreakdown cost={auto} title={u.title} manualCost={typed} onclose={() => (showBreakdown = false)} />
+{#if breakdownMode && auto?.breakdown}
+	<HoningBreakdown cost={auto} title={u.title} initialMode={breakdownMode} onclose={() => (breakdownMode = null)} />
 {/if}

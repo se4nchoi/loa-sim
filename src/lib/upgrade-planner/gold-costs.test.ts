@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { bookCost, byGold, formatGold, goldPerPct, parseGold, parseOwned } from './gold-costs.svelte';
+import { bookCost, byGold, formatGold, goldPerPct, manualGoldCost, parseGold, parseOwned } from './gold-costs.svelte';
 import type { Upgrade } from './upgrades';
 
 const up = (key: string, gainPct: number) => ({ key, gainPct, category: 'gem', title: key, detail: '', count: 1, approximate: false }) as Upgrade;
 
 describe('gold costs', () => {
+	it('ignores saved manual equipment honing totals while preserving other upgrade inputs', () => {
+		const gear = { ...up('honing:weapon:25', 1), category: 'honing' as const };
+		const bracer = { ...gear, key: 'bracer:epic:1' };
+		const advanced = { ...gear, key: 'advanced:head:20' };
+		const gem = up('gem:T4:9', 0.5);
+		const costs = { [gear.key]: 123, [bracer.key]: 456, [advanced.key]: 789, [gem.key]: 100000 };
+		expect(manualGoldCost(gear, costs)).toBeUndefined();
+		expect(manualGoldCost(bracer, costs)).toBeUndefined();
+		expect(manualGoldCost(advanced, costs)).toBeUndefined();
+		expect(manualGoldCost(gem, costs)).toBe(100000);
+	});
 	it('excludes Ark Grid suggestions from gold efficiency even with old saved prices', () => {
 		const core = { ...up('core:1:20', 1), category: 'core' as const };
 		const astrogem = { ...up('astrogem:2001', 0.5), category: 'astrogem' as const };

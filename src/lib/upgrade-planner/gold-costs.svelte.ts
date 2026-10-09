@@ -159,6 +159,9 @@ export function formatGold(g: number): string {
 /** Ark Grid rolls remain CP suggestions without a predictable gold cost. */
 export const supportsGoldCost = (u: Upgrade) => u.category !== 'core' && u.category !== 'astrogem';
 
+/** Equipment honing is priced from materials; old manually entered totals no longer override it. */
+export const manualGoldCost = (u: Upgrade, costs: Record<string, number>) => u.category === 'honing' ? undefined : costs[u.key];
+
 /** Gold per 1% Combat Power (lower is better); null without a cost or a gain. */
 export const goldPerPct = (u: Upgrade, costs: Record<string, number>) => {
 	if (!supportsGoldCost(u)) return null;

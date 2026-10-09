@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { materialIcon, materialName, type HoningCost } from './honing-cost';
 	import { iconUrl } from './icons';
 	import { btn, btnAccent } from './sim/ui';
-	let { cost, title, manualCost, onclose }: { cost: HoningCost; title: string; manualCost?: number; onclose: () => void } = $props();
+	let { cost, title, initialMode = 'average', onclose }: { cost: HoningCost; title: string; initialMode?: 'average' | 'pity'; onclose: () => void } = $props();
 	let dialog: HTMLDialogElement;
-	let mode = $state<'average' | 'pity'>('average');
+	let mode = $state<'average' | 'pity'>(untrack(() => initialMode));
 	const details = $derived(cost.breakdown?.[mode]);
 	const quantity = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
 	const money = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -21,7 +21,6 @@
 		<button type="button" class={btn} onclick={() => dialog.close()} aria-label="Close material breakdown">Close</button>
 	</div>
 	<div class="space-y-3 p-4">
-		{#if manualCost !== undefined}<p class="text-xs text-amber-200">Your entered total ({money(manualCost)} gold) overrides the estimate for ranking. This breakdown shows the calculated material estimate.</p>{/if}
 		<div class="flex flex-wrap items-center gap-2">
 			<button type="button" class={mode === 'average' ? btnAccent : btn} aria-pressed={mode === 'average'} onclick={() => (mode = 'average')}>Average</button>
 			<button type="button" class={mode === 'pity' ? btnAccent : btn} aria-pressed={mode === 'pity'} onclick={() => (mode = 'pity')}>Pity</button>

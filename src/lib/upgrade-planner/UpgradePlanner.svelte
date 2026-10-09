@@ -8,7 +8,7 @@
 	import GoldCost from './GoldCost.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
 	import { autoHoningCosts, materialsFor } from './honing-cost';
-	import { bookCost, byGold, formatGold, gold, goldPerPct, loadGold, setRankMode, supportsGoldCost } from './gold-costs.svelte';
+	import { bookCost, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { onMount } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
@@ -47,12 +47,15 @@
 	const goldUpgrades = $derived(upgrades.filter(supportsGoldCost));
 	/** This character's bound honing mats. */
 	const bound = $derived(gold.bound[characterKey] ?? {});
-	// Honing rows are priced from material prices; a cost typed on the row wins.
+	// Equipment honing always uses material prices, ignoring previously entered totals.
 	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices, bound, simNow.karma) : {});
 	const costs = $derived({
 		...Object.fromEntries(upgrades.flatMap((u) => (u.knownCost === undefined ? [] : [[u.key, u.knownCost]]))),
 		...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])),
-		...gold.costs,
+		...Object.fromEntries(upgrades.flatMap((u) => {
+			const cost = manualGoldCost(u, gold.costs);
+			return cost === undefined ? [] : [[u.key, cost]];
+		})),
 		// Book rows: price per book × books, over any total typed on the row before book prices existed.
 		...Object.fromEntries(upgrades.flatMap((u) => (bookCost(u, gold.bookPrices) === undefined ? [] : [[u.key, bookCost(u, gold.bookPrices)!]])))
 	});
@@ -74,7 +77,7 @@
 			? [...priced, ...topDistinct(upgrades.filter((u) => !supportsGoldCost(u) || costs[u.key] === undefined), limit - priced.length)]
 			: topDistinct(upgrades, limit)
 	);
-	const unpriced = $derived(goldUpgrades.filter((u) => costs[u.key] === undefined).length);
+	const unpriced = $derived(goldUpgrades.filter((u) => u.category !== 'honing' && costs[u.key] === undefined).length);
 </script>
 
 <div class="flex min-h-0 flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
@@ -123,7 +126,7 @@
 		</div>
 		<div class="grid min-h-0 gap-x-2 overflow-y-auto overscroll-contain p-1 {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
 			{#each shown as u, i (u.key)}
-				{@const honing = gold.mode === 'gold' && auto[u.key] && !gold.costs[u.key] ? auto[u.key] : null}
+				{@const honing = gold.mode === 'gold' && auto[u.key] && manualGoldCost(u, gold.costs) === undefined ? auto[u.key] : null}
 				{#if gold.mode === 'gold' && i === priced.length}
 					{#if priced.length}
 						<p class="col-span-full mt-1 border-t border-neutral-950 px-1.5 pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Other CP upgrades</p>
