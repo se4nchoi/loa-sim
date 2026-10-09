@@ -172,7 +172,7 @@
 		<div class="flex min-w-0 flex-row items-center gap-2" hidden={editable.length === 0}>
 			<HScroll class="flex-1 items-center gap-1.5">
 				{#each [10, 9, 8, 7, 6] as lv (lv)}
-					<button type="button" class="{lv === 10 ? btnAccent : btn} shrink-0 whitespace-nowrap" onclick={() => setAll(() => lv)} title={`Every gem at Lv. ${lv}`}>{lv === 10 ? 'Max' : `Lv. ${lv}`}</button>
+					<button type="button" class="{lv === 10 ? btnAccent : btn} shrink-0 whitespace-nowrap" onclick={() => setAll(() => lv)} title={`Every gem at Lv. ${lv}`}>Lv. {lv}</button>
 				{/each}
 				<span class="mx-1 h-5 w-px shrink-0 bg-surface-700"></span>
 				<button type="button" class="{btn} shrink-0 whitespace-nowrap" onclick={() => setAll((v) => v - 1)}>All −1</button>
