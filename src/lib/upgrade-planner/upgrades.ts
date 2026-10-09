@@ -38,6 +38,8 @@ export interface Upgrade {
 	count: number;
 	/** True when the value relies on an assumption rather than an exact table. */
 	approximate: boolean;
+	/** Relic engraving books this row reads: priced as the player's price per book × count. */
+	books?: { engraving: number; name: string; count: number };
 	/** Gold cost known without asking the player (e.g. 0 for a free drop); a typed cost still wins. */
 	knownCost?: number;
 	/** Alternatives that exclude each other (e.g. ability stone patterns) share a group. */
@@ -396,6 +398,7 @@ function engravingUpgrades(l: Loadout): Upgrade[] {
 						category: 'engraving' as const,
 						title: `${e.name} relic books ${ENGRAVING_BOOK_STEPS[e.col]} → ${ENGRAVING_BOOK_STEPS[e.col + 1]}`,
 						detail: 'Read 5 more relic engraving books.',
+						books: { engraving: e.id, name: e.name, count: ENGRAVING_BOOK_STEPS[e.col + 1] - ENGRAVING_BOOK_STEPS[e.col] },
 						gainPct: g(e.value, e.table[e.stone][e.col + 1], e.defense),
 						count: 1,
 						approximate: false

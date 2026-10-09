@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { byGold, formatGold, goldPerPct, parseGold, parseOwned } from './gold-costs.svelte';
+import { bookCost, byGold, formatGold, goldPerPct, parseGold, parseOwned } from './gold-costs.svelte';
 import type { Upgrade } from './upgrades';
 
 const up = (key: string, gainPct: number) => ({ key, gainPct, category: 'gem', title: key, detail: '', count: 1, approximate: false }) as Upgrade;
@@ -49,5 +49,12 @@ describe('gold costs', () => {
 		expect(parseOwned('9999999999')).toBe(9999999999);
 		expect(parseOwned('99999')).toBe(99999);
 		expect(parseOwned('lots')).toBeNull();
+	});
+
+	it('prices engraving book rows as price per book × books read', () => {
+		const u = { ...up('engraving:1255:books:5', 1), books: { engraving: 1255, name: 'Mass Increase', count: 5 } } as Upgrade;
+		expect(bookCost(u, {})).toBeUndefined();
+		expect(bookCost(u, { 1255: 80000 })).toBe(400000);
+		expect(bookCost(up('gem:T4:9', 1), { 1255: 80000 })).toBeUndefined();
 	});
 });

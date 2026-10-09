@@ -2,7 +2,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { GOLD_ICON } from './icons';
-	import { formatGold, gold, goldPerPct, parseGold, setGoldCost } from './gold-costs.svelte';
+	import { bookCost, formatGold, gold, parseGold, setBookPrice, setGoldCost } from './gold-costs.svelte';
 	import type { HoningCost } from './honing-cost';
 	import type { Upgrade } from './upgrades';
 
@@ -22,7 +22,9 @@
 	let text = $state('');
 	let input = $state<HTMLInputElement>();
 	const typed = $derived(gold.costs[u.key]);
-	const cost = $derived(typed ?? auto?.expected ?? u.knownCost);
+	/** Engraving book rows are priced per book; the box edits that price. */
+	const bookPrice = $derived(u.books ? gold.bookPrices[u.books.engraving] : undefined);
+	const cost = $derived(typed ?? auto?.expected ?? bookCost(u, gold.bookPrices) ?? u.knownCost);
 	const per = $derived(cost !== undefined && u.gainPct > 0 ? cost / u.gainPct : null);
 	const autoTitle = $derived(
 		auto
@@ -32,7 +34,7 @@
 	);
 
 	async function edit() {
-		text = typed ? formatGold(typed) : '';
+		text = u.books ? (bookPrice !== undefined ? formatGold(bookPrice) : '') : typed ? formatGold(typed) : '';
 		editing = true;
 		await tick();
 		input?.select();
@@ -40,7 +42,8 @@
 	function commit() {
 		if (!editing) return;
 		editing = false;
-		setGoldCost(u.key, text.trim() ? parseGold(text) : null);
+		if (u.books) setBookPrice(u.books.engraving, text.trim() ? parseGold(text) : null);
+		else setGoldCost(u.key, text.trim() ? parseGold(text) : null);
 	}
 </script>
 
@@ -53,8 +56,8 @@
 			if (e.key === 'Enter') commit();
 			if (e.key === 'Escape') editing = false;
 		}}
-		placeholder="e.g. 45k or 5.5m"
-		aria-label={`Gold cost of ${u.title}${u.count > 1 ? ' (one)' : ''}`}
+		placeholder={u.books ? 'per book, e.g. 80k' : 'e.g. 45k or 5.5m'}
+		aria-label={u.books ? `Price of one ${u.books.name} relic book` : `Gold cost of ${u.title}${u.count > 1 ? ' (one)' : ''}`}
 		class="mt-0.5 h-6 w-24 rounded-xs border border-surface-600 bg-surface-800 px-1.5 text-xs text-surface-100 tabular-nums focus:border-accent-500 focus:outline-none"
 	/>
 {:else}
@@ -66,11 +69,20 @@
 			class="inline-flex h-6 items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold tabular-nums transition {cost !== undefined
 				? 'border-amber-400/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
 				: 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'}"
-			title={typed ? 'Edit the gold cost (empty to clear)' : auto ? autoTitle : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
+			title={u.books
+				? `Price of one ${u.books.name} relic book; this row reads ${u.books.count}${bookPrice !== undefined ? ` (${formatGold(bookPrice)} × ${u.books.count})` : ''}`
+				: typed
+					? 'Edit the gold cost (empty to clear)'
+					: auto
+						? autoTitle
+						: `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 		>
 			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-			{#if cost === 0 && !typed}Free{#if showPer}<span class="font-normal text-surface-300">· {u.detail}</span>{/if}{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{!typed ? '≈' : ''}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1% {!typed && auto ? 'avg' : ''}</span>{/if}{:else}Add gold cost{/if}
+			{#if cost === 0 && !typed}Free{#if showPer}<span class="font-normal text-surface-300">· {u.detail}</span>{/if}{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1% {!typed && auto ? 'avg' : ''}</span>{/if}{:else}{u.books ? 'Add book price' : 'Add gold cost'}{/if}
 		</button>
+		{#if u.books && bookPrice !== undefined && !typed}
+			<span class="text-[11px] text-surface-400 tabular-nums">{formatGold(bookPrice)} / book × {u.books.count}</span>
+		{/if}
 		{#if auto && !typed}
 			<!-- Pity: every tap fails until the meter forces success. -->
 			<span

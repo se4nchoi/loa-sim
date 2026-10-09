@@ -7,6 +7,7 @@ import type { Upgrade } from './upgrades';
 const KEY = 'loa-sim:gold-costs';
 const PRICES_KEY = 'loa-sim:material-prices';
 const MODE_KEY = 'loa-sim:upgrade-rank';
+const BOOKS_KEY = 'loa-sim:book-prices';
 
 export type RankMode = 'cp' | 'gold';
 
@@ -26,6 +27,8 @@ export const gold = $state<{
 	/** Bound honing mats per character key. */
 	bound: Record<string, MaterialOwned>;
 	pricesAt: number | null;
+	/** Gold per relic engraving book, by engraving id; shared by every character. */
+	bookPrices: Record<string, number>;
 	mode: RankMode;
 	loaded: boolean;
 }>({
@@ -33,6 +36,7 @@ export const gold = $state<{
 	prices: {},
 	bound: {},
 	pricesAt: null,
+	bookPrices: {},
 	mode: 'cp',
 	loaded: false
 });
@@ -43,6 +47,12 @@ export function loadGold() {
 	try {
 		const p = JSON.parse(localStorage.getItem(PRICES_KEY) ?? 'null');
 		if (p && typeof p.prices === 'object') ((gold.prices = p.prices), (gold.bound = p.bound ?? {}), (gold.pricesAt = p.at ?? null));
+	} catch {
+		/* none yet */
+	}
+	try {
+		const b = JSON.parse(localStorage.getItem(BOOKS_KEY) ?? '{}');
+		if (b && typeof b === 'object') gold.bookPrices = b;
 	} catch {
 		/* none yet */
 	}
@@ -96,6 +106,21 @@ export function parseOwned(text: string): number | null {
 	const n = parseGold(t);
 	return n === null ? null : Math.min(n, PLENTY);
 }
+
+/** Gold per relic book of an engraving (null clears it). */
+export function setBookPrice(engraving: number, price: number | null) {
+	if (price === null) delete gold.bookPrices[engraving];
+	else gold.bookPrices[engraving] = price;
+	try {
+		localStorage.setItem(BOOKS_KEY, JSON.stringify(gold.bookPrices));
+	} catch {
+		/* storage blocked: lasts for this visit */
+	}
+}
+
+/** Book rows cost price per book × books read, once that engraving's book price is set. */
+export const bookCost = (u: Upgrade, bookPrices: Record<string, number>) =>
+	u.books && bookPrices[u.books.engraving] !== undefined ? bookPrices[u.books.engraving] * u.books.count : undefined;
 
 export function setRankMode(mode: RankMode) {
 	gold.mode = mode;

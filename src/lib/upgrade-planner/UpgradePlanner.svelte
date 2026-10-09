@@ -8,7 +8,7 @@
 	import GoldCost from './GoldCost.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
 	import { autoHoningCosts, materialsFor } from './honing-cost';
-	import { byGold, formatGold, gold, goldPerPct, loadGold, setRankMode } from './gold-costs.svelte';
+	import { bookCost, byGold, formatGold, gold, goldPerPct, loadGold, setRankMode } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { onMount } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
@@ -49,6 +49,7 @@
 	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices, bound) : {});
 	const costs = $derived({
 		...Object.fromEntries(upgrades.flatMap((u) => (u.knownCost === undefined ? [] : [[u.key, u.knownCost]]))),
+		...Object.fromEntries(upgrades.flatMap((u) => (bookCost(u, gold.bookPrices) === undefined ? [] : [[u.key, bookCost(u, gold.bookPrices)!]]))),
 		...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])),
 		...gold.costs
 	});

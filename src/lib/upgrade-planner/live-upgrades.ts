@@ -50,7 +50,14 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState): Upgra
 	}
 	for (const [id, e] of Object.entries(state.engravings)) {
 		if (e.books >= ENGRAVING_BOOK_STEPS.length - 1) continue;
-		add({ key: `engraving:${id}:books:${ENGRAVING_BOOK_STEPS[e.books + 1]}`, category: 'engraving', title: `${engravingName(e.as ?? Number(id))} relic books ${ENGRAVING_BOOK_STEPS[e.books]} → ${ENGRAVING_BOOK_STEPS[e.books + 1]}`, detail: 'Read 5 more relic engraving books.' });
+		const read = e.as ?? Number(id); // the engraving whose books are read (a swapped engraving reads its own)
+		add({
+			key: `engraving:${id}:books:${ENGRAVING_BOOK_STEPS[e.books + 1]}`,
+			category: 'engraving',
+			title: `${engravingName(read)} relic books ${ENGRAVING_BOOK_STEPS[e.books]} → ${ENGRAVING_BOOK_STEPS[e.books + 1]}`,
+			detail: 'Read 5 more relic engraving books.',
+			books: { engraving: read, name: engravingName(read), count: ENGRAVING_BOOK_STEPS[e.books + 1] - ENGRAVING_BOOK_STEPS[e.books] }
+		});
 	}
 	for (const slot of ACCESSORY_SLOTS) {
 		const lines = state.accessories[slot];
