@@ -36,15 +36,18 @@
 		}}
 		placeholder="e.g. 45k"
 		aria-label={`Gold cost of ${u.title}${u.count > 1 ? ' (one)' : ''}`}
-		class="h-6 w-24 rounded-xs border border-surface-600 bg-surface-800 px-1.5 text-xs text-surface-100 tabular-nums focus:border-accent-500 focus:outline-none"
+		class="mt-0.5 h-6 w-24 rounded-xs border border-surface-600 bg-surface-800 px-1.5 text-xs text-surface-100 tabular-nums focus:border-accent-500 focus:outline-none"
 	/>
 {:else}
 	<button
 		type="button"
 		onclick={edit}
-		class="w-fit text-left text-xs tabular-nums {cost ? 'text-amber-300/90 hover:text-amber-200' : 'text-surface-500 hover:text-surface-200'}"
+		class="mt-0.5 inline-flex h-6 w-fit items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold tabular-nums transition {cost
+			? 'border-amber-400/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
+			: 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'}"
 		title={cost ? 'Edit the gold cost (empty to clear)' : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 	>
-		{#if cost}{formatGold(cost)} gold{#if per}<span class="text-surface-400"> · {formatGold(per)} per 1%</span>{/if}{:else}+ gold cost{/if}
+		<svg viewBox="0 0 16 16" class="size-3.5 shrink-0" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="#f5c542" stroke="#a87b12" /><circle cx="8" cy="8" r="3.5" fill="none" stroke="#a87b12" /></svg>
+		{#if cost}{formatGold(cost)}{#if per}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%</span>{/if}{:else}Add gold cost{/if}
 	</button>
 {/if}
