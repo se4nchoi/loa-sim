@@ -234,9 +234,22 @@
 			>
 				Jump to<span class="ml-auto"><FoldChip open={!folded.nav} /></span>
 			</button>
-			<div class="grid grid-cols-4 gap-1.5 p-2" hidden={folded.nav}>
+			<!-- One row, scrolled sideways (no scrollbar; the mouse wheel scrolls it too), like the character chips. -->
+			<div
+				class="flex flex-row gap-1.5 overflow-x-auto p-2 [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
+				hidden={folded.nav}
+				onwheel={(e) => {
+					const el = e.currentTarget;
+					if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+					el.scrollLeft += e.deltaY;
+					e.preventDefault();
+				}}
+			>
 				{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'] as title}
-					<a href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`} class="truncate rounded-xs border border-surface-700 bg-surface-800 px-0.5 py-1.5 text-center text-[11px] font-semibold tracking-tight text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a>
+					<a
+						href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`}
+						class="shrink-0 rounded-xs border border-surface-700 bg-surface-800 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a
+					>
 				{/each}
 			</div>
 		</nav>
