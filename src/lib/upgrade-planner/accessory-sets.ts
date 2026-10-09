@@ -40,10 +40,19 @@ export function accessorySetUpgrades(l: Loadout, state: SimState, base: SimState
 	const role = roleOf(l);
 	const cp = simulate(l, state, base).cp;
 	if (!(cp > 0)) return [];
+	// simulate() only reads the state, so each candidate shares it and swaps in the one slot's lines (no deep copy);
+	// results are remembered, since the ladder's options overlap.
+	const memo = new Map<string, number>();
 	const gainOf = (set: AccessorySet) => {
-		const next = structuredClone(state);
-		applyAccessorySet(next, set);
-		return (simulate(l, next, base).cp / cp - 1) * 100;
+		const key = accessorySetKey(set);
+		let gain = memo.get(key);
+		if (gain === undefined) {
+			const lines: SimLine[] = set.lines.map((x) => ({ key: x.key, tier: x.tier }));
+			while (lines.length < 3) lines.push({ key: 'other', label: 'Other' });
+			gain = (simulate(l, { ...state, accessories: { ...state.accessories, [set.slot]: lines } }, base).cp / cp - 1) * 100;
+			memo.set(key, gain);
+		}
+		return gain;
 	};
 	const nameOf = (key: string) => role.accessoryLines.find((x) => x.key === key)?.name ?? key;
 	const out: Upgrade[] = [];
@@ -54,19 +63,28 @@ export function accessorySetUpgrades(l: Loadout, state: SimState, base: SimState
 		const mains = fits.filter((x) => x.primary);
 		if (mains.length < 2) continue;
 		const [a, b] = mains;
+
+		const highHigh = [{ key: a.key, tier: 'high' as Tier }, { key: b.key, tier: 'high' as Tier }];
+		// The third line: the secondary line worth the most on top of High/High.
+		const thirds = fits.filter((x) => !x.primary);
+		const best = thirds
+			.map((x) => ({ key: x.key, gain: gainOf({ slot, lines: [...highHigh, { key: x.key, tier: 'high' }] }) }))
+			.sort((x, y) => y.gain - x.gain)[0];
+		const third = best?.key;
+		// The top roll (High/High + best third at High) bounds every other option: if it doesn't beat the current
+		// accessory, nothing on this slot does.
+		if (Math.max(best?.gain ?? -Infinity, gainOf({ slot, lines: highHigh })) <= 0.0005) continue;
 		// High/Mid puts the High on the line that's worth more.
 		const aHigh = gainOf({ slot, lines: [{ key: a.key, tier: 'high' }, { key: b.key, tier: 'mid' }] });
 		const bHigh = gainOf({ slot, lines: [{ key: a.key, tier: 'mid' }, { key: b.key, tier: 'high' }] });
 		const highMid = aHigh >= bHigh ? [a.key, b.key] : [b.key, a.key];
+		const order = (key: string) => (key === highMid[0] ? 0 : key === highMid[1] ? 1 : 2);
+		// Mid-High (High on the weaker line) is the cheaper reverse of the best-in-slot High-Mid.
 		const mainSets: { key: string; tier: Tier }[][] = [
+			[{ key: highMid[0], tier: 'mid' }, { key: highMid[1], tier: 'high' }],
 			[{ key: highMid[0], tier: 'high' }, { key: highMid[1], tier: 'mid' }],
-			[{ key: a.key, tier: 'high' }, { key: b.key, tier: 'high' }]
+			highHigh
 		];
-		// The third line: the secondary line worth the most on top of High/High.
-		const thirds = fits.filter((x) => !x.primary);
-		const third = thirds
-			.map((x) => ({ key: x.key, gain: gainOf({ slot, lines: [...mainSets[1], { key: x.key, tier: 'high' }] }) }))
-			.sort((x, y) => y.gain - x.gain)[0]?.key;
 		const options = mainSets.flatMap((mainLines, m) =>
 			(third ? THIRD : (['none'] as const)).map((t) => {
 				const set: AccessorySet = { slot, lines: t === 'none' ? mainLines : [...mainLines, { key: third!, tier: t }] };
@@ -84,7 +102,8 @@ export function accessorySetUpgrades(l: Loadout, state: SimState, base: SimState
 				category: 'accessory',
 				subject: SLOT_NAMES[slot],
 				title: [m1, m2, t3].filter(Boolean).map((x) => nameOf(x.key)).join(' · ') + (t3 ? '' : ' · None'),
-				lines: o.set.lines.map((x) => ({ name: nameOf(x.key), tier: x.tier })),
+				// Main lines best-in-slot first: High-Mid is the BiS roll, Mid-High its reverse.
+				lines: [...o.set.lines].sort((x, y) => order(x.key) - order(y.key)).map((x) => ({ name: nameOf(x.key), tier: x.tier })),
 				detail: '',
 				gainPct: o.gain,
 				count: 1,

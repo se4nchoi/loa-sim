@@ -11,7 +11,7 @@
 	import { autoHoningCosts, materialsFor } from './honing-cost';
 	import { bookCost, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
 	import { initSimState, type SimState } from './simulate';
 	import { roleOf } from './roles';
@@ -44,7 +44,14 @@
 		flashTimer = setTimeout(() => (flash = null), 1200);
 	}
 
-	const simNow = $derived(simState ? $state.snapshot(simState) : initSimState(loadout));
+	const live = $derived(simState ? $state.snapshot(simState) : initSimState(loadout));
+	// Recalculated a moment after the last edit, not on every click: edits stay instant while stepping through values.
+	let simNow = $state.raw(untrack(() => live)); // raw: a plain snapshot (a proxy can't be structuredClone'd)
+	$effect(() => {
+		const next = live;
+		const timer = setTimeout(() => (simNow = next), 150);
+		return () => clearTimeout(timer);
+	});
 	const upgrades = $derived(liveUpgrades(loadout, simNow, simBase ?? initSimState(loadout)));
 	const goldUpgrades = $derived(upgrades.filter(supportsGoldCost));
 	/** This character's bound honing mats. */

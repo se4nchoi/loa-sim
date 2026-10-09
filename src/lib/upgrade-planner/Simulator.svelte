@@ -93,6 +93,16 @@
 				row.scrollTo({ left: Math.max(0, left - 16), behavior: 'smooth' });
 		}
 	});
+	/** Desktop width: the sidebar's Next Upgrades exists only then (phones use the drawer), so it isn't computed twice. */
+	let wide = $state(true);
+	$effect(() => {
+		const mq = matchMedia('(min-width: 1024px)');
+		const update = () => (wide = mq.matches);
+		update();
+		mq.addEventListener('change', update);
+		window.addEventListener('resize', update);
+		return () => (mq.removeEventListener('change', update), window.removeEventListener('resize', update));
+	});
 	/** Phones: the Next Upgrades drawer (see BottomDrawer). */
 	let drawerOpen = $state(false);
 	/** Dock the CP bar at the top first (scroll it up if it's still mid-page), so it shows above the drawer. */
@@ -338,7 +348,7 @@
 			</button>
 			<div hidden={folded.nav}>{@render jumpChips("p-2")}</div>
 		</nav>
-		<UpgradePlanner class="max-lg:hidden lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
+		{#if wide}<UpgradePlanner class="lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />{/if}
 		{@render sidebar?.()}
 	</div>
 </div>
