@@ -207,6 +207,7 @@
 {#snippet jumpChips(pad: string)}
 	<!-- One row, scrolled sideways (no scrollbar; the mouse wheel scrolls it too), like the character chips. -->
 	<div
+		data-scroll-x
 		class="flex flex-row gap-1.5 overflow-x-auto {pad} [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
 		onwheel={(e) => {
 			const el = e.currentTarget;

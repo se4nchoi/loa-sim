@@ -1,7 +1,7 @@
 <!--
 	Bottom sheet for phones: slides up with an ease-out curve and closes on a drag down from its handle (or from any
-	zone inside that uses the shared `drawerDrag` action, e.g. the content's title row), a tap on the handle or the
-	clear backdrop, or Escape. The page behind doesn't scroll while it's open.
+	zone inside that uses the shared `drawerDrag` action, e.g. the content's title row), a tap on the handle, or Escape.
+	No backdrop, so what's above it (the CP bar) stays usable; the page behind doesn't scroll while it's open.
 		<BottomDrawer bind:open label="Next Upgrades">…body…</BottomDrawer>
 -->
 <script lang="ts" module>
@@ -40,17 +40,23 @@
 		document.body.style.overflow = 'hidden';
 		const onKey = (e: KeyboardEvent) => e.key === 'Escape' && (open = false);
 		window.addEventListener('keydown', onKey);
+		// iOS Safari ignores overflow:hidden on the body: block page-scrolling swipes outside the sheet instead
+		// (sideways scrollers marked data-scroll-x, like the section chips, still swipe).
+		const onTouchMove = (e: TouchEvent) => {
+			const t = e.target as HTMLElement | null;
+			if (t && (sheet?.contains(t) || t.closest('[data-scroll-x]'))) return;
+			e.preventDefault();
+		};
+		document.addEventListener('touchmove', onTouchMove, { passive: false });
 		return () => {
 			document.body.style.overflow = before;
 			window.removeEventListener('keydown', onKey);
+			document.removeEventListener('touchmove', onTouchMove);
 		};
 	});
 </script>
 
 {#if open}
-	<!-- Clear (no dimming), so the page and its CP bar stay readable; a tap on it still closes the drawer. -->
-	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-	<div class="fixed inset-0 z-50 lg:hidden" onclick={() => (open = false)}></div>
 	<div
 		bind:this={sheet}
 		style:max-height={top > 0 ? `calc(100dvh - ${Math.round(top)}px)` : undefined}

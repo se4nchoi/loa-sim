@@ -188,9 +188,12 @@
 			<button type="button" class={btnAccent} onclick={() => (sim.bracelet = maxBracelet(loadout, maxScore(loadout, $state.snapshot(sim), $state.snapshot(base))))} title="Highest simulated CP from two max stat rolls and three distinct high-roll effects">All max</button>
 			<button type="button" class={btn} onclick={() => (sim.bracelet = structuredClone($state.snapshot(base.bracelet)))}>Reset</button>
 		{/snippet}
-		<!-- Phones: no icon, and the line type is a dropdown, so each line fits on one row. -->
+		<!-- Phones: the icon (with the item name) sits above the lines, and the line type is a dropdown so each line fits. -->
 		<div class="grid grid-cols-[max-content_1fr] gap-x-3 rounded-xs bg-black/15 p-2.5 max-sm:grid-cols-1 max-sm:p-2">
-			<span class="max-sm:hidden"><ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="leap" size="size-12" /></span>
+			<span class="max-sm:mb-1 max-sm:flex max-sm:flex-row max-sm:items-center max-sm:gap-2.5">
+				<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="leap" size="size-12 max-sm:size-10" />
+				<span class="min-w-0 truncate text-sm font-semibold text-surface-100 sm:hidden">{look.name}</span>
+			</span>
 			<div class="flex min-w-0 flex-col gap-1.5">
 				{#each sim.bracelet.lines as line, i (i)}
 					{@const before = base.bracelet?.lines[i]}
