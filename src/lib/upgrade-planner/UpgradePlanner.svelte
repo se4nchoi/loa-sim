@@ -126,10 +126,10 @@
 						{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
 						{#if honing}
 							<span class="mt-0.5 flex h-6 items-center justify-end text-[11px] text-amber-300/90" title="Gold per 1% Combat Power, from the average honing cost"
-								>{formatGold(honing.expected / u.gainPct)} / 1%&nbsp;<span class="text-surface-400">avg</span></span
+								>{formatGold(honing.expected / u.gainPct)} / 1%</span
 							>
 							<span class="mt-0.5 flex h-6 items-center justify-end text-[11px] text-orange-300" title="Gold per 1% Combat Power at pity"
-								>{formatGold(honing.worst / u.gainPct)} / 1%&nbsp;<span class="text-surface-400">pity</span></span
+								>{formatGold(honing.worst / u.gainPct)} / 1%</span
 							>
 						{:else if gold.mode === 'gold' && goldPerPct(u, costs)}
 							<span class="block text-[11px] text-amber-300/90" title="Gold per 1% Combat Power">{formatGold(goldPerPct(u, costs)!)} / 1%</span>
