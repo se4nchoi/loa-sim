@@ -67,6 +67,12 @@
 		title={typed ? 'Edit the gold cost (empty to clear)' : auto ? autoTitle : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 	>
 		<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-		{#if cost}{!typed ? '≈' : ''}{formatGold(cost)}{#if !typed && auto}<span class="font-normal text-surface-400">avg{#if showPer} · {formatGold(auto.worst)} pity{/if}</span>{/if}{#if per && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%{!typed && auto ? ' (avg)' : ''}</span>{/if}{:else}Add gold cost{/if}
+		{#if cost}{!typed ? '≈' : ''}{formatGold(cost)}{#if !typed && auto}<span class="font-normal text-surface-400">avg</span>{/if}{#if per && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%{!typed && auto ? ' (avg)' : ''}</span>{/if}{:else}Add gold cost{/if}
 	</button>
+	{#if auto && !typed}
+		<!-- Pity: every tap fails until the meter forces success. -->
+		<span class="mt-0.5 block text-[11px] text-orange-400 tabular-nums" title={`Pity: ${auto.maxTaps} taps, when artisan's energy forces success`}>
+			Pity {formatGold(auto.worst)}{#if u.gainPct > 0} · {formatGold(auto.worst / u.gainPct)} / 1%{/if}
+		</span>
+	{/if}
 {/if}
