@@ -4,7 +4,8 @@
 	import { btn } from './sim/ui';
 	import UpgradeTitle from './UpgradeTitle.svelte';
 	import GoldCost from './GoldCost.svelte';
-	import { byGold, formatGold, gold, goldPerPct, type RankMode } from './gold-costs.svelte';
+	import { byGold, formatGold, goldPerPct, type RankMode } from './gold-costs.svelte';
+	import type { HoningCost } from './honing-cost';
 	import { CATEGORY_LABELS, type Upgrade, type UpgradeCategory } from './upgrades';
 
 	let {
@@ -13,7 +14,9 @@
 		onclose,
 		onapply,
 		flash = null,
-		mode = 'cp'
+		mode = 'cp',
+		auto = {},
+		costs = {}
 	}: {
 		upgrades: Upgrade[];
 		cp: number;
@@ -23,6 +26,10 @@
 		flash?: { key: string; ok: boolean } | null;
 		/** Which upgrades the top three cards show: biggest gain, or least gold per 1% CP. */
 		mode?: RankMode;
+		/** Honing rows priced from material prices. */
+		auto?: Record<string, HoningCost>;
+		/** Gold cost per row: typed, else calculated. */
+		costs?: Record<string, number>;
 	} = $props();
 
 	let dialog: HTMLDialogElement;
@@ -36,7 +43,7 @@
 			.map(([category, list]) => ({ category, list: list.toSorted((a, b) => b.gainPct - a.gainPct) }))
 			.sort((a, b) => b.list[0].gainPct - a.list[0].gainPct);
 	});
-	const best = $derived(mode === 'gold' ? byGold(upgrades, gold.costs).slice(0, 3) : upgrades.slice(0, 3));
+	const best = $derived(mode === 'gold' ? byGold(upgrades, costs).slice(0, 3) : upgrades.slice(0, 3));
 </script>
 
 <dialog
@@ -61,7 +68,7 @@
 							<span class="text-[11px] font-semibold tracking-wide text-surface-400 uppercase">#{i + 1} · {CATEGORY_LABELS[u.category]}</span>
 								<UpgradeTitle {u} />
 							<span class="text-lg font-bold text-green-400">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>
-							{#if mode === 'gold'}<span class="text-xs text-amber-300/90 tabular-nums">{formatGold(goldPerPct(u, gold.costs)!)} gold per 1%</span>{/if}
+							{#if mode === 'gold'}<span class="text-xs text-amber-300/90 tabular-nums">{formatGold(goldPerPct(u, costs)!)} gold per 1%</span>{/if}
 						</div>
 					{/each}
 				</div>
@@ -74,7 +81,7 @@
 							<div class="flex min-w-0 flex-1 flex-col">
 									<UpgradeTitle {u} />
 								<span class="text-xs text-surface-400">{u.detail}</span>
-								{#if mode === 'gold'}<GoldCost {u} />{/if}
+								{#if mode === 'gold'}<GoldCost {u} auto={auto[u.key]} />{/if}
 							</div>
 							<div class="flex shrink-0 flex-col text-right">
 								<span class="text-sm font-semibold text-green-400 tabular-nums">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>

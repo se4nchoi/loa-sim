@@ -66,6 +66,68 @@ export const AEGIR_HONING_TABLE: typeof HONING_TABLE = ${JSON.stringify(aegirHon
 `
 );
 
+// ------------------------------------------------------------------------------------------- honing costs
+
+// Per tap of normal honing, by target level (+1…+25): success chance, its growth on failure, breath, artisan's
+// energy, and the gold / silver / shards / materials consumed. Armor pieces share one table. The material list is
+// the item's per-level entry ("itemQuality" in the feed, keyed levelOption#(100 + level)); the rest is the
+// enhanceCommon row it links to. Chances are in 1/10000.
+const GOLD = 2, SILVER = 1, SHARDS = 18;
+function honingCosts(levelOffset) {
+	const out = {};
+	for (const [kind, levelOption] of [['weapon', SLOTS.weapon.levelOption], ['armor', SLOTS.head.levelOption]]) {
+		out[kind] = Array.from({ length: 25 }, (_, i) => {
+			const entry = stats.itemQuality[`${levelOption - levelOffset}#${101 + i}`];
+			const c = entry && stats.enhanceCommon[entry.common];
+			if (!c) throw new Error(`missing honing cost for ${kind} +${i + 1}`);
+			const breath = c.additive[0];
+			return {
+				success: c.success, failBonus: c.failBonus, failMax: c.failMax, energy: c.threshold,
+				breath: { id: breath.id, rate: breath.rate, max: breath.max },
+				gold: c.money[GOLD] ?? 0, silver: c.money[SILVER] ?? 0, shards: c.money[SHARDS] ?? 0,
+				mats: entry.mats
+			};
+		});
+	}
+	return out;
+}
+const honingCostSets = { serca: honingCosts(0), aegir: honingCosts(1000000) };
+const costMaterialIds = new Set();
+for (const set of Object.values(honingCostSets))
+	for (const steps of Object.values(set)) for (const st of steps) {
+		for (const id of Object.keys(st.mats)) costMaterialIds.add(id);
+		costMaterialIds.add(String(st.breath.id));
+	}
+const costMaterials = {};
+for (const id of [...costMaterialIds].sort()) costMaterials[id] = [items[id].name, items[id].icon];
+fs.writeFileSync(
+	'src/lib/upgrade-planner/honing-cost-data.ts',
+	`${header('Normal honing costs per tap for T4 Serca and Aegir gear, by target level (index 0 = +1).')}
+export interface HoningTap {
+	/** Base success chance, its growth per failure and the cap on that growth (1/10000). */
+	success: number;
+	failBonus: number;
+	failMax: number;
+	/** Artisan's energy: each failure adds (final chance / energy × 10000); success is certain at 100%. */
+	energy: number;
+	/** Breath item: +rate (1/10000) each, up to max per tap. */
+	breath: { id: number; rate: number; max: number };
+	gold: number;
+	silver: number;
+	shards: number;
+	/** Item id → count per tap. */
+	mats: Record<string, number>;
+}
+
+export type HoningSet = 'serca' | 'aegir';
+
+export const HONING_COSTS: Record<HoningSet, Record<'weapon' | 'armor', HoningTap[]>> = ${JSON.stringify(honingCostSets)};
+
+/** Item id → [name, icon] for every material above. */
+export const HONING_MATERIALS: Record<string, [string, string]> = ${JSON.stringify(costMaterials, null, '	')};
+`
+);
+
 // ------------------------------------------------------------------------------------------- items
 
 // Weapons/armor (T4 only), accessories, bracelets, ability stones, orbs, T3/T4 gems and astrogems.

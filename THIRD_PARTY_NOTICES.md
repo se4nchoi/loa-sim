@@ -29,6 +29,10 @@ All game-related assets are property of their respective owners.
   honing level for T4 1675 gear, from the game's item tables as published in Maxroll's planner data feed
   (`assets-ng.maxroll.gg/laplanner/game/stats.json`). Regenerate both with `node scripts/bake-game-data.mjs`.
 
+- Honing costs (`src/lib/upgrade-planner/honing-cost-data.ts`): success chances, failure bonus, breath, artisan's
+  energy, and gold / silver / shards / materials per tap for T4 Serca and Aegir gear, from the game's item and
+  enhance tables in the same Maxroll planner feed. Game facts; the cost model in `honing-cost.ts` is our own.
+
 - Gem, engraving, accessory and karma battle-point values: "딜러 전투력 로직 분석 (25년 7월 9일 패치 반영)",
   https://www.inven.co.kr/board/lostark/4821/106546. Values are game facts, cross-checked against lostark.bible.
 - Accessory option values per grade: as shown in game.

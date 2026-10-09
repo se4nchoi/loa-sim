@@ -6,6 +6,8 @@
 <script lang="ts">
 	import { formatPct } from './format';
 	import GoldCost from './GoldCost.svelte';
+	import MaterialPrices from './MaterialPrices.svelte';
+	import { autoHoningCosts, materialsFor } from './honing-cost';
 	import { byGold, formatGold, gold, goldPerPct, loadGold, setRankMode } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { onMount } from 'svelte';
@@ -37,20 +39,27 @@
 		flashTimer = setTimeout(() => (flash = null), 1200);
 	}
 
-	const upgrades = $derived(liveUpgrades(loadout, simState ? $state.snapshot(simState) : initSimState(loadout), simBase ?? initSimState(loadout)));
+	const simNow = $derived(simState ? $state.snapshot(simState) : initSimState(loadout));
+	const upgrades = $derived(liveUpgrades(loadout, simNow, simBase ?? initSimState(loadout)));
+	// Honing rows are priced from material prices; a cost typed on the row wins.
+	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices) : {});
+	const costs = $derived({ ...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])), ...gold.costs });
+	const materials = $derived(materialsFor(upgrades.map((u) => u.key), simNow.gear));
+	const missingPrices = $derived(materials.filter((id) => gold.prices[id] === undefined).length);
+	let pricesOpen = $state(false);
 	const cp = $derived(currentCp ?? loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
 	let dialogOpen = $state(false);
 
 	onMount(loadGold);
 	/** Most CP first, or (with gold costs entered) least gold per 1% CP first. */
 	// In gold mode, unpriced rows (biggest gain first) fill the card so costs can be added right here.
-	const priced = $derived(gold.mode === 'gold' ? topDistinct(byGold(upgrades, gold.costs), limit) : []);
+	const priced = $derived(gold.mode === 'gold' ? topDistinct(byGold(upgrades, costs), limit) : []);
 	const shown = $derived(
 		gold.mode === 'gold'
-			? [...priced, ...topDistinct(upgrades.filter((u) => !gold.costs[u.key]), limit - priced.length)]
+			? [...priced, ...topDistinct(upgrades.filter((u) => !costs[u.key]), limit - priced.length)]
 			: topDistinct(upgrades, limit)
 	);
-	const unpriced = $derived(upgrades.filter((u) => !gold.costs[u.key]).length);
+	const unpriced = $derived(upgrades.filter((u) => !costs[u.key]).length);
 </script>
 
 <div class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
@@ -73,6 +82,19 @@
 		<p class="p-2 text-sm text-surface-300">No one-step upgrades found for this loadout.</p>
 	{:else}
 		<div class="grid gap-x-2 p-1 {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
+			{#if gold.mode === 'gold' && materials.length}
+				<button
+					type="button"
+					class="col-span-full mx-1 mb-1 flex flex-row items-center justify-between rounded-xs border px-2 py-1 text-xs transition {missingPrices
+						? 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'
+						: 'border-surface-700 text-surface-300 hover:border-surface-500 hover:text-surface-50'}"
+					aria-haspopup="dialog"
+					onclick={() => (pricesOpen = true)}
+				>
+					<span class="font-semibold">Honing material prices</span>
+					<span>{missingPrices ? `${missingPrices} to set` : 'Edit'}</span>
+				</button>
+			{/if}
 			{#each shown as u, i (u.key)}
 				{#if gold.mode === 'gold' && i === priced.length}
 					{#if priced.length}
@@ -90,13 +112,13 @@
 					<div class="flex min-w-0 flex-col">
 						<UpgradeTitle {u} />
 						{#if !u.subject}<span class="text-xs text-surface-500">{CATEGORY_LABELS[u.category]}</span>{/if}
-						{#if gold.mode === 'gold'}<GoldCost {u} showPer={false} />{/if}
+						{#if gold.mode === 'gold'}<GoldCost {u} auto={auto[u.key]} showPer={false} />{/if}
 					</div>
 					<span class="text-right whitespace-nowrap text-green-400 tabular-nums">
 						{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span>
 						{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
-						{#if gold.mode === 'gold' && goldPerPct(u, gold.costs)}
-							<span class="block text-[11px] text-amber-300/90" title="Gold per 1% Combat Power">{formatGold(goldPerPct(u, gold.costs)!)} / 1%</span>
+						{#if gold.mode === 'gold' && goldPerPct(u, costs)}
+							<span class="block text-[11px] text-amber-300/90" title="Gold per 1% Combat Power">{formatGold(goldPerPct(u, costs)!)} / 1%</span>
 						{/if}
 					</span>
 					{#if onapply}
@@ -132,6 +154,10 @@
 	{/if}
 </div>
 
+{#if pricesOpen}
+	<MaterialPrices ids={materials} onclose={() => (pricesOpen = false)} />
+{/if}
+
 {#if dialogOpen}
-	<UpgradeDialog {upgrades} {cp} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} onclose={() => (dialogOpen = false)} />
+	<UpgradeDialog {upgrades} {cp} {auto} {costs} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} onclose={() => (dialogOpen = false)} />
 {/if}

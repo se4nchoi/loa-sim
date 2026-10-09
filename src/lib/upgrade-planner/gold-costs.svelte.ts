@@ -1,9 +1,11 @@
 // Gold costs players enter for Next Upgrades rows (NA has no market API). Kept per upgrade key in this browser and
 // shared by every character, so "T4 gem Lv. 7 → 8" is priced once. Ranking by gold uses gold per 1% Combat Power.
 
+import type { MaterialPrices } from './honing-cost';
 import type { Upgrade } from './upgrades';
 
 const KEY = 'loa-sim:gold-costs';
+const PRICES_KEY = 'loa-sim:material-prices';
 const MODE_KEY = 'loa-sim:upgrade-rank';
 
 export type RankMode = 'cp' | 'gold';
@@ -18,11 +20,23 @@ function read(): Record<string, number> {
 }
 
 /** Shared between the sidebar card and the All Upgrades dialog. Filled on first use in the browser. */
-export const gold = $state<{ costs: Record<string, number>; mode: RankMode; loaded: boolean }>({ costs: {}, mode: 'cp', loaded: false });
+export const gold = $state<{ costs: Record<string, number>; prices: MaterialPrices; pricesAt: number | null; mode: RankMode; loaded: boolean }>({
+	costs: {},
+	prices: {},
+	pricesAt: null,
+	mode: 'cp',
+	loaded: false
+});
 
 export function loadGold() {
 	if (gold.loaded || typeof localStorage === 'undefined') return;
 	gold.costs = read();
+	try {
+		const p = JSON.parse(localStorage.getItem(PRICES_KEY) ?? 'null');
+		if (p && typeof p.prices === 'object') ((gold.prices = p.prices), (gold.pricesAt = p.at ?? null));
+	} catch {
+		/* none yet */
+	}
 	try {
 		gold.mode = localStorage.getItem(MODE_KEY) === 'gold' ? 'gold' : 'cp';
 	} catch {
@@ -36,6 +50,18 @@ export function setGoldCost(key: string, cost: number | null) {
 	else gold.costs[key] = cost;
 	try {
 		localStorage.setItem(KEY, JSON.stringify(gold.costs));
+	} catch {
+		/* storage blocked: lasts for this visit */
+	}
+}
+
+/** Gold per unit for a honing material (null clears it). */
+export function setMaterialPrice(id: string, price: number | null) {
+	if (price === null) delete gold.prices[id];
+	else gold.prices[id] = price;
+	gold.pricesAt = Date.now();
+	try {
+		localStorage.setItem(PRICES_KEY, JSON.stringify({ prices: gold.prices, at: gold.pricesAt }));
 	} catch {
 		/* storage blocked: lasts for this visit */
 	}
@@ -59,6 +85,14 @@ export function parseGold(text: string): number | null {
 	if (!m || !(m[2] in UNITS)) return null;
 	const n = Number(m[1]) * UNITS[m[2]];
 	return n > 0 ? Math.round(n) : null;
+}
+
+/** Like parseGold, but 0 is a valid price (materials you already own). */
+export function parsePrice(text: string): number | null {
+	if (/^\s*0+(\.0+)?\s*$/.test(text)) return 0;
+	const plain = text.trim().replaceAll(',', '');
+	if (/^\d*\.\d+$/.test(plain)) return Number(plain); // fractions, e.g. 0.3 gold per shard
+	return parseGold(text);
 }
 
 export function formatGold(g: number): string {

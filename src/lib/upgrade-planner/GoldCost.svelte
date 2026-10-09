@@ -3,18 +3,36 @@
 	import { tick } from 'svelte';
 	import { GOLD_ICON } from './icons';
 	import { formatGold, gold, goldPerPct, parseGold, setGoldCost } from './gold-costs.svelte';
+	import type { HoningCost } from './honing-cost';
 	import type { Upgrade } from './upgrades';
 
-	let { u, showPer = true }: { u: Upgrade; /** Show gold per 1% next to the cost (the sidebar shows it by the gain). */ showPer?: boolean } = $props();
+	let {
+		u,
+		auto,
+		showPer = true
+	}: {
+		u: Upgrade;
+		/** Cost calculated from material prices (honing); a typed cost overrides it. */
+		auto?: HoningCost;
+		/** Show gold per 1% next to the cost (the sidebar shows it by the gain). */
+		showPer?: boolean;
+	} = $props();
 
 	let editing = $state(false);
 	let text = $state('');
 	let input = $state<HTMLInputElement>();
-	const cost = $derived(gold.costs[u.key]);
-	const per = $derived(goldPerPct(u, gold.costs));
+	const typed = $derived(gold.costs[u.key]);
+	const cost = $derived(typed ?? auto?.expected);
+	const per = $derived(cost && u.gainPct > 0 ? cost / u.gainPct : null);
+	const autoTitle = $derived(
+		auto
+			? `Average from your material prices: ${formatGold(auto.expected)} over ${auto.taps.toFixed(1)} taps${auto.breath ? ' with full breath' : ''}. ` +
+					`Worst case ${formatGold(auto.worst)} (${auto.maxTaps} taps, then the meter forces success). Click to type your own cost instead.`
+			: ''
+	);
 
 	async function edit() {
-		text = cost ? formatGold(cost) : '';
+		text = typed ? formatGold(typed) : '';
 		editing = true;
 		await tick();
 		input?.select();
@@ -46,9 +64,9 @@
 		class="mt-0.5 inline-flex h-6 w-fit items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold tabular-nums transition {cost
 			? 'border-amber-400/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
 			: 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'}"
-		title={cost ? 'Edit the gold cost (empty to clear)' : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
+		title={typed ? 'Edit the gold cost (empty to clear)' : auto ? autoTitle : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 	>
 		<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-		{#if cost}{formatGold(cost)}{#if per && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%</span>{/if}{:else}Add gold cost{/if}
+		{#if cost}{!typed ? '≈' : ''}{formatGold(cost)}{#if !typed && auto}<span class="font-normal text-surface-400">avg · {formatGold(auto.worst)} max</span>{/if}{#if per && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%</span>{/if}{:else}Add gold cost{/if}
 	</button>
 {/if}
