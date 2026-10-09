@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatTop, type CpStanding, type IlvlRange } from '../cp-distribution';
+	import { folded, toggleFold } from './folded.svelte';
 	import Segmented from './Segmented.svelte';
 	import Stepper from './Stepper.svelte';
 	import { formatCp, formatPct } from '../format';
@@ -118,13 +119,31 @@
 	</div>
 	{#if brackets.length && range !== undefined}
 		<div class="flex flex-col gap-1.5 p-2">
-			<div class="flex flex-row items-baseline justify-between gap-2">
-				<span class="text-xs text-surface-400" title={`Combat Power among ${className}s on lostark.bible`}>Standing</span>
-				<span class="text-xs text-surface-500">
-					{range ? `Item Level ${range.from}–${range.to}` : 'All item levels'} · {standing ? `${standing.count.toLocaleString()} ${className}s` : 'no data'}
+			<button
+				type="button"
+				class="group flex flex-row items-baseline justify-between gap-2 text-left"
+				aria-expanded={!folded.standing}
+				onclick={() => toggleFold('standing')}
+				title={folded.standing ? 'Show standing details' : 'Fold standing'}
+			>
+				<span class="text-xs text-surface-400 group-hover:text-surface-100" title={`Combat Power among ${className}s on lostark.bible`}>
+					<span class="inline-block w-3 text-surface-500">{folded.standing ? '▸' : '▾'}</span>Standing
 				</span>
-			</div>
-			{#if standing}
+				{#if folded.standing && standing}
+					{@const now = standing.top(current)}
+					{@const after = standing.top(simulated)}
+					<span class="text-sm font-bold whitespace-nowrap text-surface-100 tabular-nums">
+						{formatTop(now)}{#if formatTop(after) !== formatTop(now)}<span class="font-normal text-surface-400"> → </span><span class={after < now ? 'text-green-400' : 'text-red-400'}>{formatTop(after)}</span>{/if}
+					</span>
+				{:else}
+					<span class="text-xs text-surface-500">
+						{range ? `Item Level ${range.from}–${range.to}` : 'All item levels'} · {standing ? `${standing.count.toLocaleString()} ${className}s` : 'no data'}
+					</span>
+				{/if}
+			</button>
+			{#if folded.standing}
+				<!-- folded: the one line above -->
+			{:else if standing}
 				{@const now = standing.top(current)}
 				{@const after = standing.top(simulated)}
 				<div class="flex flex-row items-baseline gap-1.5 text-lg whitespace-nowrap tabular-nums">
@@ -135,8 +154,10 @@
 					{/if}
 				</div>
 			{/if}
-			<Segmented value={preset} options={PRESETS} onselect={applyPreset} label="Item level range" size="h-7 flex-1 px-2 text-xs" />
-			{#if range}
+			{#if !folded.standing}
+				<Segmented value={preset} options={PRESETS} onselect={applyPreset} label="Item level range" size="h-7 flex-1 px-2 text-xs" />
+			{/if}
+			{#if range && !folded.standing}
 				<div class="flex flex-row items-center gap-1.5">
 					<Stepper bind:value={range.from} min={lo} max={range.to - 10} step={10} label="Item level from" width="w-11" />
 					<span class="text-surface-400">–</span>

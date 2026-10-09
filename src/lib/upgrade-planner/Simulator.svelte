@@ -10,6 +10,7 @@
 	import { applyUpgrade } from './apply-upgrade';
 	import { roleOf } from './roles';
 	import UpgradePlanner from './UpgradePlanner.svelte';
+	import { folded, toggleFold } from './sim/folded.svelte';
 	import { supportCombatPower } from './support';
 	import { cpBrackets, cpStanding, ownRange, type CpDistribution, type CpRole, type IlvlRange } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
@@ -219,8 +220,16 @@
 	     and scrolls its own list. -->
 	<div class="flex flex-col gap-2 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
 		<div class="shrink-0 max-lg:hidden">{@render summary()}</div>
-		<nav aria-label="Simulator cards" class="card shrink-0 p-2">
-			<div class="grid grid-cols-4 gap-1.5">
+		<nav aria-label="Simulator cards" class="card shrink-0 p-2 {folded.nav ? 'py-1' : ''}">
+			<button
+				type="button"
+				class="flex w-full flex-row items-center text-left text-xs text-surface-400 hover:text-surface-100 {folded.nav ? '' : 'mb-1.5'}"
+				aria-expanded={!folded.nav}
+				onclick={() => toggleFold('nav')}
+			>
+				<span class="inline-block w-3 text-surface-500">{folded.nav ? '▸' : '▾'}</span>Jump to
+			</button>
+			<div class="grid grid-cols-4 gap-1.5" hidden={folded.nav}>
 				{#each ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'] as title}
 					<a href={`#sim-${title.toLowerCase().replaceAll(' ', '-')}`} class="truncate rounded-xs border border-surface-700 bg-surface-800 px-0.5 py-1.5 text-center text-[11px] font-semibold tracking-tight text-surface-200 hover:bg-surface-700 hover:text-surface-50">{title}</a>
 				{/each}
