@@ -6,7 +6,7 @@
 <script lang="ts">
 	import { formatPct } from './format';
 	import GoldCost from './GoldCost.svelte';
-	import { byGold, gold, loadGold, setRankMode } from './gold-costs.svelte';
+	import { byGold, formatGold, gold, goldPerPct, loadGold, setRankMode } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { onMount } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
@@ -75,22 +75,29 @@
 		<div class="grid gap-x-2 p-1 {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
 			{#each shown as u, i (u.key)}
 				{#if gold.mode === 'gold' && i === priced.length}
-					<p class="col-span-full px-1.5 pt-1 text-xs text-surface-400">
-						{priced.length ? 'Not priced yet:' : 'NA has no market data, so enter what each upgrade costs you (e.g. 45k) to rank by gold per 1% CP:'}
-					</p>
+					{#if priced.length}
+						<p class="col-span-full mt-1 border-t border-neutral-950 px-1.5 pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Not priced yet</p>
+					{:else}
+						<p class="col-span-full px-1.5 py-1.5 text-xs text-surface-400">
+							NA has no market data, so enter what each upgrade costs you to rank by gold per 1% CP.
+						</p>
+					{/if}
 				{/if}
 				<div
-					class="col-span-full grid grid-cols-subgrid items-center rounded-xs px-1.5 py-1 transition duration-75 hover:bg-black/20"
+					class="col-span-full grid grid-cols-subgrid items-center rounded-xs px-1.5 transition duration-75 hover:bg-black/20 {gold.mode === 'gold' ? 'py-1.5' : 'py-1'}"
 					title={u.detail}
 				>
 					<div class="flex min-w-0 flex-col">
 						<UpgradeTitle {u} />
 						{#if !u.subject}<span class="text-xs text-surface-500">{CATEGORY_LABELS[u.category]}</span>{/if}
-						{#if gold.mode === 'gold'}<GoldCost {u} />{/if}
+						{#if gold.mode === 'gold'}<GoldCost {u} showPer={false} />{/if}
 					</div>
 					<span class="text-right whitespace-nowrap text-green-400 tabular-nums">
 						{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span>
 						{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
+						{#if gold.mode === 'gold' && goldPerPct(u, gold.costs)}
+							<span class="block text-[11px] text-amber-300/90" title="Gold per 1% Combat Power">{formatGold(goldPerPct(u, gold.costs)!)} / 1%</span>
+						{/if}
 					</span>
 					{#if onapply}
 						<button type="button" class="{btn} w-14 px-1.5" onclick={() => apply(u)} title="Make this change in the simulator">

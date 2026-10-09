@@ -5,7 +5,7 @@
 	import { formatGold, gold, goldPerPct, parseGold, setGoldCost } from './gold-costs.svelte';
 	import type { Upgrade } from './upgrades';
 
-	let { u }: { u: Upgrade } = $props();
+	let { u, showPer = true }: { u: Upgrade; /** Show gold per 1% next to the cost (the sidebar shows it by the gain). */ showPer?: boolean } = $props();
 
 	let editing = $state(false);
 	let text = $state('');
@@ -49,6 +49,6 @@
 		title={cost ? 'Edit the gold cost (empty to clear)' : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 	>
 		<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-		{#if cost}{formatGold(cost)}{#if per}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%</span>{/if}{:else}Add gold cost{/if}
+		{#if cost}{formatGold(cost)}{#if per && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%</span>{/if}{:else}Add gold cost{/if}
 	</button>
 {/if}
