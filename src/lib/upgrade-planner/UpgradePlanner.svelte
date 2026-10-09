@@ -126,6 +126,11 @@
 							<span class="block text-[11px] text-amber-300/90" title={auto[u.key] && !gold.costs[u.key] ? 'Gold per 1% Combat Power, from the average honing cost' : 'Gold per 1% Combat Power'}
 								>{formatGold(goldPerPct(u, costs)!)} / 1%{#if auto[u.key] && !gold.costs[u.key]}<span class="text-surface-400"> avg</span>{/if}</span
 							>
+							{#if auto[u.key] && !gold.costs[u.key]}
+								<span class="block text-[11px] text-orange-300" title="Gold per 1% Combat Power at pity">
+									{formatGold(auto[u.key].worst / u.gainPct)} / 1%<span class="text-surface-400"> pity</span>
+								</span>
+							{/if}
 						{/if}
 					</span>
 					{#if onapply}

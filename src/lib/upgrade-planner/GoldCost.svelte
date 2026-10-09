@@ -71,8 +71,12 @@
 	</button>
 	{#if auto && !typed}
 		<!-- Pity: every tap fails until the meter forces success. -->
-		<span class="mt-0.5 block text-[11px] text-orange-400 tabular-nums" title={`Pity: ${auto.maxTaps} taps, when artisan's energy forces success`}>
-			Pity {formatGold(auto.worst)}{#if u.gainPct > 0} · {formatGold(auto.worst / u.gainPct)} / 1%{/if}
+		<span
+			class="mt-0.5 flex h-6 w-fit items-center gap-1 rounded-xs border border-orange-400/50 bg-orange-500/10 px-1.5 text-xs font-semibold text-orange-300 tabular-nums"
+			title={`Pity: ${auto.maxTaps} taps, when artisan's energy forces success`}
+		>
+			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />{formatGold(auto.worst)}<span class="font-normal text-orange-300/70">pity</span>
+			{#if showPer && u.gainPct > 0}<span class="font-normal text-orange-200/80">· {formatGold(auto.worst / u.gainPct)} per 1% (pity)</span>{/if}
 		</span>
 	{/if}
 {/if}
