@@ -54,9 +54,9 @@
 	{onclose}
 	onclick={(e) => e.target === dialog && dialog.close()}
 	aria-labelledby="material-prices-title"
-	class="fixed top-[80px] m-0 max-h-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 sm:left-1/2 sm:-translate-x-1/2"
+	class="fixed top-[80px] m-0 max-h-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
 >
-	<div class="flex w-[600px] flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-[100vw]">
+	<div class="flex w-[600px] flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 		<div class="flex flex-row items-center justify-between px-4 py-2.5 font-bold">
 			<span id="material-prices-title">Honing material prices</span>
 			<button type="button" class="text-surface-300 hover:text-surface-50" aria-label="Close" onclick={() => dialog.close()}>
@@ -71,20 +71,21 @@
 				<li>Character-bound mats are saved per character; market prices are shared</li>
 				<li class="text-amber-300/80">Each upgrade is priced on its own: every one assumes all of this character's bound mats are available to it (3k leapstones count in full for an armor tap or a weapon tap)</li>
 			</ul>
-			<div class="grid grid-cols-[2rem_minmax(0,1fr)_8rem_6rem_3.5rem] items-center gap-x-2 gap-y-1.5">
+			<!-- Phones: icon only (the name is its tooltip / label), so the two inputs keep their room. -->
+			<div class="grid grid-cols-[2rem_minmax(0,1fr)_8rem_6rem_3.5rem] items-center gap-x-2 gap-y-1.5 max-sm:grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_3.25rem]">
 				<span></span>
-				<span></span>
+				<span class="max-sm:hidden"></span>
 				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-100 uppercase">Character-bound</span>
 				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-100 uppercase">Market</span>
 				<span></span>
 				{#each ids as id (id)}
 					<div class="contents">
 						{#if materialIcon(id)}
-							<img src={iconUrl(materialIcon(id))} alt="" class="size-8 shrink-0 rounded-xs bg-black/30" />
+							<img src={iconUrl(materialIcon(id))} alt={materialName(id)} title={materialName(id)} class="size-8 shrink-0 rounded-xs bg-black/30" />
 						{:else}
 							<span class="size-8 shrink-0 rounded-xs bg-black/30"></span>
 						{/if}
-						<span class="min-w-0 leading-tight text-surface-100">{materialName(id)}</span>
+						<span class="min-w-0 leading-tight text-surface-100 max-sm:hidden">{materialName(id)}</span>
 						<input
 							value={shownOwned(id)}
 							onchange={(e) => commitOwned(id, e.currentTarget.value)}

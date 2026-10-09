@@ -16,6 +16,14 @@
 
 	// Collapsed by default so it doesn't cover the cards; the full summary opens on tap.
 	let open = $state(false);
+	// No scroll area of its own (that trapped swipes); instead it folds once the page has scrolled on a bit.
+	$effect(() => {
+		if (!open) return;
+		const from = window.scrollY;
+		const onScroll = () => Math.abs(window.scrollY - from) > 160 && (open = false);
+		window.addEventListener('scroll', onScroll, { passive: true });
+		return () => window.removeEventListener('scroll', onScroll);
+	});
 	const delta = $derived((simulated / current - 1) * 100);
 </script>
 
@@ -39,6 +47,6 @@
 		</span>
 	</button>
 	{#if open}
-		<div id="mobile-summary" class="mt-2 max-h-[60vh] overflow-y-auto pb-1">{@render children()}</div>
+		<div id="mobile-summary" class="mt-2 pb-1">{@render children()}</div>
 	{/if}
 </div>
