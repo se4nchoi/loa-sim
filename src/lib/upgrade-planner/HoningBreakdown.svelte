@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import { materialIcon, materialName, type HoningCost } from './honing-cost';
-	import { iconUrl } from './icons';
+	import { GOLD_ICON, iconUrl } from './icons';
 	import { btn, btnAccent } from './sim/ui';
 	let { cost, title, initialMode = 'average', onclose }: { cost: HoningCost; title: string; initialMode?: 'average' | 'pity'; onclose: () => void } = $props();
 	let dialog: HTMLDialogElement;
@@ -29,8 +29,14 @@
 		{#if details}
 			<div class="overflow-x-auto">
 				<table class="w-full text-xs tabular-nums">
-					<thead class="text-surface-400"><tr class="border-b border-surface-700"><th class="py-2 text-left font-normal">Material</th><th class="px-2 py-2 text-right font-normal">Bound used</th><th class="px-2 py-2 text-right font-normal">Market buy</th><th class="py-2 text-right font-normal">Market gold</th></tr></thead>
+					<thead class="text-surface-400"><tr class="border-b border-surface-700"><th class="py-2 text-left font-normal">Material</th><th class="px-2 py-2 text-right font-normal">Bound used</th><th class="px-2 py-2 text-right font-normal">Market buy</th><th class="py-2 text-right font-normal">Gold spent</th></tr></thead>
 					<tbody>
+						<tr class="border-b border-surface-800" title="Gold paid directly across all taps">
+							<th scope="row" class="py-2 text-left font-normal"><span class="flex items-center gap-1.5"><img src={GOLD_ICON} alt="" class="size-5 shrink-0" />Tap gold</span></th>
+							<td class="px-2 py-2 text-right text-surface-400">—</td>
+							<td class="px-2 py-2 text-right text-surface-400">—</td>
+							<td class="py-2 text-right text-amber-200">{money(details.tapGold)}</td>
+						</tr>
 						{#each details.materials as material (material.id)}
 							{@const icon = materialIcon(material.id)}
 							<tr class="border-b border-surface-800">
@@ -44,7 +50,6 @@
 				</table>
 			</div>
 			<div class="space-y-1 text-xs tabular-nums">
-				<p class="flex justify-between gap-3 text-surface-400"><span>Honing fees</span><span>{money(details.tapGold)}</span></p>
 				<p class="flex justify-between gap-3 text-surface-400"><span>Market materials</span><span>{money(details.materials.reduce((sum, m) => sum + m.gold, 0))}</span></p>
 				<p class="flex justify-between gap-3 border-t border-surface-700 pt-2 font-semibold text-amber-200"><span>Total gold</span><span>{money(mode === 'average' ? cost.expected : cost.worst)}</span></p>
 			</div>

@@ -91,7 +91,7 @@
 			{#if cost === 0 && !typed}Free{#if showPer}<span class="font-normal text-surface-300">· {u.detail}</span>{/if}{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1% {!typed && auto ? 'avg' : ''}</span>{/if}{:else}{!canEdit ? 'Cost unavailable' : u.books ? 'Add book price' : 'Add gold cost'}{/if}
 		</button>
 		{#if auto?.breakdown}
-			<button type="button" class="{btn} col-start-2 row-start-1 h-6 px-1.5 text-[11px]" onclick={() => (breakdownMode = 'average')} aria-label={`Average material breakdown for ${u.title}`} title="Average bound materials used and market purchases">Details</button>
+			<button type="button" class="{btn} col-start-2 row-start-1 h-6 w-6 px-0" onclick={() => (breakdownMode = 'average')} aria-label={`Average material breakdown for ${u.title}`} title="Average bound materials used and market purchases">?</button>
 		{/if}
 		{#if u.books && bookPrice !== undefined && !typed}
 			<span class="col-start-1 text-[11px] text-surface-400 tabular-nums">{formatGold(bookPrice)} / book × {u.books.count}</span>
@@ -106,7 +106,7 @@
 				{#if showPer && u.gainPct > 0}<span class="font-normal text-orange-200/80">· {formatGold(auto.worst / u.gainPct)} per 1% pity</span>{/if}
 			</span>
 			{#if auto.breakdown}
-				<button type="button" class="{btn} col-start-2 row-start-2 h-6 px-1.5 text-[11px]" onclick={() => (breakdownMode = 'pity')} aria-label={`Pity material breakdown for ${u.title}`} title="Bound materials used and market purchases at pity">Details</button>
+				<button type="button" class="{btn} col-start-2 row-start-2 h-6 w-6 px-0" onclick={() => (breakdownMode = 'pity')} aria-label={`Pity material breakdown for ${u.title}`} title="Bound materials used and market purchases at pity">?</button>
 			{/if}
 		{/if}
 	</div>
