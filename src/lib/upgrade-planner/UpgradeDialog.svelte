@@ -119,6 +119,8 @@
 </script>
 
 {#snippet rollPicker()}
+	<p class="mb-1 text-xs text-amber-300/90">※ Only options that beat the current snapshot are considered.</p>
+	<hr class="mb-2 border-surface-700" />
 	<div class="mb-1.5 flex flex-row flex-wrap items-center gap-1.5" role="group" aria-label="Accessory rolls to offer">
 		{#each ACC_ROLLS as r (r)}
 			{@const on = draft.includes(r)}
@@ -137,7 +139,6 @@
 		{/each}
 		<button type="button" class="{btnAccent} ml-1 px-3 disabled:cursor-not-allowed disabled:opacity-40" disabled={!pending} onclick={applyRolls}>Apply</button>
 	</div>
-	<p class="mb-1 text-xs text-amber-300/90">※ Only options that beat the current snapshot are considered.</p>
 {/snippet}
 
 {#snippet row(u: Upgrade)}
