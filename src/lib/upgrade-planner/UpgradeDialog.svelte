@@ -137,6 +137,7 @@
 		{/each}
 		<button type="button" class="{btnAccent} ml-1 px-3 disabled:cursor-not-allowed disabled:opacity-40" disabled={!pending} onclick={applyRolls}>Apply</button>
 	</div>
+	<p class="mb-1 text-xs text-amber-300/90">Only options that beat the current snapshot are considered.</p>
 {/snippet}
 
 {#snippet row(u: Upgrade)}
