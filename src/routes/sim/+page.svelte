@@ -39,6 +39,7 @@
 			cpDistribution={saved.cpDistribution}
 			loadouts={saved.loadouts}
 			loadoutKind={saved.loadoutKind}
+			estimatedFrom={saved.estimatedAt && saved.estimatedAt < saved.savedAt ? saved.estimatedAt : undefined}
 			{onloadout}
 		/>
 	{/key}

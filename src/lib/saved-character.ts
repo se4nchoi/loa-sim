@@ -14,6 +14,8 @@ export const MAX_RECENT = 12;
 
 export interface SavedCharacter extends CharacterData {
 	savedAt: number;
+	/** When lostark.bible last listed the estimated raid loadout (earlier than savedAt when it was kept, see below). */
+	estimatedAt?: number;
 }
 
 export const characterKey = (c: { region: string; name: string }) => `${c.region}/${c.name}`.toLowerCase();
@@ -48,8 +50,23 @@ function write(list: SavedCharacter[]) {
 	}
 }
 
+/**
+ * Saves a load. bible sometimes drops a character's estimated raid loadout (e.g. right after a new raid snapshot);
+ * then the previous estimate is kept, as long as it still scores above the new snapshot (otherwise the gear has
+ * moved past it).
+ */
 export function saveCharacter(data: CharacterData) {
-	const entry: SavedCharacter = { ...data, savedAt: Date.now() };
+	const now = Date.now();
+	const entry: SavedCharacter = { ...data, savedAt: now };
+	const prev = read().find((c) => characterKey(c) === characterKey(data));
+	const oldEstimate = prev?.loadouts?.estimated;
+	if (data.loadouts?.estimated) entry.estimatedAt = now;
+	else if (oldEstimate && data.loadouts?.current && (oldEstimate.combatPower?.score ?? 0) > (data.loadouts.current.combatPower?.score ?? 0)) {
+		entry.loadouts = { ...data.loadouts, estimated: oldEstimate };
+		entry.estimatedAt = prev.estimatedAt ?? prev.savedAt;
+		entry.loadoutKind = prev.loadoutKind ?? 'estimated';
+		entry.loadout = entry.loadouts[entry.loadoutKind] ?? data.loadout;
+	}
 	write([entry, ...read().filter((c) => characterKey(c) !== characterKey(entry))]);
 }
 

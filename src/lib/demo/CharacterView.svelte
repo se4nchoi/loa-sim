@@ -15,6 +15,7 @@
 		cpDistribution = null,
 		loadouts,
 		loadoutKind,
+		estimatedFrom,
 		onloadout
 	}: {
 		name: string;
@@ -27,6 +28,8 @@
 		/** bible's estimated raid loadout and latest raid snapshot, to switch between when both exist. */
 		loadouts?: Partial<Record<LoadoutKind, Loadout>>;
 		loadoutKind?: LoadoutKind;
+		/** Set when the estimate was kept from an earlier load (bible no longer lists it): when bible last had it. */
+		estimatedFrom?: number;
 		onloadout?: (kind: LoadoutKind) => void;
 	} = $props();
 
@@ -37,11 +40,17 @@
 	const loadoutOptions = $derived(
 		(['estimated', 'current'] as const)
 			.filter((k) => loadouts?.[k])
-			.map((k) => ({
-				value: k,
-				label: `${LOADOUT_LABELS[k].label} · ${loadouts![k]!.combatPower?.score.toFixed(2) ?? '?'}`,
-				title: LOADOUT_LABELS[k].title
-			}))
+			.map((k) => {
+				const kept = k === 'estimated' && estimatedFrom;
+				const day = kept ? new Date(estimatedFrom).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+				return {
+					value: k,
+					label: `${LOADOUT_LABELS[k].label}${kept ? ` (${day})` : ''} · ${loadouts![k]!.combatPower?.score.toFixed(2) ?? '?'}`,
+					title: kept
+						? `${LOADOUT_LABELS[k].title}. Kept from your load on ${day}: lostark.bible no longer lists it (it rebuilds the estimate after new raid snapshots).`
+						: LOADOUT_LABELS[k].title
+				};
+			})
 	);
 
 	const ilvl = $derived(itemLevel ?? loadout?.itemLevel ?? null);
