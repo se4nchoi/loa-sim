@@ -8,6 +8,7 @@
 				"run",
 				"dev",
 				"--",
+				"--host",
 				"--port",
 				"5173",
 				"--strictPort"

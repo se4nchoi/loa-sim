@@ -13,8 +13,6 @@
 	import { folded, toggleFold } from './sim/folded.svelte';
 	import FoldChip from './sim/FoldChip.svelte';
 	import BottomDrawer from './sim/BottomDrawer.svelte';
-	import { formatCp } from './format';
-	import Delta from './sim/Delta.svelte';
 	import { supportCombatPower } from './support';
 	import { cpBrackets, cpStanding, ownRange, type CpDistribution, type CpRole, type IlvlRange } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
@@ -262,15 +260,5 @@
 	</button>
 {/if}
 <BottomDrawer bind:open={drawerOpen} label="Next Upgrades">
-	{#snippet header()}
-		<!-- The CP change, so Apply's effect shows without leaving the drawer. -->
-		<span class="flex w-full flex-row items-baseline gap-2">
-			<span class="text-xs text-surface-400">CP</span>
-			<span class="text-sm text-surface-300 tabular-nums">{formatCp(current)}</span>
-			<span class="text-surface-500">→</span>
-			<span class="text-base font-bold text-red-400 tabular-nums">{formatCp(simulated)}</span>
-			<Delta pct={(simulated / current - 1) * 100} cp={simulated - current} class="text-xs font-semibold" />
-		</span>
-	{/snippet}
 	<UpgradePlanner scroll class="min-h-0 flex-1 rounded-none shadow-none" limit={1000} {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
 </BottomDrawer>
