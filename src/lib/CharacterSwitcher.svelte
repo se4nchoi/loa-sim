@@ -25,7 +25,7 @@
 		const rosterKeys = new Set((cachedRoster()?.roster ?? []).map((c) => characterKey(c)));
 		return {
 			byKey,
-			recent: [current, ...recentKeys().filter((k) => k !== current)].slice(0, MAX_RECENT).flatMap((k) => byKey.get(k) ?? []),
+			recent: (recentKeys().includes(current) ? recentKeys() : [current, ...recentKeys()]).slice(0, MAX_RECENT).flatMap((k) => byKey.get(k) ?? []),
 			roster: roster.map((c) => ({ ...c, key: characterKey(c), loaded: byKey.has(characterKey(c)) })),
 			typed: saved.filter((c) => !rosterKeys.has(characterKey(c)))
 		};
