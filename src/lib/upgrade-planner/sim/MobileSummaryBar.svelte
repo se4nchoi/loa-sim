@@ -17,14 +17,8 @@
 
 	// Collapsed by default so it doesn't cover the cards; the full summary opens on tap.
 	let open = $state(false);
-	// No scroll area of its own (that trapped swipes); instead it folds once the page has scrolled on a bit.
-	$effect(() => {
-		if (!open) return;
-		const from = window.scrollY;
-		const onScroll = () => Math.abs(window.scrollY - from) > 160 && (open = false);
-		window.addEventListener('scroll', onScroll, { passive: true });
-		return () => window.removeEventListener('scroll', onScroll);
-	});
+	// No scroll area of its own (that trapped swipes). It stays open while the page scrolls (its Reset lives there)
+	// until Hide is tapped.
 	const delta = $derived((simulated / current - 1) * 100);
 </script>
 
