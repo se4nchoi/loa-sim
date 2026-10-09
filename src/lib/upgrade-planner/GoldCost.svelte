@@ -76,7 +76,7 @@
 			type="button"
 			disabled={!canEdit}
 			onclick={edit}
-			class="col-start-1 inline-flex h-6 items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold tabular-nums transition {cost !== undefined
+			class="col-start-1 inline-flex h-6 items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold whitespace-nowrap tabular-nums transition {cost !== undefined
 				? 'border-amber-400/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
 				: 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'}"
 			title={u.books
@@ -88,7 +88,7 @@
 						: !canEdit ? (cost === 0 ? u.detail : 'No calculated cost is available for this upgrade yet.') : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 		>
 			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-			{#if cost === 0 && !typed}Free{#if showPer}<span class="font-normal text-surface-300">· {u.detail}</span>{/if}{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1%</span>{/if}{:else}{!canEdit ? 'Cost unavailable' : u.books ? 'Add book price' : 'Add gold cost'}{/if}
+			{#if cost === 0 && !typed}Free{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal whitespace-nowrap text-surface-300 max-sm:hidden">· {formatGold(per)} per 1%</span>{/if}{:else}{!canEdit ? 'Cost unavailable' : u.books ? 'Add book price' : 'Add gold cost'}{/if}
 		</button>
 		{#if auto?.breakdown}
 			<button type="button" class="{detailsButton} col-start-2 row-start-1" onclick={() => (breakdownMode = 'average')} aria-label={`Average material breakdown for ${u.title}`} title="Average bound materials used and market purchases">?</button>
@@ -99,11 +99,11 @@
 		{#if auto && !typed}
 			<!-- Pity: every tap fails until the meter forces success. -->
 			<span
-				class="col-start-1 flex h-6 items-center gap-1 rounded-xs border border-orange-400/50 bg-orange-500/10 px-1.5 text-xs font-semibold text-orange-300 tabular-nums"
+				class="col-start-1 flex h-6 items-center gap-1 rounded-xs border border-orange-400/50 bg-orange-500/10 px-1.5 text-xs font-semibold whitespace-nowrap text-orange-300 tabular-nums"
 				title={`Pity: ${auto.maxTaps} taps, when ${u.category === 'karma' ? 'the Karma pity meter' : "artisan's energy"} forces success${u.category === 'karma' ? '. Assumes unlimited Destiny Stones.' : ''}`}
 			>
 				<img src={GOLD_ICON} alt="" class="size-4 shrink-0" /><span class="ml-auto">{formatGold(auto.worst)}</span><span class="w-6 text-left font-normal text-orange-300/70">pity</span>
-				{#if showPer && u.gainPct > 0}<span class="font-normal text-orange-200/80">· {formatGold(auto.worst / u.gainPct)} per 1%</span>{/if}
+				{#if showPer && u.gainPct > 0}<span class="font-normal whitespace-nowrap text-orange-200/80 max-sm:hidden">· {formatGold(auto.worst / u.gainPct)} per 1%</span>{/if}
 			</span>
 			{#if auto.breakdown}
 				<button type="button" class="{detailsButton} col-start-2 row-start-2" onclick={() => (breakdownMode = 'pity')} aria-label={`Pity material breakdown for ${u.title}`} title="Bound materials used and market purchases at pity">?</button>
