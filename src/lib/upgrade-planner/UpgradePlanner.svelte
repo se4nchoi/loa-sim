@@ -133,7 +133,6 @@
 						<span class="flex size-4 shrink-0 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white" aria-hidden="true">!</span>
 					{/if}
 					Material prices<span class="font-normal opacity-70">{unsetPrices ? '· all 0' : ''}</span>
-					{#if noBound && !unsetPrices}<span class="truncate font-normal text-red-300">· bound not set</span>{/if}
 				</button>
 			{/if}
 			<button
@@ -143,7 +142,7 @@
 				onclick={() => (dialogOpen = true)}
 				title={gold.mode === 'gold' && unpriced ? `All Upgrades (${upgrades.length}): ${unpriced} have no gold cost yet` : undefined}
 			>
-				{#if gold.mode === 'gold' && unpriced}<span class="text-amber-300">Price {unpriced} more</span>{:else}All Upgrades ({upgrades.length}){/if}
+				{#if gold.mode === 'gold' && unpriced}<span class="text-amber-300">{unpriced} missing price{unpriced > 1 ? 's' : ''}</span>{:else}All Upgrades ({upgrades.length}){/if}
 			</button>
 		</div>
 		<label class="flex shrink-0 cursor-pointer flex-row items-center gap-1.5 px-3 pb-1.5 text-xs text-surface-400 hover:text-surface-100">
