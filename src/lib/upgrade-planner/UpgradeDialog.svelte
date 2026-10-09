@@ -2,7 +2,7 @@
 	import { sheetDrag } from './sim/sheet-drag';
 	import { onMount, untrack } from 'svelte';
 	import { formatCp, formatPct } from './format';
-	import { btn } from './sim/ui';
+	import { btn, btnAccent, ROLL_COLORS } from './sim/ui';
 	import UpgradeTitle from './UpgradeTitle.svelte';
 	import GoldCost from './GoldCost.svelte';
 	import { byGold, formatGold, goldPerPct, supportsGoldCost, type RankMode } from './gold-costs.svelte';
@@ -120,22 +120,22 @@
 
 {#snippet rollPicker()}
 	<div class="mb-1.5 flex flex-row flex-wrap items-center gap-1.5" role="group" aria-label="Accessory rolls to offer">
-		{#each ACC_ROLLS as r (r.roll)}
-			{@const on = draft.includes(r.roll)}
+		{#each ACC_ROLLS as r (r)}
+			{@const on = draft.includes(r)}
+			{@const tiers = [...r].map((c) => ({ h: 'high', m: 'mid', l: 'low' })[c] as keyof typeof ROLL_COLORS)}
 			<button
 				type="button"
 				aria-pressed={on}
-				title={r.also ? `${r.label} and its reverse ${r.also}` : r.label}
-				class="flex h-12 w-14 flex-col items-center justify-center rounded-xs text-sm font-semibold hover:bg-surface-800 {on
-					? 'bg-accent-500/20 text-surface-50 ring-1 ring-accent-500'
-					: 'bg-surface-950 text-surface-400'}"
-				onclick={() => (draft = on ? draft.filter((x) => x !== r.roll) : [...draft, r.roll])}
+				title={tiers.map((t) => t[0].toUpperCase() + t.slice(1)).join('-')}
+				class="flex h-12 w-14 flex-row items-center justify-center rounded-xs text-sm font-bold hover:bg-surface-800 {on
+					? 'bg-accent-500/20 ring-1 ring-accent-500'
+					: 'bg-surface-950 opacity-45'}"
+				onclick={() => (draft = on ? draft.filter((x) => x !== r) : [...draft, r])}
 			>
-				{r.label}
-				{#if r.also}<span class="text-[10px] leading-tight font-normal text-surface-400">+ {r.also}</span>{/if}
+				{#each tiers as t, i (i)}{#if i}<span class="text-surface-500">-</span>{/if}<span style:color={ROLL_COLORS[t]}>{t[0].toUpperCase()}</span>{/each}
 			</button>
 		{/each}
-		<button type="button" class="{btn} h-12 px-3" disabled={!pending} class:opacity-40={!pending} onclick={applyRolls}>Apply</button>
+		<button type="button" class="{btnAccent} ml-1 px-3 disabled:cursor-not-allowed disabled:opacity-40" disabled={!pending} onclick={applyRolls}>Apply</button>
 	</div>
 {/snippet}
 

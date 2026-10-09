@@ -1,6 +1,6 @@
 // Whole-accessory upgrades: an accessory's lines can't be changed one at a time (polishing rolls them at random), so the
 // next step is buying another one, all three lines at once. Per slot the candidates are the main-line rolls the player
-// picked (High-High, High-Mid and its reverse, High-Low, Low-High, Mid-Mid), each with the third line (the slot's best
+// picked (High-High, High-Mid, Mid-High, High-Low, Low-High, Mid-Mid), each with the third line (the slot's best
 // secondary line) at none / Low / Mid / High. Each is scored by simulating the slot with exactly those three lines; the
 // current accessory is the bottom line, so options that don't beat it, or are no better than a cheaper roll, are
 // dropped and what's left is the ladder.
@@ -15,23 +15,12 @@ const SLOT_NAMES: Record<AccessorySlot, string> = { neck: 'Necklace', ear1: 'Ear
 const RANK: Record<Tier | 'none', number> = { none: 0, low: 1, mid: 2, high: 3 };
 const THIRD: (Tier | 'none')[] = ['none', 'low', 'mid', 'high'];
 
-/** Main-line rolls, BiS line first: hm also offers its reverse Mid-High. */
-export type AccRoll = 'hh' | 'hm' | 'hl' | 'lh' | 'mm';
-export const ACC_ROLLS: { roll: AccRoll; label: string; also?: string }[] = [
-	{ roll: 'hh', label: 'H-H' },
-	{ roll: 'hm', label: 'H-M', also: 'M-H' },
-	{ roll: 'hl', label: 'H-L' },
-	{ roll: 'lh', label: 'L-H' },
-	{ roll: 'mm', label: 'M-M' }
-];
-export const DEFAULT_ACC_ROLLS: AccRoll[] = ['hh', 'hm', 'hl', 'mm'];
-const PAIRS: Record<AccRoll, [Tier, Tier][]> = {
-	hh: [['high', 'high']],
-	hm: [['high', 'mid'], ['mid', 'high']],
-	hl: [['high', 'low']],
-	lh: [['low', 'high']],
-	mm: [['mid', 'mid']]
-};
+/** Main-line rolls, BiS line first (hm: High on the BiS line, Mid on the other; mh: its reverse). */
+export type AccRoll = 'hh' | 'hm' | 'mh' | 'hl' | 'lh' | 'mm';
+export const ACC_ROLLS: AccRoll[] = ['hh', 'hm', 'mh', 'hl', 'lh', 'mm'];
+export const DEFAULT_ACC_ROLLS: AccRoll[] = ['hh', 'hm', 'mh', 'hl', 'mm'];
+const TIER: Record<string, Tier> = { h: 'high', m: 'mid', l: 'low' };
+const pairOf = (r: AccRoll): [Tier, Tier] | null => (ACC_ROLLS.includes(r) ? [TIER[r[0]], TIER[r[1]]] : null);
 
 export interface AccessorySet {
 	slot: AccessorySlot;
@@ -56,7 +45,7 @@ export function applyAccessorySet(state: SimState, set: AccessorySet): boolean {
 }
 
 export function accessorySetUpgrades(l: Loadout, state: SimState, base: SimState, rolls: AccRoll[] = DEFAULT_ACC_ROLLS): Upgrade[] {
-	const pairs = rolls.flatMap((r) => PAIRS[r] ?? []);
+	const pairs = rolls.map(pairOf).filter((p) => p !== null);
 	if (!pairs.length) return [];
 	const role = roleOf(l);
 	const cp = simulate(l, state, base).cp;

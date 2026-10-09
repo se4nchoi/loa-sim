@@ -104,12 +104,13 @@ describe('accessory rolls picker', () => {
 	it('offers only the picked main rolls, all beating the current accessory', () => {
 		expect(new Set(neck(['mm']).map(mains))).toEqual(new Set(['mm']));
 		expect(new Set(neck(['hl', 'mm']).map(mains))).toEqual(new Set(['hl', 'mm']));
-		expect(new Set(neck(['hm']).map(mains))).toEqual(new Set(['hm', 'mh']));
-		for (const u of neck(['hh', 'hm', 'hl', 'lh', 'mm'])) expect(u.gainPct).toBeGreaterThan(0);
+		expect(new Set(neck(['hm']).map(mains))).toEqual(new Set(['hm']));
+		expect(new Set(neck(['mh']).map(mains))).toEqual(new Set(['mh']));
+		for (const u of neck(['hh', 'hm', 'mh', 'hl', 'lh', 'mm'])) expect(u.gainPct).toBeGreaterThan(0);
 		expect(neck([])).toEqual([]);
 	});
 	it('stays quick with every roll picked', () => {
-		const all: AccRoll[] = ['hh', 'hm', 'hl', 'lh', 'mm'];
+		const all: AccRoll[] = ['hh', 'hm', 'mh', 'hl', 'lh', 'mm'];
 		liveUpgrades(l, weak, base, all);
 		const t = performance.now();
 		for (let i = 0; i < 5; i++) liveUpgrades(l, weak, base, all);
