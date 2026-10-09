@@ -44,6 +44,8 @@
 	const role = getContext<() => RoleTables>('loa-sim:role');
 	const LINES = $derived(role().accessoryLines);
 	const goal = $derived(role().support ? 'support' : 'DPS');
+	/** Button label: Max DPS / Max SUP. */
+	const goalShort = $derived(goal === 'support' ? 'SUP' : 'DPS');
 	const same = (a: SimLine | undefined, b: SimLine) => JSON.stringify(a) === JSON.stringify(b);
 
 	/** Line types this slot can roll, minus types already on its other lines (a type can't appear twice). */
@@ -100,7 +102,7 @@
 
 <SimCard title="Accessories" {delta} info="Open a line to compare every alternative. Weapon Power lines are approximate.">
 	{#snippet actions()}
-		<button type="button" class={btnAccent} onclick={() => slots.forEach(maxDps)} title={`Every accessory: both main ${goal} lines at High`}>Max {goal}</button>
+		<button type="button" class={btnAccent} onclick={() => slots.forEach(maxDps)} title={`Every accessory: both main ${goal} lines at High`}>Max {goalShort}</button>
 		<button type="button" class={btn} onclick={() => {
 			sim.accessories = structuredClone($state.snapshot(base.accessories));
 			sim.accessoryStats = structuredClone($state.snapshot(base.accessoryStats));
@@ -116,7 +118,7 @@
 					<ItemIcon src={look.icon} grade={look.grade} title={look.name} frame="enlightenment" />
 					<span class="text-[11px] font-semibold text-surface-300">{LABELS[slot]}</span>
 					<div class="ml-auto flex flex-row gap-1.5 sm:hidden">
-						<button type="button" class={btnAccent} onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goal}</button>
+						<button type="button" class={btnAccent} onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goalShort}</button>
 						<button type="button" class={btn} onclick={() => resetSlot(slot)}>Reset</button>
 					</div>
 				</div>
@@ -159,7 +161,7 @@
 								compact
 							/>
 						{/if}
-						<button type="button" class="{btnAccent} max-sm:hidden" onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goal}</button>
+						<button type="button" class="{btnAccent} max-sm:hidden" onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goalShort}</button>
 						<button type="button" class="{btn} max-sm:hidden" onclick={() => resetSlot(slot)}>Reset</button>
 					</div>
 				</div>
