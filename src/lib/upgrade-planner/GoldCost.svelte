@@ -5,6 +5,8 @@
 	import { bookCost, formatGold, gold, parseGold, setBookPrice, setGoldCost } from './gold-costs.svelte';
 	import type { HoningCost } from './honing-cost';
 	import type { Upgrade } from './upgrades';
+	import HoningBreakdown from './HoningBreakdown.svelte';
+	import { btn } from './sim/ui';
 
 	let {
 		u,
@@ -19,6 +21,7 @@
 	} = $props();
 
 	let editing = $state(false);
+	let showBreakdown = $state(false);
 	let text = $state('');
 	let input = $state<HTMLInputElement>();
 	// Engraving book rows are always price per book × books; a total typed there before book prices existed is ignored.
@@ -66,11 +69,11 @@
 	/>
 {:else}
 	<!-- Average and pity boxes share one grid column, so they are the same width. -->
-	<div class="mt-0.5 inline-grid w-fit gap-0.5">
+	<div class="mt-0.5 inline-grid w-fit grid-cols-[auto_auto] gap-0.5">
 		<button
 			type="button"
 			onclick={edit}
-			class="inline-flex h-6 items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold tabular-nums transition {cost !== undefined
+			class="col-start-1 inline-flex h-6 items-center gap-1 rounded-xs border px-1.5 text-xs font-semibold tabular-nums transition {cost !== undefined
 				? 'border-amber-400/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
 				: 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'}"
 			title={u.books
@@ -84,13 +87,16 @@
 			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
 			{#if cost === 0 && !typed}Free{#if showPer}<span class="font-normal text-surface-300">· {u.detail}</span>{/if}{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal text-surface-300">· {formatGold(per)} per 1% {!typed && auto ? 'avg' : ''}</span>{/if}{:else}{u.books ? 'Add book price' : 'Add gold cost'}{/if}
 		</button>
+		{#if auto?.breakdown && !typed}
+			<button type="button" class="{btn} col-start-2 row-start-1 h-6 px-1.5 text-[11px]" onclick={() => (showBreakdown = true)} aria-label={`Material breakdown for ${u.title}`} title="Bound materials used and market purchases">Details</button>
+		{/if}
 		{#if u.books && bookPrice !== undefined && !typed}
-			<span class="text-[11px] text-surface-400 tabular-nums">{formatGold(bookPrice)} / book × {u.books.count}</span>
+			<span class="col-start-1 text-[11px] text-surface-400 tabular-nums">{formatGold(bookPrice)} / book × {u.books.count}</span>
 		{/if}
 		{#if auto && !typed}
 			<!-- Pity: every tap fails until the meter forces success. -->
 			<span
-				class="flex h-6 items-center gap-1 rounded-xs border border-orange-400/50 bg-orange-500/10 px-1.5 text-xs font-semibold text-orange-300 tabular-nums"
+				class="col-start-1 flex h-6 items-center gap-1 rounded-xs border border-orange-400/50 bg-orange-500/10 px-1.5 text-xs font-semibold text-orange-300 tabular-nums"
 				title={`Pity: ${auto.maxTaps} taps, when ${u.category === 'karma' ? 'the Karma pity meter' : "artisan's energy"} forces success${u.category === 'karma' ? '. Assumes unlimited Destiny Stones.' : ''}`}
 			>
 				<img src={GOLD_ICON} alt="" class="size-4 shrink-0" /><span class="ml-auto">{formatGold(auto.worst)}</span><span class="w-6 text-left font-normal text-orange-300/70">pity</span>
@@ -98,4 +104,8 @@
 			</span>
 		{/if}
 	</div>
+{/if}
+
+{#if showBreakdown && auto?.breakdown}
+	<HoningBreakdown cost={auto} title={u.title} onclose={() => (showBreakdown = false)} />
 {/if}

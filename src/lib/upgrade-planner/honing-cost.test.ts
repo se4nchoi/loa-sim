@@ -6,6 +6,30 @@ import { BRACER_TAPS } from './bracer-cost-data';
 const free = (tap: ReturnType<typeof tapsFor>) => Object.fromEntries([...Object.keys(tap!.mats), SHARDS].map((id) => [id, 0]));
 
 describe('honing cost', () => {
+	it('breaks down bound usage and market buys across outcomes, including one-time shards', () => {
+		const tap = { ...tapsFor('serca', 'head', 1)!, growth: 10, shards: 2, mats: { 'test-material': 10 }, gold: 100, success: 5000, failBonus: 0, failMax: 0, meterPerFail: 10000, breath: { id: 0, rate: 0, max: 0 } };
+		const c = honingCost(tap, { 'test-material': 3, shards: 2 }, { 'test-material': 15, shards: 13 });
+		const average = c.breakdown!.average;
+		const pity = c.breakdown!.pity;
+		expect(average.materials.find((m) => m.id === 'test-material')).toMatchObject({ bound: 12.5, bought: 2.5, price: 3, gold: 7.5 });
+		expect(average.materials.find((m) => m.id === 'shards')).toMatchObject({ bound: 12.5, bought: 0.5, gold: 1 });
+		expect(pity.materials.find((m) => m.id === 'test-material')).toMatchObject({ bound: 15, bought: 5, gold: 15 });
+		expect(pity.materials.find((m) => m.id === 'shards')).toMatchObject({ bound: 13, bought: 1, gold: 2 });
+		expect(average.tapGold + average.materials.reduce((n, m) => n + m.gold, 0)).toBe(c.expected);
+		expect(pity.tapGold + pity.materials.reduce((n, m) => n + m.gold, 0)).toBe(c.worst);
+	});
+	it('includes only the selected breaths and accounts for plenty of bound materials', () => {
+		const tap = BRACER_TAPS[0];
+		const owned = Object.fromEntries([...Object.keys(tap.mats), SHARDS, String(tap.breath.id), String(tap.moreBreath!.id)].map((id) => [id, 1e12]));
+		const c = honingCost(tap, {}, owned);
+		for (const view of [c.breakdown!.average, c.breakdown!.pity]) {
+			expect(view.materials.find((m) => m.id === String(tap.breath.id))!.bound).toBeGreaterThan(0);
+			expect(view.materials.find((m) => m.id === String(tap.moreBreath!.id))!.bound).toBeGreaterThan(0);
+			expect(view.materials.every((m) => m.bought === 0 && m.gold === 0)).toBe(true);
+		}
+		const without = honingCost(tap, { [String(tap.breath.id)]: 1e9, [String(tap.moreBreath!.id)]: 1e9 });
+		expect(without.breakdown!.average.materials.some((m) => m.id === String(tap.breath.id) || m.id === String(tap.moreBreath!.id))).toBe(false);
+	});
 	it('has 25 steps for weapon and armor in both sets', () => {
 		for (const set of Object.values(HONING_COSTS)) for (const steps of Object.values(set)) expect(steps).toHaveLength(25);
 	});

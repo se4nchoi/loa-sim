@@ -17,6 +17,11 @@ export const SHARDS = 'shards';
 /** Stands for "plenty" (typed as ∞ or a very large number). */
 export const PLENTY = 1e12;
 
+export interface HoningMaterialBreakdown {
+	materials: { id: string; bound: number; bought: number; price: number; gold: number }[];
+	tapGold: number;
+}
+
 export interface HoningCost {
 	/** Average gold to reach the level. */
 	expected: number;
@@ -28,6 +33,7 @@ export interface HoningCost {
 	/** Whether breath is used, and which (e.g. "Lava's Breath + Glacier's Breath"). */
 	breath: boolean;
 	breathLabel: string;
+	breakdown?: { average: HoningMaterialBreakdown; pity: HoningMaterialBreakdown };
 }
 
 export const tapsFor = (set: HoningSet, slot: HoningSlot, toLevel: number): HoningTap | undefined =>
@@ -65,15 +71,36 @@ export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: Materi
 		const costOf = (taps: number) => taps * tap.gold + mats.reduce((g, [id, n, once]) => g + bought(id, n, once, taps), 0);
 		const dist = successByTap(tap, breaths.reduce((x, b) => x + b.rate * b.max, 0));
 		return {
-			breath: breaths.length > 0,
-			breathLabel: breaths.map((b) => materialName(String(b.id))).join(' + '),
-			expected: dist.reduce((g, p, n) => g + p * costOf(n + 1), 0),
-			worst: costOf(dist.length),
-			taps: dist.reduce((t, p, n) => t + p * (n + 1), 0),
-			maxTaps: dist.length
+			mats, dist,
+			cost: {
+				breath: breaths.length > 0,
+				breathLabel: breaths.map((b) => materialName(String(b.id))).join(' + '),
+				expected: dist.reduce((g, p, n) => g + p * costOf(n + 1), 0),
+				worst: costOf(dist.length),
+				taps: dist.reduce((t, p, n) => t + p * (n + 1), 0),
+				maxTaps: dist.length
+			}
 		};
 	});
-	return options.reduce((a, b) => (b.expected < a.expected ? b : a));
+	const best = options.reduce((a, b) => (b.cost.expected < a.cost.expected ? b : a));
+	const breakdown = (average: boolean): HoningMaterialBreakdown => ({
+		tapGold: tap.gold * (average ? best.cost.taps : best.cost.maxTaps),
+		materials: best.mats.filter(([, n, once]) => n > 0 || once > 0).map(([id, n, once]) => {
+			const at = (taps: number) => {
+				const total = once + n * taps;
+				return { bound: Math.min(total, owned[id] ?? 0), bought: Math.max(0, total - (owned[id] ?? 0)) };
+			};
+			const quantity = average
+				? best.dist.reduce((sum, p, i) => {
+					const q = at(i + 1);
+					return { bound: sum.bound + p * q.bound, bought: sum.bought + p * q.bought };
+				}, { bound: 0, bought: 0 })
+				: at(best.cost.maxTaps);
+			const price = prices[id] ?? 0;
+			return { id, ...quantity, price, gold: quantity.bought * price };
+		})
+	});
+	return { ...best.cost, ...(best.mats.some(([, n, once]) => n > 0 || once > 0) ? { breakdown: { average: breakdown(true), pity: breakdown(false) } } : {}) };
 }
 
 export const materialName = (id: string) => (id === SHARDS ? 'Destiny Shard' : (HONING_MATERIALS[id]?.[0] ?? id));
