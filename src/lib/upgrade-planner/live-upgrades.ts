@@ -30,7 +30,7 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 	});
 	for (const [key, count] of gemGroups) {
 		const [, tier, lv] = key.split(':');
-		add({ key, category: 'gem', title: `${tier} gem Lv. ${lv} → ${Number(lv) + 1}`, detail: `${count} gems at Lv. ${lv}. Gain shown is per gem.`, count });
+		add({ key, category: 'gem', title: `${tier} gem Lv. ${lv} → ${Number(lv) + 1}`, detail: `${count} gems`, count });
 	}
 
 	for (const core of coreStates(l)) {
@@ -56,19 +56,19 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 			key: `engraving:${id}:books:${ENGRAVING_BOOK_STEPS[e.books + 1]}`,
 			category: 'engraving',
 			title: `${engravingName(read)} relic books ${ENGRAVING_BOOK_STEPS[e.books]} → ${ENGRAVING_BOOK_STEPS[e.books + 1]}`,
-			detail: 'Read 5 more relic engraving books.',
+			detail: '',
 			books: { engraving: read, name: engravingName(read), count: ENGRAVING_BOOK_STEPS[e.books + 1] - ENGRAVING_BOOK_STEPS[e.books] }
 		});
 	}
 	// Accessories are bought whole (lines can't be changed one at a time): see accessory-sets.ts.
 	const evolution = state.karma.evolution;
 	if (role.support && evolution !== null && evolution < KARMA_MAX_LEVEL)
-		add({ key: `karma:evolution-level:${evolution + 1}`, category: 'karma', group: 'karma:evolution', title: `Evolution karma level ${evolution} → ${evolution + 1}`, detail: 'One Evolution level: +400 Max HP before Max HP multipliers; rank bonus at levels 1, 5, 9, 13, 17 and 21.' });
+		add({ key: `karma:evolution-level:${evolution + 1}`, category: 'karma', group: 'karma:evolution', title: `Evolution karma level ${evolution} → ${evolution + 1}`, detail: '' });
 	if (evolution !== null && karmaRank(evolution) < 6) {
 		const rank = karmaRank(evolution);
 		const to = RANK_START[rank + 1];
 		if (!role.support || to > evolution + 1)
-			add({ key: `karma:evolution:${rank + 1}`, category: 'karma', group: 'karma:evolution', subject: `Evolution Lv. ${evolution} → ${to}`, title: `Karma rank ${rank} → ${rank + 1}`, detail: `${to - evolution} Evolution levels to the next rank. Rank bonus is +0.6% battle points, not a level-by-level DPS estimate.` });
+			add({ key: `karma:evolution:${rank + 1}`, category: 'karma', group: 'karma:evolution', subject: `Evolution Lv. ${evolution} → ${to}`, title: `Karma rank ${rank} → ${rank + 1}`, detail: '' });
 	}
 	for (const tree of ['enlightenment', 'leap'] as const) {
 		const level = state.karma[tree];

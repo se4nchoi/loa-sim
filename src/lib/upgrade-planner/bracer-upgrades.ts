@@ -20,9 +20,7 @@ export function bracerUpgrades(l: Loadout, state = initSimState(l), base: SimSta
 		title: !from ? 'Equip Epic +0' : from.grade !== to.grade
 			? `${name(from.grade)} → ${name(to.grade)} (+${to.honing})`
 			: `Honing +${from.honing} → +${to.honing}`,
-		detail: !from ? 'KR preview · First Belgardin clear.' : from.grade !== to.grade
-			? 'KR preview · Limit break: +1% basic Atk. Power.'
-			: 'KR preview · One bracer honing level.',
+		detail: 'KR preview',
 		gainPct: (after / before - 1) * 100,
 		count: 1,
 		approximate: true,
