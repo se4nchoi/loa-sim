@@ -40,7 +40,7 @@
 	{#if slots.length === 0 && !sim.sidereal}
 		<p class="text-sm text-surface-400">No supported T4 gear found; honing can't be simulated for this loadout.</p>
 	{/if}
-		<div class="grid w-fit grid-cols-[max-content_minmax(4rem,8rem)_max-content_max-content_max-content_3rem] items-center gap-x-4 gap-y-3.5 max-sm:w-full max-sm:grid-cols-[max-content_minmax(0,1fr)_max-content_3rem] max-sm:gap-x-2">
+		<div class="grid w-fit grid-cols-[max-content_minmax(4rem,8rem)_max-content_max-content_max-content_3rem] items-center gap-x-4 gap-y-3.5 max-sm:w-full max-sm:grid-cols-[max-content_max-content_minmax(0,1fr)_3rem] max-sm:gap-x-2">
 			<!-- Phones: icon only (no name column), so the steppers keep their room. -->
 			<span></span>
 			<span class="text-xs text-surface-400 max-sm:hidden">Piece</span>
