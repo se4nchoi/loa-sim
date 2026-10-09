@@ -108,7 +108,15 @@
 			{/each}
 			<div class="col-span-full flex w-full flex-row items-center gap-2 px-1">
 				{#if gold.mode === 'gold' && priced.length && unpriced}
-					<span class="text-xs text-surface-500">{unpriced} without a gold cost</span>
+					<button
+						type="button"
+						class="text-xs text-amber-300/80 underline hover:text-amber-200"
+						aria-haspopup="dialog"
+						onclick={() => (dialogOpen = true)}
+						title="Upgrades with no gold cost yet; add prices in All Upgrades to rank them"
+					>
+						Price {unpriced} more
+					</button>
 				{/if}
 				<span class="flex-1"></span>
 				<button
