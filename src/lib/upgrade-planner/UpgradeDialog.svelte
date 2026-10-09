@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { sheetDrag } from './sim/sheet-drag';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { formatCp, formatPct } from './format';
 	import { btn } from './sim/ui';
 	import UpgradeTitle from './UpgradeTitle.svelte';
@@ -46,13 +46,31 @@
 	});
 
 	// Groups in order of their best upgrade, each sorted by CP gain.
-	const groups = $derived.by(() => {
+	const sorted = (list: Upgrade[]) => {
 		const by = new Map<UpgradeCategory, Upgrade[]>();
-		for (const u of upgrades) by.set(u.category, [...(by.get(u.category) ?? []), u]);
+		for (const u of list) by.set(u.category, [...(by.get(u.category) ?? []), u]);
 		return [...by.entries()]
-			.map(([category, list]) => ({ category, list: list.toSorted((a, b) => b.gainPct - a.gainPct) }))
+			.map(([category, items]) => ({ category, list: items.toSorted((a, b) => b.gainPct - a.gainPct) }))
 			.sort((a, b) => b.list[0].gainPct - a.list[0].gainPct);
-	});
+	};
+	// While open, the order stays as it was when the dialog opened (an Apply or a filter would otherwise reshuffle
+	// rows under the cursor); values still update, gone rows drop out, new ones join the end. Reopening re-sorts.
+	const opened = untrack(() => sorted(upgrades));
+	const categoryAt = new Map(opened.map((g, i) => [g.category, i]));
+	const rowAt = new Map(opened.flatMap((g) => g.list).map((u, i) => [u.key, i]));
+	const pieceAt = new Map(
+		opened.flatMap((g) => g.list.filter((u) => u.category === 'accessory')).map((u) => u.subject ?? '').filter((v, i, all) => all.indexOf(v) === i).map((slot, i) => [slot, i])
+	);
+	/** Order by where it was at opening; newcomers (unknown) after, by gain. */
+	const byOpened = <T,>(at: Map<T, number>, x: T, y: T, tie = 0) => {
+		const a = at.get(x), b = at.get(y);
+		return a !== undefined && b !== undefined ? a - b : a !== undefined ? -1 : b !== undefined ? 1 : tie;
+	};
+	const groups = $derived(
+		sorted(upgrades)
+			.map((g) => ({ ...g, list: g.list.toSorted((a, b) => byOpened(rowAt, a.key, b.key, b.gainPct - a.gainPct)) }))
+			.sort((a, b) => byOpened(categoryAt, a.category, b.category, b.list[0].gainPct - a.list[0].gainPct))
+	);
 	// Sticky category bar: jump to a section; the one scrolled to is highlighted.
 	let scroller = $state<HTMLDivElement>();
 	let bar = $state<HTMLDivElement>();
@@ -80,7 +98,7 @@
 	const bySlot = (list: Upgrade[]) => {
 		const by = new Map<string, Upgrade[]>();
 		for (const u of list) by.set(u.subject ?? '', [...(by.get(u.subject ?? '') ?? []), u]);
-		return [...by.entries()].map(([slot, items]) => ({ slot, list: items }));
+		return [...by.entries()].map(([slot, items]) => ({ slot, list: items })).sort((a, b) => byOpened(pieceAt, a.slot, b.slot, b.list[0].gainPct - a.list[0].gainPct));
 	};
 	const best = $derived(mode === 'gold' ? byGold(upgrades, costs).slice(0, 3) : upgrades.slice(0, 3));
 </script>
