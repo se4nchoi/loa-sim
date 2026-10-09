@@ -92,30 +92,29 @@
 	{#if upgrades.length === 0}
 		<p class="p-2 text-sm text-surface-300">No one-step upgrades found for this loadout.</p>
 	{:else}
-		<!-- Kept above the list so they stay in reach when the list scrolls. -->
-		<div class="flex shrink-0 flex-row flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1.5 whitespace-nowrap">
+		<!-- Kept above the list so they stay in reach when the list scrolls; they split the card's width. -->
+		<div class="grid shrink-0 gap-1.5 px-2 py-1.5 {gold.mode === 'gold' && materials.length ? 'grid-cols-2' : 'grid-cols-1'}">
 			{#if gold.mode === 'gold' && materials.length}
 				<button
 					type="button"
-					class="flex flex-row items-center gap-1.5 rounded-xs border px-2 py-0.5 text-xs transition {unsetPrices
+					class="flex h-7 min-w-0 items-center justify-center gap-1 truncate rounded-xs border px-2 text-xs font-semibold transition {unsetPrices
 						? 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'
-						: 'border-surface-700 text-surface-300 hover:border-surface-500 hover:text-surface-50'}"
+						: 'border-surface-700 bg-surface-800 text-surface-100 hover:border-surface-500 hover:bg-surface-700'}"
 					aria-haspopup="dialog"
 					onclick={() => (pricesOpen = true)}
+					title="Honing material prices (character-bound and market)"
 				>
-					<span class="font-semibold">Material prices</span>
-					<span class="opacity-80">{unsetPrices ? 'all 0' : 'edit'}</span>
+					Material prices<span class="font-normal opacity-70">{unsetPrices ? '· all 0' : ''}</span>
 				</button>
 			{/if}
-			<span class="flex-1"></span>
 			<button
-				class="text-xs text-surface-300 underline hover:text-surface-50"
 				type="button"
+				class="flex h-7 min-w-0 items-center justify-center gap-1 truncate rounded-xs border border-surface-700 bg-surface-800 px-2 text-xs font-semibold text-surface-100 transition hover:border-surface-500 hover:bg-surface-700"
 				aria-haspopup="dialog"
 				onclick={() => (dialogOpen = true)}
-				title={gold.mode === 'gold' && unpriced ? 'Upgrades with no gold cost yet can be priced in All Upgrades' : undefined}
+				title={gold.mode === 'gold' && unpriced ? `All Upgrades (${upgrades.length}): ${unpriced} have no gold cost yet` : undefined}
 			>
-				All Upgrades ({upgrades.length}){#if gold.mode === 'gold' && unpriced}<span class="text-amber-300/80"> · {unpriced} unpriced</span>{/if}
+				{#if gold.mode === 'gold' && unpriced}<span class="text-amber-300">Price {unpriced} more</span>{:else}All Upgrades ({upgrades.length}){/if}
 			</button>
 		</div>
 		<div class="grid min-h-0 gap-x-2 overflow-y-auto overscroll-contain p-1 {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
