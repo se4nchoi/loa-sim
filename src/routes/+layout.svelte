@@ -39,7 +39,9 @@
 	<footer class="border-t border-neutral-800 bg-neutral-950">
 		<div class="mx-auto flex max-w-[1680px] flex-col gap-1 px-4 py-5 text-xs text-surface-400 sm:flex-row sm:items-center sm:justify-between">
 			<span>
-				Made with <span class="text-red-400">♥</span> by <b class="text-surface-200">Soulshan@Inanna</b>
+				Made with <span class="text-red-400">♥</span> by <b class="text-surface-200">Soulshan@Inanna</b>.
+				Got feedback? Join the
+				<a class="text-[#7289da] hover:underline" href="https://lostark.bible/discord" target="_blank" rel="noopener">ramen shop Discord</a>.
 			</span>
 			<span>
 				Character data from <a class="underline hover:text-surface-100" href="https://lostark.bible" target="_blank" rel="noopener">lostark.bible</a>. Not affiliated with Smilegate or Amazon Games. Game data and icons © Smilegate RPG.

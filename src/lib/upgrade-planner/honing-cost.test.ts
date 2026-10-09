@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { KARMA_COSTS } from './karma-cost-data';
 import { HONING_COSTS } from './honing-cost-data';
 import { PLENTY, SHARDS, autoHoningCosts, breathStrategy, honingCost, tapsFor } from './honing-cost';
 import { BRACER_TAPS } from './bracer-cost-data';
@@ -156,5 +157,17 @@ describe('honing cost', () => {
 		const priced = { [String(tap.breath.id)]: 1e9 }; // Lava's priced out, Glacier's free
 		const c = honingCost(tap, priced);
 		expect(c.breathLabel).toBe("Glacier's Breath");
+	});
+
+	it('prices karma: gold per try, pity meter filling by half the chance per failure', () => {
+		expect(KARMA_COSTS.evolution).toHaveLength(30);
+		const c = autoHoningCosts(['karma:leap:2', 'karma:evolution-level:22', 'karma:evolution:6'], {}, {}, {}, { evolution: 18, leap: 1 });
+		// Leap 1 → 2: 20% per try, +10% meter per failure → certain on the 11th try.
+		expect(c['karma:leap:2'].maxTaps).toBe(11);
+		expect(c['karma:leap:2'].worst).toBe(11 * 900);
+		expect(c['karma:leap:2'].expected).toBeLessThan(c['karma:leap:2'].worst);
+		// Evolution 18 → rank 6 (level 21) adds up levels 18, 19 and 20.
+		expect(c['karma:evolution:6'].maxTaps).toBeGreaterThan(c['karma:leap:2'].maxTaps);
+		expect(c['karma:evolution-level:22'].taps).toBeGreaterThan(1);
 	});
 });
