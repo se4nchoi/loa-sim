@@ -7,6 +7,7 @@
 	let dialog: HTMLDialogElement;
 	let mode = $state<'average' | 'pity'>(untrack(() => initialMode));
 	const details = $derived(cost.breakdown?.[mode]);
+	const tapCount = $derived(mode === 'average' ? cost.taps : cost.maxTaps);
 	const quantity = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
 	const money = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 	onMount(() => dialog.showModal());
@@ -24,7 +25,7 @@
 		<div class="flex flex-wrap items-center gap-2">
 			<button type="button" class={mode === 'average' ? btnAccent : btn} aria-pressed={mode === 'average'} onclick={() => (mode = 'average')}>Average</button>
 			<button type="button" class={mode === 'pity' ? btnAccent : btn} aria-pressed={mode === 'pity'} onclick={() => (mode = 'pity')}>Pity</button>
-			<span class="ml-auto text-xs text-surface-400">{quantity(mode === 'average' ? cost.taps : cost.maxTaps)} taps</span>
+			<span class="ml-auto text-xs text-surface-400">{quantity(tapCount)} taps</span>
 		</div>
 		{#if details}
 			<div class="overflow-x-auto">
@@ -35,7 +36,7 @@
 							<th scope="row" class="py-2 text-left font-normal"><span class="flex items-center gap-1.5"><img src={GOLD_ICON} alt="" class="size-5 shrink-0" />Tap gold</span></th>
 							<td class="px-2 py-2 text-right text-surface-400">—</td>
 							<td class="px-2 py-2 text-right text-surface-400">—</td>
-							<td class="py-2 text-right text-amber-200">{money(details.tapGold)}</td>
+							<td class="py-2 text-right text-amber-200">{money(details.tapGold)} <span class="whitespace-nowrap text-surface-400">({money(tapCount > 0 ? details.tapGold / tapCount : 0)} / tap)</span></td>
 						</tr>
 						{#each details.materials as material (material.id)}
 							{@const icon = materialIcon(material.id)}
