@@ -91,3 +91,14 @@ body {
 ::-webkit-scrollbar-corner {
 	background: transparent;
 }
+
+/* Next Upgrades: the row a click came from, highlighted briefly in All Upgrades. */
+@keyframes upgrade-focus {
+	0%,
+	40% {
+		background-color: color-mix(in oklab, var(--color-accent-500) 22%, transparent);
+	}
+	100% {
+		background-color: transparent;
+	}
+}

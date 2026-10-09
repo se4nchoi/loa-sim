@@ -15,6 +15,7 @@
 		onapply,
 		flash = null,
 		mode = 'cp',
+		focusKey = null,
 		auto = {},
 		costs = {}
 	}: {
@@ -26,6 +27,8 @@
 		flash?: { key: string; ok: boolean } | null;
 		/** Which upgrades the top three cards show: biggest gain, or least gold per 1% CP. */
 		mode?: RankMode;
+		/** Scroll to and highlight this upgrade on open. */
+		focusKey?: string | null;
 		/** Honing rows priced from material prices. */
 		auto?: Record<string, HoningCost>;
 		/** Gold cost per row: typed, else calculated. */
@@ -33,7 +36,11 @@
 	} = $props();
 
 	let dialog: HTMLDialogElement;
-	onMount(() => dialog.showModal());
+	onMount(() => {
+		dialog.showModal();
+		if (focusKey) dialog.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.scrollIntoView({ block: 'center' });
+		track();
+	});
 
 	// Groups in order of their best upgrade, each sorted by CP gain.
 	const groups = $derived.by(() => {
@@ -43,6 +50,29 @@
 			.map(([category, list]) => ({ category, list: list.toSorted((a, b) => b.gainPct - a.gainPct) }))
 			.sort((a, b) => b.list[0].gainPct - a.list[0].gainPct);
 	});
+	// Sticky category bar: jump to a section; the one scrolled to is highlighted.
+	let scroller = $state<HTMLDivElement>();
+	let bar = $state<HTMLDivElement>();
+	let active = $state<UpgradeCategory | null>(null);
+	const sectionId = (c: UpgradeCategory) => `upgrades-${c}`;
+	/** Shorter names so the bar fits on one line. */
+	const SHORT: Partial<Record<UpgradeCategory, string>> = { core: 'Cores' };
+	function jump(c: UpgradeCategory) {
+		const el = scroller?.querySelector<HTMLElement>(`#${sectionId(c)}`);
+		if (!el || !scroller) return;
+		scroller.scrollTo({ top: el.offsetTop - (bar?.offsetHeight ?? 0) - 8 });
+		active = c;
+	}
+	function track() {
+		if (!scroller) return;
+		const line = scroller.getBoundingClientRect().top + (bar?.offsetHeight ?? 0) + 12;
+		let current: UpgradeCategory | null = null;
+		for (const g of groups) {
+			const el = scroller.querySelector<HTMLElement>(`#${sectionId(g.category)}`);
+			if (el && el.getBoundingClientRect().top <= line) current = g.category;
+		}
+		active = current ?? groups[0]?.category ?? null;
+	}
 	const best = $derived(mode === 'gold' ? byGold(upgrades, costs).slice(0, 3) : upgrades.slice(0, 3));
 </script>
 
@@ -60,7 +90,25 @@
 				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
 			</button>
 		</div>
-		<div class="flex max-h-[70vh] w-[620px] flex-col gap-4 overflow-y-auto px-4 py-4 max-md:w-[100vw]">
+		<div bind:this={scroller} onscroll={track} class="relative flex max-h-[70vh] w-[620px] flex-col gap-4 overflow-y-auto px-4 pb-4 max-md:w-[100vw]">
+			{#if groups.length > 1}
+				<div bind:this={bar} class="sticky top-0 z-10 -mx-4 flex flex-row flex-wrap gap-1 border-b border-neutral-950 bg-surface-900 px-4 py-2" role="navigation" aria-label="Upgrade categories">
+					{#each groups as g (g.category)}
+						<button
+							type="button"
+							onclick={() => jump(g.category)}
+							aria-current={active === g.category ? 'true' : undefined}
+							class="rounded-xs border px-1.5 py-1 text-[11px] font-semibold whitespace-nowrap transition {active === g.category
+								? 'border-accent-500/60 bg-surface-800 text-surface-50'
+								: 'border-surface-700 text-surface-300 hover:border-surface-500 hover:text-surface-50'}"
+						>
+							{SHORT[g.category] ?? CATEGORY_LABELS[g.category]} <span class="font-normal text-surface-500">{g.list.length}</span>
+						</button>
+					{/each}
+				</div>
+			{:else}
+				<div class="h-0"></div>
+			{/if}
 			{#if best.length}
 				<div class="grid grid-cols-3 gap-2 max-sm:grid-cols-1">
 					{#each best as u, i (u.key)}
@@ -74,10 +122,13 @@
 				</div>
 			{/if}
 			{#each groups as g (g.category)}
-				<section class="flex flex-col">
+				<section id={sectionId(g.category)} class="flex flex-col">
 					<h3 class="mb-1 text-xs font-semibold tracking-wide text-surface-400 uppercase">{CATEGORY_LABELS[g.category]}</h3>
 					{#each g.list as u (u.key)}
-						<div class="flex flex-row items-center gap-3 border-t border-neutral-950 py-2">
+						<div
+							data-key={u.key}
+							class="flex flex-row items-center gap-3 border-t border-neutral-950 py-2 {u.key === focusKey ? 'animate-[upgrade-focus_1.6s_ease-out] rounded-xs' : ''}"
+						>
 							<div class="flex min-w-0 flex-1 flex-col">
 									<UpgradeTitle {u} />
 								<span class="text-xs text-surface-400">{u.detail}</span>

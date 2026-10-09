@@ -60,6 +60,8 @@
 	let pricesOpen = $state(false);
 	const cp = $derived(currentCp ?? loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
 	let dialogOpen = $state(false);
+	/** Upgrade to scroll to when All Upgrades opens from a row click. */
+	let focusKey = $state<string | null>(null);
 
 	onMount(loadGold);
 	/** Most CP first, or (with gold costs entered) least gold per 1% CP first. */
@@ -129,9 +131,17 @@
 						</p>
 					{/if}
 				{/if}
+				<!-- A click on the row (not its Apply / gold controls) opens All Upgrades at this upgrade; keyboard users have the
+				     All Upgrades button above. -->
+				<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 				<div
-					class="col-span-full grid grid-cols-subgrid items-center rounded-xs px-1.5 transition duration-75 hover:bg-black/20 {gold.mode === 'gold' ? 'py-1.5' : 'py-1'}"
+					class="col-span-full grid cursor-pointer grid-cols-subgrid items-center rounded-xs px-1.5 transition duration-75 hover:bg-black/20 {gold.mode === 'gold' ? 'py-1.5' : 'py-1'}"
 					title={u.detail}
+					onclick={(e) => {
+						if ((e.target as HTMLElement).closest('button, input, a')) return;
+						focusKey = u.key;
+						dialogOpen = true;
+					}}
 				>
 					<div class="flex min-w-0 flex-col">
 						<UpgradeTitle {u} />
@@ -169,5 +179,5 @@
 {/if}
 
 {#if dialogOpen}
-	<UpgradeDialog {upgrades} {cp} {auto} {costs} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} onclose={() => (dialogOpen = false)} />
+	<UpgradeDialog {upgrades} {cp} {auto} {costs} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => ((dialogOpen = false), (focusKey = null))} />
 {/if}
