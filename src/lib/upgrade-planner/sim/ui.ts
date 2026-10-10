@@ -30,7 +30,8 @@ export const SECTIONS = {
 	gems: ['gems'],
 	engravings: ['engravings'],
 	arkGrid: ['arkGrid'],
-	karma: ['karma']
+	karma: ['karma'],
+	paradise: ['paradise']
 } as const satisfies Record<string, readonly (keyof SimState)[]>;
 export type SimSection = keyof typeof SECTIONS;
 
