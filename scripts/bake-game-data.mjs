@@ -199,6 +199,10 @@ for (const [id, v] of Object.entries(skills))
 // Some gems name a skill group instead of a skill (effect types 34/35: Guardian Knight skills, Brawl King
 // Twelve Forms). Groups take their class from their skills and count as regular when any of them is.
 const gemSkillGroups = {};
+// Correct feed errors using the corresponding skill icons: Asura Destruction's group has
+// a "Sill" typo; both Soaring Strike / Wing Lash groups copy Abaddon's Flame's icon.
+// Use Wing Lash's skill icon, as the other paired incarnation groups do.
+const gemGroupIconSkills = { 36000: 47020, 170004: 49250, 170005: 49250 };
 for (const [id, g] of Object.entries(stats.skillGroup ?? {})) {
 	const members = (g.skills ?? []).filter((s) => gemSkills[s]);
 	if (!g.name || !g.icon || !members.length || gemSkills[id]) continue;
@@ -207,7 +211,8 @@ for (const [id, g] of Object.entries(stats.skillGroup ?? {})) {
 		n.startsWith(`${g.name}: `) ? n.slice(g.name.length + 2) : n
 	);
 	const name = forms.length && forms.length <= 3 ? `${g.name} (${forms.join(' / ')})` : g.name;
-	gemSkills[id] = [name, g.icon, gemSkills[members[0]][2], members.some((s) => gemSkills[s][3]) ? 1 : 0];
+	const icon = gemSkills[gemGroupIconSkills[id]]?.[1] ?? g.icon;
+	gemSkills[id] = [name, icon, gemSkills[members[0]][2], members.some((s) => gemSkills[s][3]) ? 1 : 0];
 	gemSkillGroups[id] = members.map(Number);
 }
 // A skill's damage and cooldown gems can name different groups (170008 / 170009 Rending Finisher): alias them to
