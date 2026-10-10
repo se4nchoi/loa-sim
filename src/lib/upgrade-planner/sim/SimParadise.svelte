@@ -37,7 +37,7 @@
 				<ItemIcon src={iconUrl(orbIcon(orb.orb))} grade={6} title={orbName(orb.orb)} />
 				<div class="flex min-w-0 flex-1 flex-col">
 					<span class="truncate text-sm font-semibold text-amber-200">{orbName(orb.orb)}</span>
-					<span class="text-xs text-surface-400 tabular-nums">Snapshot power {formatPower(base.paradise.power)}</span>
+					<span class="text-xs text-surface-400">Snapshot power <span class="text-base font-semibold text-surface-100 tabular-nums">{formatPower(base.paradise.power)}</span></span>
 				</div>
 				<div class="flex shrink-0 flex-col text-right">
 					<span class="text-xs text-surface-400">Orb</span>

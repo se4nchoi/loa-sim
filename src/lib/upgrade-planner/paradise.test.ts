@@ -5,7 +5,7 @@ import yktra from './fixtures/ce-yktra.json';
 import brushann from './fixtures/na-brushann.json';
 import mira from './fixtures/na-mira.json';
 import soulshan from './fixtures/na-soulshan.json';
-import { formatPower, orbValue, parsePower, readParadise } from './paradise';
+import { formatPower, orbName, orbSeason, orbValue, parsePower, readParadise } from './paradise';
 import { initSimState, simulate } from './simulate';
 import type { Loadout } from './types';
 
@@ -36,6 +36,15 @@ it("a support's orb is flat: Paradise power changes nothing", () => {
 	const next = structuredClone(base);
 	next.paradise!.power += 5e6;
 	expect(simulate(l, next, base).cp).toBe(simulate(l, base, base).cp);
+});
+
+it('names known orbs, and any other orb by the season in its id', () => {
+	expect(orbName(657820001)).toBe('Rhythmic Tide Orb');
+	expect(orbName(657830002)).toBe('Orb of the Blazing Sun');
+	expect(orbSeason(657800001)).toBe(1);
+	expect(orbSeason(657830003)).toBe(4);
+	expect(orbName(657830003)).toBe('Season 4 orb');
+	expect(orbName(123)).toBe('Orb of Paradise');
 });
 
 it('reads typed Paradise power with commas or an M suffix', () => {

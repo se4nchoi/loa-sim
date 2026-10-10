@@ -9,10 +9,10 @@
 import { PartType } from './cp';
 import type { Loadout } from './types';
 
-/** Names and confirmed icons of the orbs we've seen (bible gives only the id). */
+/** Names and icons of the orbs we've seen (bible's data gives only the id; its character pages show these). */
 const ORBS: Record<number, { name: string; icon?: string }> = {
-	657820001: { name: 'Season 3 orb' },
-	657830001: { name: 'Orb of the Spreading Mist' },
+	657820001: { name: 'Rhythmic Tide Orb', icon: 'acc_335' },
+	657830001: { name: 'Orb of the Spreading Mist', icon: 'acc_337' },
 	657830002: { name: 'Orb of the Blazing Sun', icon: 'acc_338' }
 };
 
@@ -38,7 +38,16 @@ export function readParadise(l: Loadout): SimParadise | null {
 	return { orb, power, k, flat };
 }
 
-export const orbName = (orb: number) => ORBS[orb]?.name ?? 'Orb of Paradise';
+/** Orb ids carry the season: 6578 S 000N, with S = season − 1 (65782… is Season 3, 65783… Season 4). */
+export const orbSeason = (orb: number): number | null =>
+	Math.floor(orb / 1e5) === 6578 ? (Math.floor(orb / 1e4) % 10) + 1 : null;
+
+/** Each season has several orbs and we've only named the ones we've seen; others still score exactly (k is read back). */
+export const orbName = (orb: number) => {
+	if (ORBS[orb]) return ORBS[orb].name;
+	const season = orbSeason(orb);
+	return season ? `Season ${season} orb` : 'Orb of Paradise';
+};
 export const orbIcon = (orb: number) => ORBS[orb]?.icon;
 
 /** Paradise power with thousands separators, e.g. 30,014,791. */
