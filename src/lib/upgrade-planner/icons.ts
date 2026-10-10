@@ -8,6 +8,8 @@ const CDN = 'https://cdn-lostark.game.onstove.com/efui_iconatlas';
 
 /** The in-game gold icon. */
 export const GOLD_ICON = `${CDN}/money/money_4.png`;
+/** The in-game Pheon currency icon. */
+export const PHEON_ICON = `${CDN}/money/money_14.png`;
 /** Where the ark passive frame / inherited border overlays live (lostark.bible serves the same files at /i). */
 export const FRAME_BASE = '/frames';
 /** T4 1675 gear is inherited (succession) gear and gets the blue border. */

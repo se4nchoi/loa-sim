@@ -161,8 +161,8 @@
 								compact
 							/>
 						{/if}
-						<button type="button" class="{btnAccent} max-sm:hidden" onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max {goalShort}</button>
-						<button type="button" class="{btn} max-sm:hidden" onclick={() => resetSlot(slot)}>Reset</button>
+						<button type="button" class="{btnAccent} shrink-0 gap-1 max-sm:hidden" onclick={() => maxDps(slot)} title={`Both main ${goal} lines at High`}>Max<span class="min-[1280px]:max-[1400px]:hidden">{goalShort}</span></button>
+						<button type="button" class="{btn} shrink-0 max-sm:hidden" onclick={() => resetSlot(slot)}>Reset</button>
 					</div>
 				</div>
 			</div>

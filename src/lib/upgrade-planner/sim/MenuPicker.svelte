@@ -57,13 +57,16 @@
 		}
 	}
 	let root: HTMLDivElement;
-	/** Clamp popovers to the viewport, even when a right-aligned trigger is near its left edge. */
+	/** Top-layer menus use viewport coordinates even inside transformed dialogs. */
 	function placeMenu(node: HTMLDivElement) {
 		const place = () => {
 			if (!node.isConnected) return;
 			const margin = 8;
 			const anchor = root.getBoundingClientRect();
 			node.style.position = 'fixed';
+			node.style.inset = 'auto';
+			node.style.margin = '0';
+			if (!node.matches(':popover-open')) node.showPopover();
 			node.style.right = 'auto';
 			node.style.maxWidth = `${window.innerWidth - margin * 2}px`;
 			node.style.minWidth = `${Math.min(anchor.width, window.innerWidth - margin * 2)}px`;
@@ -97,7 +100,13 @@
 
 <svelte:window
 	onclick={(e) => open && !root.contains(e.target as Node) && (open = false)}
-	onkeydown={(e) => open && e.key === 'Escape' && (open = false)}
+	onkeydown={(e) => {
+		if (open && e.key === 'Escape') {
+			e.preventDefault();
+			e.stopPropagation();
+			open = false;
+		}
+	}}
 />
 
 <div class="relative min-w-0 max-w-full {full ? 'flex w-full' : 'inline-flex'}" bind:this={root}>
@@ -118,6 +127,8 @@
 		{#if rows}
 			<div
 				use:placeMenu
+				popover="manual"
+				style:color="var(--color-surface-100)"
 				role="listbox"
 				aria-label={label}
 				class="absolute top-full z-40 mt-1 flex w-max max-w-[92vw] overflow-auto flex-col gap-0.5 rounded-xs border border-surface-600 bg-surface-900 p-1.5 shadow-xl shadow-black/70 {align === 'right' ? 'right-0' : 'left-0'}"
@@ -155,6 +166,8 @@
 		{:else}
 		<div
 			use:placeMenu
+			popover="manual"
+			style:color="var(--color-surface-100)"
 			role="listbox"
 			aria-label={label}
 			class="absolute top-full z-40 mt-1 grid max-h-80 w-max max-w-[min(26rem,92vw)] gap-px overflow-auto rounded-xs border border-surface-600 bg-surface-900 p-1 shadow-xl shadow-black/70 {align === 'right' ? 'right-0' : 'left-0'}"
@@ -192,7 +205,7 @@
 				>
 					{#if o.glyph}<Glyph kind={o.glyph} dim={o.muted} />{/if}
 					{#if o.iconUrl}<img src={o.iconUrl} alt="" class="size-6 shrink-0 rounded-xs" loading="lazy" />{/if}
-					<span class="flex-1 whitespace-nowrap">{o.label}</span>
+					<span class="flex-1 whitespace-nowrap">{o.label}{#if o.suffix}<span class="ml-1" style:color={o.suffix.color}>{o.suffix.label}</span>{/if}</span>
 					{#if previews.has(o.value) && o.value !== value}
 						{@const p = previews.get(o.value)!}
 						<!-- Multi-column pickers (core points) stack % over raw CP so cells stay narrow. -->

@@ -2,13 +2,16 @@
 	import { sheetDrag } from './sim/sheet-drag';
 	import { onMount, untrack } from 'svelte';
 	import { formatCp, formatPct } from './format';
-	import { btn, btnAccent, ROLL_COLORS } from './sim/ui';
+	import { btn, btnAccent, ROLL_COLORS, statNameColor } from './sim/ui';
 	import UpgradeTitle from './UpgradeTitle.svelte';
+	import MenuPicker from './sim/MenuPicker.svelte';
 	import GoldCost from './GoldCost.svelte';
-	import { byGold, formatGold, goldPerPct, supportsGoldCost, type RankMode } from './gold-costs.svelte';
+	import { PHEON_ICON } from './icons';
+	import { byGold, formatGold, goldPerPct, missingPriceCount, supportsGoldCost, type RankMode } from './gold-costs.svelte';
 	import type { HoningCost } from './honing-cost';
 	import { ACC_ROLLS, groupAccessoryUpgrades, type AccRoll } from './accessory-sets';
 	import { CATEGORY_LABELS, type Upgrade, type UpgradeCategory } from './upgrades';
+	import { adjustSkinSetup, skinGrade, skinParts, type SimSkins } from './skins';
 
 	let {
 		upgrades,
@@ -21,7 +24,9 @@
 		auto = {},
 		costs = {},
 		accRolls,
-		onaccrolls
+		onaccrolls,
+		skins,
+		isSupport = false
 	}: {
 		upgrades: Upgrade[];
 		cp: number;
@@ -40,6 +45,8 @@
 		/** Main-line rolls the accessory ladder offers; the picker changes them on Apply. */
 		accRolls?: AccRoll[];
 		onaccrolls?: (rolls: AccRoll[]) => void;
+		skins?: SimSkins;
+		isSupport?: boolean;
 	} = $props();
 
 	let dialog: HTMLDialogElement;
@@ -57,6 +64,7 @@
 		for (const u of list) by.set(u.category, [...(by.get(u.category) ?? []), u]);
 		// Keep the picker and quick navigation in place even when no accessory rolls are offered.
 		if (accRolls && !by.has('accessory')) by.set('accessory', []);
+		if (skins?.bonus !== 8 && !by.has('skin')) by.set('skin', []);
 		return [...by.entries()]
 			.map(([category, items]) => ({ category, list: items.toSorted((a, b) => b.gainPct - a.gainPct) }))
 			.sort((a, b) => (b.list[0]?.gainPct ?? 0) - (a.list[0]?.gainPct ?? 0));
@@ -109,10 +117,22 @@
 		onaccrolls?.([...draft]);
 	}
 	const best = $derived(mode === 'gold' ? byGold(upgrades, costs).slice(0, 3) : upgrades.slice(0, 3));
+	const missingTotal = $derived(missingPriceCount(upgrades, costs));
+	function adjustSkin(index: number, bonus: number) {
+		if (!skins) return;
+		const parts = adjustSkinSetup(skins, index, bonus);
+		if (parts) onapply?.({ key: `skin-config:${parts.join(',')}`, category: 'skin', title: 'Skin setup', detail: '', count: 1, approximate: false, gainPct: 0 });
+	}
+	const skinColor = (bonus: number | null) => bonus === 2 ? '#ff8a2a' : bonus === 1 ? '#b780ff' : bonus === 0.5 ? '#65a5ff' : undefined;
 </script>
+
+{#snippet cpAfter(u: Upgrade)}
+	<span class="block text-xs text-surface-100 tabular-nums">{formatCp(cp * (1 + u.gainPct / 100))} <span class={isSupport ? 'text-green-400' : 'text-red-400'}>({formatPct(cp * u.gainPct / 100)})</span></span>
+{/snippet}
 
 {#snippet rollPicker()}
 	<p class="mb-1 text-xs text-amber-300/90">※ Only options that beat the current snapshot are considered.</p>
+	{#if mode === 'gold'}<p class="mb-2 flex items-center gap-1.5 text-xs text-amber-300/90"><img src={PHEON_ICON} alt="" class="size-4 shrink-0" />Accessory prices exclude Pheon costs.</p>{/if}
 	<hr class="mb-2 border-surface-700" />
 	<div class="mb-1.5 flex flex-row flex-wrap items-center gap-1.5" role="group" aria-label="Accessory rolls to offer">
 		{#each ACC_ROLLS as r (r)}
@@ -142,11 +162,11 @@
 		<div class="flex min-w-0 flex-1 flex-col">
 				<UpgradeTitle {u} />
 			{#if u.detail}<span class="text-xs text-surface-400">{u.detail}</span>{/if}
-			{#if mode === 'gold' && supportsGoldCost(u)}<GoldCost {u} auto={auto[u.key]} />{/if}
+			{#if (mode === 'gold' || u.category === 'skin') && supportsGoldCost(u)}<GoldCost {u} auto={auto[u.key]} />{/if}
 		</div>
 		<div class="flex shrink-0 flex-col text-right">
 			<span class="text-sm font-semibold text-green-400 tabular-nums">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>
-			<span class="text-xs text-surface-500 tabular-nums">{formatCp(cp * (1 + u.gainPct / 100))}</span>
+			{@render cpAfter(u)}
 		</div>
 		{#if onapply}
 			<button type="button" class="{btn} w-14 shrink-0 px-1.5" onclick={() => onapply(u)} title="Make this change in the simulator">
@@ -161,13 +181,13 @@
 	<div data-key={u.key} class="flex items-start gap-3 border-t border-neutral-950 py-2 {variants.some((v) => v.key === focusKey) ? 'animate-[upgrade-focus_1.6s_ease-out] rounded-xs' : ''}">
 		<div class="flex min-w-0 flex-1 flex-col gap-0.5">
 			{#each u.lines ?? [] as line (line.name)}
-				<div class="grid grid-cols-[minmax(0,8.5rem)_max-content] items-baseline gap-2 text-sm leading-snug"><span class="min-w-0 text-surface-100">{line.name}</span><span class="font-semibold" style:color={ROLL_COLORS[line.tier as keyof typeof ROLL_COLORS]}>{line.value ?? line.tier}</span></div>
+				<div class="grid grid-cols-[minmax(0,8.5rem)_max-content] items-baseline gap-2 text-sm leading-snug"><span class="min-w-0 text-surface-100" style:color={statNameColor(line.name)}>{line.name}</span><span class="font-semibold" style:color={ROLL_COLORS[line.tier as keyof typeof ROLL_COLORS]}>{line.value ?? line.tier}</span></div>
 			{/each}
 			{#if (u.lines?.length ?? 0) < 3}<span class="text-xs text-surface-500">None</span>{/if}
 			{#if mode === 'gold'}<GoldCost {u} />{/if}
 		</div>
 		<div class="flex shrink-0 flex-col gap-2">
-			{#each variants as target (target.key)}<div class="flex items-center gap-2"><div class="text-right"><span class="block text-[11px] text-surface-400">{target.subject}</span><span class="text-sm font-semibold text-green-400 tabular-nums">{target.approximate ? '≈' : ''}{formatPct(target.gainPct)}%</span></div>{#if onapply}<button type="button" class="{btn} w-14 px-1.5" onclick={() => onapply(target)} title={`Apply to ${target.subject}`}>{flash?.key === target.key ? (flash.ok ? '✓' : 'Done') : 'Apply'}</button>{/if}</div>{/each}
+			{#each variants as target (target.key)}<div class="flex items-center gap-2"><div class="text-right"><span class="block text-[11px] text-surface-400">{target.subject}</span><span class="text-sm font-semibold text-green-400 tabular-nums">{target.approximate ? '≈' : ''}{formatPct(target.gainPct)}%</span>{@render cpAfter(target)}</div>{#if onapply}<button type="button" class="{btn} w-14 px-1.5" onclick={() => onapply(target)} title={`Apply to ${target.subject}`}>{flash?.key === target.key ? (flash.ok ? '✓' : 'Done') : 'Apply'}</button>{/if}</div>{/each}
 		</div>
 	</div>
 {/snippet}
@@ -190,6 +210,15 @@
 				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
 			</button>
 		</div>
+		{#if mode === 'gold' && missingTotal}
+			<div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-200" role="status" aria-live="polite" aria-atomic="true">
+				<span class="font-semibold">{missingTotal} missing price{missingTotal === 1 ? '' : 's'}</span>
+				{#each groups as g (g.category)}
+					{@const missing = missingPriceCount(g.list, costs)}
+					{#if missing}<button type="button" class="underline decoration-amber-400/40 underline-offset-2 hover:text-amber-100" onclick={() => jump(g.category)}>{SHORT[g.category] ?? CATEGORY_LABELS[g.category]} · {missing}</button>{/if}
+				{/each}
+			</div>
+		{/if}
 		<div bind:this={scroller} onscroll={track} class="relative flex max-h-[70vh] w-[620px] flex-col gap-4 overflow-y-auto px-4 pb-4 max-md:w-[100vw]">
 			{#if groups.length > 1}
 				<div bind:this={bar} class="sticky top-0 z-10 -mx-4 flex flex-row flex-wrap gap-1 border-b border-neutral-950 bg-surface-900 px-4 py-2" role="navigation" aria-label="Upgrade categories">
@@ -216,6 +245,7 @@
 							<span class="text-[11px] font-semibold tracking-wide text-surface-400 uppercase">#{i + 1} · {CATEGORY_LABELS[u.category]}</span>
 								<UpgradeTitle {u} />
 							<span class="text-lg font-bold text-green-400">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>
+							{@render cpAfter(u)}
 							{#if mode === 'gold'}<span class="text-xs text-amber-300/90 tabular-nums">{formatGold(goldPerPct(u, costs)!)} gold per 1%</span>{/if}
 						</div>
 					{/each}
@@ -224,6 +254,22 @@
 			{#each groups as g (g.category)}
 				<section id={sectionId(g.category)} class="flex flex-col">
 					<h3 class="mb-1 text-xs font-semibold tracking-wide text-surface-400 uppercase">{CATEGORY_LABELS[g.category]}</h3>
+					{#if g.category === 'skin' && skins}
+						{#if skins.bonus !== null && onapply}
+							<div class="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+								{#each ['Head', 'Chest', 'Pants', 'Weapon'] as piece, i}
+									{@const current = skinParts(skins)[i]}
+									<div class="flex min-w-0 flex-col gap-1 text-xs text-surface-400">
+										<span class="text-surface-200">{piece}</span>
+										<MenuPicker value={current ?? 0} options={[0, 0.5, 1, 2].map((bonus) => ({ value: bonus, label: skinGrade(bonus), suffix: { label: `+${bonus}%`, color: skinColor(bonus) }, disabled: !adjustSkinSetup(skins, i, bonus) }))} onpick={(bonus) => adjustSkin(i, bonus)} label={`${piece} skin grade`} full>
+											{#snippet trigger()}<span class="text-xs text-surface-100">{skinGrade(current)}<span class="ml-1" style:color={skinColor(current)}>+{current ?? 0}%</span></span>{/snippet}
+										</MenuPicker>
+									</div>
+								{/each}
+							</div>
+						{/if}
+						{#if !g.list.length}<p class="text-xs text-surface-400">{skins.bonus === null ? 'Set the current skin bonus in the Skins card to calculate upgrades.' : 'No remaining skin upgrades.'}</p>{/if}
+					{/if}
 					{#if g.category === 'accessory' && accRolls}{@render rollPicker()}{/if}
 					{#if mode === 'gold' && g.list.length && !supportsGoldCost(g.list[0])}
 						<p class="mb-1 text-xs text-amber-300/90">※ Gold efficiency can't be reliably calculated for cores and astrogems.</p>
@@ -231,12 +277,14 @@
 					{#if g.category === 'accessory'}
 						<!-- Whole-accessory buys fold per piece: the best buy on the summary line, the full ladder inside. -->
 						{#each groupAccessoryUpgrades(g.list) as piece (piece.name)}
+							{@const missing = missingPriceCount(piece.options.flatMap((o) => o.variants), costs)}
 							<details class="group border-t border-neutral-950" open={piece.options.some((o) => o.variants.some((u) => u.key === focusKey))}>
-								<summary class="flex cursor-pointer list-none flex-row items-center gap-3 py-2 hover:bg-black/15 [&::-webkit-details-marker]:hidden">
+								<summary class="flex cursor-pointer list-none flex-row flex-wrap items-center gap-x-3 gap-y-1 py-2 hover:bg-black/15 [&::-webkit-details-marker]:hidden">
 									<span class="w-3 text-xs text-surface-500 transition-transform group-open:rotate-90">▸</span>
 									<span class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-xs"><span class="w-22 shrink-0 text-sm text-surface-100">{piece.name}</span>{#each accRolls ?? [] as roll (roll)}<span class="inline-flex items-center rounded-xs border border-surface-600 bg-black/15 px-1.5 py-0.5 font-semibold">{#each [...roll] as tier, i (i)}{#if i}<span class="text-surface-500">-</span>{/if}<span style:color={ROLL_COLORS[({ h: 'high', m: 'mid', l: 'low' } as const)[tier as 'h' | 'm' | 'l']]}>{tier.toUpperCase()}</span>{/each}</span>{/each}</span>
 									<span class="text-xs text-surface-500">{piece.options.length} option{piece.options.length === 1 ? '' : 's'}</span>
 									{#if piece.options.length}<span class="text-sm font-semibold text-green-400 tabular-nums">up to {piece.options.some((o) => o.variants.some((u) => u.approximate)) ? '≈' : ''}{formatPct(Math.max(...piece.options.flatMap((o) => o.variants.map((u) => u.gainPct))))}%</span>{/if}
+									{#if mode === 'gold' && missing}<span class="basis-full pl-6 text-xs text-amber-300">{missing} missing price{missing === 1 ? '' : 's'}</span>{/if}
 								</summary>
 								<div class="pl-6">
 									{#each piece.options as option (option.key)}{@render accessoryRow(option.variants)}{/each}

@@ -8,9 +8,47 @@ import { liveUpgrades } from './live-upgrades';
 import { initSimState, simulate } from './simulate';
 import { supportCombatPower, supportEngravingIds, supportEngravingTable } from './support';
 import type { Loadout } from './types';
+import { skinPriceKey } from './skins';
+import { manualGoldCost } from './gold-costs.svelte';
+import { budgetChanges, priceBudget } from './sim-budget';
 
 describe.each([['dealer', soulshan], ['support', brushann]])('live Next Upgrades: %s', (_, fixture) => {
 	const l = fixture as unknown as Loadout;
+	it('offers per-piece skin purchases with shared budget prices and gains matching Apply', () => {
+		const base = initSimState(l);
+		base.skins = { bonus: 4, currentBonus: null, parts: [1, 1, 1, 1] };
+		const rows = liveUpgrades(l, base, base).filter((u) => u.category === 'skin');
+		expect(rows).toHaveLength(4);
+		const quotes = { [skinPriceKey(0, 2)]: 45000 };
+		expect(rows.filter((u) => manualGoldCost(u, quotes) === undefined)).toHaveLength(3);
+		const row = rows.find((u) => u.key === skinPriceKey(0, 2))!;
+		const next = structuredClone(base);
+		expect(applyUpgrade(l, next, base, row)).toBe(true);
+		expect(next.skins.bonus).toBe(5);
+		expect((simulate(l, next, base).cp / simulate(l, base, base).cp - 1) * 100).toBeCloseTo(row.gainPct, 9);
+		expect(priceBudget(budgetChanges(l, base, next), {}, {}, quotes, {})[0].average).toBe(45000);
+		expect(liveUpgrades(l, next, base).some((u) => u.key === row.key)).toBe(false);
+		base.skins = { bonus: 3, currentBonus: null };
+		expect(liveUpgrades(l, base, base).some((u) => u.category === 'skin' && u.approximate)).toBe(true);
+	});
+	it('automatically offers upgrades for imported Epic totals and lets assumptions be corrected without purchases', () => {
+		const base = initSimState(l);
+		base.skins = { bonus: 4, currentBonus: null };
+		const rows = liveUpgrades(l, base, base).filter((u) => u.category === 'skin');
+		expect(rows).toHaveLength(4);
+		expect(rows.every((u) => u.approximate)).toBe(true);
+		const current = structuredClone(base);
+		expect(applyUpgrade(l, current, base, { ...rows[0], key: 'skin-config:2,1,0.5,0.5' })).toBe(true);
+		expect(current.skins.bonus).toBe(4);
+		expect(budgetChanges(l, base, current)).toEqual([]);
+		expect(liveUpgrades(l, current, base).some((u) => u.key === skinPriceKey(0, 2))).toBe(false);
+		const weapon = liveUpgrades(l, current, base).find((u) => u.key === skinPriceKey(3, 2))!;
+		expect(applyUpgrade(l, current, base, weapon)).toBe(true);
+		expect(budgetChanges(l, base, current).map((r) => r.sourceKey)).toEqual([skinPriceKey(3, 2)]);
+		expect(applyUpgrade(l, current, base, { ...weapon, key: 'skin-config:2,2,2,2' })).toBe(false);
+		current.skins = { bonus: 8, currentBonus: null };
+		expect(liveUpgrades(l, current, base).some((u) => u.category === 'skin')).toBe(false);
+	});
 	it('every displayed gain matches Apply, including after multiple different edits', () => {
 		const base = initSimState(l);
 		const current = structuredClone(base);

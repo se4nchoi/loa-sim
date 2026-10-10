@@ -380,5 +380,5 @@
 
 {#if budgetOpen}
 	{#if !wide}<UpgradePlanner class="hidden" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
-	<SimBudget changes={budgetChanges(loadout, base, snapshot())} inventoryIds={inventoryMaterials(sim.gear, !!sim.bracer)} priceUpgrades={budgetPriceUpgrades(loadout, base, snapshot())} onprice={(u) => budgetPricing = u} {current} {simulated} {characterKey} {characterName} onclose={() => { budgetOpen = false; budgetPricing = null; }} />
+	<SimBudget isSupport={loadout.battlePoint.isSupport} changes={budgetChanges(loadout, base, snapshot())} inventoryIds={inventoryMaterials(sim.gear, !!sim.bracer)} priceUpgrades={budgetPriceUpgrades(loadout, base, snapshot())} onprice={(u) => budgetPricing = u} {current} {simulated} {characterKey} {characterName} onclose={() => { budgetOpen = false; budgetPricing = null; }} />
 {/if}

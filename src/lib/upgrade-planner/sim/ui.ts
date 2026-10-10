@@ -49,6 +49,12 @@ export interface PickOption {
 
 /** lostark.bible's roll colors for accessory lines (high / mid / low), plus grey for lines with no DPS value. */
 export const ROLL_COLORS = { high: '#EA6811', mid: '#DF18E3', low: '#1260EB', none: '#575757' } as const;
+
+/** Stat-name accents; roll values keep their own grade colors. */
+export const statNameColor = (name: string) => /boss damage|ally\s+(?:atk\.?|attack)\s*(?:enh|power)/i.test(name) ? '#f87171'
+	: /additional damage|brand power/i.test(name) ? '#f5d35b'
+	: /ally damage enh/i.test(name) ? '#ff8a2a'
+	: /(?:atk\.?|attack)\s*(?:power|enh)/i.test(name) ? '#ff8a2a' : undefined;
 /** Bracelet effects have four grades; the top three reuse the roll colors. */
 export const GRADE_COLORS = [ROLL_COLORS.high, ROLL_COLORS.mid, ROLL_COLORS.low, '#8a8a8a'];
 
@@ -63,6 +69,8 @@ export interface MenuOption<V> {
 	/** Built-in mark shown before the label. */
 	glyph?: 'relic' | 'stone';
 	color?: string;
+	/** A short colored value following the label. */
+	suffix?: { label: string; color?: string };
 	muted?: boolean;
 	/** Visible but unavailable, e.g. an astrogem exceeding the core's Willpower. */
 	disabled?: boolean;

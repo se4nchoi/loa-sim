@@ -4,6 +4,7 @@
 import { applyAccessorySet, parseAccessorySetKey } from './accessory-sets';
 import { roleOf } from './roles';
 import { nextBracer } from './bracer';
+import { setSkinPart, skinParts, skinCombinations } from './skins';
 import type { HoningSlot } from './honing-data';
 import { gemParts, isOtherLine, type AccessorySlot, type SimState } from './simulate';
 import { ENGRAVING_BOOK_STEPS, karmaRank } from './tables';
@@ -18,6 +19,19 @@ const MAX_CORE_POINTS_PER_GEM = 5;
 export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade): boolean {
 	const [kind, a, b] = u.key.split(':');
 	switch (kind) {
+		case 'skin-config': {
+			const parts = a.split(',').map(Number);
+			if (!skinCombinations(s.skins.bonus).some((c) => c.every((n, i) => n === parts[i]) && c.length === parts.length)) return false;
+			s.skins = { ...s.skins, parts, startingParts: s.skins.bonus === base.skins.bonus ? parts : s.skins.startingParts };
+			return true;
+		}
+		case 'skin': {
+			const index = ['head', 'chest', 'pants', 'weapon'].indexOf(a);
+			const bonus = Number(b), parts = skinParts(s.skins);
+			if (index < 0 || ![0.5, 1, 2].includes(bonus) || parts.some((p) => p === null) || bonus <= parts[index]!) return false;
+			s.skins = setSkinPart(s.skins, index, bonus);
+			return true;
+		}
 		case 'quality': {
 			const slot = a as HoningSlot, target = Number(b);
 			if (s.quality[slot] === undefined || !Number.isInteger(target) || target <= s.quality[slot]! || target > 100) return false;

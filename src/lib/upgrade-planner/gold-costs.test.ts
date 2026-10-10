@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { bookCost, byGold, formatGold, goldPerPct, manualGoldCost, parseGold, parseOwned } from './gold-costs.svelte';
+import { bookCost, byGold, formatGold, goldPerPct, manualGoldCost, missingPriceCount, parseGold, parseOwned } from './gold-costs.svelte';
 import type { Upgrade } from './upgrades';
 
 const up = (key: string, gainPct: number) => ({ key, gainPct, category: 'gem', title: key, detail: '', count: 1, approximate: false }) as Upgrade;
 
 describe('gold costs', () => {
+	it('counts shared missing accessory quotes once and excludes RNG rows and zero-priced upgrades', () => {
+		const ear1 = { ...up('accset:ear1:atk_pct.high,weapon_pct.mid', 1), category: 'accessory' as const };
+		const ear2 = { ...ear1, key: 'accset:ear2:weapon_pct.mid,atk_pct.high' };
+		const skin = { ...up('skin:head:2', 0.4), category: 'skin' as const };
+		const core = { ...up('core:1:20', 1), category: 'core' as const };
+		expect(missingPriceCount([ear1, ear2, skin, core], {})).toBe(2);
+		expect(missingPriceCount([ear1, ear2, skin, core], { [ear1.key]: 5000, [ear2.key]: 5000, [skin.key]: 0 })).toBe(0);
+	});
 	it('shares accessory prices across display line order without mixing different rolls', () => {
 		const u = { ...up('accset:ear1:atk_pct.high,weapon_pct.mid', 1), category: 'accessory' as const };
 		const prices = { 'accset:ear1:weapon_pct.mid,atk_pct.high': 50000 };

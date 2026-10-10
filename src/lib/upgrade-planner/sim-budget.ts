@@ -7,7 +7,7 @@ import { HONING_SLOT_LABELS } from './honing-upgrades';
 import { autoHoningCosts, honingCost, materialName, tapsFor, type MaterialOwned, type MaterialPrices } from './honing-cost';
 import type { HoningTap } from './honing-cost-data';
 import { ACCESSORY_SLOTS, gemParts, isOtherLine, simulate, type DpsLine, type SimState } from './simulate';
-import { skinParts } from './skins';
+import { skinParts, skinPriceKey } from './skins';
 import type { Loadout } from './types';
 import { engravingName, type Upgrade } from './upgrades';
 import { formatLineValue } from './tables';
@@ -109,9 +109,10 @@ export function budgetChanges(loadout: Loadout, base: SimState, target: SimState
 			for (let level = from + 1; level <= to; level++) add('Karma', `${tree[0].toUpperCase() + tree.slice(1)} Karma ${level - 1} → ${level}`, level - 1, level, { sourceKey: `karma:${tree === 'evolution' ? 'evolution-level' : tree}:${level}`, detail: 'Tap gold only; assumes plentiful Destiny Stones.' });
 		} else add('Karma', `${tree} Karma change`, from, to, { status: from === null ? 'unavailable' : 'excluded', detail: from === null ? 'Starting Karma level is unknown.' : '' });
 	}
-	const beforeSkins = skinParts(base.skins), afterSkins = skinParts(target.skins);
+	const beforeSkins = target.skins.startingParts ?? skinParts(base.skins), afterSkins = skinParts(target.skins);
 	if (different(beforeSkins, afterSkins)) afterSkins.forEach((to, i) => {
-		if (to !== beforeSkins[i]) add('Skins', `${['Head', 'Chest', 'Pants', 'Weapon'][i]} skin: ${beforeSkins[i] ?? '?'}% → ${to ?? '?'}%`, beforeSkins[i], to);
+		if (to !== beforeSkins[i]) add('Skins', `${['Head', 'Chest', 'Pants', 'Weapon'][i]} skin: ${beforeSkins[i] ?? '?'}% → ${to ?? '?'}%`, beforeSkins[i], to,
+			to === 0 ? { fixed: 0 } : to === null ? {} : { sourceKey: skinPriceKey(i, to) });
 	});
 	else if (base.skins.bonus !== target.skins.bonus) add('Skins', `Skin bonus ${base.skins.bonus ?? '?'}% → ${target.skins.bonus ?? '?'}%`, base.skins.bonus, target.skins.bonus);
 	if (different(base.bracelet, target.bracelet)) add('Bracelet', 'Bracelet stat / effect changes', base.bracelet, target.bracelet, { status: 'rng' });

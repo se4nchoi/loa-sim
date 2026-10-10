@@ -7,6 +7,7 @@ import { HONING_SLOTS } from './honing-data';
 import { HONING_SLOT_LABELS } from './honing-upgrades';
 import { qualityCost } from './quality';
 import { roleOf } from './roles';
+import { skinParts, skinPriceKey } from './skins';
 import { gemParts, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
 import { ASTROGEM_OPTION_NAMES, CORE_BREAKPOINTS, CORE_GRADE_CAP, ENGRAVING_BOOK_STEPS, KARMA_MAX_LEVEL, karmaRank } from './tables';
 import type { Loadout } from './types';
@@ -24,6 +25,14 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 		candidates.push({ count: 1, approximate: false, gainPct: 0, ...u });
 
 	const gemInfo = gemParts(l);
+	const pieces = skinParts(state.skins);
+	// Imported totals use the most likely combination unless the player supplies individual grades.
+	if (pieces.every((p) => p !== null)) pieces.forEach((from, i) => {
+		for (const [bonus, grade] of [[0.5, 'Rare'], [1, 'Epic'], [2, 'Legendary']] as const) {
+			if (bonus <= from!) continue;
+			add({ key: skinPriceKey(i, bonus), category: 'skin', group: `skin:${i}`, subject: `${['Head', 'Chest', 'Pants', 'Weapon'][i]} Skin`, title: `${grade} +${bonus}%`, detail: '', approximate: !state.skins.parts && state.skins.bonus !== 0 });
+		}
+	});
 	for (const slot of HONING_SLOTS) {
 		const from = state.quality[slot];
 		if (from === undefined || from >= 100 || (slot === 'weapon' ? role.support : !role.support)) continue;

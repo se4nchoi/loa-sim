@@ -1,5 +1,9 @@
 import type { Loadout } from './types';
 
+/** Market purchase price for one piece of the selected grade. */
+export const skinPriceKey = (index: number, bonus: number) =>
+	`skin:${['head', 'chest', 'pants', 'weapon'][index]}:${bonus}`;
+
 export interface SimSkins {
 	/** Total % from weapon, head, chest and pants (0–8). Null when not imported. */
 	bonus: number | null;
@@ -7,11 +11,36 @@ export interface SimSkins {
 	currentBonus: number | null;
 	/** Per-piece choices, when explicitly selected. Imported totals need not identify individual grades. */
 	parts?: (number | null)[];
+	/** Corrected baseline slot assignment; changing an assumption isn't a purchase. */
+	startingParts?: number[];
 }
 
 export function skinParts(skins: SimSkins): (number | null)[] {
-	return skins.parts ?? Array.from({ length: 4 }, () => skins.bonus === 8 ? 2 : skins.bonus === 0 ? 0 : null);
+	return skins.parts ?? skinCombinations(skins.bonus)[0] ?? [null, null, null, null];
 }
+
+/** Exact totals, preferring all slots equipped, then Epic pieces and fewer mixed grades. */
+export function skinCombinations(total: number | null): number[][] {
+	if (total === null) return [];
+	const combinations: number[][] = [];
+	for (const head of [1, 2, 0.5, 0]) for (const chest of [1, 2, 0.5, 0])
+		for (const pants of [1, 2, 0.5, 0]) for (const weapon of [1, 2, 0.5, 0]) {
+			const parts = [head, chest, pants, weapon];
+			if (parts.reduce((sum, n) => sum + n, 0) === total) combinations.push(parts);
+		}
+	const score = (parts: number[]) => parts.filter((p) => p > 0).length * 100 + parts.filter((p) => p === 1).length * 10 - new Set(parts).size;
+	return combinations.sort((a, b) => score(b) - score(a) || a.reduce((order, n, i) => order || b[i] - n, 0));
+}
+
+/** Move the assumed grades between slots while preserving the imported total. */
+export function adjustSkinSetup(skins: SimSkins, index: number, bonus: number): number[] | null {
+	const current = skinParts(skins);
+	const matches = skinCombinations(skins.bonus).filter((parts) => parts[index] === bonus);
+	const changes = (parts: number[]) => parts.reduce((sum, p, i) => sum + Number(p !== current[i]), 0);
+	return matches.sort((a, b) => changes(a) - changes(b))[0] ?? null;
+}
+
+export const skinGrade = (bonus: number | null) => bonus === 2 ? 'Legendary' : bonus === 1 ? 'Epic' : bonus === 0.5 ? 'Rare' : bonus === 0 ? 'None' : 'Unknown';
 
 export function setSkinPart(skins: SimSkins, index: number, bonus: number): SimSkins {
 	const parts = [...skinParts(skins)];

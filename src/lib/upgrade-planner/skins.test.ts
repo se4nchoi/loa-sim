@@ -5,7 +5,7 @@ import drkuuljulian from './fixtures/ce-drkuuljulian.json';
 import yktra from './fixtures/ce-yktra.json';
 import { PartType } from './cp';
 import { initSimState, simulate } from './simulate';
-import { readSkinBonus, setSkinPart, skinParts, skinStatRatio, type SimSkins } from './skins';
+import { readSkinBonus, setSkinPart, skinParts, skinCombinations, adjustSkinSetup, skinStatRatio, type SimSkins } from './skins';
 import type { Loadout } from './types';
 
 describe('importing skin bonuses', () => {
@@ -29,15 +29,32 @@ describe('importing skin bonuses', () => {
 });
 
 describe('skin simulation', () => {
-	it('keeps an imported mixed total until all individual grades are supplied', () => {
+	it('assigns Legendary pieces in gear order and lets the user move them without changing the total', () => {
+		for (const [total, expected] of [[4, [1, 1, 1, 1]], [5, [2, 1, 1, 1]], [6, [2, 2, 1, 1]], [7, [2, 2, 2, 1]], [8, [2, 2, 2, 2]]] as const) {
+			expect(skinParts({ bonus: total, currentBonus: null })).toEqual(expected);
+		}
+		expect(adjustSkinSetup({ bonus: 5, currentBonus: null }, 3, 2)).toEqual([1, 1, 1, 2]);
+		expect(adjustSkinSetup({ bonus: 7, currentBonus: null }, 0, 0)).toBeNull();
+	});
+	it('defaults a 4% total to four Epic pieces and recomputes explicit edits', () => {
 		let skins: SimSkins = { bonus: 4, currentBonus: null };
-		expect(skinParts(skins)).toEqual([null, null, null, null]);
+		expect(skinParts(skins)).toEqual([1, 1, 1, 1]);
 		skins = setSkinPart(skins, 0, 2);
-		expect(skins.bonus).toBe(4);
+		expect(skins.bonus).toBe(5);
 		skins = setSkinPart(skins, 1, 1);
 		skins = setSkinPart(skins, 2, 0.5);
 		skins = setSkinPart(skins, 3, 0);
 		expect(skins.bonus).toBe(3.5);
+	});
+	it('enumerates exact totals and prefers equipped pieces where possible', () => {
+		for (let total = 0; total <= 8; total += 0.5) {
+			const combinations = skinCombinations(total);
+			for (const parts of combinations) expect(parts.reduce((sum, p) => sum + p, 0)).toBe(total);
+			if (combinations.some((parts) => parts.every((p) => p > 0))) expect(combinations[0].every((p) => p > 0)).toBe(true);
+		}
+		expect(skinCombinations(null)).toEqual([]);
+		expect(skinParts({ bonus: 8, currentBonus: null })).toEqual([2, 2, 2, 2]);
+		expect(skinParts({ bonus: 0, currentBonus: null })).toEqual([0, 0, 0, 0]);
 	});
 	it('changes one Legendary piece to Epic without changing the other pieces', () => {
 		const original = { bonus: 8, currentBonus: null };

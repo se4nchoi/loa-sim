@@ -48,13 +48,13 @@
 			<button type="button" class={btnAccent} onclick={() => trees.forEach((t) => (sim.karma[t.key] = KARMA_MAX_LEVEL))} title="Every karma tree at its max level">Max</button>
 			<button type="button" class={btn} onclick={() => (sim.karma = { ...base.karma })}>Reset</button>
 		{/snippet}
-		<div class="grid grid-cols-3 gap-2 max-md:grid-cols-1">
+		<div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-2">
 			{#each trees as t (t.key)}
 				{@const level = sim.karma[t.key]!}
 				{@const rank = karmaRank(level)}
 				{@const changed = level !== base.karma[t.key]}
 				<div
-					class="flex flex-col gap-2 rounded-xs border-t-2 bg-black/15 p-2.5 {changed ? 'ring-1 ring-accent-500' : ''}"
+					class="flex min-w-0 flex-col gap-2 rounded-xs border-t-2 bg-black/15 p-2.5 {changed ? 'ring-1 ring-accent-500' : ''}"
 					style:border-top-color={t.color}
 				>
 					<div class="flex flex-row items-center gap-2">
@@ -73,7 +73,7 @@
 					</div>
 					<div class="flex flex-row items-center gap-1.5">
 						<Stepper bind:value={sim.karma[t.key]!} min={0} max={KARMA_MAX_LEVEL} prefix="Lv. " {changed} label={`${t.name} karma level`} width="w-6" />
-						<button type="button" class={btnAccent} onclick={() => (sim.karma[t.key] = KARMA_MAX_LEVEL)}>Max</button>
+						<button type="button" class="{btnAccent} shrink-0" onclick={() => (sim.karma[t.key] = KARMA_MAX_LEVEL)}>Max</button>
 					</div>
 					<ul class="flex flex-col gap-0.5 text-xs">
 						{#each effects(t.key, level) as e (e.label)}

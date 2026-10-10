@@ -164,6 +164,12 @@ export function formatGold(g: number): string {
 /** Ark Grid rolls remain CP suggestions without a predictable gold cost. */
 export const supportsGoldCost = (u: Upgrade) => u.category !== 'core' && u.category !== 'astrogem';
 
+/** Count price entries, sharing identical accessory quotes across paired slots. Costs are the resolved row totals. */
+export function missingPriceCount(upgrades: Upgrade[], costs: Record<string, number>): number {
+	return new Set(upgrades.filter((u) => supportsGoldCost(u) && costs[u.key] === undefined)
+		.map((u) => u.books ? `book:${u.books.engraving}` : accessoryPriceKey(u.key, {}))).size;
+}
+
 /** Equipment honing is priced from materials; old manually entered totals no longer override it. */
 export const manualGoldCost = (u: Upgrade, costs: Record<string, number>) => u.category === 'honing' || u.category === 'quality' ? undefined : costs[accessoryPriceKey(u.key, costs)];
 

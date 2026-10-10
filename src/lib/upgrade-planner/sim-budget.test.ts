@@ -4,9 +4,27 @@ import { initSimState } from './simulate';
 import { budgetChanges, budgetPriceUpgrades, priceBudget, type BudgetChange } from './sim-budget';
 import { tapsFor } from './honing-cost';
 import type { Loadout } from './types';
+import { setSkinPart, skinPriceKey } from './skins';
 
 const loadout = soulshan as unknown as Loadout;
 describe('current changes budget', () => {
+	it('prices changed skin pieces as market purchases by slot and target grade', () => {
+		const base = initSimState(loadout), target = structuredClone(base);
+		base.skins = { bonus: 4, currentBonus: null, parts: [1, 1, 1, 1] };
+		target.skins = { ...base.skins, parts: [...base.skins.parts!] };
+		target.skins = setSkinPart(target.skins, 0, 2);
+		target.skins = setSkinPart(target.skins, 3, 2);
+		const quotes = { [skinPriceKey(0, 2)]: 45000, [skinPriceKey(3, 2)]: 70000 };
+		const rows = budgetChanges(loadout, base, target);
+		expect(rows.map((r) => r.sourceKey)).toEqual(['skin:head:2', 'skin:weapon:2']);
+		expect(priceBudget(rows, {}, {}, quotes, {}).map((r) => r.average)).toEqual([45000, 70000]);
+		base.skins.parts![0] = 0.5;
+		expect(priceBudget(budgetChanges(loadout, base, target), {}, {}, quotes, {})[0].average).toBe(45000);
+		target.skins = setSkinPart(target.skins, 0, 0);
+		expect(priceBudget(budgetChanges(loadout, base, target), {}, {}, quotes, {})[0].average).toBe(0);
+		target.skins = setSkinPart(target.skins, 0, 1);
+		expect(priceBudget(budgetChanges(loadout, base, target), {}, {}, quotes, {})[0].average).toBeUndefined();
+	});
 	it('compares the final state with the original, so resets clear the budget', () => {
 		const base = initSimState(loadout), target = structuredClone(base);
 		expect(budgetChanges(loadout, base, target)).toEqual([]);

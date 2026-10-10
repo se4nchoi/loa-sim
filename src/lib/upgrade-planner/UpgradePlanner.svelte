@@ -4,7 +4,7 @@
 		<UpgradePlanner loadout={loadout} onapply={(u) => …} />
 -->
 <script lang="ts">
-	import { formatPct } from './format';
+	import { formatCp, formatPct } from './format';
 	import { useDrawerDrag } from './sim/BottomDrawer.svelte';
 	import GoldCost from './GoldCost.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
@@ -191,6 +191,7 @@
 					<span class="text-right whitespace-nowrap text-green-400 tabular-nums {honing ? 'self-end' : ''}">
 						{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span>
 						{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
+						<span class="block text-[10px] text-surface-100">{formatCp(cp * (1 + u.gainPct / 100))} <span class={roleOf(loadout).support ? 'text-green-400' : 'text-red-400'}>({formatPct(cp * u.gainPct / 100)})</span></span>
 						{#if honing}
 							<span class="mt-0.5 flex h-6 items-center justify-end text-[11px] text-amber-300/90" title="Gold per 1% Combat Power, from the average honing cost"
 								>{formatGold(honing.expected / u.gainPct)} / 1%</span
@@ -218,5 +219,5 @@
 {/if}
 
 {#if dialogOpen}
-	<UpgradeDialog {upgrades} {cp} accRolls={rollsFor(characterKey)} onaccrolls={(r) => setAccRolls(characterKey, r)} {auto} {costs} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => { dialogOpen = false; focusKey = null; if (pricingRequest) onpricingclose?.(); }} />
+	<UpgradeDialog {upgrades} {cp} isSupport={roleOf(loadout).support} skins={simNow.skins} accRolls={rollsFor(characterKey)} onaccrolls={(r) => setAccRolls(characterKey, r)} {auto} {costs} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => { dialogOpen = false; focusKey = null; if (pricingRequest) onpricingclose?.(); }} />
 {/if}

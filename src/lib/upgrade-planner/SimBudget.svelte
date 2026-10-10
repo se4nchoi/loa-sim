@@ -11,8 +11,8 @@
 	import type { Upgrade } from './upgrades';
 	import { priceBudget, type BudgetChange } from './sim-budget';
 	import { btn, goldPriceButton, ROLL_COLORS } from './sim/ui';
-	let { changes, inventoryIds, priceUpgrades = [], onprice, current, simulated, characterKey = '', characterName, onclose }: {
-		changes: BudgetChange[]; inventoryIds?: string[]; priceUpgrades?: Upgrade[]; onprice?: (upgrade: Upgrade) => void; current: number; simulated: number; characterKey?: string; characterName?: string; onclose: () => void;
+	let { changes, inventoryIds, priceUpgrades = [], onprice, current, simulated, characterKey = '', characterName, isSupport = false, onclose }: {
+		changes: BudgetChange[]; inventoryIds?: string[]; priceUpgrades?: Upgrade[]; onprice?: (upgrade: Upgrade) => void; current: number; simulated: number; isSupport?: boolean; characterKey?: string; characterName?: string; onclose: () => void;
 	} = $props();
 	let dialog: HTMLDialogElement;
 	let card = $state<HTMLDivElement>();
@@ -48,7 +48,7 @@
 	<div bind:this={card} class="flex max-h-[85dvh] w-[660px] max-w-[calc(100vw-1.5rem)] flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:max-w-none max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 	<div class="flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3 max-sm:gap-y-1" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), slideOut: true, enabled: () => matchMedia('(max-width: 639px)').matches }}>
 		<span class="flex basis-full justify-center pb-1 sm:hidden"><span class="h-1.5 w-12 rounded-full bg-surface-500"></span></span>
-		<div class="min-w-0 flex-1"><h2 class="flex items-center gap-2 font-semibold text-amber-200"><img src={GOLD_ICON} alt="" class="size-5" />Current changes budget</h2><p class="mt-1 flex flex-wrap items-baseline gap-2 tabular-nums"><span class="text-2xl font-bold">{formatCp(current)}</span><span class="text-surface-400">→</span><span class="text-2xl font-bold text-red-400">{formatCp(simulated)}</span></p></div>
+		<div class="min-w-0 flex-1"><h2 class="flex items-center gap-2 font-semibold text-amber-200"><img src={GOLD_ICON} alt="" class="size-5" />Current changes budget</h2><p class="mt-1 flex flex-wrap items-baseline gap-2 tabular-nums"><span class="text-2xl font-bold">{formatCp(current)}</span><span class="text-surface-400">→</span><span class="text-2xl font-bold {isSupport ? 'text-green-400' : 'text-red-400'}">{formatCp(simulated)}</span></p></div>
 		<button type="button" class={btn} onclick={() => dialog.close()} aria-label="Close budget">Close</button>
 	</div>
 	<div class="min-h-0 space-y-4 overflow-y-auto p-4">
@@ -63,6 +63,7 @@
 		{#if !lines.length}<p class="py-6 text-center text-sm text-surface-400">No changes.</p>{/if}
 		{#each groups as section}
 			<section><h3 class="mb-2 text-xs font-semibold uppercase text-surface-400">{section}</h3>
+				{#if section === 'Accessories'}<p class="mb-2 text-xs text-amber-300/90">Accessory prices exclude Pheon costs.</p>{/if}
 				{#each lines.filter((row) => row.section === section) as row (row.key)}
 					{#if row.section === 'Accessories'}
 						{@const upgrade = priceUpgrades.find((u) => u.key === (row.sourceKey ?? row.key))}

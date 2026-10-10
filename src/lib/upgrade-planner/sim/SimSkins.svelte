@@ -31,7 +31,7 @@
 	{/snippet}
 	<div class="flex flex-wrap items-end gap-3">
 		<div class="flex flex-col gap-1 text-xs text-surface-400">
-			<span>Current {mainStatName} bonus</span>
+			<span>Current bonus</span>
 			{#if base.skins.bonus === null}
 				<select class={selectClass(false)} value={sim.skins.currentBonus ?? ''} onchange={(e) => setCurrent(e.currentTarget.value)} aria-label="Current skin bonus">
 					<option value="">Select current bonus</option>
@@ -40,7 +40,7 @@
 			{:else}<span class="flex h-8 items-center text-sm font-semibold text-surface-200">+{base.skins.bonus}%</span>{/if}
 		</div>
 		<label class="flex flex-col gap-1 text-xs text-surface-400">
-			Simulated {mainStatName} bonus
+			Simulated bonus
 			<select class={selectClass(sim.skins.bonus !== base.skins.bonus)} value={sim.skins.bonus ?? ''} onchange={(e) => (sim.skins = { ...sim.skins, bonus: e.currentTarget.value === '' ? null : Number(e.currentTarget.value), parts: e.currentTarget.value === '4' ? [1, 1, 1, 1] : undefined })} aria-label="Simulated skin bonus">
 				{#if sim.skins.bonus === null}<option value="">Select bonus</option>{/if}
 				{#each bonuses as bonus}<option value={bonus}>+{bonus}%{bonus === 8 ? ' · All legendary' : bonus === 4 ? ' · All epic' : ''}</option>{/each}
@@ -52,7 +52,8 @@
 			{@const bonus = parts[i]}
 			<div class="flex min-w-0 items-start gap-2 rounded-xs bg-black/15 p-2">
 				<ItemIcon src={itemLook(itemIds[piece.slot]).icon ?? iconUrl(piece.fallback)} grade={bonus === 2 ? 4 : bonus === 1 ? 3 : bonus === 0.5 ? 2 : 0} size="size-11" badge={bonus === null ? '?' : `+${bonus}%`} title={`${piece.label} skin slot`} />
-				<label class="flex min-w-0 flex-1 flex-col gap-1 text-xs text-surface-400">
+				<div class="flex min-w-0 flex-1 flex-col gap-1 text-xs text-surface-400">
+				<label class="flex min-w-0 flex-col gap-1">
 					{piece.label}
 					<select class={selectClass(bonus !== skinParts(base.skins)[i])} style:font-size="0.75rem" value={bonus === null ? '' : String(bonus)} onchange={(e) => (sim.skins = setSkinPart(sim.skins, i, Number(e.currentTarget.value)))} aria-label={`${piece.label} skin`}>
 						{#if bonus === null}<option value="" disabled>Unknown</option>{/if}
@@ -62,9 +63,13 @@
 						<option value="2">Legendary · +2%</option>
 					</select>
 				</label>
+				</div>
 			</div>
 		{/each}
 	</div>
+	{#if !sim.skins.parts && sim.skins.bonus !== null && sim.skins.bonus > 0 && sim.skins.bonus < 8}
+		<p class="mt-2 text-xs text-surface-400">Grades assumed from the total bonus. Adjust the pieces if needed.</p>
+	{/if}
 	{#if parts.some((p) => p === null)}
 		<p class="mt-2 text-xs text-surface-400">Individual grades aren't available from the imported total. Select all four pieces to use their combined bonus, or set the simulated total above.</p>
 	{/if}
