@@ -13,6 +13,7 @@ import { roleOf } from './roles';
 import { qualityStat, readQuality, type SimQuality } from './quality';
 import { CLASS_HP_COEFFICIENT } from './quality-data';
 import { readSkinBonus, skinStatRatio, type SimSkins } from './skins';
+import { ORBS, orbValue, readParadise, type SimParadise } from './paradise';
 import { SUPPORT_ACCESSORY_LINES, supportCoreValue, supportWeaponCoreStats, swappedCoreId, type SupportAccessoryLine } from './support';
 import {
 	ACCESSORY_LINES,
@@ -86,6 +87,8 @@ export interface SimState {
 	arkGrid: SimCore[];
 	bracelet: SimBracelet | null;
 	skins: SimSkins;
+	/** Paradise orb and the Paradise power it scales with; null without an orb. */
+	paradise: SimParadise | null;
 	/** Karma levels (0–30) per tree; null when the loadout has no karma data. */
 	karma: { evolution: number | null; enlightenment: number | null; leap: number | null };
 }
@@ -310,6 +313,7 @@ export function initSimState(l: Loadout): SimState {
 		})),
 		bracelet,
 		skins: { bonus: readSkinBonus(l, msIndex), currentBonus: null },
+		paradise: readParadise(l),
 		karma: {
 			evolution: l.karma?.evolution ?? null,
 			enlightenment: l.karma?.enlightenment ?? null,
@@ -633,6 +637,13 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	}
 	if (role.leapKarmaPerLevel && state.karma.leap !== null && state.karma.leap !== base.karma.leap)
 		set(PartType.KarmaLeapLevel, () => true, state.karma.leap * role.leapKarmaPerLevel);
+
+	// --- Paradise orb (dealers): k × (power / 1M + 2.5), k from the orb.
+	const orb = state.paradise;
+	if (orb && !orb.flat && (orb.orb !== base.paradise?.orb || orb.power !== base.paradise?.power)) {
+		const k = orb.orb === base.paradise?.orb ? base.paradise.k : (ORBS[orb.orb]?.k ?? orb.k);
+		set(PartType.ParadiseOrb, () => true, orbValue(k, Math.max(0, Number(orb.power) || 0)), { id: orb.orb });
+	}
 
 	return { parts, cp: role.score(parts), mainStat, weaponPower };
 }

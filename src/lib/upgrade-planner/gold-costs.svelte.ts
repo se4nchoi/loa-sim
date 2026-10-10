@@ -162,7 +162,7 @@ export function formatGold(g: number): string {
 }
 
 /** Ark Grid rolls remain CP suggestions without a predictable gold cost. */
-export const supportsGoldCost = (u: Upgrade) => u.category !== 'core' && u.category !== 'astrogem';
+export const supportsGoldCost = (u: Upgrade) => u.category !== 'core' && u.category !== 'astrogem' && u.category !== 'paradise';
 
 /** Equipment honing is priced from materials; old manually entered totals no longer override it. */
 export const manualGoldCost = (u: Upgrade, costs: Record<string, number>) => u.category === 'honing' || u.category === 'quality' ? undefined : costs[accessoryPriceKey(u.key, costs)];

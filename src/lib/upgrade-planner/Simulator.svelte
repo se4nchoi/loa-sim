@@ -26,6 +26,7 @@
 	import SimGear from './sim/SimGear.svelte';
 	import SimGems from './sim/SimGems.svelte';
 	import SimKarma from './sim/SimKarma.svelte';
+	import SimParadise from './sim/SimParadise.svelte';
 	import SimSkins from './sim/SimSkins.svelte';
 	import MobileSummaryBar from './sim/MobileSummaryBar.svelte';
 	import SimSummary from './sim/SimSummary.svelte';
@@ -50,7 +51,7 @@
 	} = $props();
 
 	const base = $derived(initSimState(loadout));
-	const SECTION_TITLES = ['Equipment', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'];
+	const SECTION_TITLES = ['Equipment', 'Paradise', 'Accessories', 'Bracelet', 'Gems', 'Engravings', 'Karma', 'Skins', 'Ark Grid'];
 	const sectionId = (title: string) => `sim-${title.toLowerCase().replaceAll(' ', '-')}`;
 	/** The section under the sticky area (site header + phone CP bar): its chip lights up. */
 	let activeSection = $state<string | null>(null);
@@ -271,7 +272,7 @@
 	     sits outside the scroller, so chips are clipped short of the edges instead of running into them. -->
 	<div class={pad}>
 	<HScroll class="gap-1.5">
-		{#each SECTION_TITLES as title}
+		{#each SECTION_TITLES.filter((t) => t !== 'Paradise' || base.paradise) as title}
 			<a
 				href={`#${sectionId(title)}`}
 				onclick={async (e) => {
@@ -326,6 +327,7 @@
 		<div class="grid grid-cols-2 items-start gap-2 max-xl:grid-cols-1">
 			<div class="flex min-w-0 flex-col gap-2">
 				<section id="sim-equipment" aria-label="Equipment" class="scroll-mt-28 max-lg:scroll-mt-32"><SimGear bind:sim {base} {itemIds} classId={loadout.classId} delta={sections.gear} /></section>
+				{#if base.paradise}<section id="sim-paradise" aria-label="Paradise" class="scroll-mt-28 max-lg:scroll-mt-32"><SimParadise bind:sim {base} {preview} delta={sections.paradise} /></section>{/if}
 				<section id="sim-accessories" aria-label="Accessories" class="scroll-mt-28 max-lg:scroll-mt-32"><SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} /></section>
 				<section id="sim-bracelet" aria-label="Bracelet" class="scroll-mt-28 max-lg:scroll-mt-32"><SimBracelet bind:sim {base} {loadout} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} /></section>
 			</div>
