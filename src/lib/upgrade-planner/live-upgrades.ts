@@ -36,7 +36,7 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 	state.gems.forEach((gem, i) => {
 		const info = gemInfo[i];
 		if (!info?.table || gem.level >= 10) return;
-		const key = `gem:${info.tier}:${gem.level}`;
+		const key = `gem:${gem.tier ?? info.tier}:${gem.level}`;
 		gemGroups.set(key, (gemGroups.get(key) ?? 0) + 1);
 	});
 	for (const [key, count] of gemGroups) {

@@ -18,7 +18,8 @@
 		preview,
 		align = 'left',
 		columns = 1,
-		full = false
+		full = false,
+		iconOnly = false
 	}: {
 		value: T;
 		options: MenuOption<T>[];
@@ -31,6 +32,8 @@
 		columns?: number;
 		/** Fill the parent's width (equal-width pickers in a column). */
 		full?: boolean;
+		/** Use the supplied icon as the entire trigger. */
+		iconOnly?: boolean;
 	} = $props();
 
 	// The simulated score, so a preview can show raw CP next to its percent.
@@ -100,7 +103,7 @@
 <div class="relative max-w-full {full ? 'flex w-full' : 'inline-flex'}" bind:this={root}>
 	<button
 		type="button"
-		class="inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-xs max-[360px]:gap-1 max-[360px]:px-1 {full ? 'w-full' : ''} border bg-surface-800/80 px-2 text-sm transition hover:border-accent-500 hover:bg-surface-700/80 {changed
+		class="inline-flex max-w-full min-w-0 items-center rounded-xs {iconOnly ? 'h-9 p-0 hover:ring-2 hover:ring-accent-400 hover:ring-offset-2 hover:ring-offset-surface-950 focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-950' : 'h-8 gap-1.5 px-2 max-[360px]:gap-1 max-[360px]:px-1'} {full ? 'w-full' : ''} border bg-surface-800/80 text-sm transition hover:border-accent-500 hover:bg-surface-700/80 {changed
 			? 'border-accent-500 bg-accent-500/15'
 			: 'border-surface-600'}"
 		aria-haspopup="listbox"
@@ -109,7 +112,7 @@
 		onclick={toggle}
 	>
 		{@render trigger()}
-		<svg class="size-3 shrink-0 text-surface-400 {full ? 'ml-auto' : ''}" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>
+		{#if !iconOnly}<svg class="size-3 shrink-0 text-surface-400 {full ? 'ml-auto' : ''}" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>{/if}
 	</button>
 	{#if open}
 		{#if rows}

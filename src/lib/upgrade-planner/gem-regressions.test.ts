@@ -3,11 +3,44 @@ import fixture from './fixtures/na-soulshan.json';
 import yktra from './fixtures/ce-yktra.json';
 import { PartType, partHigh } from './cp';
 import { GEM_BASE_ATTACK } from './game-data';
-import { initSimState, simulate } from './simulate';
+import { gemParts, initSimState, simulate } from './simulate';
+import { gemDpsGainPct } from './dps';
+import { liveUpgrades } from './live-upgrades';
+import { applyUpgrade } from './apply-upgrade';
 import { buildUpgrades } from './upgrades';
 import type { Loadout } from './types';
 
 describe('gem base Attack Power', () => {
+	it('switches a mixed setup’s T3 level 10 gem to T4 and back, including DPS and base attack', () => {
+		const l = structuredClone(fixture) as unknown as Loadout;
+		const part = l.battlePoint.parts.find((p) => p.type === PartType.Gem)!;
+		const originalId = part.id;
+		part.id = 65021100;
+		part.value = 640;
+		l.gems!.find((g) => g.id === originalId)!.id = 65021100;
+		const base = initSimState(l);
+		const state = structuredClone(base);
+		const info = gemParts(l);
+		expect(info[0].tier).toBe('T3');
+		expect(info.some((g) => g.tier === 'T4')).toBe(true);
+		state.gems[0].tier = 'T4';
+		const before = simulate(l, base, base);
+		const after = simulate(l, state, base);
+		const attack = (parts: typeof before.parts) => partHigh(parts.find((p) => p.type === PartType.BaseAttack)!);
+		expect(attack(after.parts)).toBeGreaterThan(attack(before.parts));
+		expect(partHigh(after.parts.find((p) => p.type === PartType.Gem)!)).toBe(704);
+		expect(gemDpsGainPct(base.gems, state.gems, info, { [base.gems[0].skill!]: 100 })).toBeCloseTo((1.44 / 1.4 - 1) * 100, 8);
+		state.gems[0].level = 9;
+		expect(gemDpsGainPct(base.gems, state.gems, info, { [base.gems[0].skill!]: 100 })).toBe(0);
+		const upgrade = liveUpgrades(l, state, base).find((u) => u.key === 'gem:T4:9')!;
+		const current = simulate(l, state, base).cp;
+		expect(applyUpgrade(l, state, base, upgrade)).toBe(true);
+		expect(state.gems[0].level).toBe(10);
+		expect(upgrade.gainPct).toBeCloseTo((simulate(l, state, base).cp / current - 1) * 100, 8);
+		delete state.gems[0].tier;
+		expect(simulate(l, state, base).cp).toBeCloseTo(before.cp, 10);
+		expect(gemDpsGainPct(base.gems, state.gems, info, { [base.gems[0].skill!]: 100 })).toBe(0);
+	});
 	it('reproduces Yktra’s Inferno 8 → 9 report: +44.8 CP rather than +34.53', () => {
 		const l = yktra as unknown as Loadout;
 		const base = initSimState(l);

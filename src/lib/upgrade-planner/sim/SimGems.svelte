@@ -109,6 +109,8 @@
 	const setAll = (fn: (current: number) => number) =>
 		editable.forEach(({ i }) => (sim.gems[i].level = Math.min(10, Math.max(1, fn(sim.gems[i].level)))));
 	const gemChanged = (i: number) => JSON.stringify(sim.gems[i]) !== JSON.stringify(base.gems[i]);
+	const gemTier = (i: number) => sim.gems[i].tier ?? gems[i].tier;
+	const TIER_OPTIONS: MenuOption<'T3' | 'T4'>[] = [{ value: 'T3', label: 'T3' }, { value: 'T4', label: 'T4' }];
 
 	const dps = $derived(gemDpsGainPct(base.gems, sim.gems, gems, sim.skillShares, sim.skillCooldownUse));
 	const sharedTotal = $derived(Object.values(sim.skillShares).reduce((a, v) => a + (Number(v) || 0), 0));
@@ -123,10 +125,13 @@
 
 {#snippet gemCell(i: number)}
 	{@const gem = sim.gems[i]}
-	{@const look = itemLook(gemId(gems[i].regular, gem.kind, gem.level))}
-	<div class="flex h-11 w-[9.75rem] flex-row items-center gap-1.5 rounded-xs p-1 @max-[30rem]:w-[7rem] {gemChanged(i) ? 'bg-accent-500/10 ring-1 ring-accent-500' : ''}">
-		<!-- Narrow cards drop the gem icon; the stepper still shows the level. -->
-		<span class="@max-[30rem]:hidden"><ItemIcon src={look.icon} grade={look.grade} size="size-9" badge={gem.level} title={look.name} /></span>
+	{@const tier = gemTier(i)}
+	{@const iconId = tier === gems[i].tier ? gems[i].regular : tier === 'T3' ? 65021000 : 65031000}
+	{@const look = itemLook(gemId(iconId, gem.kind, gem.level))}
+	<div class="flex h-11 w-[9.75rem] flex-row items-center gap-1.5 rounded-xs p-1 {gemChanged(i) ? 'bg-accent-500/10 ring-1 ring-accent-500' : ''}">
+		<MenuPicker iconOnly value={tier ?? 'T4'} options={TIER_OPTIONS} label={`${skillName(gem.skill)} ${gem.kind} gem tier`} changed={tier !== gems[i].tier} onpick={(v) => { if (v === gems[i].tier) delete gem.tier; else gem.tier = v; }}>
+			{#snippet trigger()}<ItemIcon src={look.icon} grade={look.grade} size="size-9" badge={gem.level} title={`${look.name} (${tier}) · Change gem tier`} />{/snippet}
+		</MenuPicker>
 		<Stepper bind:value={gem.level} min={1} max={10} changed={gem.level !== base.gems[i].level} label={`${skillName(gem.skill)} ${gem.kind} gem level`} width="w-6" />
 	</div>
 {/snippet}
@@ -239,7 +244,7 @@
 			</div>
 		{/if}
 
-		<!-- Narrow cards (container query) show skill icons only and drop gem icons. -->
+		<!-- Narrow cards show skill icons; gem icons remain available for tier selection. -->
 		<div class="@container">
 		<div class="grid items-center gap-x-2 gap-y-1 max-[360px]:gap-x-1 {showShares ? 'grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]' : 'grid-cols-[minmax(3rem,1fr)_auto_auto]'}">
 			<span class="text-xs text-surface-400">Skill</span>
@@ -271,7 +276,7 @@
 							{@render gemCell(i)}
 						{:else}
 							{@const other = inSlot(r, kind === 'damage' ? 'cooldown' : 'damage')}
-							<div class="flex h-11 w-[9.75rem] items-center justify-center rounded-xs border border-dashed border-surface-700 @max-[30rem]:w-[7rem] text-xs text-surface-500">
+							<div class="flex h-11 w-[9.75rem] items-center justify-center rounded-xs border border-dashed border-surface-700 text-xs text-surface-500">
 								{#if other !== undefined && rowGems(r).length === 1}
 									<button type="button" class="h-full w-full font-semibold hover:bg-surface-800 hover:text-surface-100" onclick={() => (sim.gems[other].kind = kind)} title={`Make it a ${kind} gem`}>
 										→ {kind === 'damage' ? 'DMG' : 'CD'}

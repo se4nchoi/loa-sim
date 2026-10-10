@@ -93,6 +93,7 @@ export interface SimState {
 export type GemKind = 'damage' | 'cooldown';
 
 export interface SimGem {
+	tier?: 'T3' | 'T4';
 	level: number;
 	kind: GemKind;
 	/** Skill the gem applies to, or null when unknown. */
@@ -493,10 +494,11 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	// Ability stone: its two engraving lines reaching 16 nodes add Atk. Power, which follows the simulated stone levels.
 	let atkPct1 = atkPct + bracer1.attackPercent - bracer0.attackPercent;
 	gemParts(l).forEach((g, k) => {
-		if (g.tier !== 'T4') return;
 		const from = base.gems[k]?.level ?? g.level;
 		const to = state.gems[k]?.level ?? from;
-		atkPct1 += (GEM_BASE_ATTACK[to - 1] ?? 0) - (GEM_BASE_ATTACK[from - 1] ?? 0);
+		const fromBonus = (base.gems[k]?.tier ?? g.tier) === 'T4' ? (GEM_BASE_ATTACK[from - 1] ?? 0) : 0;
+		const toBonus = (state.gems[k]?.tier ?? g.tier) === 'T4' ? (GEM_BASE_ATTACK[to - 1] ?? 0) : 0;
+		atkPct1 += toBonus - fromBonus;
 	});
 	const stoneLevels = (s: SimState) => Object.values(s.engravings).map((e) => e.stone);
 	if (stoneLevels(state).join() !== stoneLevels(base).join())
@@ -538,7 +540,9 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	const gemIndices = parts.flatMap((p, i) => (p.type === PartType.Gem && typeof p.id === 'number' ? [i] : []));
 	gemParts(l).forEach((g, k) => {
 		const level = state.gems[k]?.level;
-		if (g.table && level && level !== g.level) parts[gemIndices[k]].value = g.table[level - 1];
+		const tier = state.gems[k]?.tier ?? g.tier;
+		const table = tier === 'T4' ? role.gemT4 : tier === 'T3' ? role.gemT3 : null;
+		if (g.table && table && level && (level !== g.level || tier !== g.tier)) parts[gemIndices[k]].value = table[level - 1];
 	});
 
 	// --- Engravings

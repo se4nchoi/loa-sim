@@ -24,11 +24,11 @@
 
 	const clamp = (v: number) => Math.min(max, Math.max(min, v));
 	const btn =
-		'flex size-8 items-center justify-center text-lg leading-none text-surface-200 transition hover:bg-surface-700 disabled:opacity-30 disabled:hover:bg-transparent';
+		'flex size-8 shrink-0 items-center justify-center text-lg leading-none text-surface-200 transition hover:bg-surface-700 disabled:opacity-30 disabled:hover:bg-transparent';
 </script>
 
 <div
-	class="inline-flex h-8 items-stretch overflow-hidden rounded-xs border bg-surface-950 {changed ? 'border-accent-500 bg-accent-500/10' : 'border-surface-700'}"
+	class="inline-flex h-8 shrink-0 items-stretch overflow-hidden rounded-xs border bg-surface-950 {changed ? 'border-accent-500 bg-accent-500/10' : 'border-surface-700'}"
 	role="group"
 	aria-label={label}
 >

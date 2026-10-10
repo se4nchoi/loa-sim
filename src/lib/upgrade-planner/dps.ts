@@ -19,7 +19,7 @@ const effect = (gem: SimGem, tier: 'T4' | 'T3') => (GEM_EFFECTS[tier][gem.kind][
 function skillGems(gems: SimGem[], parts: GemPart[]): Map<number, { damage: number; cooldown: number }> {
 	const out = new Map<number, { damage: number; cooldown: number }>();
 	gems.forEach((g, i) => {
-		const tier = parts[i]?.tier;
+		const tier = g.tier ?? parts[i]?.tier;
 		if (g.skill === null || !tier) return;
 		const e = effect(g, tier);
 		const s = out.get(g.skill) ?? { damage: 1, cooldown: 1 };

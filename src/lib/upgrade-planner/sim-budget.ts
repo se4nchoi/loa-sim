@@ -87,7 +87,7 @@ export function budgetChanges(loadout: Loadout, base: SimState, target: SimState
 	target.gems.forEach((to, i) => {
 		const from = base.gems[i];
 		if (!from || !different(from, to)) return;
-		if (from.kind !== to.kind || from.skill !== to.skill) add('Gems', `Gem ${i + 1} replacement (Lv. ${to.level})`, from, to);
+		if (from.kind !== to.kind || from.skill !== to.skill || (from.tier ?? info[i]?.tier) !== (to.tier ?? info[i]?.tier)) add('Gems', `Gem ${i + 1} replacement (${to.tier ?? info[i]?.tier} Lv. ${to.level})`, from, to);
 		else if (to.level > from.level) {
 			for (let level = from.level; level < to.level; level++) add('Gems', `Gem ${i + 1}: Lv. ${level} → ${level + 1}`, [i, level], [i, level + 1], { sourceKey: `gem:${info[i]?.tier ?? 'T4'}:${level}` });
 		} else add('Gems', `Gem ${i + 1}: Lv. ${from.level} → ${to.level}`, from, to, { status: 'excluded' });

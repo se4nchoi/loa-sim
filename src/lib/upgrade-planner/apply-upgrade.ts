@@ -42,7 +42,7 @@ export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade
 		case 'gem': {
 			// gem:T4:7 → one gem of that tier still at Lv. 7 goes to Lv. 8.
 			const parts = gemParts(l);
-			const i = s.gems.findIndex((g, k) => parts[k]?.tier === a && g.level === Number(b));
+			const i = s.gems.findIndex((g, k) => (g.tier ?? parts[k]?.tier) === a && g.level === Number(b));
 			if (i < 0) return false;
 			s.gems[i].level++;
 			return true;
