@@ -1,23 +1,73 @@
-# loa-sim: Combat Power Simulator for lostark.bible
+<div align="center">
 
-A lo4.app-style Combat Power simulator for NA/CE Lost Ark characters, built as a drop-in component for
-[lostark.bible](https://lostark.bible). Load a character, then change:
+# loa-sim
 
-- **honing** and advanced honing per armor piece and weapon (e.g. Head +21 → +22);
-- **Sidereal weapons**, when equipped: evolution, Elgic infusion I–III;
-- **accessories:** each line (in lostark.bible's High/Mid/Low colors, with every alternative's CP change shown) and
-  the main stat, to compare against accessories on the market;
-- **bracelet:** combat stats and effects, scored with the game's own weights for all 136 bracelet effects;
-- **gem levels**, **engraving** relic books and ability stone levels;
-- **ark grid:** every astrogem's core points and options (willpower is checked), and **karma**.
+**Combat Power simulator for Lost Ark (NA / CE)**
 
-Simulated CP, item level and each section's share (in % and raw CP) update as you type. Item icons come from the
-official game CDN. The simulator starts from
-lostark.bible's exact number (Soulshan: 6785.48) and applies each edit as a change on top of it.
+Load your character, change your gear, and see exactly what each change does to your Combat Power.
 
-A "Next Upgrades" card is also included. It lists the best one-step upgrades and has an astrogem evaluator.
+**[loa-sim.vercel.app](https://loa-sim.vercel.app)** · [ramen shop Discord](https://lostark.bible/discord) · character data from [lostark.bible](https://lostark.bible)
 
-## Run the demo
+<img src="docs/screenshots/next-upgrades.png" alt="Simulator: equipment honing, gems, and Next Upgrades ranked by gold per 1% CP" width="900" />
+
+</div>
+
+## What it does
+
+- **Starts from your real number.** The simulator begins at lostark.bible's exact Combat Power and applies every edit
+  on top of it.
+- **Edit everything:** honing and advanced honing, bracer, Sidereal weapons, accessories line by line, bracelet,
+  gems, engravings and ability stones, ark grid cores and astrogems, karma, and skins. CP updates as you type.
+- **Next Upgrades:** the best next steps for your character, ranked by **Most CP** or **Per gold**. Honing costs come
+  from material prices you enter, with your bound mats used first, and show average and pity cost.
+- **Whole accessories:** accessories are compared as whole pieces, the way you'd buy them on the market. Pick which
+  rolls to consider (H-H, H-M, M-H, H-L, L-H, M-M).
+- **Standing:** see where your CP ranks, now and after your changes.
+- **Works on your phone.**
+
+<div align="center">
+<img src="docs/screenshots/gems.png" alt="Gems maxed to Lv. 10 and the simulated CP gain" width="900" />
+</div>
+
+## How to use
+
+1. Open **[loa-sim.vercel.app](https://loa-sim.vercel.app)**.
+2. Pick your region and type your character name (or paste a lostark.bible link), or sign in with lostark.bible to
+   load your roster.
+3. Change things and watch the CP. Use **Next Upgrades** to see what to do next.
+
+To get your current gear, set it up in game, go to character select, then hit reload on the character. That's when a
+fresh snapshot reaches lostark.bible.
+
+<div align="center">
+<img src="docs/screenshots/characters.png" alt="Character page with roster loaded from lostark.bible" width="700" />
+</div>
+
+## FAQ
+
+**Is my data stored anywhere?**
+No. Loaded characters, your roster and your edits stay in your browser. The app only reads what lostark.bible already
+shows publicly.
+
+**Why is my number slightly off after an edit?**
+Some parts of the CP formula aren't public. Rows marked `≈` are estimates. Bracer numbers are a KR preview.
+
+**Why no gold cost for cores and astrogems?**
+Their gold efficiency can't be reliably calculated, so they're ranked by CP only.
+
+**Feedback or a bug?**
+Join the [ramen shop Discord](https://lostark.bible/discord).
+
+## Disclaimer
+
+loa-sim is a fan-made tool. It is not affiliated with or endorsed by Smilegate RPG or Amazon Games. Lost Ark game data
+and icons © Smilegate RPG. Character data comes from [lostark.bible](https://lostark.bible).
+
+Made with ♥ by Soulshan@Inanna.
+
+---
+
+## Development
 
 ```bash
 npm install
@@ -27,30 +77,25 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:5173 and load a character by name, or sign in with lostark.bible.
+Then open http://localhost:5173.
 
 ```bash
 npm test
 ```
 
-## Layout
+### Layout
 
-- `src/lib/upgrade-planner/` holds the components and logic meant for lostark.bible. See [INTEGRATION.md](INTEGRATION.md).
+- `src/lib/upgrade-planner/` holds the simulator and Next Upgrades, built to drop into lostark.bible. See
+  [INTEGRATION.md](INTEGRATION.md).
   - `simulate.ts` is the simulator engine; `Simulator.svelte` and `sim/` are its UI.
   - `cp.ts` / `tables.ts` / `honing-data.ts` hold the CP formula and battle point tables.
-  - `upgrades.ts` and `UpgradePlanner.svelte` are the "Next Upgrades" card and dialog.
-- `src/lib/demo/` and `src/routes/` hold a small SvelteKit app that mimics the character page.
-- `src/lib/server/bible.ts` is the demo loader for live characters.
-- `scripts/bake-game-data.mjs` regenerates the honing table, icons and bracelet catalog from the game data.
+  - `live-upgrades.ts`, `accessory-sets.ts`, `honing-cost.ts` and `UpgradePlanner.svelte` are Next Upgrades.
+- `src/lib/demo/` and `src/routes/` hold the SvelteKit app around it.
+- `src/lib/server/bible.ts` loads live characters.
+- `scripts/bake-game-data.mjs` regenerates the honing tables, icons and bracelet catalog from the game data.
 - `legacy/` has the first standalone prototype.
 
-## Sidereal weapons and region preferences
-
-The selected region is remembered in localStorage. An explicit region in a reload link takes precedence.
-
-Sidereal owners can adjust evolution and Elgic infusion.
-
-## Loading a character
+### Loading a character
 
 Players load their own character on the home page, three ways:
 
@@ -66,8 +111,7 @@ request between simultaneous loads. Set `BIBLE_SERVER_FETCH=0` to turn it off (s
 paste instead. Either way the data is decoded and saved in the player's browser, so a return visit opens straight
 into the simulator.
 
-To capture current gear, the player sets it up in game, goes to character select (or switches characters), then
-reloads the character. In practice that's when a fresh snapshot reaches lostark.bible.
+The selected region is remembered in localStorage; an explicit region in a reload link takes precedence.
 
 OAuth redirect URIs registered with lostark.bible: `https://loa-sim.vercel.app` (production client) and
 `http://localhost:5173/oauth-test` (development client; `/oauth-test` also hosts a dev-only API inspector).
