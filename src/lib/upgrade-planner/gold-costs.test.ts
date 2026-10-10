@@ -1,10 +1,41 @@
 import { describe, expect, it, vi } from 'vitest';
-import { bookCost, byGold, clearUpgradePrices, costsForCharacter, loadGold, restoreUpgradePrices, setGoldCost, formatGold, gold, goldPerPct, manualGoldCost, missingPriceCount, parseGold, parseOwned } from './gold-costs.svelte';
+import { bookCost, byGold, clearMaterialInventory, restoreMaterialInventory, clearMaterialPrices, restoreMaterialPrices, setMaterialPrice, setMaterialBound, clearUpgradePrices, costsForCharacter, loadGold, restoreUpgradePrices, setGoldCost, formatGold, gold, goldPerPct, manualGoldCost, missingPriceCount, parseGold, parseOwned } from './gold-costs.svelte';
 import type { Upgrade } from './upgrades';
 
 const up = (key: string, gainPct: number) => ({ key, gainPct, category: 'gem', title: key, detail: '', count: 1, approximate: false }) as Upgrade;
 
 describe('gold costs', () => {
+	it('market clear and undo preserve inventories and newly entered prices including zero', () => {
+		const beforeBound = gold.bound;
+		const beforePrices = gold.prices;
+		const beforeAt = gold.pricesAt;
+		gold.bound = { 'na/soulshan': { shards: 3000 } };
+		gold.prices = { shards: 0.3, '66110226': 100 };
+		try {
+			const cleared = clearMaterialPrices();
+			expect(gold.prices).toEqual({});
+			expect(gold.bound).toEqual({ 'na/soulshan': { shards: 3000 } });
+			setMaterialPrice('66110226', 0);
+			restoreMaterialPrices(cleared);
+			expect(gold.prices).toEqual({ shards: 0.3, '66110226': 0 });
+		} finally { gold.bound = beforeBound; gold.prices = beforePrices; gold.pricesAt = beforeAt; }
+	});
+	it('clears and restores only the current character inventory, preserving market prices and new amounts', () => {
+		const beforeBound = gold.bound;
+		const beforePrices = gold.prices;
+		const beforeAt = gold.pricesAt;
+		gold.bound = { 'na/soulshan': { shards: 3000, '66110226': 100 }, 'na/shanzkii': { shards: 5000 } };
+		gold.prices = { shards: 0.3 };
+		try {
+			const cleared = clearMaterialInventory('na/soulshan');
+			expect(gold.bound['na/soulshan']).toBeUndefined();
+			expect(gold.bound['na/shanzkii']).toEqual({ shards: 5000 });
+			expect(gold.prices).toEqual({ shards: 0.3 });
+			setMaterialBound('na/soulshan', '66110226', 200);
+			restoreMaterialInventory(cleared);
+			expect(gold.bound['na/soulshan']).toEqual({ shards: 3000, '66110226': 200 });
+		} finally { gold.bound = beforeBound; gold.prices = beforePrices; gold.pricesAt = beforeAt; }
+	});
 	it('persists skin prices per character, with scoped clear and undo and no shared skin fallback', () => {
 		const storage = new Map<string, string>();
 		vi.stubGlobal('localStorage', { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) });

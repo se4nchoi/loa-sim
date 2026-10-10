@@ -152,11 +152,42 @@ export function setMaterialPrice(id: string, price: number | null) {
 	saveMaterials();
 }
 
+export function clearMaterialPrices(): MaterialPrices {
+	const cleared = { ...gold.prices };
+	gold.prices = {};
+	saveMaterials();
+	return cleared;
+}
+
+export function restoreMaterialPrices(cleared: MaterialPrices) {
+	for (const [id, price] of Object.entries(cleared)) {
+		if (gold.prices[id] === undefined) gold.prices[id] = price;
+	}
+	saveMaterials();
+}
+
 /** A character's bound units of a honing material, used before buying; PLENTY for "plenty". */
 export function setMaterialBound(characterKey: string, id: string, amount: number | null) {
 	const mine = (gold.bound[characterKey] ??= {});
 	if (!amount) delete mine[id];
 	else mine[id] = amount;
+	saveMaterials();
+}
+
+export type ClearedMaterialInventory = { characterKey: string; owned: MaterialOwned };
+
+export function clearMaterialInventory(characterKey: string): ClearedMaterialInventory {
+	const cleared = { characterKey, owned: { ...gold.bound[characterKey] } };
+	delete gold.bound[characterKey];
+	saveMaterials();
+	return cleared;
+}
+
+export function restoreMaterialInventory(cleared: ClearedMaterialInventory) {
+	const mine = (gold.bound[cleared.characterKey] ??= {});
+	for (const [id, amount] of Object.entries(cleared.owned)) {
+		if (mine[id] === undefined) mine[id] = amount;
+	}
 	saveMaterials();
 }
 

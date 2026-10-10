@@ -5,8 +5,9 @@
 <script lang="ts">
 	import { sheetDrag } from './sim/sheet-drag';
 	import { onMount } from 'svelte';
-	import { formatGold, gold, parseOwned, parsePrice, setMaterialBound, setMaterialPrice } from './gold-costs.svelte';
-	import { PLENTY, SHARDS, materialIcon, materialName } from './honing-cost';
+	import { clearMaterialInventory, restoreMaterialInventory, clearMaterialPrices, restoreMaterialPrices, formatGold, gold, parseOwned, parsePrice, setMaterialBound, setMaterialPrice, type ClearedMaterialInventory } from './gold-costs.svelte';
+	import { btn } from './sim/ui';
+	import { PLENTY, SHARDS, materialIcon, materialName, type MaterialPrices } from './honing-cost';
 	import { HONING_MATERIALS } from './honing-cost-data';
 	import { iconUrl } from './icons';
 
@@ -24,6 +25,26 @@
 		onclose: () => void;
 	} = $props();
 	const bound = $derived(gold.bound[characterKey] ?? {});
+	let clearedInventory = $state<ClearedMaterialInventory | null>(null);
+	let clearedPrices = $state<MaterialPrices | null>(null);
+	function clearPrices() {
+		const cleared = clearMaterialPrices();
+		if (Object.keys(cleared).length) clearedPrices = cleared;
+	}
+	function undoPrices() {
+		if (!clearedPrices) return;
+		restoreMaterialPrices(clearedPrices);
+		clearedPrices = null;
+	}
+	function clearInventory() {
+		const cleared = clearMaterialInventory(characterKey);
+		if (Object.keys(cleared.owned).length) clearedInventory = cleared;
+	}
+	function undoInventory() {
+		if (!clearedInventory) return;
+		restoreMaterialInventory(clearedInventory);
+		clearedInventory = null;
+	}
 	const upperIds = ['66110226', '66102007', '66102107', '6861013', '66111131', '66111132', SHARDS];
 	const lowerIds = ['66110225', '66102006', '66102106', '6861012'];
 	const editableIds = $derived([...new Set([...upperIds, ...lowerIds, ...ids, ...Object.keys(HONING_MATERIALS)])]);
@@ -58,6 +79,15 @@
 	);
 </script>
 
+{#snippet clearControls(label: string, clear: () => void, undo: () => void, canUndo: boolean)}
+	<div class="flex items-center justify-start gap-1">
+		<button type="button" class={btn} aria-label={`Clear ${label}`} title={`Clear ${label}`} onclick={clear}>Clear</button>
+		<button type="button" class={`${btn} disabled:cursor-default disabled:opacity-30`} style:padding="0 6px" disabled={!canUndo} aria-label={`Undo clearing ${label}`} title={`Undo clearing ${label}`} onclick={undo}>
+			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h11a6 6 0 0 1 0 12" /><path d="m7 3-4 4 4 4" /></svg>
+		</button>
+	</div>
+{/snippet}
+
 <!-- Focusable itself (tabindex -1) so opening focuses the dialog, not its first input or Close. -->
 <dialog
 	bind:this={dialog}
@@ -89,8 +119,14 @@
 			<div class="grid grid-cols-[2rem_minmax(0,1fr)_8rem_6rem_3.5rem] items-center gap-x-2 gap-y-1.5 max-sm:grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_3.25rem]">
 				<span></span>
 				<span class="max-sm:hidden"></span>
-				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-100 uppercase">Character-bound</span>
-				<span class="text-right text-[11px] font-semibold tracking-wide text-surface-100 uppercase">Market</span>
+				<div class="flex flex-col items-start gap-1.5">
+					{@render clearControls(`${characterName ?? 'this character'}'s material inventory`, clearInventory, undoInventory, clearedInventory?.characterKey === characterKey)}
+					<span class="text-left text-[11px] font-semibold tracking-wide text-surface-100 uppercase">Character-bound</span>
+				</div>
+				<div class="flex flex-col items-start gap-1.5">
+					{@render clearControls('market material prices', clearPrices, undoPrices, clearedPrices !== null)}
+					<span class="text-left text-[11px] font-semibold tracking-wide text-surface-100 uppercase">Market</span>
+				</div>
 				<span></span>
 				{#each editableIds as id (id)}
 					{#if id === lowerIds[0]}<span class="col-span-full mt-2 border-t border-surface-700 pt-2 text-xs font-semibold text-surface-400">Lower T4 materials</span>{/if}
