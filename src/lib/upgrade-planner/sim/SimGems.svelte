@@ -247,7 +247,7 @@
 		<!-- Narrow cards show skill icons; gem icons remain available for tier selection.
 			Rows keep their desktop size; a card narrower than the table scrolls it sideways. -->
 		<div class="@container overflow-x-auto">
-		<div class="grid min-w-max items-center gap-x-2 gap-y-1 max-sm:gap-x-1 {showShares ? 'grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]' : 'grid-cols-[minmax(3rem,1fr)_auto_auto]'}">
+		<div class="grid min-w-0 max-sm:min-w-max items-center gap-x-2 gap-y-1 max-sm:gap-x-1 {showShares ? 'grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]' : 'grid-cols-[minmax(3rem,1fr)_auto_auto]'}">
 			<span class="text-xs text-surface-400">Skill</span>
 			<span class="px-1 text-xs text-surface-400">Damage</span>
 			<span class="px-1 text-xs text-surface-400">Cooldown</span>
