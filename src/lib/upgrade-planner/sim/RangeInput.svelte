@@ -1,5 +1,6 @@
 <!-- Slider plus number box for values with a known range (e.g. an accessory's main stat). -->
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	let {
 		value = $bindable(),
 		min,
@@ -8,11 +9,22 @@
 		changed = false,
 		compact = false
 	}: { value: number; min: number; max: number; label: string; changed?: boolean; compact?: boolean } = $props();
+	let draft = $state(value);
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const cancel = () => { clearTimeout(timer); timer = undefined; };
+	const commit = (next: number) => { cancel(); draft = next; value = next; };
+	const drag = (next: number) => {
+		draft = next;
+		cancel();
+		timer = setTimeout(() => commit(draft), 500);
+	};
+	$effect(() => { const next = value; cancel(); draft = next; });
+	onDestroy(cancel);
 
 	// Values from the game can sit slightly outside the published range; let the slider show them.
 	const lo = $derived(Math.min(min, value));
 	const hi = $derived(Math.max(max, value));
-	const fill = $derived(((value - lo) / Math.max(1, hi - lo)) * 100);
+	const fill = $derived(((draft - lo) / Math.max(1, hi - lo)) * 100);
 </script>
 
 <div
@@ -35,7 +47,8 @@
 				max={hi}
 				class="w-16 bg-transparent text-right text-sm font-semibold text-accent-200 tabular-nums [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none"
 				aria-label={label}
-				bind:value
+				value={draft}
+				oninput={(e) => commit(Number(e.currentTarget.value) || 0)}
 			/>
 		</label>
 	</div>
@@ -48,7 +61,9 @@
 		style:background="linear-gradient(to right, var(--color-accent-500) {fill}%, var(--color-surface-700) {fill}%)"
 		aria-label={`${label} slider`}
 		title={`${min.toLocaleString()} – ${max.toLocaleString()}`}
-		bind:value
+		value={draft}
+		oninput={(e) => drag(Number(e.currentTarget.value))}
+		onchange={(e) => commit(Number(e.currentTarget.value))}
 	/>
 	{#if compact}
 		<span class="order-first w-16 shrink-0 text-xs text-surface-400">{label}</span>

@@ -23,7 +23,7 @@ export const range = (from: number, to: number) => Array.from({ length: to - fro
 
 /** Simulator sections and the parts of the state each one owns. */
 export const SECTIONS = {
-	gear: ['gear', 'sidereal', 'bracer'],
+	gear: ['gear', 'sidereal', 'bracer', 'quality'],
 	accessories: ['accessories', 'accessoryStats'],
 	bracelet: ['bracelet'],
 	skins: ['skins'],

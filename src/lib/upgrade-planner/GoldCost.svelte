@@ -29,14 +29,14 @@
 	let text = $state('');
 	let input = $state<HTMLInputElement>();
 	// Engraving book rows are always price per book × books; a total typed there before book prices existed is ignored.
-	const canEdit = $derived(u.category !== 'honing');
+	const canEdit = $derived(u.category !== 'honing' && u.category !== 'quality');
 	const typed = $derived(u.books ? undefined : manualGoldCost(u, gold.costs));
 	/** Engraving book rows are priced per book; the box edits that price. */
 	const bookPrice = $derived(u.books ? gold.bookPrices[u.books.engraving] : undefined);
 	const cost = $derived(typed ?? auto?.expected ?? bookCost(u, gold.bookPrices) ?? u.knownCost);
 	const per = $derived(cost !== undefined && u.gainPct > 0 ? cost / u.gainPct : null);
 	const autoTitle = $derived(
-		auto
+		u.quality ? `Average ${formatGold(u.knownCost!)} gold over ${u.quality.taps.toFixed(1)} taps, ${u.quality.fee} gold per tap. Assumes unlimited Chaos Stones. Stops at target quality or higher; CP gain shown is at the target. No pity.` : auto
 			? `Average ${formatGold(auto.expected)} over ${auto.taps.toFixed(1)} taps (used for gold per 1%). ${breathStrategy(auto)} ` +
 					`Pity ${formatGold(auto.worst)} at ${auto.maxTaps} taps, when the meter forces success. ${u.category === 'karma' ? 'Assumes unlimited Destiny Stones. ' : ''}${canEdit ? 'Click to type your own cost instead.' : 'Calculated from your material prices and bound stock.'}`
 			: ''
@@ -86,12 +86,12 @@
 				? `Price of one ${u.books.name} relic book; this row reads ${u.books.count}${bookPrice !== undefined ? ` (${formatGold(bookPrice)} × ${u.books.count})` : ''}`
 				: typed
 					? 'Edit the gold cost (empty to clear)'
-					: auto
+						: auto || u.quality
 						? autoTitle
 						: !canEdit ? (cost === 0 ? 'Free' : 'No calculated cost is available for this upgrade yet.') : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 		>
 			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-			{#if cost === 0 && !typed}Free{:else if cost !== undefined}{#if !typed && auto}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal whitespace-nowrap text-surface-300 max-sm:hidden">· {formatGold(per)} per 1%</span>{/if}{:else}{!canEdit ? 'Cost unavailable' : u.books ? 'Add book price' : 'Add gold cost'}{/if}
+			{#if cost === 0 && !typed}Free{:else if cost !== undefined}{#if !typed && (auto || u.quality)}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal whitespace-nowrap text-surface-300 max-sm:hidden">· {formatGold(per)} per 1%</span>{/if}{:else}{!canEdit ? 'Cost unavailable' : u.books ? 'Add book price' : 'Add gold cost'}{/if}
 		</button>
 		{#if auto?.breakdown}
 			<button type="button" class="{detailsButton} col-start-2 row-start-1" onclick={() => (breakdownMode = 'average')} aria-label={`Average material breakdown for ${u.title}`} title="Average bound materials used and market purchases">?</button>

@@ -10,6 +10,8 @@ import { bracerStats, readBracer, type SimBracer } from './bracer';
 import { BRACELET_EFFECTS, GEM_BASE_ATTACK, GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
 import { HONING_SLOTS, HONING_TABLE, AEGIR_HONING_TABLE, type HoningSlot } from './honing-data';
 import { roleOf } from './roles';
+import { qualityStat, readQuality, type SimQuality } from './quality';
+import { CLASS_HP_COEFFICIENT } from './quality-data';
 import { readSkinBonus, skinStatRatio, type SimSkins } from './skins';
 import { SUPPORT_ACCESSORY_LINES, supportCoreValue, supportWeaponCoreStats, swappedCoreId, type SupportAccessoryLine } from './support';
 import {
@@ -58,6 +60,7 @@ export interface SimState {
 	bracer: SimBracer | null;
 	sidereal: SimSidereal | null;
 	gear: Partial<Record<HoningSlot, SimGear>>;
+	quality: SimQuality;
 	accessories: Partial<Record<AccessorySlot, SimLine[]>>;
 	/** Each gem, in the order of the loadout's gem parts. Only `level` affects Combat Power. */
 	gems: SimGem[];
@@ -291,6 +294,7 @@ export function initSimState(l: Loadout): SimState {
 		bracer: readBracer(l),
 		sidereal: readSidereal(l),
 		gear,
+		quality: readQuality(l),
 		accessories,
 		gems: readGems(l),
 		skillShares: {},
@@ -503,12 +507,24 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 		basePart.value =
 			partHigh(basePart) * (baseAttackPoint(mainStat, weaponPower, atkPct1, bracer1.attackFlat) / baseAttackPoint(mainStat0, weapon0, atkPct, bracer0.attackFlat));
 
-	// Vitality adds HP before vigor and Max HP multipliers. Defense itself does not score CP.
+	// Weapon quality scores dealer Additional Damage; supports have no weapon-quality CP contribution.
+	const weaponQuality = parts.find((p) => p.type === PartType.WeaponQuality);
+	if (weaponQuality && state.quality.weapon !== undefined && base.quality.weapon !== undefined && state.quality.weapon !== base.quality.weapon) {
+		if (!role.support) weaponQuality.value = partHigh(weaponQuality) + qualityStat('weapon', state.quality.weapon) - qualityStat('weapon', base.quality.weapon);
+		weaponQuality.quality = state.quality.weapon;
+	}
+
+	// Vitality adds HP before vigor (140 Vigor = 1% HP) and Max HP multipliers.
 	const hp = parts.find((p) => p.type === PartType.BaseHealth);
-	const hpCon = ({ holyknight: 2.1, holyknightfemale: 2.1, bard: 2, yinyangshi: 2 } as Record<string, number>)[l.classId.replaceAll('_', '').toLowerCase()];
-	if (role.support && hp) {
-		const vitalityHp = (bracer1.vitality - bracer0.vitality) * (hpCon ?? 0) * statValue(10, 10000) / 10000
-			* (1 + statValue(137) / 10000);
+	const hpCon = CLASS_HP_COEFFICIENT[l.classId.replaceAll('_', '').toLowerCase()];
+	if (hp && hpCon) {
+		const vigorDelta = HONING_SLOTS.filter((slot) => slot !== 'weapon').reduce((sum, slot) => {
+			const from = base.quality[slot], to = state.quality[slot];
+			return sum + (from === undefined || to === undefined ? 0 : qualityStat(slot, to) - qualityStat(slot, from));
+		}, 0);
+		const vigor = 1 + statValue(137) / 14000;
+		const vitalityHp = ((bracer1.vitality - bracer0.vitality) * (vigor + vigorDelta / 14000) + statValue(6) * vigorDelta / 14000)
+			* hpCon * statValue(10, 10000) / 10000;
 		const karmaHp = ((state.karma.evolution ?? 0) - (base.karma.evolution ?? 0)) * KARMA_EVOLUTION_HP_PER_LEVEL;
 		const gain = (vitalityHp + karmaHp) * statValue(29, 10000) / 10000 * statValue(31, 10000) / 10000;
 		const maxHp = typeof hp.maxHp === 'number' ? hp.maxHp : 0;

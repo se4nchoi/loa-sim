@@ -3,6 +3,9 @@ import { accessorySetUpgrades, type AccRoll } from './accessory-sets';
 import { applyUpgrade } from './apply-upgrade';
 import { bracerUpgrades } from './bracer-upgrades';
 import { honingUpgrades } from './honing-upgrades';
+import { HONING_SLOTS } from './honing-data';
+import { HONING_SLOT_LABELS } from './honing-upgrades';
+import { qualityCost } from './quality';
 import { roleOf } from './roles';
 import { gemParts, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
 import { ASTROGEM_OPTION_NAMES, CORE_BREAKPOINTS, CORE_GRADE_CAP, ENGRAVING_BOOK_STEPS, KARMA_MAX_LEVEL, karmaRank } from './tables';
@@ -21,6 +24,14 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 		candidates.push({ count: 1, approximate: false, gainPct: 0, ...u });
 
 	const gemInfo = gemParts(l);
+	for (const slot of HONING_SLOTS) {
+		const from = state.quality[slot];
+		if (from === undefined || from >= 100 || (slot === 'weapon' ? role.support : !role.support)) continue;
+		for (const target of [...new Set([from + 1, 70, 75, 80, 85, 90, 95, 100])].filter((q) => q > from)) {
+			const cost = qualityCost(slot, from, target);
+			add({ key: `quality:${slot}:${target}`, category: 'quality', group: `quality:${slot}`, subject: HONING_SLOT_LABELS[slot], title: `Quality ${from} → ${target < 100 ? '≥' : ''}${target}`, detail: '', knownCost: cost.gold, quality: cost });
+		}
+	}
 	const gemGroups = new Map<string, number>();
 	state.gems.forEach((gem, i) => {
 		const info = gemInfo[i];

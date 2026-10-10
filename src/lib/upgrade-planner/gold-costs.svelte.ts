@@ -165,7 +165,7 @@ export function formatGold(g: number): string {
 export const supportsGoldCost = (u: Upgrade) => u.category !== 'core' && u.category !== 'astrogem';
 
 /** Equipment honing is priced from materials; old manually entered totals no longer override it. */
-export const manualGoldCost = (u: Upgrade, costs: Record<string, number>) => u.category === 'honing' ? undefined : costs[accessoryPriceKey(u.key, costs)];
+export const manualGoldCost = (u: Upgrade, costs: Record<string, number>) => u.category === 'honing' || u.category === 'quality' ? undefined : costs[accessoryPriceKey(u.key, costs)];
 
 /** Gold per 1% Combat Power (lower is better); null without a cost or a gain. */
 export const goldPerPct = (u: Upgrade, costs: Record<string, number>) => {

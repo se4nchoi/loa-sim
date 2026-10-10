@@ -18,6 +18,12 @@ const MAX_CORE_POINTS_PER_GEM = 5;
 export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade): boolean {
 	const [kind, a, b] = u.key.split(':');
 	switch (kind) {
+		case 'quality': {
+			const slot = a as HoningSlot, target = Number(b);
+			if (s.quality[slot] === undefined || !Number.isInteger(target) || target <= s.quality[slot]! || target > 100) return false;
+			s.quality[slot] = target;
+			return true;
+		}
 		case 'bracer': {
 			const to = nextBracer(s.bracer);
 			if (!to || to.grade !== a || to.honing !== Number(b)) return false;

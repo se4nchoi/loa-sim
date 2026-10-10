@@ -17,6 +17,7 @@ export function maxScore(l: Loadout, snapshot: SimState, base: SimState): ScoreE
 
 export function maxEquipment(s: SimState) {
 	for (const g of Object.values(s.gear)) { g.honing = 25; g.advanced = 40; }
+	for (const slot of Object.keys(s.quality) as (keyof SimState['quality'])[]) s.quality[slot] = 100;
 	if (s.sidereal) Object.assign(s.sidereal, { infusion: 3, evolution: 10, advanced: 40 });
 	s.bracer = { grade: 'ancient', honing: 25 };
 }

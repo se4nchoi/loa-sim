@@ -11,6 +11,7 @@ import { skinParts } from './skins';
 import type { Loadout } from './types';
 import { engravingName, type Upgrade } from './upgrades';
 import { formatLineValue } from './tables';
+import { qualityCost } from './quality';
 
 export interface BudgetChange {
 	key: string;
@@ -64,6 +65,10 @@ export function budgetChanges(loadout: Loadout, base: SimState, target: SimState
 		}
 	}
 	if (different(base.sidereal, target.sidereal)) add('Equipment', 'Sidereal weapon changes', base.sidereal, target.sidereal);
+	for (const slot of HONING_SLOTS) {
+		const from = base.quality[slot], to = target.quality[slot];
+		if (from !== undefined && to !== undefined && from !== to) add('Equipment', `${HONING_SLOT_LABELS[slot]} quality ${from} → ${to}`, from, to, to > from ? { fixed: qualityCost(slot, from, to).gold, detail: 'Average tap gold with unlimited Chaos Stones; stops at this quality or higher. No pity.' } : { status: 'excluded' });
+	}
 	for (const slot of ACCESSORY_SLOTS) {
 		const from = [base.accessories[slot], base.accessoryStats[slot]], to = [target.accessories[slot], target.accessoryStats[slot]];
 		if (different(from, to)) {

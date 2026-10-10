@@ -20,7 +20,7 @@ import {
 import type { ArkGridGem, BattlePointPart, Loadout } from './types';
 import { STONE_LEVEL_NODES } from './stones';
 
-export type UpgradeCategory = 'honing' | 'gem' | 'core' | 'astrogem' | 'engraving' | 'accessory' | 'karma';
+export type UpgradeCategory = 'honing' | 'quality' | 'gem' | 'core' | 'astrogem' | 'engraving' | 'accessory' | 'karma';
 
 export interface Upgrade {
 	/** Stable key, e.g. for remembering a user-entered gold cost. */
@@ -44,6 +44,8 @@ export interface Upgrade {
 	books?: { engraving: number; name: string; count: number };
 	/** Gold cost known without asking the player (e.g. 0 for a free drop); a typed cost still wins. */
 	knownCost?: number;
+	/** Expected quality tap gold, assuming unlimited Chaos Stones. */
+	quality?: { chance: number; fee: number; taps: number };
 	/** Alternatives that exclude each other (e.g. ability stone patterns) share a group. */
 	group?: string;
 }
@@ -63,6 +65,7 @@ export const topDistinct = (upgrades: Upgrade[], limit: number) => {
 
 export const CATEGORY_LABELS: Record<UpgradeCategory, string> = {
 	honing: 'Equipment',
+	quality: 'Equipment Quality',
 	gem: 'Gems',
 	core: 'Ark Grid Cores',
 	astrogem: 'Astrogems',

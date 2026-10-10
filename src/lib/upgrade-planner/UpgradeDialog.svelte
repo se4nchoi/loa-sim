@@ -82,7 +82,7 @@
 	let active = $state<UpgradeCategory | null>(null);
 	const sectionId = (c: UpgradeCategory) => `upgrades-${c}`;
 	/** Shorter names so the bar fits on one line. */
-	const SHORT: Partial<Record<UpgradeCategory, string>> = { core: 'Cores' };
+	const SHORT: Partial<Record<UpgradeCategory, string>> = { core: 'Cores', quality: 'Quality' };
 	function jump(c: UpgradeCategory) {
 		const el = scroller?.querySelector<HTMLElement>(`#${sectionId(c)}`);
 		if (!el || !scroller) return;

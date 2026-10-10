@@ -56,7 +56,7 @@ describe('KR Belgardin bracer', () => {
 		expect(b.buff).toBeGreaterThan(a.buff);
 		expect(b.shieldHeal).toBeGreaterThan(a.shieldHeal);
 		// Artist: 2 HP per Vitality, then existing vigor and HP multipliers.
-		const expectedHp = Number(part(support, PartType.BaseHealth).maxHp) + 900 * 2 * 1.6491 * 1.29;
+		const expectedHp = Number(part(support, PartType.BaseHealth).maxHp) + 900 * 2 * (1 + 6491 / 14000) * 1.29;
 		expect(result.parts.find((p) => p.type === PartType.BaseHealth)!.maxHp).toBeCloseTo(expectedHp, 6);
 	});
 

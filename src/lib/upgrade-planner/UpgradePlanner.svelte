@@ -53,7 +53,7 @@
 	let simNow = $state.raw(untrack(() => live)); // raw: a plain snapshot (a proxy can't be structuredClone'd)
 	$effect(() => {
 		const next = live;
-		const timer = setTimeout(() => (simNow = next), 150);
+		const timer = setTimeout(() => (simNow = next), 500);
 		return () => clearTimeout(timer);
 	});
 	const upgrades = $derived.by(() => {
