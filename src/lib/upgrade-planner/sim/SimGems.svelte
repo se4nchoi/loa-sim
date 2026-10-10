@@ -128,11 +128,11 @@
 	{@const tier = gemTier(i)}
 	{@const iconId = tier === gems[i].tier ? gems[i].regular : tier === 'T3' ? 65021000 : 65031000}
 	{@const look = itemLook(gemId(iconId, gem.kind, gem.level))}
-	<div class="flex h-11 w-[9.75rem] flex-row items-center gap-1.5 rounded-xs p-1 {gemChanged(i) ? 'bg-accent-500/10 ring-1 ring-accent-500' : ''}">
+	<div class="flex h-11 w-[9.75rem] flex-row items-center gap-1.5 rounded-xs p-1 max-sm:w-auto {gemChanged(i) ? 'bg-accent-500/10 ring-1 ring-accent-500' : ''}">
 		<MenuPicker iconOnly value={tier ?? 'T4'} options={TIER_OPTIONS} label={`${skillName(gem.skill)} ${gem.kind} gem tier`} changed={tier !== gems[i].tier} onpick={(v) => { if (v === gems[i].tier) delete gem.tier; else gem.tier = v; }}>
 			{#snippet trigger()}<ItemIcon src={look.icon} grade={look.grade} size="size-9" badge={gem.level} title={`${look.name} (${tier}) · Change gem tier`} />{/snippet}
 		</MenuPicker>
-		<Stepper bind:value={gem.level} min={1} max={10} changed={gem.level !== base.gems[i].level} label={`${skillName(gem.skill)} ${gem.kind} gem level`} width="w-6" />
+		<Stepper bind:value={gem.level} min={1} max={10} changed={gem.level !== base.gems[i].level} label={`${skillName(gem.skill)} ${gem.kind} gem level`} width="w-6" buttonsOnlyOnPhones />
 	</div>
 {/snippet}
 
@@ -244,9 +244,10 @@
 			</div>
 		{/if}
 
-		<!-- Narrow cards show skill icons; gem icons remain available for tier selection. -->
-		<div class="@container">
-		<div class="grid items-center gap-x-2 gap-y-1 max-[360px]:gap-x-1 {showShares ? 'grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]' : 'grid-cols-[minmax(3rem,1fr)_auto_auto]'}">
+		<!-- Narrow cards show skill icons; gem icons remain available for tier selection.
+			Rows keep their desktop size; a card narrower than the table scrolls it sideways. -->
+		<div class="@container overflow-x-auto">
+		<div class="grid min-w-max items-center gap-x-2 gap-y-1 max-sm:gap-x-1 {showShares ? 'grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]' : 'grid-cols-[minmax(3rem,1fr)_auto_auto]'}">
 			<span class="text-xs text-surface-400">Skill</span>
 			<span class="px-1 text-xs text-surface-400">Damage</span>
 			<span class="px-1 text-xs text-surface-400">Cooldown</span>
@@ -276,7 +277,7 @@
 							{@render gemCell(i)}
 						{:else}
 							{@const other = inSlot(r, kind === 'damage' ? 'cooldown' : 'damage')}
-							<div class="flex h-11 w-[9.75rem] items-center justify-center rounded-xs border border-dashed border-surface-700 text-xs text-surface-500">
+							<div class="flex h-11 w-[9.75rem] max-sm:w-full items-center justify-center rounded-xs border border-dashed border-surface-700 text-xs text-surface-500">
 								{#if other !== undefined && rowGems(r).length === 1}
 									<button type="button" class="h-full w-full font-semibold hover:bg-surface-800 hover:text-surface-100" onclick={() => (sim.gems[other].kind = kind)} title={`Make it a ${kind} gem`}>
 										→ {kind === 'damage' ? 'DMG' : 'CD'}
