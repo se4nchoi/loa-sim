@@ -59,7 +59,7 @@
 				<span class="text-surface-100">{title.slice(0, levelAt)}</span>{title.slice(levelAt, shownTargetAt + 1)}
 			{:else}<span>{title.slice(0, shownTargetAt + 1)}</span>{/if}
 			<span class="ml-1 font-semibold" style:color={accent}>{title.slice(shownTargetAt + 1).trim()}</span>
-		{:else if u.key.startsWith('bracer:') && title.startsWith('Equip ')}<span class="text-surface-100">Equip </span><span style:color={accent}>{title.slice(6)}</span>
+		{:else if u.key.startsWith('bracer:') && title.startsWith('Equip ')}<span class="text-surface-100">Equip</span>{' '}<span style:color={accent}>{title.slice(6)}</span>
 		{:else}<span style:color={accent}>{title}</span>{/if}{#if u.roll}
 			<span class="ml-1 whitespace-nowrap font-semibold">
 				<span style:color={color(u.roll.from)}>{label(u.roll.from)}</span>

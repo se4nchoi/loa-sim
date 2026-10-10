@@ -1,6 +1,5 @@
 <!-- Slider plus number box for values with a known range (e.g. an accessory's main stat). -->
 <script lang="ts">
-	import { onDestroy } from 'svelte';
 	let {
 		value = $bindable(),
 		min,
@@ -10,16 +9,8 @@
 		compact = false
 	}: { value: number; min: number; max: number; label: string; changed?: boolean; compact?: boolean } = $props();
 	let draft = $state(value);
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	const cancel = () => { clearTimeout(timer); timer = undefined; };
-	const commit = (next: number) => { cancel(); draft = next; value = next; };
-	const drag = (next: number) => {
-		draft = next;
-		cancel();
-		timer = setTimeout(() => commit(draft), 500);
-	};
-	$effect(() => { const next = value; cancel(); draft = next; });
-	onDestroy(cancel);
+	const commit = (next: number) => { draft = next; value = next; };
+	$effect(() => { draft = value; });
 
 	// Values from the game can sit slightly outside the published range; let the slider show them.
 	const lo = $derived(Math.min(min, value));
@@ -62,7 +53,7 @@
 		aria-label={`${label} slider`}
 		title={`${min.toLocaleString()} – ${max.toLocaleString()}`}
 		value={draft}
-		oninput={(e) => drag(Number(e.currentTarget.value))}
+		oninput={(e) => commit(Number(e.currentTarget.value))}
 		onchange={(e) => commit(Number(e.currentTarget.value))}
 	/>
 	{#if compact}

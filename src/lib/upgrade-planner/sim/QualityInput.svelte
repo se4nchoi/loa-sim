@@ -1,19 +1,10 @@
 <script lang="ts">
- import { onDestroy } from 'svelte';
  import { btnAccent } from './ui';
  let { value = $bindable(), label, changed = false, compact = false, pill = false, small = false, hideMax = false }: { value: number; label: string; changed?: boolean; compact?: boolean; pill?: boolean; small?: boolean; hideMax?: boolean } = $props();
  const clamp = (v: number) => Math.min(100, Math.max(0, Math.round(v)));
  let draft = $state(value);
- let timer: ReturnType<typeof setTimeout> | undefined;
- const cancel = () => { clearTimeout(timer); timer = undefined; };
- const commit = (next: number) => { cancel(); draft = clamp(next); value = draft; };
- const drag = (next: number) => {
-  draft = clamp(next);
-  cancel();
-  timer = setTimeout(() => commit(draft), 500);
- };
- $effect(() => { const next = value; cancel(); draft = next; });
- onDestroy(cancel);
+ const commit = (next: number) => { draft = clamp(next); value = draft; };
+ $effect(() => { draft = value; });
  // LOPEC QualityBar palette; keep the requested red 1–30 range and thresholds.
  const tone = $derived(draft === 0 ? '#888888'
   : draft <= 30 ? '#EF4444'
@@ -24,7 +15,7 @@
 </script>
 {#snippet controls()}
 <div class="flex min-w-0 items-center {compact ? 'flex-col gap-0' : 'gap-2'}" role="group" aria-label={label}>
- <input type="range" min="0" max="100" step="1" value={draft} oninput={(e) => drag(Number(e.currentTarget.value))} onchange={(e) => commit(Number(e.currentTarget.value))} aria-label={`${label} slider`} style:--quality-color={tone} style:--quality-fill={`${draft}%`} class="quality-slider min-w-0 cursor-pointer {compact ? 'w-full' : 'flex-1'}" />
+ <input type="range" min="0" max="100" step="1" value={draft} oninput={(e) => commit(Number(e.currentTarget.value))} onchange={(e) => commit(Number(e.currentTarget.value))} aria-label={`${label} slider`} style:--quality-color={tone} style:--quality-fill={`${draft}%`} class="quality-slider min-w-0 cursor-pointer {compact ? 'w-full' : 'flex-1'}" />
  <div class="flex items-center {compact || small ? 'gap-1' : 'gap-2'}">
  <input type="number" min="0" max="100" step="1" value={draft} oninput={(e) => commit(Number(e.currentTarget.value) || 0)} aria-label={label} title={`Type ${label} (0–100)`} style:color={small ? '#ffffff' : tone} style:background-color={small ? tone : undefined} class="shrink-0 cursor-text text-center font-semibold tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none {small ? 'h-7 w-11 min-w-11 max-w-11 rounded-md border border-white/40 text-sm inset-shadow-sm hover:border-white/80 focus:border-white focus:outline-none focus:ring-1 focus:ring-white/70' : compact ? 'h-5 w-8 rounded-xs bg-transparent text-xs' : 'h-7 w-11 rounded-xs border bg-surface-950 px-1 text-sm'} {!small ? changed ? 'border-accent-500' : 'border-surface-700' : ''}" />
  <span class="flex w-2 shrink-0 items-center justify-center">{#if changed}<span class="size-1.5 rounded-full bg-accent-300" role="img" aria-label={`${label} changed`} title="Changed from current loadout"></span>{/if}</span>

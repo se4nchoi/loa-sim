@@ -136,14 +136,22 @@
 		return () => (resized.disconnect(), changed.disconnect());
 	});
 	let sim = $state(untrack(() => initSimState(loadout)));
+	// Controls edit sim immediately; expensive score and recommendation work uses this settled snapshot.
+	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
 		sim = initSimState(loadout);
+		calculated = initSimState(loadout);
 	});
 
 	const snapshot = () => $state.snapshot(sim) as SimState;
+	$effect(() => {
+		const next = snapshot();
+		const timer = setTimeout(() => (calculated = next), 250);
+		return () => clearTimeout(timer);
+	});
 	const baseline = $derived(simulate(loadout, base, base));
-	const result = $derived(simulate(loadout, snapshot(), base));
+	const result = $derived(simulate(loadout, calculated, base));
 	// Supports: how each half of the score (Buff Power, Shield & Heal Power) moves.
 	const split = $derived.by(() => {
 		if (!loadout.battlePoint.isSupport) return null;
@@ -159,7 +167,7 @@
 
 	/** Each section's effect on its own: only that section's edits applied to the starting state. */
 	const sections = $derived.by(() => {
-		const s = snapshot();
+		const s = calculated;
 		const out = {} as Record<SimSection, SectionDelta>;
 		for (const [name, keys] of Object.entries(SECTIONS) as [SimSection, readonly (keyof SimState)[]][]) {
 			const only = { ...base, ...Object.fromEntries(keys.map((k) => [k, s[k]])) } as SimState;
@@ -171,7 +179,7 @@
 
 	/** CP change (percent of the current simulation) if `mutate` were applied on top of it. */
 	const preview: PreviewEdit = (mutate) => {
-		const s = structuredClone(snapshot());
+		const s = structuredClone(calculated);
 		mutate(s);
 		return (simulate(loadout, s, base).cp / result.cp - 1) * 100;
 	};
@@ -354,7 +362,7 @@
 			</button>
 			<div hidden={folded.nav}>{@render jumpChips("p-2")}</div>
 		</nav>
-		{#if wide}<UpgradePlanner class="lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
+		{#if wide}<UpgradePlanner class="lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={calculated} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
 		{@render sidebar?.()}
 		</div>
 	</div>
@@ -375,10 +383,10 @@
 	</button>
 {/if}
 <BottomDrawer bind:open={drawerOpen} label="Next Upgrades" top={drawerTop}>
-	<UpgradePlanner scroll class="min-h-0 flex-1 rounded-none shadow-none" limit={1000} {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} />
+	<UpgradePlanner scroll class="min-h-0 flex-1 rounded-none shadow-none" limit={1000} {loadout} {characterKey} {characterName} simState={calculated} simBase={base} currentCp={simulated} onapply={applySuggestion} />
 </BottomDrawer>
 
 {#if budgetOpen}
-	{#if !wide}<UpgradePlanner class="hidden" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
-	<SimBudget isSupport={loadout.battlePoint.isSupport} changes={budgetChanges(loadout, base, snapshot())} inventoryIds={inventoryMaterials(sim.gear, !!sim.bracer)} priceUpgrades={budgetPriceUpgrades(loadout, base, snapshot())} onprice={(u) => budgetPricing = u} {current} {simulated} {characterKey} {characterName} onclose={() => { budgetOpen = false; budgetPricing = null; }} />
+	{#if !wide}<UpgradePlanner class="hidden" {loadout} {characterKey} {characterName} simState={calculated} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
+	<SimBudget isSupport={loadout.battlePoint.isSupport} changes={budgetChanges(loadout, base, calculated)} inventoryIds={inventoryMaterials(sim.gear, !!sim.bracer)} priceUpgrades={budgetPriceUpgrades(loadout, base, calculated)} onprice={(u) => budgetPricing = u} {current} {simulated} {characterKey} {characterName} onclose={() => { budgetOpen = false; budgetPricing = null; }} />
 {/if}

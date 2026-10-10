@@ -11,7 +11,7 @@
 	import { autoHoningCosts, inventoryMaterials, materialsFor } from './honing-cost';
 	import { bookCost, costsForCharacter, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
-	import { onMount, untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
 	import { accessoryPriceKey } from './accessory-sets';
 	import { rollsFor, setAccRolls } from './acc-rolls.svelte';
@@ -48,14 +48,8 @@
 		flashTimer = setTimeout(() => (flash = null), 1200);
 	}
 
-	const live = $derived(simState ? $state.snapshot(simState) : initSimState(loadout));
-	// Recalculated a moment after the last edit, not on every click: edits stay instant while stepping through values.
-	let simNow = $state.raw(untrack(() => live)); // raw: a plain snapshot (a proxy can't be structuredClone'd)
-	$effect(() => {
-		const next = live;
-		const timer = setTimeout(() => (simNow = next), 500);
-		return () => clearTimeout(timer);
-	});
+	// The simulator supplies the same settled state used for its CP, avoiding a second debounce.
+	const simNow = $derived(simState ? $state.snapshot(simState) : initSimState(loadout));
 	const upgrades = $derived.by(() => {
 		const list = liveUpgrades(loadout, simNow, simBase ?? initSimState(loadout), rollsFor(characterKey));
 		// A planned accessory may already be equipped in the edited state; keep its shared price editable.
