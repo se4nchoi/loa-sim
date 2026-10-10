@@ -9,7 +9,7 @@
 	import GoldCost from './GoldCost.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
 	import { autoHoningCosts, inventoryMaterials, materialsFor } from './honing-cost';
-	import { bookCost, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, setRankMode, supportsGoldCost } from './gold-costs.svelte';
+	import { bookCost, costsForCharacter, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
@@ -63,6 +63,7 @@
 		return list;
 	});
 	const goldUpgrades = $derived(upgrades.filter(supportsGoldCost));
+	const characterCosts = $derived(costsForCharacter(characterKey));
 	/** This character's bound honing mats. */
 	const bound = $derived(gold.bound[characterKey] ?? {});
 	// Equipment honing always uses material prices, ignoring previously entered totals.
@@ -71,7 +72,7 @@
 		...Object.fromEntries(upgrades.flatMap((u) => (u.knownCost === undefined ? [] : [[u.key, u.knownCost]]))),
 		...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])),
 		...Object.fromEntries(upgrades.flatMap((u) => {
-			const cost = manualGoldCost(u, gold.costs);
+			const cost = manualGoldCost(u, characterCosts);
 			return cost === undefined ? [] : [[u.key, cost]];
 		})),
 		// Book rows: price per book × books, over any total typed on the row before book prices existed.
@@ -160,7 +161,7 @@
 		</div>
 		<div class="grid gap-x-2 p-1 {scroll ? 'min-h-0 overflow-y-auto overscroll-contain' : 'lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain'} {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
 			{#each shown as u, i (u.key)}
-				{@const honing = gold.mode === 'gold' && auto[u.key] && manualGoldCost(u, gold.costs) === undefined ? auto[u.key] : null}
+				{@const honing = gold.mode === 'gold' && auto[u.key] && manualGoldCost(u, characterCosts) === undefined ? auto[u.key] : null}
 				{#if gold.mode === 'gold' && i === priced.length}
 					{#if priced.length}
 						<p class="col-span-full mt-1 border-t border-neutral-950 px-1.5 pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Other CP upgrades</p>
@@ -185,7 +186,7 @@
 					<div class="flex min-w-0 flex-col">
 						<!-- Rows without a subject (karma, gems, engravings) show their category in the same spot, above the title. -->
 						<UpgradeTitle compact u={u.subject ? u : { ...u, subject: CATEGORY_LABELS[u.category] }} />
-						{#if gold.mode === 'gold' && supportsGoldCost(u)}<GoldCost {u} auto={auto[u.key]} showPer={false} />{/if}
+						{#if gold.mode === 'gold' && supportsGoldCost(u)}<GoldCost {characterKey} {u} auto={auto[u.key]} showPer={false} />{/if}
 					</div>
 					<!-- On calculated honing rows the gold per 1% lines sit level with the avg / pity boxes. -->
 					<span class="text-right whitespace-nowrap text-green-400 tabular-nums {honing ? 'self-end' : ''}">
@@ -219,5 +220,5 @@
 {/if}
 
 {#if dialogOpen}
-	<UpgradeDialog {upgrades} {cp} isSupport={roleOf(loadout).support} skins={simNow.skins} accRolls={rollsFor(characterKey)} onaccrolls={(r) => setAccRolls(characterKey, r)} {auto} {costs} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => { dialogOpen = false; focusKey = null; if (pricingRequest) onpricingclose?.(); }} />
+	<UpgradeDialog {characterKey} {upgrades} {cp} isSupport={roleOf(loadout).support} skins={simNow.skins} accRolls={rollsFor(characterKey)} onaccrolls={(r) => setAccRolls(characterKey, r)} {auto} {costs} mode={gold.mode} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => { dialogOpen = false; focusKey = null; if (pricingRequest) onpricingclose?.(); }} />
 {/if}

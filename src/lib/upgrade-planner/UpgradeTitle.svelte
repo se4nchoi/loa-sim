@@ -47,7 +47,7 @@
 		<!-- A whole accessory: each line with its roll, in the roll colors. -->
 		<span class="flex flex-col text-sm leading-snug text-surface-100">
 			{#each u.lines as line (line.name)}
-				<span><span style:color={statNameColor(line.name)}>{line.name}</span> <b style:color={color(line.tier)} class="font-semibold">{label(line.tier)}</b></span>
+				<span>{line.name} <b style:color={color(line.tier)} class="font-semibold">{label(line.tier)}</b></span>
 			{/each}
 			{#if u.lines.length < 3}<span class="text-surface-500">None</span>{/if}
 		</span>

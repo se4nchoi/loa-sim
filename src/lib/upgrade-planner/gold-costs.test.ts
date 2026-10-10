@@ -1,10 +1,66 @@
-import { describe, expect, it } from 'vitest';
-import { bookCost, byGold, formatGold, goldPerPct, manualGoldCost, missingPriceCount, parseGold, parseOwned } from './gold-costs.svelte';
+import { describe, expect, it, vi } from 'vitest';
+import { bookCost, byGold, clearUpgradePrices, costsForCharacter, loadGold, restoreUpgradePrices, setGoldCost, formatGold, gold, goldPerPct, manualGoldCost, missingPriceCount, parseGold, parseOwned } from './gold-costs.svelte';
 import type { Upgrade } from './upgrades';
 
 const up = (key: string, gainPct: number) => ({ key, gainPct, category: 'gem', title: key, detail: '', count: 1, approximate: false }) as Upgrade;
 
 describe('gold costs', () => {
+	it('persists skin prices per character, with scoped clear and undo and no shared skin fallback', () => {
+		const storage = new Map<string, string>();
+		vi.stubGlobal('localStorage', { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) });
+		const wasLoaded = gold.loaded;
+		gold.costs = { 'skin:head:2': 999 };
+		try {
+			setGoldCost('skin:head:2', 100, 'na:soulshan');
+			setGoldCost('skin:head:2', 200, 'na:shanzkii');
+			setGoldCost('gem:T4:9', 500);
+			gold.costs = {};
+			gold.loaded = false;
+			loadGold();
+			expect(costsForCharacter('na:soulshan')).toEqual({ 'skin:head:2': 100, 'gem:T4:9': 500 });
+			expect(costsForCharacter('na:shanzkii')['skin:head:2']).toBe(200);
+			expect(costsForCharacter('ce:soulshan')['skin:head:2']).toBeUndefined();
+			const cleared = clearUpgradePrices('skin', undefined, 'na:soulshan');
+			expect(costsForCharacter('na:soulshan')['skin:head:2']).toBeUndefined();
+			expect(costsForCharacter('na:shanzkii')['skin:head:2']).toBe(200);
+			restoreUpgradePrices(cleared);
+			expect(costsForCharacter('na:soulshan')['skin:head:2']).toBe(100);
+			setGoldCost('skin:head:2', null, 'na:soulshan');
+			expect(costsForCharacter('na:soulshan')['skin:head:2']).toBeUndefined();
+		} finally { gold.costs = {}; gold.loaded = wasLoaded; vi.unstubAllGlobals(); }
+	});
+	it('undo restores cleared quotes and books while preserving newly entered prices', () => {
+		gold.costs = { 'engraving:1254:books:20': 600, 'gem:T4:9': 500 };
+		gold.bookPrices = { 1254: 1000, 1299: 2000 };
+		try {
+			const cleared = clearUpgradePrices('engraving');
+			gold.bookPrices[1254] = 1500;
+			restoreUpgradePrices(cleared);
+			expect(gold.costs).toEqual({ 'engraving:1254:books:20': 600, 'gem:T4:9': 500 });
+			expect(gold.bookPrices).toEqual({ 1254: 1500, 1299: 2000 });
+			const gems = clearUpgradePrices('gem');
+			gold.costs['gem:T4:9'] = 700;
+			restoreUpgradePrices(gems);
+			expect(gold.costs['gem:T4:9']).toBe(700);
+		} finally { gold.costs = {}; gold.bookPrices = {}; }
+	});
+	it('clears all quotes in the requested section or accessory family without changing other prices', () => {
+		gold.costs = { 'accset:ear1:atk_pct.high': 100, 'accset:ear2:atk_pct.mid': 200, 'accset:neck:add_dmg.high': 300, 'gem:T4:9': 500, 'engraving:1254:books:20': 600 };
+		setGoldCost('skin:head:2', 400);
+		gold.bookPrices = { 1254: 1000, 1299: 2000 };
+		try {
+			clearUpgradePrices('accessory', 'ear');
+			expect(Object.keys(gold.costs).filter((k) => k.startsWith('accset:'))).toEqual(['accset:neck:add_dmg.high']);
+			clearUpgradePrices('skin');
+			expect(costsForCharacter('')['skin:head:2']).toBeUndefined();
+			clearUpgradePrices('engraving');
+			expect(gold.bookPrices).toEqual({});
+			expect(gold.costs['engraving:1254:books:20']).toBeUndefined();
+			expect(gold.costs['gem:T4:9']).toBe(500);
+			clearUpgradePrices('accessory');
+			expect(gold.costs).toEqual({ 'gem:T4:9': 500 });
+		} finally { gold.costs = {}; gold.bookPrices = {}; }
+	});
 	it('counts shared missing accessory quotes once and excludes RNG rows and zero-priced upgrades', () => {
 		const ear1 = { ...up('accset:ear1:atk_pct.high,weapon_pct.mid', 1), category: 'accessory' as const };
 		const ear2 = { ...ear1, key: 'accset:ear2:weapon_pct.mid,atk_pct.high' };

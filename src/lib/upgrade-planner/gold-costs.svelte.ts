@@ -1,8 +1,8 @@
 // Gold costs players enter for Next Upgrades rows (NA has no market API). Kept per upgrade key in this browser and
-// shared by every character, so "T4 gem Lv. 7 → 8" is priced once. Ranking by gold uses gold per 1% Combat Power.
+// shared by every character except skin quotes, which belong to a character. Ranking uses gold per 1% Combat Power.
 
 import { PLENTY, type MaterialOwned, type MaterialPrices } from './honing-cost';
-import type { Upgrade } from './upgrades';
+import type { Upgrade, UpgradeCategory } from './upgrades';
 import { accessoryPriceKey } from './accessory-sets';
 
 const KEY = 'loa-sim:gold-costs';
@@ -65,8 +65,22 @@ export function loadGold() {
 	gold.loaded = true;
 }
 
-export function setGoldCost(key: string, cost: number | null) {
+const skinPricePrefix = (characterKey: string) => `character-skin:${encodeURIComponent(characterKey)}:`;
+
+/** Shared market quotes plus only this character's skin prices. Legacy shared skin quotes are excluded. */
+export function costsForCharacter(characterKey: string): Record<string, number> {
+	const costs: Record<string, number> = {};
+	const prefix = skinPricePrefix(characterKey);
+	for (const [key, value] of Object.entries(gold.costs)) {
+		if (key.startsWith(prefix)) costs[key.slice(prefix.length)] = value;
+		else if (!key.startsWith('character-skin:') && !key.startsWith('skin:')) costs[key] = value;
+	}
+	return costs;
+}
+
+export function setGoldCost(key: string, cost: number | null, characterKey = '') {
 	key = accessoryPriceKey(key, {});
+	if (key.startsWith('skin:')) key = skinPricePrefix(characterKey) + key;
 	if (key.startsWith('accset:')) for (const candidate of Object.keys(gold.costs)) {
 		if (candidate !== key && accessoryPriceKey(candidate, {}) === key) delete gold.costs[candidate];
 	}
@@ -74,6 +88,49 @@ export function setGoldCost(key: string, cost: number | null) {
 	else gold.costs[key] = cost;
 	try {
 		localStorage.setItem(KEY, JSON.stringify(gold.costs));
+	} catch {
+		/* storage blocked: lasts for this visit */
+	}
+}
+
+export type ClearedPrices = { costs: Record<string, number>; bookPrices: Record<string, number> };
+
+/** Clear saved quotes for a section, keeping the removed entries for Undo. */
+export function clearUpgradePrices(category: UpgradeCategory, accessoryFamily?: 'neck' | 'ear' | 'finger', characterKey = '') {
+	const cleared: ClearedPrices = { costs: {}, bookPrices: {} };
+	const prefixes: Partial<Record<UpgradeCategory, string[]>> = {
+		accessory: ['accset:', 'accessory:'], skin: [skinPricePrefix(characterKey)], engraving: ['engraving:'], gem: ['gem:'], karma: ['karma:']
+	};
+	for (const key of Object.keys(gold.costs)) {
+		if (!prefixes[category]?.some((prefix) => key.startsWith(prefix))) continue;
+		if (accessoryFamily && !key.split(':')[1]?.startsWith(accessoryFamily)) continue;
+		cleared.costs[key] = gold.costs[key];
+		delete gold.costs[key];
+	}
+	if (category === 'engraving') {
+		cleared.bookPrices = { ...gold.bookPrices };
+		gold.bookPrices = {};
+	}
+	try {
+		localStorage.setItem(KEY, JSON.stringify(gold.costs));
+		if (category === 'engraving') localStorage.setItem(BOOKS_KEY, JSON.stringify(gold.bookPrices));
+	} catch {
+		/* storage blocked: lasts for this visit */
+	}
+	return cleared;
+}
+
+/** Restore cleared entries without overwriting prices entered since the clear. */
+export function restoreUpgradePrices(cleared: ClearedPrices) {
+	for (const [key, value] of Object.entries(cleared.costs)) {
+		if (gold.costs[key] === undefined) gold.costs[key] = value;
+	}
+	for (const [key, value] of Object.entries(cleared.bookPrices)) {
+		if (gold.bookPrices[key] === undefined) gold.bookPrices[key] = value;
+	}
+	try {
+		localStorage.setItem(KEY, JSON.stringify(gold.costs));
+		if (Object.keys(cleared.bookPrices).length) localStorage.setItem(BOOKS_KEY, JSON.stringify(gold.bookPrices));
 	} catch {
 		/* storage blocked: lasts for this visit */
 	}

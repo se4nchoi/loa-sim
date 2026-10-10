@@ -3,7 +3,7 @@
 	import { tick } from 'svelte';
 	import { goldPriceButton } from './sim/ui';
 	import { GOLD_ICON } from './icons';
-	import { bookCost, formatGold, gold, manualGoldCost, parseGold, setBookPrice, setGoldCost } from './gold-costs.svelte';
+	import { bookCost, costsForCharacter, formatGold, gold, manualGoldCost, parseGold, setBookPrice, setGoldCost } from './gold-costs.svelte';
 	import { breathStrategy, type HoningCost } from './honing-cost';
 	import type { Upgrade } from './upgrades';
 	import HoningBreakdown from './HoningBreakdown.svelte';
@@ -13,9 +13,11 @@
 		u,
 		auto,
 		showPer = true,
+		characterKey = '',
 		onedit
 	}: {
 		u: Upgrade;
+		characterKey?: string;
 		/** Cost calculated from material prices. Equipment honing cannot be overridden by a typed total. */
 		auto?: HoningCost;
 		/** Show gold per 1% next to the cost (the sidebar shows it by the gain). */
@@ -30,7 +32,7 @@
 	let input = $state<HTMLInputElement>();
 	// Engraving book rows are always price per book × books; a total typed there before book prices existed is ignored.
 	const canEdit = $derived(u.category !== 'honing' && u.category !== 'quality');
-	const typed = $derived(u.books ? undefined : manualGoldCost(u, gold.costs));
+	const typed = $derived(u.books ? undefined : manualGoldCost(u, costsForCharacter(characterKey)));
 	/** Engraving book rows are priced per book; the box edits that price. */
 	const bookPrice = $derived(u.books ? gold.bookPrices[u.books.engraving] : undefined);
 	const cost = $derived(typed ?? auto?.expected ?? bookCost(u, gold.bookPrices) ?? u.knownCost);
@@ -57,7 +59,7 @@
 			setBookPrice(u.books.engraving, text.trim() ? parseGold(text) : null);
 			if (gold.costs[u.key] !== undefined) setGoldCost(u.key, null); // drop an old typed total for this row
 		}
-		else setGoldCost(u.key, text.trim() ? parseGold(text) : null);
+		else setGoldCost(u.key, text.trim() ? parseGold(text) : null, characterKey);
 	}
 </script>
 

@@ -2,7 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { sheetDrag } from './sim/sheet-drag';
 	import { formatCp } from './format';
-	import { formatGold, gold, loadGold, parsePrice, setBookPrice, setGoldCost } from './gold-costs.svelte';
+	import { costsForCharacter, formatGold, gold, loadGold, parsePrice, setBookPrice, setGoldCost } from './gold-costs.svelte';
 	import { GOLD_ICON, iconUrl } from './icons';
 	import { PLENTY, materialIcon, materialName } from './honing-cost';
 	import { accessoryPriceKey } from './accessory-sets';
@@ -21,7 +21,8 @@
 	let editText = $state('');
 	let priceInput = $state<HTMLInputElement>();
 	onMount(() => { loadGold(); dialog.showModal(); dialog.focus(); });
-	const lines = $derived(priceBudget(changes, gold.prices, gold.bound[characterKey] ?? {}, gold.costs, gold.bookPrices));
+	const characterCosts = $derived(costsForCharacter(characterKey));
+	const lines = $derived(priceBudget(changes, gold.prices, gold.bound[characterKey] ?? {}, characterCosts, gold.bookPrices));
 	const average = $derived(lines.reduce((sum, row) => sum + (row.average ?? 0), 0));
 	const pending = $derived(lines.filter((row) => row.status === 'unavailable' || (!row.status && (row.average === undefined || row.missing.length > 0))).length);
 	const materials = $derived(inventoryIds ?? [...new Set(changes.flatMap((row) => row.tap ? [...Object.keys(row.tap.mats), ...[row.tap.breath, row.tap.moreBreath].filter((b) => b && b.max > 0).map((b) => String(b!.id)), 'shards'] : []))]);
@@ -29,14 +30,14 @@
 	const quantity = (value: number) => value >= PLENTY ? '∞' : value.toLocaleString(undefined, { maximumFractionDigits: 1 });
 	async function editPrice(row: BudgetChange) {
 		editing = row.key;
-		editText = String((row.books ? gold.bookPrices[row.books.id] : gold.costs[accessoryPriceKey(row.sourceKey ?? row.key, gold.costs)] ?? gold.costs[row.key]) ?? '');
+		editText = String((row.books ? gold.bookPrices[row.books.id] : characterCosts[accessoryPriceKey(row.sourceKey ?? row.key, characterCosts)] ?? characterCosts[row.key]) ?? '');
 		await tick(); priceInput?.select();
 	}
 	function quote(row: BudgetChange, text: string) {
 		const value = text.trim() ? parsePrice(text) : null;
 		if (text.trim() && value === null) return;
 		if (row.books) setBookPrice(row.books.id, value);
-		else setGoldCost(row.sourceKey ?? row.key, value);
+		else setGoldCost(row.sourceKey ?? row.key, value, characterKey);
 	}
 </script>
 
@@ -68,7 +69,7 @@
 					{#if row.section === 'Accessories'}
 						{@const upgrade = priceUpgrades.find((u) => u.key === (row.sourceKey ?? row.key))}
 						<div class="border-t border-surface-800 py-2">
-							<div class="flex items-start gap-2"><p class="min-w-0 flex-1 text-sm font-semibold">{row.title}</p><span class="min-w-0 flex-1"></span><div class="flex min-w-0 flex-1 justify-end">{#if upgrade}<GoldCost u={upgrade} showPer={false} onedit={() => onprice?.(upgrade)} />{/if}</div></div>
+							<div class="flex items-start gap-2"><p class="min-w-0 flex-1 text-sm font-semibold">{row.title}</p><span class="min-w-0 flex-1"></span><div class="flex min-w-0 flex-1 justify-end">{#if upgrade}<GoldCost {characterKey} u={upgrade} showPer={false} onedit={() => onprice?.(upgrade)} />{/if}</div></div>
 							{#each row.rolls ?? [] as roll}<div class="mt-0.5 flex items-baseline gap-2 text-xs"><span class="min-w-0 flex-1 text-surface-200">{roll.name}</span><span class="min-w-0 flex-1 font-semibold" style:color={ROLL_COLORS[roll.tier as keyof typeof ROLL_COLORS]}>{roll.value ?? ''}</span><span class="min-w-0 flex-1"></span></div>{/each}
 						</div>
 					{:else}

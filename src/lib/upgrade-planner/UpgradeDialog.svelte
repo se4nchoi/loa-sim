@@ -2,12 +2,12 @@
 	import { sheetDrag } from './sim/sheet-drag';
 	import { onMount, untrack } from 'svelte';
 	import { formatCp, formatPct } from './format';
-	import { btn, btnAccent, ROLL_COLORS, statNameColor } from './sim/ui';
+	import { btn, btnAccent, ROLL_COLORS } from './sim/ui';
 	import UpgradeTitle from './UpgradeTitle.svelte';
 	import MenuPicker from './sim/MenuPicker.svelte';
 	import GoldCost from './GoldCost.svelte';
 	import { PHEON_ICON } from './icons';
-	import { byGold, formatGold, goldPerPct, missingPriceCount, supportsGoldCost, type RankMode } from './gold-costs.svelte';
+	import { byGold, clearUpgradePrices, restoreUpgradePrices, formatGold, goldPerPct, missingPriceCount, supportsGoldCost, type ClearedPrices, type RankMode } from './gold-costs.svelte';
 	import type { HoningCost } from './honing-cost';
 	import { ACC_ROLLS, groupAccessoryUpgrades, type AccRoll } from './accessory-sets';
 	import { CATEGORY_LABELS, type Upgrade, type UpgradeCategory } from './upgrades';
@@ -15,6 +15,7 @@
 
 	let {
 		upgrades,
+		characterKey = '',
 		cp,
 		onclose,
 		onapply,
@@ -29,6 +30,7 @@
 		isSupport = false
 	}: {
 		upgrades: Upgrade[];
+		characterKey?: string;
 		cp: number;
 		onclose: () => void;
 		onapply?: (u: Upgrade) => void;
@@ -109,6 +111,18 @@
 	}
 	// Accessory roll picker: toggles stay a draft until Apply rebuilds the ladder.
 	let draft = $state<AccRoll[]>(untrack(() => [...(accRolls ?? [])]));
+	let missingOnly = $state<Record<string, boolean>>({});
+	let lastClear = $state<{ scope: string; prices: ClearedPrices } | null>(null);
+	const priceScope = (category: UpgradeCategory, family?: 'neck' | 'ear' | 'finger') => `${characterKey}:${category}:${family ?? ''}`;
+	function clearPrices(category: UpgradeCategory, family?: 'neck' | 'ear' | 'finger') {
+		const prices = clearUpgradePrices(category, family, characterKey);
+		if (Object.keys(prices.costs).length || Object.keys(prices.bookPrices).length) lastClear = { scope: priceScope(category, family), prices };
+	}
+	function undoClear() {
+		if (!lastClear) return;
+		restoreUpgradePrices(lastClear.prices);
+		lastClear = null;
+	}
 	const same = (a: AccRoll[], b: AccRoll[]) => a.length === b.length && a.every((r) => b.includes(r));
 	const pending = $derived(!!accRolls && !same(draft, accRolls));
 	function applyRolls() {
@@ -125,6 +139,15 @@
 	}
 	const skinColor = (bonus: number | null) => bonus === 2 ? '#ff8a2a' : bonus === 1 ? '#b780ff' : bonus === 0.5 ? '#65a5ff' : undefined;
 </script>
+
+{#snippet priceActions(category: UpgradeCategory, family?: 'neck' | 'ear' | 'finger')}
+	<div class="flex shrink-0 items-center gap-1">
+		<button type="button" class={btn} title={`Clear saved ${family ?? CATEGORY_LABELS[category].toLowerCase()} prices in this browser`} onclick={() => clearPrices(category, family)}>Clear prices</button>
+		<button type="button" class={`${btn} disabled:cursor-default disabled:opacity-30`} style:padding="0 6px" disabled={lastClear?.scope !== priceScope(category, family)} aria-label="Undo clearing prices" title="Undo clearing prices" onclick={undoClear}>
+			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h11a6 6 0 0 1 0 12" /><path d="m7 3-4 4 4 4" /></svg>
+		</button>
+	</div>
+{/snippet}
 
 {#snippet cpAfter(u: Upgrade)}
 	<span class="block text-xs text-surface-100 tabular-nums">{formatCp(cp * (1 + u.gainPct / 100))} <span class={isSupport ? 'text-green-400' : 'text-red-400'}>({formatPct(cp * u.gainPct / 100)})</span></span>
@@ -162,7 +185,7 @@
 		<div class="flex min-w-0 flex-1 flex-col">
 				<UpgradeTitle {u} />
 			{#if u.detail}<span class="text-xs text-surface-400">{u.detail}</span>{/if}
-			{#if (mode === 'gold' || u.category === 'skin') && supportsGoldCost(u)}<GoldCost {u} auto={auto[u.key]} />{/if}
+			{#if (mode === 'gold' || u.category === 'skin') && supportsGoldCost(u)}<GoldCost {characterKey} {u} auto={auto[u.key]} />{/if}
 		</div>
 		<div class="flex shrink-0 flex-col text-right">
 			<span class="text-sm font-semibold text-green-400 tabular-nums">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>
@@ -181,10 +204,10 @@
 	<div data-key={u.key} class="flex items-start gap-3 border-t border-neutral-950 py-2 {variants.some((v) => v.key === focusKey) ? 'animate-[upgrade-focus_1.6s_ease-out] rounded-xs' : ''}">
 		<div class="flex min-w-0 flex-1 flex-col gap-0.5">
 			{#each u.lines ?? [] as line (line.name)}
-				<div class="grid grid-cols-[minmax(0,8.5rem)_max-content] items-baseline gap-2 text-sm leading-snug"><span class="min-w-0 text-surface-100" style:color={statNameColor(line.name)}>{line.name}</span><span class="font-semibold" style:color={ROLL_COLORS[line.tier as keyof typeof ROLL_COLORS]}>{line.value ?? line.tier}</span></div>
+				<div class="grid grid-cols-[minmax(0,8.5rem)_max-content] items-baseline gap-2 text-sm leading-snug"><span class="min-w-0 text-surface-100">{line.name}</span><span class="font-semibold" style:color={ROLL_COLORS[line.tier as keyof typeof ROLL_COLORS]}>{line.value ?? line.tier}</span></div>
 			{/each}
 			{#if (u.lines?.length ?? 0) < 3}<span class="text-xs text-surface-500">None</span>{/if}
-			{#if mode === 'gold'}<GoldCost {u} />{/if}
+			{#if mode === 'gold'}<GoldCost {characterKey} {u} />{/if}
 		</div>
 		<div class="flex shrink-0 flex-col gap-2">
 			{#each variants as target (target.key)}<div class="flex items-center gap-2"><div class="text-right"><span class="block text-[11px] text-surface-400">{target.subject}</span><span class="text-sm font-semibold text-green-400 tabular-nums">{target.approximate ? '≈' : ''}{formatPct(target.gainPct)}%</span>{@render cpAfter(target)}</div>{#if onapply}<button type="button" class="{btn} w-14 px-1.5" onclick={() => onapply(target)} title={`Apply to ${target.subject}`}>{flash?.key === target.key ? (flash.ok ? '✓' : 'Done') : 'Apply'}</button>{/if}</div>{/each}
@@ -253,7 +276,12 @@
 			{/if}
 			{#each groups as g (g.category)}
 				<section id={sectionId(g.category)} class="flex flex-col">
-					<h3 class="mb-1 text-xs font-semibold tracking-wide text-surface-400 uppercase">{CATEGORY_LABELS[g.category]}</h3>
+					<div class="mb-1 flex items-center justify-between gap-2">
+						<h3 class="text-xs font-semibold tracking-wide text-surface-400 uppercase">{CATEGORY_LABELS[g.category]}</h3>
+						{#if mode === 'gold' && g.category === 'karma'}
+							{@render priceActions(g.category)}
+						{/if}
+					</div>
 					{#if g.category === 'skin' && skins}
 						{#if skins.bonus !== null && onapply}
 							<div class="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -278,6 +306,7 @@
 						<!-- Whole-accessory buys fold per piece: the best buy on the summary line, the full ladder inside. -->
 						{#each groupAccessoryUpgrades(g.list) as piece (piece.name)}
 							{@const missing = missingPriceCount(piece.options.flatMap((o) => o.variants), costs)}
+							{@const options = mode === 'gold' && missing > 0 && missingOnly[piece.name] ? piece.options.filter((o) => missingPriceCount(o.variants, costs) > 0) : piece.options}
 							<details class="group border-t border-neutral-950" open={piece.options.some((o) => o.variants.some((u) => u.key === focusKey))}>
 								<summary class="flex cursor-pointer list-none flex-row flex-wrap items-center gap-x-3 gap-y-1 py-2 hover:bg-black/15 [&::-webkit-details-marker]:hidden">
 									<span class="w-3 text-xs text-surface-500 transition-transform group-open:rotate-90">▸</span>
@@ -287,7 +316,13 @@
 									{#if mode === 'gold' && missing}<span class="basis-full pl-6 text-xs text-amber-300">{missing} missing price{missing === 1 ? '' : 's'}</span>{/if}
 								</summary>
 								<div class="pl-6">
-									{#each piece.options as option (option.key)}{@render accessoryRow(option.variants)}{/each}
+									{#if mode === 'gold'}
+										<div class="flex flex-wrap items-center justify-end gap-1.5 py-2">
+											{#if missing > 0}<button type="button" class={`inline-flex h-7 items-center justify-center rounded-xs border border-amber-400 bg-amber-400/20 px-2.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/30 ${missingOnly[piece.name] ? 'opacity-100' : 'opacity-50 hover:opacity-75'}`} aria-pressed={missingOnly[piece.name] ?? false} aria-label={`Show only missing prices for ${piece.name}`} onclick={() => missingOnly[piece.name] = !missingOnly[piece.name]}>Missing prices only</button>{/if}
+											{@render priceActions('accessory', piece.name === 'Necklace' ? 'neck' : piece.name.startsWith('Earrings') ? 'ear' : 'finger')}
+										</div>
+									{/if}
+									{#each options as option (option.key)}{@render accessoryRow(option.variants)}{/each}
 								</div>
 							</details>
 						{/each}
