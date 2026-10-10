@@ -338,10 +338,10 @@
 		</div>
 		<section id="sim-ark-grid" aria-label="Ark Grid" class="scroll-mt-28 max-lg:scroll-mt-32"><SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} /></section>
 	</div>
-	<!-- Sticky sidebar, as tall as the window: the CP card and section links stay whole, Next Upgrades takes the rest
-	     and scrolls its own list. -->
-	<div class="flex flex-col gap-2 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
+	<!-- Keep CP visible while the lower sidebar can scroll on shorter screens. -->
+	<div class="flex flex-col gap-2 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start">
 		<div class="shrink-0 max-lg:hidden">{@render summary()}</div>
+		<div class="flex min-h-0 flex-1 flex-col gap-2 lg:overflow-y-auto">
 		<!-- Same card shape as Next Upgrades: a fixed header strip, the links fold away beneath it. -->
 		<nav aria-label="Simulator cards" class="flex shrink-0 flex-col max-lg:hidden divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 			<button
@@ -356,6 +356,7 @@
 		</nav>
 		{#if wide}<UpgradePlanner class="lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={sim} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
 		{@render sidebar?.()}
+		</div>
 	</div>
 </div>
 
