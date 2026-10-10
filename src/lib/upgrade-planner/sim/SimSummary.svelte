@@ -57,8 +57,7 @@
 		gems: 'Gems',
 		engravings: 'Engravings',
 		arkGrid: 'Ark Grid',
-		karma: 'Karma',
-		paradise: 'Paradise'
+		karma: 'Karma'
 	};
 	// Item level range: presets around the character's own bracket, or any from–to in 10-level steps.
 	const lo = $derived(brackets[0] ?? 0);

@@ -20,7 +20,7 @@ import {
 import type { ArkGridGem, BattlePointPart, Loadout } from './types';
 import { STONE_LEVEL_NODES } from './stones';
 
-export type UpgradeCategory = 'honing' | 'quality' | 'gem' | 'core' | 'astrogem' | 'engraving' | 'accessory' | 'karma' | 'paradise';
+export type UpgradeCategory = 'honing' | 'quality' | 'gem' | 'core' | 'astrogem' | 'engraving' | 'accessory' | 'karma';
 
 export interface Upgrade {
 	/** Stable key, e.g. for remembering a user-entered gold cost. */
@@ -71,8 +71,7 @@ export const CATEGORY_LABELS: Record<UpgradeCategory, string> = {
 	astrogem: 'Astrogems',
 	engraving: 'Engravings',
 	accessory: 'Accessories',
-	karma: 'Karma',
-	paradise: 'Paradise'
+	karma: 'Karma'
 };
 
 const num = (p: BattlePointPart, k: string) => (typeof p[k] === 'number' ? (p[k] as number) : undefined);

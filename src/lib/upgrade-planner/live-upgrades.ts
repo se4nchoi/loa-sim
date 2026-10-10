@@ -87,13 +87,6 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 		add({ key: `karma:${tree}:${level + 1}`, category: 'karma', title: `${tree === 'leap' ? 'Leap' : 'Enlightenment'} karma level ${level} → ${level + 1}`, detail: '' });
 	}
 
-	// Paradise orb (dealers): the next million Paradise power. Supports' orb is flat, so it has no next step.
-	const orb = state.paradise;
-	if (orb && !orb.flat) {
-		const to = (Math.floor(orb.power / 1e6) + 1) * 1e6;
-		add({ key: `paradise:power:${to}`, category: 'paradise', subject: 'Paradise orb', title: `Paradise power ${(orb.power / 1e6).toFixed(2)}M → ${to / 1e6}M`, detail: '' });
-	}
-
 	const scored = candidates.flatMap((u) => {
 		const next = structuredClone(state);
 		if (!applyUpgrade(l, next, base, u)) return [];

@@ -113,11 +113,6 @@ export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade
 			lines[replace] = { key: b, tier: 'high' };
 			return true;
 		}
-		case 'paradise': {
-			if (a !== 'power' || !s.paradise || s.paradise.flat) return false;
-			s.paradise = { ...s.paradise, power: Math.max(s.paradise.power, Number(b)) };
-			return true;
-		}
 		case 'karma': {
 			if (a === 'evolution-level' && s.karma.evolution !== null) {
 				s.karma.evolution = Math.max(s.karma.evolution, Number(b));

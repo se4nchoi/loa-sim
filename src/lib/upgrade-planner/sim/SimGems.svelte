@@ -256,7 +256,7 @@
 			{/if}
 			{#each rows as r, ri (ri)}
 				{@const skill = r.slots.damage !== undefined ? sim.gems[r.slots.damage].skill : r.slots.cooldown !== undefined ? sim.gems[r.slots.cooldown].skill : r.skill}
-				<div class="col-span-full grid grid-cols-subgrid items-center border-t border-neutral-950 py-1">
+				<div class="col-span-full grid min-w-0 grid-cols-subgrid items-center border-t border-neutral-950 py-1">
 					<MenuPicker
 						value={optionOf(skill)}
 						options={SKILL_OPTIONS}

@@ -100,7 +100,7 @@
 	onkeydown={(e) => open && e.key === 'Escape' && (open = false)}
 />
 
-<div class="relative max-w-full {full ? 'flex w-full' : 'inline-flex'}" bind:this={root}>
+<div class="relative min-w-0 max-w-full {full ? 'flex w-full' : 'inline-flex'}" bind:this={root}>
 	<button
 		type="button"
 		class="inline-flex max-w-full min-w-0 items-center rounded-xs {iconOnly ? 'h-9 p-0 hover:ring-2 hover:ring-accent-400 hover:ring-offset-2 hover:ring-offset-surface-950 focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-950' : 'h-8 gap-1.5 px-2 max-[360px]:gap-1 max-[360px]:px-1'} {full ? 'w-full' : ''} border bg-surface-800/80 text-sm transition hover:border-accent-500 hover:bg-surface-700/80 {changed
