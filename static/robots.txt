@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+# Character pages load live data from lostark.bible per visit; keep crawlers off them and the API.
+Disallow: /character/
+Disallow: /api/
+Disallow: /sim
+Disallow: /oauth-test
+
+Sitemap: https://loa-sim.vercel.app/sitemap.xml
