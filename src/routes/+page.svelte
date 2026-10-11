@@ -140,7 +140,22 @@
 	const secondary = 'rounded-xs border border-surface-600 px-2.5 py-1.5 text-sm text-surface-200 hover:bg-surface-800 disabled:opacity-50';
 </script>
 
-<svelte:head><title>loa-sim · Combat Power Simulator</title></svelte:head>
+<svelte:head>
+	<title>loa-sim · Lost Ark Combat Power Simulator</title>
+	<meta name="description" content="Free Lost Ark Combat Power simulator for NA and EUC. Load your character from lostark.bible, change honing, gems, accessories, engravings, ark grid and more, and see the CP change. Next Upgrades ranks your best upgrades by CP or by gold." />
+	<link rel="canonical" href="https://loa-sim.vercel.app/" />
+	<meta property="og:type" content="website" />
+	<meta property="og:site_name" content="loa-sim" />
+	<meta property="og:title" content="loa-sim · Lost Ark Combat Power Simulator" />
+	<meta property="og:description" content="Free Lost Ark Combat Power simulator for NA and EUC. Load your character from lostark.bible, change honing, gems, accessories, engravings, ark grid and more, and see the CP change. Next Upgrades ranks your best upgrades by CP or by gold." />
+	<meta property="og:url" content="https://loa-sim.vercel.app/" />
+	<meta property="og:image" content="https://loa-sim.vercel.app/og.png" />
+	<meta property="og:image:width" content="1675" />
+	<meta property="og:image:height" content="905" />
+	<meta property="og:image:alt" content="loa-sim: equipment honing, gems and Next Upgrades ranked by gold per 1% CP" />
+	<meta name="twitter:card" content="summary_large_image" />
+	<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"loa-sim","url":"https://loa-sim.vercel.app/","applicationCategory":"GameApplication","operatingSystem":"Any","description":"Lost Ark Combat Power simulator for NA and EUC characters.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+</svelte:head>
 
 <!-- One compact character row: class emblem, name, item level · CP, then its actions. -->
 {#snippet row(c: { region: string; name: string }, classId: string | undefined, ilvl: number | undefined, cp: { score: number; support: boolean } | undefined, note: string | undefined, dismiss: { label: string; icon: 'hide' | 'show' | 'remove'; run: () => void } | null, muted = false)}

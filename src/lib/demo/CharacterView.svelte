@@ -57,7 +57,10 @@
 	const lines = $derived((Array.isArray(subtitle) ? subtitle : [subtitle]).filter((l): l is string => !!l));
 </script>
 
-<svelte:head><title>{name} ({region}) | loa-sim</title></svelte:head>
+<svelte:head>
+	<title>{name} ({region}) | loa-sim</title>
+	<meta name="robots" content="noindex" />
+</svelte:head>
 
 <div class="mb-4 flex flex-col gap-1">
 	<div class="flex flex-row gap-1 text-xs">
