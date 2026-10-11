@@ -1,5 +1,5 @@
 <!-- How the simulated Combat Power is made up: base attack times every section's multiplier, with each section's
-     share of the score, what one more point of its bonus is worth, and how the current edits moved it. Opened from
+     share of the score, and how the current edits moved it. Opened from
      the CP card. Sections sit in three groups (Character, Gear, Systems), each with its own color: a stacked bar on
      top shows how the score splits between them, and every row has a bar for its own share. -->
 <script lang="ts">
@@ -69,12 +69,12 @@
 		{ label: 'Weapon Power', next: side.total * (Math.sqrt(1.01) - 1) },
 		{ label: 'Atk.', next: side.total / (100 + attackPct) }
 	];
-	// Fixed column widths so every group's block lines up. Phones keep Section · Bonus · CP · %; the bar, +1% and
-	// Change join from sm up.
+	// Fixed column widths so every group's block lines up. Phones keep Section · Bonus · CP · %; the bar and Change
+	// join from sm up.
 	const cols = $derived(
 		changed
-			? 'grid-cols-[minmax(0,1fr)_4.5rem_4rem_3rem] sm:grid-cols-[minmax(0,1fr)_5rem_4.5rem_4rem_3rem_3.5rem_4rem]'
-			: 'grid-cols-[minmax(0,1fr)_4.5rem_4rem_3rem] sm:grid-cols-[minmax(0,1fr)_5rem_4.5rem_4rem_3rem_3.5rem]'
+			? 'grid-cols-[minmax(0,1fr)_4.5rem_4rem_3rem] sm:grid-cols-[minmax(0,1fr)_5rem_4.5rem_4rem_3rem_4rem]'
+			: 'grid-cols-[minmax(0,1fr)_4.5rem_4rem_3rem] sm:grid-cols-[minmax(0,1fr)_5rem_4.5rem_4rem_3rem]'
 	);
 </script>
 
@@ -115,7 +115,6 @@
 			<p class="text-xs text-surface-400">
 				Combat Power is base attack multiplied by every section's bonus{support ? ', once for Buff Power and once for Shield & Heal Power; the score is their sum' : ''}.
 				<b class="text-surface-200">CP</b> is each section's share of your score (they add up to the total).
-				<b class="text-surface-200">+1%</b> is what one more point of that bonus would add: the bigger a bonus already is, the less the next point gives.
 			</p>
 
 			{#each breakdown.sides as side (side.label)}
@@ -160,7 +159,6 @@
 						<span class={line}>Bonus</span>
 						<span class={line}>CP</span>
 						<span class={line}>%</span>
-						<span class="{line} max-sm:hidden" title="CP from one more point of this bonus">+1%</span>
 						{#if changed}<span class="{line} max-sm:hidden">Change</span>{/if}
 					</div>
 
@@ -178,7 +176,6 @@
 							<span class="{line} text-surface-500">—</span>
 							<span class="{line} font-semibold text-surface-100">{formatCp(side.base.cp)}</span>
 							<span class="{line} text-xs text-surface-400">{share(side.base.cp).toFixed(1)}%</span>
-							<span class="{line} text-surface-500 max-sm:hidden">—</span>
 							{@render changeCell(side.base.change)}
 						</div>
 						{#if side.label !== 'Shield & Heal Power' && open[`${side.label}:base`]}
@@ -215,7 +212,6 @@
 									<span class="{line} text-surface-300">{formatPct(row.pct)}%</span>
 									<span class="{line} text-surface-100">{formatCp(row.cp)}</span>
 									<span class="{line} text-xs text-surface-400">{share(row.cp).toFixed(1)}%</span>
-									<span class="{line} text-xs text-green-400/80 max-sm:hidden">+{formatCp(row.next)}</span>
 									{@render changeCell(row.change)}
 									{#if open[key]}
 										<!-- Its parts, as rows of the same grid: each part's bonus sits under Bonus. -->
@@ -225,7 +221,6 @@
 											<span class="{line} text-xs text-surface-400">{formatPct(item.pct)}%</span>
 											<span class={line}></span>
 											<span class={line}></span>
-											<span class="{line} max-sm:hidden"></span>
 											{#if changed}<span class="{line} max-sm:hidden"></span>{/if}
 										{/each}
 										{#if !row.items.length}<span class="col-span-full pl-9 text-xs text-surface-400">Removed by your changes.</span>{/if}
@@ -239,7 +234,6 @@
 								<span class="{line} pt-0.5"></span>
 								<span class="{line} pt-0.5 font-semibold text-surface-100">{formatCp(g.cp)}</span>
 								<span class="{line} pt-0.5 text-xs font-semibold text-surface-200">{share(g.cp).toFixed(1)}%</span>
-								<span class="{line} max-sm:hidden"></span>
 								{#if changed}<span class="{line} pt-0.5 text-xs max-sm:hidden {color(g.change)}">{Math.abs(g.change) > 0.00005 ? `${formatPct(g.change)}%` : '—'}</span>{/if}
 							</div>
 						</div>
@@ -252,7 +246,6 @@
 						<span class={line}></span>
 						<span class="{line} text-base font-bold {support ? 'text-green-400' : 'text-red-400'}">{formatCp(side.total)}</span>
 						<span class="{line} text-xs font-semibold text-surface-200">{share(side.total).toFixed(1)}%</span>
-						<span class="{line} max-sm:hidden"></span>
 						{#if changed}
 							{@const delta = breakdown.sides.length > 1 ? 0 : (total / current - 1) * 100}
 							<span class="{line} text-xs max-sm:hidden {color(delta)}">{Math.abs(delta) > 0.00005 ? `${formatPct(delta)}%` : '—'}</span>

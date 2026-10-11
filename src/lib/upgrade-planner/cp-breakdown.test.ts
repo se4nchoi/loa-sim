@@ -29,14 +29,13 @@ describe('cp breakdown', () => {
 		expect(b.sides[0].total + b.sides[1].total).toBeCloseTo(support.combatPower!.score, 6);
 	});
 
-	it("reports a section's change and what one more point of it is worth", () => {
+	it("reports a section's change and leaves the others alone", () => {
 		const parts = dealer.battlePoint.parts;
 		const after = parts.map((p) => (p.type === PartType.CardSet ? { ...p, value: (p.value ?? 0) + 500 } : p));
 		const b = cpBreakdown(after, false, 7000, parts);
 		const cards = b.sides[0].rows.find((r) => r.group === 'cards')!;
 		const before = parts.find((p) => p.type === PartType.CardSet)!.value!;
 		expect(cards.change).toBeCloseTo(((1e4 + before + 500) / (1e4 + before) - 1) * 100, 9);
-		expect(cards.next).toBeCloseTo((7000 * 0.01 * 1e4) / (1e4 + before + 500), 6);
 		expect(b.sides[0].rows.filter((r) => r.group !== 'cards').every((r) => Math.abs(r.change) < 1e-9)).toBe(true);
 	});
 });

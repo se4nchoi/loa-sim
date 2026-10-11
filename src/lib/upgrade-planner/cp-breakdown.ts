@@ -2,8 +2,7 @@
 //   power = base / 1e4 × Π(1 + part / 1e4)
 // so each section is a multiplier on the base, not an amount. To still say "Bracelet is worth 700 CP", the gain
 // above the base (power − base) is split between sections in proportion to ln(multiplier): the shares add up
-// exactly, and the order the multipliers are applied in doesn't matter. The marginal gain ("+1%") is what one more
-// point of a section's bonus is worth: power × 0.01 / multiplier, so a section that's already big gives less.
+// exactly, and the order the multipliers are applied in doesn't matter.
 
 import { PartType, isDefensePart, partHigh } from './cp';
 import { decodeCore, ASTROGEM_OPTION_NAMES, ENGRAVING_NAMES } from './tables';
@@ -163,8 +162,6 @@ export interface BreakdownRow {
 	pct: number;
 	/** This section's share of the score (shares plus the base and adjustment add up to the total). */
 	cp: number;
-	/** CP from one more percentage point of this section's bonus (e.g. +154.86% → +155.86%). */
-	next: number;
 	/** Change of this section's own multiplier vs `before`, in percent of its power (0 when unchanged). */
 	change: number;
 	items: BreakdownItem[];
@@ -256,7 +253,6 @@ export function cpBreakdown(parts: BattlePointPart[], isSupport: boolean, score:
 					label: GROUP_LABELS[group],
 					pct: (g.mult - 1) * 100,
 					cp: logSum ? (gain * Math.log(g.mult)) / logSum : 0,
-					next: (total * 0.01) / g.mult,
 					change: (g.mult / was - 1) * 100,
 					items: [...g.items].map(([label, it]) => ({ label, count: it.count, pct: (it.mult - 1) * 100 }))
 				};
@@ -264,7 +260,7 @@ export function cpBreakdown(parts: BattlePointPart[], isSupport: boolean, score:
 			// Sections the edits removed entirely still show, as a loss.
 			for (const [group, g] of prior ?? []) {
 				if (groups.has(group)) continue;
-				rows.push({ group, label: GROUP_LABELS[group], pct: 0, cp: 0, next: total * 0.01, change: (1 / g.mult - 1) * 100, items: [] });
+				rows.push({ group, label: GROUP_LABELS[group], pct: 0, cp: 0, change: (1 / g.mult - 1) * 100, items: [] });
 			}
 			rows.sort((a, b) => b.cp - a.cp);
 			return {
