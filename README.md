@@ -111,6 +111,13 @@ request between simultaneous loads. Set `BIBLE_SERVER_FETCH=0` to turn it off (s
 paste instead. Either way the data is decoded and saved in the player's browser, so a return visit opens straight
 into the simulator.
 
+### Reports
+
+The Updates card's **Report it** opens a form that posts to `/api/report`; the server files it as a GitHub issue
+with `GITHUB_ISSUES_TOKEN` (fine-grained, this repo only, Issues: read and write), labelled `bug` / `enhancement`
+plus `from-site`, so players don't need a GitHub account. A hidden spam-trap field and a per-address limit (3 per
+10 minutes) keep bots out. Without the token the form says reporting is off and links to GitHub instead.
+
 The selected region is remembered in localStorage; an explicit region in a reload link takes precedence.
 
 OAuth redirect URIs registered with lostark.bible: `https://loa-sim.vercel.app` (production client) and

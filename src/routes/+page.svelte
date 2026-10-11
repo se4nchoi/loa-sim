@@ -9,6 +9,8 @@
 	import { className } from '$lib/upgrade-planner/class-names';
 	import { loadCharacter } from '$lib/load-character';
 	import { onMount } from 'svelte';
+	import SiteNews from '$lib/SiteNews.svelte';
+	import SiteNewsStrip from '$lib/SiteNewsStrip.svelte';
 
 	let region = $state<Region>('NA');
 	let input = $state('');
@@ -195,7 +197,11 @@
 	</div>
 {/snippet}
 
-<div class="mx-auto flex max-w-2xl flex-col gap-4 py-6">
+<!-- Desktop: the characters column with Updates as a side card (like the simulator's CP card); phones get a folded
+     Updates card above the Roster instead. -->
+<div class="mx-auto grid max-w-2xl gap-4 lg:max-w-[calc(42rem+320px+1rem)] lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+<!-- Intro and search on the first row; Updates starts level with the Roster card on the second. -->
+<div class="flex min-w-0 flex-col gap-4 pt-6">
 	<div class="flex flex-col gap-1">
 		<h1 class="text-2xl font-bold">Combat Power Simulator</h1>
 		<p class="text-sm text-surface-300">Load a character, change its gear, and see what each change does to Combat Power.</p>
@@ -225,7 +231,9 @@
 	{#if error}
 		<p class="-mt-2 text-sm text-red-400">{error}</p>
 	{/if}
-
+</div>
+<div class="flex min-w-0 flex-col gap-4 pb-6 lg:col-start-1">
+	<SiteNewsStrip />
 	<!-- Roster: synced from lostark.bible. -->
 	<section class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 		<div class="flex flex-row items-center gap-2 bg-black/10 px-3 py-2">
@@ -337,4 +345,8 @@
 		</div>
 	</details>
 
+</div>
+<aside class="flex max-h-[calc(100vh-5rem)] flex-col max-lg:hidden lg:sticky lg:top-16 lg:col-start-2 lg:row-start-2" aria-label="Updates">
+	<SiteNews class="min-h-0" />
+</aside>
 </div>

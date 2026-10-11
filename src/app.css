@@ -100,6 +100,25 @@ body {
 ::-webkit-scrollbar-corner {
 	background: transparent;
 }
+/* The page keeps room for its scrollbar, so content that grows past the screen (an unfolded row) doesn't shift
+   everything sideways. */
+html {
+	scrollbar-gutter: stable;
+}
+/* Muted panels (the Updates list): space for the bar is always kept, and the bar barely shows until hovered. */
+.scroll-muted {
+	scrollbar-gutter: stable;
+	scrollbar-color: color-mix(in oklab, var(--color-surface-700) 50%, transparent) transparent;
+}
+.scroll-muted:hover {
+	scrollbar-color: var(--color-surface-700) transparent;
+}
+.scroll-muted::-webkit-scrollbar-thumb {
+	background-color: color-mix(in oklab, var(--color-surface-700) 50%, transparent);
+}
+.scroll-muted::-webkit-scrollbar-thumb:hover {
+	background-color: var(--color-surface-600);
+}
 
 /* Next Upgrades: the row a click came from, highlighted briefly in All Upgrades. */
 @keyframes upgrade-focus {
