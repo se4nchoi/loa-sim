@@ -26,7 +26,8 @@
 		canUndo,
 		canRedo,
 		split = null,
-		onbudget
+		onbudget,
+		onbreakdown
 	}: {
 		current: number;
 		simulated: number;
@@ -47,6 +48,8 @@
 		/** Supports: Buff Power and Shield & Heal Power (bible's breakdown) and their % change. */
 		split?: { buff: { value: number; pct: number }; shieldHeal: { value: number; pct: number } } | null;
 		onbudget?: () => void;
+		/** Opens the Combat Power breakdown. */
+		onbreakdown?: () => void;
 	} = $props();
 
 	const LABELS: Record<SimSection, string> = {
@@ -89,6 +92,16 @@
 <div class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 	<div class="flex flex-row items-center bg-black/10 px-3 py-2 font-bold">
 		<span>Combat Power Simulator</span>
+		{#if onbreakdown}
+			<button
+				type="button"
+				onclick={onbreakdown}
+				aria-haspopup="dialog"
+				aria-label="How this Combat Power is made up"
+				title="How this Combat Power is made up"
+				class="ml-auto inline-flex size-6 items-center justify-center rounded-full border border-accent-500/70 bg-accent-700/30 text-xs leading-none font-bold text-accent-100 hover:bg-accent-700/60"
+			>?</button>
+		{/if}
 	</div>
 	<div class="flex flex-row gap-1.5 px-2 py-2">
 		<button type="button" class="{btn} flex-1 disabled:opacity-40" disabled={!canUndo} onclick={onundo} title="Undo (Ctrl+Z)">↶ Undo</button>
@@ -100,7 +113,11 @@
 		<span class="text-lg font-bold text-surface-200">{formatCp(current)}</span>
 		<span class="mt-1 text-xs text-surface-400">Simulated</span>
 		<div class="flex flex-row items-baseline gap-2">
-			<span class="text-2xl font-bold {split ? 'text-green-400' : 'text-red-400'}">{formatCp(simulated)}</span>
+			{#if onbreakdown}
+				<button type="button" onclick={onbreakdown} aria-haspopup="dialog" title="How this Combat Power is made up" class="cursor-pointer rounded-xs text-2xl font-bold decoration-dotted underline-offset-4 hover:underline {split ? 'text-green-400' : 'text-red-400'}">{formatCp(simulated)}</button>
+			{:else}
+				<span class="text-2xl font-bold {split ? 'text-green-400' : 'text-red-400'}">{formatCp(simulated)}</span>
+			{/if}
 			<Delta pct={delta} cp={simulated - current} class="text-sm font-semibold" />
 		</div>
 		{#if ilvlBefore !== null && ilvlAfter !== null}

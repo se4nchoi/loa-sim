@@ -30,6 +30,9 @@
 	import SimSkins from './sim/SimSkins.svelte';
 	import MobileSummaryBar from './sim/MobileSummaryBar.svelte';
 	import SimSummary from './sim/SimSummary.svelte';
+	import CpBreakdownDialog from './sim/CpBreakdownDialog.svelte';
+	import { cpBreakdown } from './cp-breakdown';
+	import { PartType } from './cp';
 	import { SECTIONS, type PreviewEdit, type SectionDelta, type SimSection } from './sim/ui';
 	import { gemParts, initSimState, itemLevel, mainStatIndex, simulate, type SimState } from './simulate';
 	import type { Loadout } from './types';
@@ -110,6 +113,7 @@
 	/** Phones: the Next Upgrades drawer (see BottomDrawer). */
 	let drawerOpen = $state(false);
 	let budgetOpen = $state(false);
+	let breakdownOpen = $state(false);
 	let budgetPricing = $state<Upgrade | null>(null);
 	/** Dock the CP bar at the top first (scroll it up if it's still mid-page), so it shows above the drawer. */
 	function openDrawer() {
@@ -324,6 +328,7 @@
 		canUndo={past.length > 0}
 		canRedo={future.length > 0}
 		onbudget={() => budgetOpen = true}
+		onbreakdown={() => breakdownOpen = true}
 	/>
 {/snippet}
 
@@ -391,4 +396,17 @@
 {#if budgetOpen}
 	{#if !wide}<UpgradePlanner class="hidden" {loadout} {characterKey} {characterName} simState={calculated} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
 	<SimBudget isSupport={loadout.battlePoint.isSupport} changes={budgetChanges(loadout, base, calculated)} inventoryIds={inventoryMaterials(sim.gear, !!sim.bracer)} priceUpgrades={budgetPriceUpgrades(loadout, base, calculated)} onprice={(u) => budgetPricing = u} {current} {simulated} {characterKey} {characterName} onclose={() => { budgetOpen = false; budgetPricing = null; }} />
+{/if}
+
+{#if breakdownOpen}
+	<CpBreakdownDialog
+		breakdown={cpBreakdown(result.parts, loadout.battlePoint.isSupport, simulated, baseline.parts)}
+		{current}
+		mainStat={result.mainStat}
+		{mainStatName}
+		weaponPower={result.weaponPower}
+		attackPct={Number(result.parts.find((p) => p.type === PartType.BaseAttack)?.attackPowerMultiplier) || 0}
+		support={loadout.battlePoint.isSupport}
+		onclose={() => breakdownOpen = false}
+	/>
 {/if}
