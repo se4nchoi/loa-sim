@@ -58,7 +58,6 @@
 						<span class="text-xs text-surface-400">Paradise power</span>
 						<input
 							type="text"
-							inputmode="numeric"
 							autocomplete="off"
 							bind:value={draft}
 							aria-label="Paradise power"
@@ -72,7 +71,7 @@
 					</label>
 					<button type="submit" class="{btnAccent} self-end" disabled={!canApply}>Apply</button>
 				</form>
-				{#if typed === null}<p class="-mt-1 text-xs text-red-400">Enter a number, e.g. 35,000,000 or 35m.</p>{/if}
+				{#if typed === null}<p class="-mt-1 text-xs text-red-400">Enter a number, e.g. 35,000,000, 35m or 35000k.</p>{/if}
 			{/if}
 		</div>
 	</SimCard>

@@ -53,10 +53,10 @@ export const orbIcon = (orb: number) => ORBS[orb]?.icon;
 /** Paradise power with thousands separators, e.g. 30,014,791. */
 export const formatPower = (v: number) => Math.round(v).toLocaleString('en-US');
 
-/** A typed Paradise power ("30,014,791", "30014791", " 31.5m ") as a number, or null if it isn't one. */
+/** A typed Paradise power ("30,014,791", "30014791", " 31.5m ", "35000k") as a number, or null if it isn't one. */
 export function parsePower(text: string): number | null {
 	const t = text.trim().toLowerCase().replace(/,/g, '');
-	const m = t.match(/^(\d+(?:\.\d+)?)\s*(m)?$/);
+	const m = t.match(/^(\d+(?:\.\d+)?)\s*([km])?$/);
 	if (!m) return null;
-	return Math.round(Number(m[1]) * (m[2] ? 1e6 : 1));
+	return Math.round(Number(m[1]) * (m[2] === 'm' ? 1e6 : m[2] === 'k' ? 1e3 : 1));
 }

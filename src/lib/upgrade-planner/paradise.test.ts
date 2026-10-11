@@ -52,6 +52,8 @@ it('reads typed Paradise power with commas or an M suffix', () => {
 	expect(parsePower(' 35000000 ')).toBe(35e6);
 	expect(parsePower('35m')).toBe(35e6);
 	expect(parsePower('31.5M')).toBe(31.5e6);
+	expect(parsePower('40 m')).toBe(40e6);
+	expect(parsePower('35000k')).toBe(35e6);
 	expect(parsePower('0')).toBe(0);
 	expect(parsePower('')).toBeNull();
 	expect(parsePower('abc')).toBeNull();

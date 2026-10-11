@@ -142,7 +142,6 @@
 							value={shownOwned(id)}
 							onchange={(e) => commitOwned(id, e.currentTarget.value)}
 							aria-label={`${materialName(id)} bound`}
-							inputmode="numeric"
 							class="h-8 w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-right tabular-nums hover:border-surface-400 focus:border-accent-500 focus:outline-none {bound[id]
 								? 'text-surface-50'
 								: 'text-surface-400'}"
@@ -152,7 +151,6 @@
 							value={shown(id)}
 							aria-label={`${materialName(id)} market price (${unitLabel(id)})`}
 							onchange={(e) => commit(id, e.currentTarget.value)}
-							inputmode="decimal"
 							class="h-8 w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-right tabular-nums hover:border-surface-400 focus:border-accent-500 focus:outline-none {gold.prices[id]
 								? 'text-surface-50'
 								: 'text-surface-400'}"
