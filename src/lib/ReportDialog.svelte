@@ -6,7 +6,7 @@
 	import { sheetDrag } from '$lib/upgrade-planner/sim/sheet-drag';
 	import { btn, btnAccent } from '$lib/upgrade-planner/sim/ui';
 	import Segmented from '$lib/upgrade-planner/sim/Segmented.svelte';
-	import { REPORT_KINDS, REPORT_LIMITS, type ReportKind } from '$lib/report';
+	import { REPORT_KINDS, REPORT_LIMITS, REPORT_MIN, type ReportKind } from '$lib/report';
 	import { NEW_ISSUE_URL } from '$lib/site-news';
 
 	let { onclose }: { onclose: () => void } = $props();
@@ -29,7 +29,11 @@
 	/** Set once sent: the new issue's link. */
 	let sentUrl = $state<string | null>(null);
 
-	const ready = $derived(title.trim().length >= 4 && body.trim().length >= 10);
+	const ready = $derived(title.trim().length >= REPORT_MIN.title && body.trim().length >= REPORT_MIN.body);
+	/** Why Send is off, once something has been typed. */
+	const missing = $derived(
+		!title.trim() && !body.trim() ? '' : title.trim().length < REPORT_MIN.title ? 'Add a title' : body.trim().length < REPORT_MIN.body ? 'Add a few more words to Details' : ''
+	);
 	const PLACEHOLDER: Record<ReportKind, { title: string; body: string }> = {
 		bug: { title: 'Gem card runs off the screen on my phone', body: 'What happened, and what you expected instead. Steps to get there help a lot.' },
 		feature: { title: 'Show CP per gold for bracelets', body: 'What you’d like, and how you’d use it.' },
@@ -128,7 +132,8 @@
 						<a class="ml-1 text-accent-300 underline hover:text-accent-200" href={NEW_ISSUE_URL} target="_blank" rel="noopener">Open on GitHub ↗</a>
 					</p>
 				{/if}
-				<div class="flex flex-row justify-end gap-2">
+				<div class="flex flex-row items-center justify-end gap-2">
+					{#if missing}<span class="mr-auto text-xs text-amber-300">{missing}</span>{/if}
 					<button type="button" class={btn} onclick={() => dialog.close()}>Cancel</button>
 					<button type="submit" class="{btnAccent} disabled:opacity-50" disabled={!ready || sending}>{sending ? 'Sending…' : 'Send report'}</button>
 				</div>

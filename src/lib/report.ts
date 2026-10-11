@@ -9,6 +9,8 @@ export const REPORT_KINDS = [
 export type ReportKind = (typeof REPORT_KINDS)[number]['value'];
 
 export const REPORT_LIMITS = { title: 120, body: 4000, character: 60, contact: 100 } as const;
+/** Shortest title and details a report can have (enough to rule out an empty or one-letter send). */
+export const REPORT_MIN = { title: 3, body: 5 } as const;
 
 export interface ReportInput {
 	kind: ReportKind;
@@ -32,8 +34,8 @@ export function cleanReport(raw: unknown): { report: ReportInput } | { error: st
 	if (!kind) return { error: 'Pick what kind of report this is.' };
 	const title = text(r.title, REPORT_LIMITS.title);
 	const body = text(r.body, REPORT_LIMITS.body);
-	if (title.length < 4) return { error: 'Give it a short title.' };
-	if (body.length < 10) return { error: 'Describe it in a few words more.' };
+	if (title.length < REPORT_MIN.title) return { error: 'Give it a short title.' };
+	if (body.length < REPORT_MIN.body) return { error: 'Describe it in a few words more.' };
 	const page = text(r.page, 200);
 	return {
 		report: {
