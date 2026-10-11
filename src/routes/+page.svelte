@@ -144,12 +144,12 @@
 
 <svelte:head>
 	<title>loa-sim · Lost Ark Combat Power Simulator</title>
-	<meta name="description" content="Free Lost Ark Combat Power simulator for NA and EUC. Load your character from lostark.bible, change honing, gems, accessories, engravings, ark grid and more, and see the CP change. Next Upgrades ranks your best upgrades by CP or by gold." />
+	<meta name="description" content="Lost Ark Combat Power simulator for NA and EUC. Load your character from lostark.bible, change honing, gems, accessories, engravings, ark grid and more, and see the CP change. Next Upgrades ranks your best upgrades by CP or by gold." />
 	<link rel="canonical" href="https://loa-sim.vercel.app/" />
 	<meta property="og:type" content="website" />
 	<meta property="og:site_name" content="loa-sim" />
 	<meta property="og:title" content="loa-sim · Lost Ark Combat Power Simulator" />
-	<meta property="og:description" content="Free Lost Ark Combat Power simulator for NA and EUC. Load your character from lostark.bible, change honing, gems, accessories, engravings, ark grid and more, and see the CP change. Next Upgrades ranks your best upgrades by CP or by gold." />
+	<meta property="og:description" content="Lost Ark Combat Power simulator for NA and EUC. Load your character from lostark.bible, change honing, gems, accessories, engravings, ark grid and more, and see the CP change. Next Upgrades ranks your best upgrades by CP or by gold." />
 	<meta property="og:url" content="https://loa-sim.vercel.app/" />
 	<meta property="og:image" content="https://loa-sim.vercel.app/og.png" />
 	<meta property="og:image:width" content="1675" />
