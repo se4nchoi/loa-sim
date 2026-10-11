@@ -181,7 +181,7 @@
 						type="search"
 						placeholder="Search…"
 						aria-label={`Search ${label}`}
-						class="menu-search h-8 w-full rounded-xs border border-surface-600 bg-surface-950 px-2 text-sm text-surface-100 focus:border-accent-500 focus:outline-none"
+						class="h-8 w-full rounded-xs border border-surface-600 bg-surface-950 px-2 text-sm text-surface-100 focus:border-accent-500 focus:outline-none"
 							onkeydown={(e) => {
 								const first = shown.find((o) => !o.disabled);
 								if (e.key === 'Enter' && first) pick(first.value);
@@ -220,11 +220,3 @@
 		{/if}
 	{/if}
 </div>
-
-<style>
-	@media (pointer: coarse) {
-		.menu-search {
-			font-size: 16px;
-		}
-	}
-</style>

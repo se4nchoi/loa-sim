@@ -64,6 +64,15 @@ body {
 	}
 }
 
+/* iOS zooms into any field under 16px when it takes focus, so on touch screens every typed field and select is 16px. */
+@media (pointer: coarse) {
+	input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']),
+	select,
+	textarea {
+		font-size: 16px !important;
+	}
+}
+
 /* Thin dark scrollbars that match the surface palette (page and every scrolling panel). */
 * {
 	scrollbar-width: thin;
