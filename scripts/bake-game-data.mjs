@@ -282,6 +282,19 @@ const coreNames = {};
 for (const [id, v] of Object.entries(items))
 	if (/^673\d{6}$/.test(id) && v.name) coreNames[id.slice(0, 8)] = v.name.replace(/^.*Core: /, '');
 
+// ------------------------------------------------------------------------------------------- paradise orbs
+
+// Every orb (657 8S 000N): name, icon, grade, and its battle point rows. Dealers (part 33): base + perPower ×
+// Paradise power / 1e8, i.e. k × (power / 1M + 2.5) with k = perPower / 100. Supports (part 34): a flat value, only
+// on the support orbs; other orbs give a support nothing.
+const paradiseOrbs = {};
+for (const { values: [id, base, perPower] } of stats.battlePoint['1'].filter((e) => e.type === 33)) {
+	const v = items[id];
+	if (!v) throw new Error(`missing orb item ${id}`);
+	paradiseOrbs[id] = { name: v.name, icon: v.icon, grade: v.grade, base, perPower, support: 0 };
+}
+for (const { values: [id, value] } of stats.battlePoint['2'].filter((e) => e.type === 34)) if (paradiseOrbs[id]) paradiseOrbs[id].support = value;
+
 // ------------------------------------------------------------------------------------------- support battle points
 
 // The game scores supports with its own battle point table (role 2): Buff Power from the "attack" parts and
@@ -373,6 +386,9 @@ export const GEM_BASE_ATTACK: number[] = ${JSON.stringify(gemBaseAttack)};
 
 /** Event gem id → the regular gem id it behaves as (same tier, kind and level). */
 export const GEM_REGULAR: Record<number, number> = ${JSON.stringify(gemRegular)};
+
+/** Paradise orb id → name, icon, grade and battle points (dealer: base + perPower × power / 1e8; support: flat). */
+export const PARADISE_ORBS: Record<number, { name: string; icon: string; grade: number; base: number; perPower: number; support: number }> = ${JSON.stringify(paradiseOrbs)};
 
 /** Core item id without its grade digit (first 8 digits) → option name, e.g. 67311300 → "Echoing Brand". */
 export const CORE_NAMES: Record<string, string> = ${JSON.stringify(coreNames)};

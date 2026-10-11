@@ -335,7 +335,7 @@
 		<div class="grid grid-cols-2 items-start gap-2 max-xl:grid-cols-1">
 			<div class="flex min-w-0 flex-col gap-2">
 				<section id="sim-equipment" aria-label="Equipment" class="scroll-mt-28 max-lg:scroll-mt-32"><SimGear bind:sim {base} {itemIds} classId={loadout.classId} delta={sections.gear} /></section>
-				{#if base.paradise}<section id="sim-paradise" aria-label="Paradise" class="scroll-mt-28 max-lg:scroll-mt-32"><SimParadise bind:sim {base} delta={sections.paradise} /></section>{/if}
+				{#if base.paradise}<section id="sim-paradise" aria-label="Paradise" class="scroll-mt-28 max-lg:scroll-mt-32"><SimParadise bind:sim {base} {preview} delta={sections.paradise} /></section>{/if}
 				<section id="sim-accessories" aria-label="Accessories" class="scroll-mt-28 max-lg:scroll-mt-32"><SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} /></section>
 				<section id="sim-bracelet" aria-label="Bracelet" class="scroll-mt-28 max-lg:scroll-mt-32"><SimBracelet bind:sim {base} {loadout} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} /></section>
 			</div>

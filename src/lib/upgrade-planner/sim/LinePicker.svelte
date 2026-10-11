@@ -14,18 +14,22 @@
 		onpick,
 		preview,
 		label,
-		changed = false
+		changed = false,
+		plain = false
 	}: {
 		value: string;
 		/** What the closed picker shows; defaults to the selected option's label. */
-		display?: { label: string; color: string };
+		display?: { label: string; color: string; textColor?: string };
 		options: PickOption[];
 		onpick: (value: string) => void;
 		/** CP change in percent if this option were picked (relative to the current simulation). */
 		preview?: (value: string) => number;
 		label: string;
 		changed?: boolean;
+		/** No roll-colored left border (pickers that aren't accessory lines, e.g. the Paradise orb). */
+		plain?: boolean;
 	} = $props();
+	const edge = $derived(plain ? '' : 'border-l-2 pl-2');
 
 	// Long lists (bracelet effects) get a search box.
 	const SEARCH_MIN = 12;
@@ -73,7 +77,7 @@
 		aria-label={label}
 		onclick={toggle}
 	>
-		<span class="ml-1.5 min-w-0 flex-1 truncate border-l-2 pl-2 text-sm" style:border-color={current?.color ?? '#575757'} title={current?.label}>
+		<span class="{plain ? 'ml-2.5' : 'ml-1.5'} min-w-0 flex-1 truncate {edge} text-sm" style:border-color={current?.color ?? '#575757'} style:color={current?.textColor} title={current?.label}>
 			{current?.label ?? 'Unknown'}
 		</span>
 		<svg class="size-3.5 shrink-0 text-surface-400" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>
@@ -108,7 +112,11 @@
 						class="flex w-full flex-row items-center gap-3 px-3 py-2 text-left hover:bg-surface-800 {o.value === value ? 'bg-surface-800/70' : ''}"
 						onclick={() => pick(o.value)}
 					>
-						<span class="flex-1 border-l-2 pl-2 text-sm" style:border-color={o.color}>{o.label}</span>
+						<span class="flex flex-1 flex-row items-center gap-2 {edge} text-sm" style:border-color={o.color}>
+							{#if o.iconUrl}<img src={o.iconUrl} alt="" class="size-6 shrink-0 rounded-xs" loading="lazy" />{/if}
+							<span class="whitespace-nowrap" style:color={o.textColor}>{o.label}</span>
+						</span>
+						{#if o.detail}<span class="w-24 text-right text-xs whitespace-nowrap tabular-nums" style:color={o.detail.color}>{o.detail.label}</span>{/if}
 						{#if o.value === value}
 							<span class="text-xs text-surface-400">current</span>
 						{:else if previews[o.value] !== undefined}

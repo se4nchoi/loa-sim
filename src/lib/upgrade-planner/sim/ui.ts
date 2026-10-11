@@ -46,6 +46,12 @@ export interface PickOption {
 	label: string;
 	color: string;
 	group?: string;
+	/** Image before the label (e.g. a Paradise orb). */
+	iconUrl?: string;
+	/** Label text color; the left border always uses color. */
+	textColor?: string;
+	/** A short right-aligned column before the CP preview (e.g. an orb's season and share). */
+	detail?: { label: string; color?: string };
 }
 
 /** lostark.bible's roll colors for accessory lines (high / mid / low), plus grey for lines with no DPS value. */
