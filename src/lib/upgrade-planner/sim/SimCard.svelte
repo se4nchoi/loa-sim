@@ -22,17 +22,21 @@
 </script>
 
 <div class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
-	<!-- Wraps on narrow screens: the actions drop to a second line instead of widening the page. Sticks under the
-	     site header (and the phone CP bar) while its card scrolls by, so Max / Reset stay in reach. -->
+	<!-- Wraps on narrow screens: the actions drop to a second line instead of widening the page. The CP change takes no
+	     room in that (no gaps on this row, its spacing is inside it), so it appearing never pushes them down; it fills
+	     what's left and is cut short (phones show the percent only). Sticks under the site header (and the phone CP bar)
+	     while its card scrolls by, so Max / Reset stay in reach. -->
 	<div class="sticky top-(--sim-sticky-top,3rem) z-20 flex flex-row flex-wrap items-center gap-x-2 gap-y-1.5 rounded-t-xs bg-[color-mix(in_oklab,var(--color-surface-900),black_18%)] px-4 py-2 font-bold shadow-[0_6px_8px_-6px_rgb(0_0_0/0.6)] max-sm:px-3">
-		<span>{title}</span>
-		{#if info}
-			<span class="cursor-help text-xs font-normal text-surface-500 hover:text-surface-200" title={info} aria-label={info}>ⓘ</span>
-		{/if}
-		{#if delta && Math.abs(delta.pct) > 0.00005}
-			<Delta pct={delta.pct} cp={delta.cp} class="text-sm font-semibold" />
-		{/if}
-		<div class="ml-auto flex flex-row flex-wrap justify-end gap-2 text-xs font-normal">{@render actions?.()}</div>
+		<div class="flex min-w-0 flex-1 flex-row flex-wrap items-center gap-y-1.5">
+			<span class="shrink-0">{title}</span>
+			{#if info}
+				<span class="ml-2 shrink-0 cursor-help text-xs font-normal text-surface-500 hover:text-surface-200" title={info} aria-label={info}>ⓘ</span>
+			{/if}
+			{#if delta && Math.abs(delta.pct) > 0.00005}
+				<span class="w-0 min-w-0 flex-1 truncate"><Delta pct={delta.pct} cp={delta.cp} narrowPctOnly class="ml-2 text-sm font-semibold" /></span>
+			{/if}
+			<div class="ml-auto flex flex-row flex-wrap justify-end pl-2 gap-2 text-xs font-normal">{@render actions?.()}</div>
+		</div>
 		{#if toolbar}<div class="min-w-0 basis-full pt-1 text-sm font-normal">{@render toolbar()}</div>{/if}
 	</div>
 	<div class="px-4 py-3 max-sm:px-3">{@render children()}</div>

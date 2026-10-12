@@ -5,6 +5,7 @@
 <script lang="ts">
 	import { getContext, tick } from 'svelte';
 	import { formatPct } from '../format';
+	import { placeMenu } from './place-menu';
 	import type { PickOption } from './ui';
 
 	let {
@@ -49,9 +50,10 @@
 	async function toggle() {
 		open = !open;
 		query = '';
-		if (open) {
+		// Phones would pop the keyboard over the list; they scroll it instead.
+		if (open && !window.matchMedia('(pointer: coarse)').matches) {
 			await tick();
-			search?.focus();
+			search?.focus({ preventScroll: true });
 		}
 	}
 	function pick(v: string) {
@@ -84,9 +86,12 @@
 	</button>
 	{#if open}
 		<div
+			use:placeMenu
+			popover="manual"
+			style:color="var(--color-surface-100)"
 			role="listbox"
 			aria-label={label}
-			class="absolute top-full left-0 z-40 mt-1 max-h-96 w-max max-w-[min(30rem,92vw)] min-w-full overflow-y-auto rounded-xs border border-surface-600 bg-surface-900 py-1 shadow-xl shadow-black/70"
+			class="absolute top-full left-0 z-40 mt-1 max-h-96 w-max max-w-[min(30rem,92vw)] min-w-full overflow-y-auto overscroll-contain rounded-xs border border-surface-600 bg-surface-900 py-1 shadow-xl shadow-black/70"
 		>
 			{#if options.length >= SEARCH_MIN}
 				<div class="sticky top-0 z-10 bg-surface-900 px-2 pt-1 pb-1.5">
@@ -114,7 +119,7 @@
 					>
 						<span class="flex flex-1 flex-row items-center gap-2 {edge} text-sm" style:border-color={o.color}>
 							{#if o.iconUrl}<img src={o.iconUrl} alt="" class="size-6 shrink-0 rounded-xs" loading="lazy" />{/if}
-							<span class="whitespace-nowrap" style:color={o.textColor}>{o.label}</span>
+							<span class="sm:whitespace-nowrap" style:color={o.textColor}>{o.label}</span>
 						</span>
 						{#if o.detail}<span class="w-24 text-right text-xs whitespace-nowrap tabular-nums" style:color={o.detail.color}>{o.detail.label}</span>{/if}
 						{#if o.value === value}

@@ -6,6 +6,7 @@
 	import { getContext, tick, type Snippet } from 'svelte';
 	import { formatPct } from '../format';
 	import Glyph from './Glyph.svelte';
+	import { placeMenu } from './place-menu';
 	import type { MenuOption } from './ui';
 
 	let {
@@ -57,45 +58,6 @@
 		}
 	}
 	let root: HTMLDivElement;
-	/** Top-layer menus use viewport coordinates even inside transformed dialogs. */
-	function placeMenu(node: HTMLDivElement) {
-		// The class max-height (if any), read before inline styles override it.
-		const cssMax = parseFloat(getComputedStyle(node).maxHeight) || Infinity;
-		// Height is fixed at open: phone browsers grow innerHeight as their toolbar hides on scroll.
-		let limit = Infinity;
-		const place = () => {
-			if (!node.isConnected) return;
-			const margin = 8;
-			const anchor = root.getBoundingClientRect();
-			node.style.position = 'fixed';
-			node.style.inset = 'auto';
-			node.style.margin = '0';
-			if (!node.matches(':popover-open')) node.showPopover();
-			node.style.right = 'auto';
-			node.style.maxWidth = `${window.innerWidth - margin * 2}px`;
-			node.style.minWidth = `${Math.min(anchor.width, window.innerWidth - margin * 2)}px`;
-			const box = node.getBoundingClientRect();
-			const left = align === 'right' ? anchor.right - box.width : anchor.left;
-			node.style.left = `${Math.max(margin, Math.min(left, window.innerWidth - box.width - margin))}px`;
-			const below = window.innerHeight - anchor.bottom - margin - 4;
-			const above = anchor.top - margin - 4;
-			const flip = below < Math.min(box.height, 200) && above > below;
-			if (limit === Infinity) limit = Math.min(cssMax, flip ? above : below);
-			const room = Math.max(0, Math.min(limit, flip ? above : below));
-			node.style.maxHeight = `${room}px`;
-			node.style.top = `${flip ? Math.max(margin, anchor.top - Math.min(box.height, room) - 4) : anchor.bottom + 4}px`;
-			node.style.marginTop = '0';
-		};
-		// Scrolling the menu's own list doesn't move its anchor.
-		const onScroll = (e: Event) => (e.target instanceof Node && node.contains(e.target)) || place();
-		void tick().then(place);
-		window.addEventListener('resize', place);
-		window.addEventListener('scroll', onScroll, true);
-		return { destroy() {
-			window.removeEventListener('resize', place);
-			window.removeEventListener('scroll', onScroll, true);
-		} };
-	}
 	const previews = $derived(open && preview ? new Map(options.filter((o) => !o.disabled).map((o) => [o.value, preview(o.value)])) : new Map<T, number>());
 	/** Row-laid-out pickers: one labelled row per `row`, its options as compact cells. */
 	const rows = $derived(options.some((o) => o.row) ? [...new Set(options.map((o) => o.row ?? ''))] : null);
@@ -134,7 +96,7 @@
 	{#if open}
 		{#if rows}
 			<div
-				use:placeMenu
+				use:placeMenu={align}
 				popover="manual"
 				style:color="var(--color-surface-100)"
 				role="listbox"
@@ -173,7 +135,7 @@
 			</div>
 		{:else}
 		<div
-			use:placeMenu
+			use:placeMenu={align}
 			popover="manual"
 			style:color="var(--color-surface-100)"
 			role="listbox"
