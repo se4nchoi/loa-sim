@@ -1,5 +1,8 @@
 // What's new and what's known: the landing page's Updates card. Edit by hand when something ships or a report
 // comes in; newest first. Dates are YYYY-MM-DD. `points` show as bullets when a line is unfolded.
+// Keep entries short: a few-word title that fits the card (~17 characters, e.g. "Character load UX") and one plain
+// sentence per point saying what changed for the player (e.g. "Loading a character no longer sends you to the
+// simulator page"). Group related fixes under one title with a bullet each.
 
 export type UpdateKind = 'new' | 'improved' | 'fix';
 
@@ -15,7 +18,7 @@ export const UPDATES: SiteUpdate[] = [
 		date: '2026-10-12',
 		kind: 'improved',
 		title: 'Astrogem WP',
-		points: ['Pick any astrogem, even past the core’s Willpower: ones that don’t fit turn red and don’t count until the core has room (e.g. as Ancient)']
+		points: ['Astrogems over the core’s Willpower can be picked; they show red and don’t count']
 	},
 	{
 		date: '2026-10-12',
