@@ -5,7 +5,6 @@
 	import type { LoadoutKind } from '$lib/bible-data';
 	import type { Snapshot } from '$lib/snapshot-history';
 	import MenuPicker from '$lib/upgrade-planner/sim/MenuPicker.svelte';
-	import Segmented from '$lib/upgrade-planner/sim/Segmented.svelte';
 	import type { Loadout } from '$lib/upgrade-planner/types';
 
 	let {
@@ -89,7 +88,8 @@
 			}))
 		];
 		const best = Math.max(...rows.map((r) => r.score ?? 0));
-		const top = rows.findIndex((r) => best > 0 && r.score === best);
+		// Marked only when there's something to compare it with.
+		const top = rows.length > 1 ? rows.findIndex((r) => best > 0 && r.score === best) : -1;
 		// The highest CP first, marked; the rest in their order (bible's two, then kept ones newest first).
 		const ordered = top > 0 ? [rows[top], ...rows.filter((_, i) => i !== top)] : rows;
 		return ordered.map((r, i) => ({
@@ -103,6 +103,12 @@
 			title: i === 0 && top >= 0 ? `${r.title ?? ''} Highest Combat Power of these.`.trim() : r.title
 		}));
 	});
+	/** With nothing saved yet, a greyed hint row says where saved snapshots will appear. */
+	const menuOptions = $derived(
+		older.length
+			? menu
+			: [...menu, { value: 'hint', label: 'Older snapshots show up here as you reload this character', disabled: true, muted: true, marker: '' }]
+	);
 	const menuValue = $derived(snapshotId ? `snap:${snapshotId}` : (loadoutKind ?? ''));
 	const picked = $derived(menu.find((o) => o.value === menuValue));
 	function pickMenu(v: string) {
@@ -127,9 +133,10 @@
 	<h1 class="text-3xl font-bold">{name}</h1>
 	{#if ilvl}<span class="text-xl font-semibold text-surface-200 tabular-nums" title="Item Level">{ilvl.toFixed(2)}</span>{/if}
 	{#each lines as line (line)}<span class="text-sm text-surface-300">{line}</span>{/each}
-	{#if older.length && onsnapshot && onloadout}
+	<!-- Always shown, so players find saved snapshots before they have any. -->
+	{#if menu.length && onsnapshot && onloadout}
 		<div class="mt-1 w-fit max-w-full">
-			<MenuPicker value={menuValue} options={menu} onpick={pickMenu} label="Loadout to simulate">
+			<MenuPicker value={menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate">
 				{#snippet trigger()}
 					<span class="flex min-w-0 flex-row items-baseline gap-1.5 text-xs">
 						<span class="truncate">{picked?.label ?? 'Loadout'}</span>
@@ -139,8 +146,6 @@
 				{/snippet}
 			</MenuPicker>
 		</div>
-	{:else if loadoutOptions.length > 1 && loadoutKind && onloadout}
-		<div class="mt-1"><Segmented value={loadoutKind} options={loadoutOptions} onselect={onloadout} label="Loadout to simulate" size="h-8 px-3 text-xs" /></div>
 	{/if}
 	<a class="w-fit text-xs text-surface-300 underline hover:text-surface-50" href={`https://lostark.bible/character/${region}/${encodeURIComponent(name)}`} target="_blank" rel="noopener">
 		View on lostark.bible
