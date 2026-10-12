@@ -244,7 +244,7 @@
 						<span class="font-bold text-surface-100">{breakdown.sides.length > 1 ? side.label : 'Combat Power'}</span>
 						<span class="max-sm:hidden"></span>
 						<span class={line}></span>
-						<span class="{line} text-base font-bold {support ? 'text-green-400' : 'text-red-400'}">{formatCp(side.total)}</span>
+						<span class="{line} text-base font-bold {breakdown.sides.length > 1 ? (side.label === 'Buff Power' ? 'text-sky-300' : 'text-red-300') : support ? 'text-green-400' : 'text-red-400'}">{formatCp(side.total)}</span>
 						<span class="{line} text-xs font-semibold text-surface-200">{share(side.total).toFixed(1)}%</span>
 						{#if changed}
 							{@const delta = breakdown.sides.length > 1 ? 0 : (total / current - 1) * 100}
@@ -253,6 +253,32 @@
 					</div>
 				</section>
 			{/each}
+			{#if breakdown.sides.length > 1}
+				<!-- Supports: the score is the two halves added together. -->
+				<section aria-label="Combat Power" class="tabular-nums">
+					<div class="grid {cols} items-center gap-x-3 px-2 text-sm">
+						{#each breakdown.sides as side (side.label)}
+							<span class={side.label === 'Buff Power' ? 'text-sky-300' : 'text-red-300'}>{side.label}</span>
+							<span class="max-sm:hidden"></span>
+							<span class={line}></span>
+							<span class="{line} text-surface-100">{formatCp(side.total)}</span>
+							<span class="{line} text-xs text-surface-400">{share(side.total).toFixed(1)}%</span>
+							{#if changed}<span class="{line} max-sm:hidden"></span>{/if}
+						{/each}
+					</div>
+					<div class="mt-1 grid {cols} items-center gap-x-3 border-t-2 border-surface-600 px-2 pt-1.5">
+						<span class="font-bold text-surface-100">Combat Power</span>
+						<span class="max-sm:hidden"></span>
+						<span class={line}></span>
+						<span class="{line} text-base font-bold text-green-400">{formatCp(total)}</span>
+						<span class="{line} text-xs font-semibold text-surface-200">100.0%</span>
+						{#if changed}
+							{@const delta = (total / current - 1) * 100}
+							<span class="{line} text-xs max-sm:hidden {color(delta)}">{Math.abs(delta) > 0.00005 ? `${formatPct(delta)}%` : '—'}</span>
+						{/if}
+					</div>
+				</section>
+			{/if}
 			{#if Math.abs(breakdown.anchor - 1) > 0.0005}
 				<p class="text-xs text-surface-500">
 					The formula lands {formatPct((1 / breakdown.anchor - 1) * 100, 2)}% off your in-game score, so every number above is scaled by
