@@ -3,7 +3,8 @@ import { PartType } from './cp';
 import soulshan from './fixtures/na-soulshan.json';
 import brushann from './fixtures/na-brushann.json';
 import drkuuljulian from './fixtures/ce-drkuuljulian.json';
-import { initSimState, simCoreValue, simulate } from './simulate';
+import { astrogemTypeChoices, setAstrogemType } from './astrogem-edit';
+import { gemsActive, initSimState, simCoreValue, simulate } from './simulate';
 import { supportCoreValue } from './support';
 import { coreValue, decodeCore } from './tables';
 import { buildUpgrades, coreStates, coreValueAs, coreValueAt, evaluateAstrogemSwap, weaponPowerOf } from './upgrades';
@@ -66,6 +67,13 @@ describe('Drkuuljulian dealer Weapon core', () => {
 	const before = simulate(l, base, base);
 	const c = coreStates(l).find((c) => c.id === 673121006)!;
 	const edited = (s: typeof base) => s.arkGrid.find((x) => x.id === c.id)!;
+	// These gems need 17 Willpower (16 even at max efficiency), more than a Relic core supplies, so one would go
+	// inactive. For the grade swaps, start from gems that fit 15: max efficiency and the cheapest type in slot 4.
+	const fitted = structuredClone(base);
+	edited(fitted).gems.forEach((g) => (g.costReduc = 5));
+	const cheapest = astrogemTypeChoices(edited(fitted), c.info, 3).filter((t) => t.itemId).toSorted((a, b) => a.willpower - b.willpower)[0];
+	setAstrogemType(edited(fitted), c.info, 3, cheapest.itemId);
+	const ref = simulate(l, fitted, base);
 
 	it('imports an active 17P Weapon core without a separate battle-point part', () => {
 		expect(c.points).toBe(17);
@@ -76,19 +84,21 @@ describe('Drkuuljulian dealer Weapon core', () => {
 	});
 
 	it('removes the Weapon stats when swapping to Relic Attack', () => {
-		const s = structuredClone(base);
+		const s = structuredClone(fitted);
 		edited(s).grade = 'relic';
 		edited(s).variant = 0;
+		expect(gemsActive(edited(s)).every(Boolean)).toBe(true);
+		expect(ref.weaponPower).toBe(before.weaponPower);
 		const after = simulate(l, s, base);
 		expect(after.weaponPower).toBeLessThan(before.weaponPower);
 		// +6% earrings, +3% karma, +3% core; remove the core's +5,200 and +3%.
 		expect(after.weaponPower).toBeCloseTo((276155 / 1.12 - 5200) * 1.09, 8);
 		expect(after.parts.find((p) => p.id === c.id)?.value).toBe(250);
 		// At this character's high Weapon Power, Relic Attack narrowly wins, rather than gaining 2.5%.
-		expect((after.cp / before.cp - 1) * 100).toBeGreaterThan(0);
-		expect((after.cp / before.cp - 1) * 100).toBeLessThan(0.1);
+		expect((after.cp / ref.cp - 1) * 100).toBeGreaterThan(0);
+		expect((after.cp / ref.cp - 1) * 100).toBeLessThan(0.1);
 		// The only CP changes are the lost base Weapon Power and the new +2.5% Attack part.
-		expect(after.cp / before.cp).toBeCloseTo(Math.sqrt(after.weaponPower / before.weaponPower) * 1.025, 10);
+		expect(after.cp / ref.cp).toBeCloseTo(Math.sqrt(after.weaponPower / ref.weaponPower) * 1.025, 10);
 	});
 
 	it('loses base attack below 17P and below activation, without negative core multipliers', () => {
@@ -124,11 +134,12 @@ describe('Drkuuljulian dealer Weapon core', () => {
 	});
 
 	it('applies a Weapon grade downgrade through base stats', () => {
-		const s = structuredClone(base);
+		const s = structuredClone(fitted);
 		edited(s).grade = 'relic';
+		expect(gemsActive(edited(s)).every(Boolean)).toBe(true);
 		const after = simulate(l, s, base);
 		expect(after.weaponPower).toBeCloseTo((276155 / 1.12 - 5200 + 3900) * 1.1125, 8);
-		expect(after.cp).toBeLessThan(before.cp);
+		expect(after.cp).toBeLessThan(ref.cp);
 		expect(after.parts.find((p) => p.id === c.id)?.value).toBe(0);
 	});
 });

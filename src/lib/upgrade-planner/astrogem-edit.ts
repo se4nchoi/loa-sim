@@ -1,7 +1,6 @@
 import { ASTROGEM_ITEMS, ASTROGEM_KINDS, ITEMS } from './game-data';
-import { astrogemWillpower } from './arkgrid-optimize';
-import { CORE_WILLPOWER, type CoreInfo } from './tables';
-import type { SimAstrogem, SimCore } from './simulate';
+import { astrogemWillpower, coreWillpower, type SimAstrogem, type SimCore } from './simulate';
+import type { CoreInfo } from './tables';
 
 /** Change kind while retaining grade, cutting results and compatible option types. */
 export function astrogemAs(gem: SimAstrogem, itemId: number): SimAstrogem {
@@ -20,11 +19,11 @@ export function astrogemAs(gem: SimAstrogem, itemId: number): SimAstrogem {
 	return { ...active, itemId, opts };
 }
 
-/** Ordinary gems of the same grade and attribute, checked against the simulated core's capacity. */
+/** Ordinary gems of the same grade and attribute, with the Willpower the core would then need (`fits`: within its supply). */
 export function astrogemTypeChoices(core: SimCore, info: CoreInfo, gi: number) {
 	const gem = core.gems[gi];
 	const grade = ITEMS[gem.itemId]?.[2];
-	const cap = CORE_WILLPOWER[core.grade ?? info.grade];
+	const cap = coreWillpower(core);
 	const other = core.gems.reduce((sum, g, i) => sum + (i === gi ? 0 : astrogemWillpower(g)), 0);
 	return [{ itemId: 0, name: 'None', willpower: 0, total: other, cap, fits: true }, ...Object.entries(ASTROGEM_ITEMS)
 		.filter(([id, kind]) => Number(id) >= 67400000 && Number(id) < 67500000
@@ -36,9 +35,9 @@ export function astrogemTypeChoices(core: SimCore, info: CoreInfo, gi: number) {
 		})];
 }
 
-/** Guard the mutation as well as disabling impossible choices in the picker. */
+/** Any offered type, even over the core's Willpower: the simulator then leaves gems that don't fit inactive. */
 export function setAstrogemType(core: SimCore, info: CoreInfo, gi: number, itemId: number): boolean {
-	if (!astrogemTypeChoices(core, info, gi).some((choice) => choice.itemId === itemId && choice.fits)) return false;
+	if (!astrogemTypeChoices(core, info, gi).some((choice) => choice.itemId === itemId)) return false;
 	core.gems[gi] = itemId === 0 ? { ...core.gems[gi], removed: true } : astrogemAs(core.gems[gi], itemId);
 	return true;
 }
@@ -46,7 +45,7 @@ export function setAstrogemType(core: SimCore, info: CoreInfo, gi: number, itemI
 /** Efficiency is the gem's 0–5 Willpower reduction, independent of its core points and options. */
 export function astrogemEfficiencyChoices(core: SimCore, info: CoreInfo, gi: number) {
 	const gem = core.gems[gi];
-	const cap = CORE_WILLPOWER[core.grade ?? info.grade];
+	const cap = coreWillpower(core);
 	const other = core.gems.reduce((sum, g, i) => sum + (i === gi ? 0 : astrogemWillpower(g)), 0);
 	return Array.from({ length: 6 }, (_, costReduc) => {
 		const willpower = astrogemWillpower({ ...gem, costReduc });
@@ -54,8 +53,9 @@ export function astrogemEfficiencyChoices(core: SimCore, info: CoreInfo, gi: num
 	});
 }
 
+/** Any level 0–5, even over the core's Willpower (see setAstrogemType). */
 export function setAstrogemEfficiency(core: SimCore, info: CoreInfo, gi: number, costReduc: number): boolean {
-	if (!astrogemEfficiencyChoices(core, info, gi).some((c) => c.costReduc === costReduc && c.fits)) return false;
+	if (!astrogemEfficiencyChoices(core, info, gi).some((c) => c.costReduc === costReduc)) return false;
 	core.gems[gi].costReduc = costReduc;
 	return true;
 }

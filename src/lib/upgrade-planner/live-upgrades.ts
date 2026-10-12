@@ -8,7 +8,7 @@ import { HONING_SLOT_LABELS } from './honing-upgrades';
 import { qualityCost } from './quality';
 import { roleOf } from './roles';
 import { skinParts, skinPriceKey } from './skins';
-import { gemParts, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
+import { activeGems, gemParts, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
 import { ASTROGEM_OPTION_NAMES, CORE_BREAKPOINTS, CORE_GRADE_CAP, ENGRAVING_BOOK_STEPS, KARMA_MAX_LEVEL, karmaRank } from './tables';
 import type { Loadout } from './types';
 import { coreLabel, coreStates, engravingName, type Upgrade } from './upgrades';
@@ -64,7 +64,7 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 		add({ key: `core:${core.id}:${next}`, category: 'core', title: `${coreLabel(info)} core → ${next}P`, detail: '', approximate: info.weaponCore || core.modelValue !== core.value });
 	}
 	for (const id of role.astrogemOptions) {
-		const opts = state.arkGrid.flatMap((c) => c.gems.flatMap((g) => g.removed ? [] : g.opts.filter((o) => o.id === id)));
+		const opts = state.arkGrid.flatMap((c) => activeGems(c).flatMap((g) => g.opts.filter((o) => o.id === id)));
 		if (!opts.some((o) => o.level < 5)) continue;
 		const level = opts.reduce((n, o) => n + o.level, 0);
 		add({ key: `astrogem:${id}`, category: 'astrogem', subject: 'Astrogems', title: `${ASTROGEM_OPTION_NAMES[id]} Lv. ${level} → ${level + 1}`, detail: '' });

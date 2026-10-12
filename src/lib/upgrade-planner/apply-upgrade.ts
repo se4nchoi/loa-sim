@@ -6,7 +6,7 @@ import { roleOf } from './roles';
 import { nextBracer } from './bracer';
 import { setSkinPart, skinParts, skinCombinations } from './skins';
 import type { HoningSlot } from './honing-data';
-import { gemParts, isOtherLine, type AccessorySlot, type SimState } from './simulate';
+import { activeGems, gemParts, isOtherLine, type AccessorySlot, type SimState } from './simulate';
 import { ENGRAVING_BOOK_STEPS, karmaRank } from './tables';
 import type { Loadout } from './types';
 import { coreStates, type Upgrade } from './upgrades';
@@ -66,9 +66,9 @@ export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade
 			const c = coreStates(l).find((x) => x.id === Number(a));
 			const core = s.arkGrid.find((x) => x.id === Number(a));
 			if (!c || !core) return false;
-			const placed = (st: SimState) => st.arkGrid.find((x) => x.id === c.id)?.gems.reduce((n, g) => n + (g.removed ? 0 : g.corePoints), 0) ?? 0;
+			const placed = (st: SimState) => activeGems(st.arkGrid.find((x) => x.id === c.id)).reduce((n, g) => n + g.corePoints, 0);
 			let need = Number(b) - (c.points + placed(s) - placed(base));
-			for (const g of core.gems.filter((g) => !g.removed).toSorted((x, y) => y.corePoints - x.corePoints)) {
+			for (const g of activeGems(core).toSorted((x, y) => y.corePoints - x.corePoints)) {
 				const add = Math.min(need, MAX_CORE_POINTS_PER_GEM - g.corePoints);
 				if (add <= 0) continue;
 				g.corePoints += add;
@@ -79,8 +79,7 @@ export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade
 		case 'astrogem': {
 			// astrogem:<option id> → +1 level on an astrogem that has the option below Lv. 5.
 			for (const core of s.arkGrid)
-				for (const g of core.gems) {
-					if (g.removed) continue;
+				for (const g of activeGems(core)) {
 					const opt = g.opts.find((o) => o.id === Number(a) && o.level < 5);
 					if (opt) {
 						opt.level++;

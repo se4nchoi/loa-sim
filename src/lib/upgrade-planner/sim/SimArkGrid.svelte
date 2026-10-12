@@ -7,7 +7,7 @@
 	import { ASTROGEM_ITEMS, ASTROGEM_KINDS } from '../game-data';
 	import { coreLook, itemLook } from '../icons';
 	import type { RoleTables } from '../roles';
-	import { coreVariant, optionLevel, simCoreInfo, simCorePoints, type SimAstrogem, type SimState } from '../simulate';
+	import { coreVariant, gemsActive, optionLevel, simCoreInfo, simCorePoints, type SimAstrogem, type SimState } from '../simulate';
 	import { coreOptionName, supportCoreValue, swappedCoreId } from '../support';
 	import {
 		ASTROGEM_OPTION_NAMES,
@@ -63,23 +63,26 @@
 	}
 
 	const kindOf = (g: SimAstrogem) => ASTROGEM_KINDS[ASTROGEM_ITEMS[g.itemId]];
+	// Choices over the core's Willpower stay pickable (e.g. planning for an Ancient core); the core total turns red
+	// and an astrogem that doesn't fit goes inactive.
+	const OVER = '#f87171';
+	const overNote = (total: number, cap: number) => `Needs ${total} Willpower; this core supplies ${cap}, so an astrogem that doesn't fit goes inactive.`;
 	const gemTypeChoices = (ci: number, info: CoreInfo, gi: number): MenuOption<number>[] =>
 		astrogemTypeChoices(sim.arkGrid[ci], info, gi).map((c) => ({
 			value: c.itemId,
-			label: `${c.name} · ${c.willpower} WP · core ${c.total}/${c.cap}`,
-			disabled: !c.fits,
-				title: c.itemId === 0 ? 'Unequip this astrogem: removes its points and options and frees its Willpower.'
-					: c.fits ? 'Keeps grade, core points, Willpower reduction and option levels; incompatible option types are replaced.'
-				: `Needs ${c.total} Willpower; this simulated core provides ${c.cap}.`
+			label: `${c.name} · ${c.willpower} WP`,
+			suffix: { label: `· core ${c.total}/${c.cap}`, color: c.fits ? undefined : OVER },
+			title: c.itemId === 0 ? 'Unequip this astrogem: removes its points and options and frees its Willpower.'
+				: c.fits ? 'Keeps grade, core points, Willpower reduction and option levels; incompatible option types are replaced.'
+				: overNote(c.total, c.cap)
 		}));
 	const reached = (points: number) => CORE_BREAKPOINTS.filter((bp) => points >= bp).at(-1);
 	const efficiencyChoices = (ci: number, info: CoreInfo, gi: number): MenuOption<number>[] =>
 		astrogemEfficiencyChoices(sim.arkGrid[ci], info, gi).map((c) => ({
 			value: c.costReduc,
-			label: `Efficiency ${c.costReduc} · ${c.willpower} WP · core ${c.total}/${c.cap}`,
-			disabled: !c.fits,
-			title: c.fits ? `Reduces this astrogem's Willpower cost by ${c.costReduc}.`
-				: `Needs ${c.total} Willpower; this simulated core provides ${c.cap}.`
+			label: `Efficiency ${c.costReduc} · ${c.willpower} WP`,
+			suffix: { label: `· core ${c.total}/${c.cap}`, color: c.fits ? undefined : OVER },
+			title: c.fits ? `Reduces this astrogem's Willpower cost by ${c.costReduc}.` : overNote(c.total, c.cap)
 		}));
 
 	// Core type picker: another grade, and for chaos cores another option (Swift → Flashy, Absorbing → Crushing,
@@ -199,7 +202,7 @@
 <SimCard
 	title="Ark Grid"
 	{delta}
-	info={`Click a core or astrogem name to change its type, or its WP value to edit Willpower efficiency (0–5). Choose None to unequip an astrogem and free Willpower. Other types keep grade, points, Willpower reduction and option levels; incompatible options are replaced. Choices exceeding the simulated core's Willpower are disabled. Greyed stat options don't count for ${support ? 'support' : 'DPS'} Combat Power.`}
+	info={`Click a core or astrogem name to change its type, or its WP value to edit Willpower efficiency (0–5). Choose None to unequip an astrogem and free Willpower. Other types keep grade, points, Willpower reduction and option levels; incompatible options are replaced. Choices over the core's Willpower can still be picked: astrogems that don't fit (in slot order) turn red and don't count until the core has room, e.g. as Ancient. Greyed stat options don't count for ${support ? 'support' : 'DPS'} Combat Power.`}
 >
 	{#snippet actions()}
 		<button type="button" class={btnAccent} onclick={() => rows.forEach(({ core }) => maxCore(core))} title="Max every core and its astrogems within Willpower capacity">Max</button>
@@ -246,6 +249,7 @@
 							{@const points = simCorePoints(loadout, sim, base, core.id)}
 							{@const used = sim.arkGrid[ci].gems.reduce((s, g) => s + astrogemWillpower(g), 0)}
 							{@const cap = CORE_WILLPOWER[info.grade]}
+							{@const on = gemsActive(sim.arkGrid[ci])}
 							{@const pv = pointValue(ci, points, info.grade)}
 							<div class="@container flex flex-col gap-1.5 rounded-xs bg-black/15 p-2.5">
 								<div class="flex flex-row items-start gap-2 pb-1">
@@ -293,9 +297,10 @@
 									{@const before = base.arkGrid[ci]?.gems[gi]}
 									{@const worst = weakest[col.title]}
 									{@const isWeakest = worst?.ci === ci && worst?.gi === gi}
+									{@const inactive = !gem.removed && !on[gi]}
 									<div
-										class="grid w-full grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-x-2 gap-y-1 rounded-xs p-1 {isWeakest ? 'bg-amber-500/10 ring-1 ring-amber-400/70' : ''}"
-										title={isWeakest ? `Weakest ${col.title} astrogem: its options add ${formatPct(worst!.pct)}% CP` : undefined}
+										class="grid w-full grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-x-2 gap-y-1 rounded-xs p-1 {inactive ? 'bg-red-500/10 ring-1 ring-red-500/60' : isWeakest ? 'bg-amber-500/10 ring-1 ring-amber-400/70' : ''}"
+										title={inactive ? `Inactive: the core's ${cap} Willpower runs out before this astrogem, so its points and options don't count.` : isWeakest ? `Weakest ${col.title} astrogem: its options add ${formatPct(worst!.pct)}% CP` : undefined}
 									>
 										<div class="flex min-w-0 items-center gap-1.5">
 											<div class="shrink-0 @max-[26rem]:hidden" class:opacity-30={gem.removed}>
@@ -326,6 +331,7 @@
 													full
 													changed={before?.costReduc !== gem.costReduc}
 													onpick={(v) => setAstrogemEfficiency(sim.arkGrid[ci], info, gi, v)}
+													preview={(v) => preview((s) => { setAstrogemEfficiency(s.arkGrid[ci], info, gi, v); })}
 												>
 													{#snippet trigger()}<span class="text-xs tabular-nums" title="Willpower cost and efficiency level">{astrogemWillpower(gem)}WP <span class="text-surface-400">· Eff.{gem.costReduc}</span></span>{/snippet}
 												</MenuPicker>
@@ -366,7 +372,8 @@
 											{:else}<span class="text-xs text-surface-500">No stats</span>{/if}
 										</div>
 										<div class="col-span-3 flex flex-wrap items-center justify-end gap-1">
-											{#if isWeakest}<span class="mr-auto rounded-xs bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold tracking-wide text-amber-300 uppercase">Weakest</span>{/if}
+											{#if inactive}<span class="mr-auto rounded-xs bg-red-500/15 px-2 py-0.5 text-[11px] font-bold tracking-wide text-red-300 uppercase">Inactive · over Willpower</span>
+											{:else if isWeakest}<span class="mr-auto rounded-xs bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold tracking-wide text-amber-300 uppercase">Weakest</span>{/if}
 											<button type="button" class={btnAccent} aria-label={`Max astrogem ${gi + 1}`} onclick={() => maxCore(core, gi)} title="Best max-cut Ancient astrogem that fits this core's current Willpower">Max</button>
 											{#if before && JSON.stringify(gem) !== JSON.stringify(before)}
 												<button
@@ -382,7 +389,7 @@
 										</div>
 									</div>
 								{/each}
-								{#if used > cap}<span class="text-xs text-red-400">These astrogems need more willpower than this core has.</span>{/if}
+								{#if used > cap}<span class="text-xs text-red-400">These astrogems need {used} Willpower; this core supplies {cap}. Inactive ones don't count: free Willpower, or simulate a higher-grade core.</span>{/if}
 							</div>
 						{/each}
 					</div>

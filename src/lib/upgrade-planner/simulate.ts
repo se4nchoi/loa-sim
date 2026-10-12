@@ -7,7 +7,7 @@
 
 import { PartType, baseAttackPoint, partHigh } from './cp';
 import { bracerStats, readBracer, type SimBracer } from './bracer';
-import { BRACELET_EFFECTS, GEM_BASE_ATTACK, GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
+import { ASTROGEM_ITEMS, ASTROGEM_KINDS, BRACELET_EFFECTS, GEM_BASE_ATTACK, GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
 import { HONING_SLOTS, HONING_TABLE, AEGIR_HONING_TABLE, type HoningSlot } from './honing-data';
 import { roleOf } from './roles';
 import { qualityStat, readQuality, type SimQuality } from './quality';
@@ -18,6 +18,8 @@ import { SUPPORT_ACCESSORY_LINES, supportCoreValue, supportWeaponCoreStats, swap
 import {
 	ACCESSORY_LINES,
 	CORE_BREAKPOINTS,
+	CORE_WILLPOWER,
+	decodeCore,
 	KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL,
 	KARMA_EVOLUTION_HP_PER_LEVEL,
 	KARMA_LEAP_PER_LEVEL,
@@ -375,12 +377,45 @@ function linesTotal(lines: SimState['accessories'], weapon: 'percent' | 'flat') 
 	return total;
 }
 
-const corePointsOf = (core: SimCore | undefined) => core?.gems.reduce((sum, g) => sum + (g.removed ? 0 : g.corePoints), 0) ?? 0;
+export const astrogemWillpower = (g: SimAstrogem) => {
+	if (g.removed) return 0;
+	const kind = ASTROGEM_KINDS[ASTROGEM_ITEMS[g.itemId]];
+	return kind ? kind.willpower - g.costReduc : 0;
+};
+
+/** Willpower a simulated core supplies: its (possibly swapped) grade's. */
+export const coreWillpower = (core: SimCore) => {
+	const grade = core.grade ?? decodeCore(core.id)?.grade;
+	return grade ? CORE_WILLPOWER[grade] : Infinity;
+};
+
+/**
+ * Whether each of a core's astrogems is powered. In slot order, each takes its Willpower while it fits; one that
+ * doesn't is inactive (the game won't slot it), so edits may go over and simply lose that gem's points and options.
+ */
+export function gemsActive(core: SimCore): boolean[] {
+	const cap = coreWillpower(core);
+	let used = 0;
+	return core.gems.map((g) => {
+		if (g.removed || used + astrogemWillpower(g) > cap) return false;
+		used += astrogemWillpower(g);
+		return true;
+	});
+}
+
+/** The astrogems that count: equipped and powered. */
+export const activeGems = (core: SimCore | undefined) => {
+	if (!core) return [];
+	const on = gemsActive(core);
+	return core.gems.filter((_, i) => on[i]);
+};
+
+const corePointsOf = (core: SimCore | undefined) => activeGems(core).reduce((sum, g) => sum + g.corePoints, 0);
 
 /** Total level of an astrogem option across every core. */
 export const optionLevel = (arkGrid: SimCore[], optionId: number) =>
 	arkGrid.reduce(
-		(sum, c) => sum + c.gems.reduce((s, g) => s + (g.removed ? 0 : g.opts.filter((o) => o.id === optionId).reduce((a, o) => a + o.level, 0)), 0),
+		(sum, c) => sum + activeGems(c).reduce((s, g) => s + g.opts.filter((o) => o.id === optionId).reduce((a, o) => a + o.level, 0), 0),
 		0
 	);
 

@@ -6,21 +6,16 @@
 // exhaustive depth-first search (≤ 12 gems per side). A gem may be left out if it fits nowhere; it then
 // loses its options, which the score accounts for.
 
-import { ASTROGEM_ITEMS, ASTROGEM_KINDS } from './game-data';
 import { roleOf } from './roles';
 import { swappedCoreId } from './support';
-import { initSimState, simCoreInfo, simCoreValue, type SimAstrogem, type SimState } from './simulate';
+import { activeGems, astrogemWillpower, initSimState, simCoreInfo, simCoreValue, type SimAstrogem, type SimState } from './simulate';
 import { CORE_WILLPOWER } from './tables';
 import type { Loadout } from './types';
 import { astrogemTotals, coreStates, coreWeaponRatio, weaponPowerOf } from './upgrades';
 
 const MAX_GEMS_PER_CORE = 4;
 
-export const astrogemWillpower = (g: SimAstrogem) => {
-	if (g.removed) return 0;
-	const kind = ASTROGEM_KINDS[ASTROGEM_ITEMS[g.itemId]];
-	return kind ? kind.willpower - g.costReduc : 0;
-};
+export { astrogemWillpower };
 
 export interface Arrangement {
 	/** New gems for each core, by core id. */
@@ -44,7 +39,7 @@ export function optimizeArkGrid(l: Loadout, state: SimState, base: SimState = in
 		if (!side.length || !gems.length) continue;
 
 		// Anchor like the simulator: bible's points per core, offset by the points the unedited state places there.
-		const placed = side.map((c) => base.arkGrid.find((x) => x.id === c.id)?.gems.reduce((sum, g) => sum + (g.removed ? 0 : g.corePoints), 0) ?? 0);
+		const placed = side.map((c) => activeGems(base.arkGrid.find((x) => x.id === c.id)).reduce((sum, g) => sum + g.corePoints, 0));
 		// Precomputed per core: CP factor for every point total the search can reach (0–20 placed points).
 		const info = side.map((c, ci) => simCoreInfo(c.info, sideState[ci]));
 		// (Supports: Buff and Shield & Heal cores both count as a factor here; close enough to rank placements.)
