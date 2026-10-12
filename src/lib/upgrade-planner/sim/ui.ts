@@ -78,6 +78,10 @@ export interface MenuOption<V> {
 	color?: string;
 	/** A short colored value following the label. */
 	suffix?: { label: string; color?: string };
+	/** Muted text in its own column after the label (e.g. a snapshot's date). */
+	note?: string;
+	/** A value in its own right-aligned column (e.g. a snapshot's CP), so values line up down the list. */
+	detail?: { label: string; color?: string };
 	muted?: boolean;
 	/** Visible but unavailable, e.g. an astrogem exceeding the core's Willpower. */
 	disabled?: boolean;

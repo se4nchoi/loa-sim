@@ -52,7 +52,7 @@
 			.filter((k) => loadouts?.[k])
 			.map((k) => {
 				const kept = k === 'estimated' && estimatedFrom;
-				const day = kept ? new Date(estimatedFrom).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+				const day = kept ? new Date(estimatedFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
 				return {
 					value: k,
 					label: `${LOADOUT_LABELS[k].label}${kept ? ` (${day})` : ''} · ${loadouts![k]!.combatPower?.score.toFixed(2) ?? '?'}`,
@@ -64,24 +64,36 @@
 	);
 
 	// With earlier snapshots kept, one menu lists bible's two loadouts and those, so the player can go back to the one
-	// that has their gear (bible only keeps the latest).
-	const shortDay = (t: number) => new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-	const scoreOf = (v: string) =>
-		(v.startsWith('snap:') ? older.find((s) => `snap:${s.id}` === v)?.loadout : loadouts?.[v as LoadoutKind])?.combatPower?.score ?? 0;
+	// that has their gear (bible only keeps the latest). Each row: what it is, its date, and its CP in a column.
+	const shortDay = (t: number) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 	const menu = $derived.by(() => {
-		const all = [
-			...loadoutOptions,
+		const rows = [
+			...(['estimated', 'current'] as const)
+				.filter((k) => loadouts?.[k])
+				.map((k) => {
+					const l = loadouts![k]!;
+					const kept = k === 'estimated' ? estimatedFrom : undefined;
+					return { value: k as string, name: LOADOUT_LABELS[k].label, at: kept ?? l.lastUpdated, score: l.combatPower?.score, title: loadoutOptions.find((o) => o.value === k)?.title };
+				}),
 			...older.map((s) => ({
 				value: `snap:${s.id}`,
-				label: `${s.kind === 'estimated' ? 'Estimate' : 'Raid snapshot'} ${shortDay(s.takenAt)} · ${s.loadout.combatPower?.score.toFixed(2) ?? '?'}`,
+				name: s.kind === 'estimated' ? 'Estimate' : 'Raid snapshot',
+				at: s.takenAt as number | undefined,
+				score: s.loadout.combatPower?.score,
 				title: `An earlier ${s.kind === 'estimated' ? 'lostark.bible estimate' : 'raid snapshot'}, kept in this browser from a past load (lostark.bible only lists the latest).`
 			}))
 		];
-		const best = Math.max(...all.map((o) => scoreOf(o.value)));
-		return all.map((o) => ({ ...o, suffix: best > 0 && scoreOf(o.value) === best ? { label: '· highest', color: 'var(--color-green-400)' } : undefined }));
+		const best = Math.max(...rows.map((r) => r.score ?? 0));
+		return rows.map((r) => ({
+			value: r.value,
+			label: r.name,
+			note: r.at ? shortDay(r.at) : '',
+			detail: { label: r.score?.toFixed(2) ?? '?', color: best > 0 && r.score === best ? 'var(--color-green-400)' : undefined },
+			title: best > 0 && r.score === best ? `${r.title ?? ''} Highest Combat Power of these.`.trim() : r.title
+		}));
 	});
 	const menuValue = $derived(snapshotId ? `snap:${snapshotId}` : (loadoutKind ?? ''));
-	const menuLabel = $derived(menu.find((o) => o.value === menuValue)?.label ?? 'Loadout');
+	const picked = $derived(menu.find((o) => o.value === menuValue));
 	function pickMenu(v: string) {
 		if (v.startsWith('snap:')) onsnapshot?.(v.slice(5));
 		else onloadout?.(v as LoadoutKind);
@@ -107,7 +119,13 @@
 	{#if older.length && onsnapshot && onloadout}
 		<div class="mt-1 w-fit max-w-full">
 			<MenuPicker value={menuValue} options={menu} onpick={pickMenu} label="Loadout to simulate">
-				{#snippet trigger()}<span class="min-w-0 truncate text-xs">{menuLabel}</span>{/snippet}
+				{#snippet trigger()}
+					<span class="flex min-w-0 flex-row items-baseline gap-1.5 text-xs">
+						<span class="truncate">{picked?.label ?? 'Loadout'}</span>
+						{#if picked?.note}<span class="shrink-0 text-surface-400">{picked.note}</span>{/if}
+						{#if picked}<span class="shrink-0 font-semibold tabular-nums" style:color={picked.detail.color}>{picked.detail.label}</span>{/if}
+					</span>
+				{/snippet}
 			</MenuPicker>
 		</div>
 	{:else if loadoutOptions.length > 1 && loadoutKind && onloadout}
