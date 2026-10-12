@@ -12,6 +12,24 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-10-12',
+		kind: 'improved',
+		title: 'Astrogem WP',
+		points: ['Pick any astrogem, even past the core’s Willpower: ones that don’t fit turn red and don’t count until the core has room (e.g. as Ancient)']
+	},
+	{ date: '2026-10-12', kind: 'improved', title: 'Load stays put', points: ['Load several characters in a row without being sent to the simulator'] },
+	{
+		date: '2026-10-12',
+		kind: 'fix',
+		title: 'Mobile UI',
+		points: [
+			'Menus no longer grow as you scroll or run off the screen',
+			'Smaller core point and gem tier pickers',
+			'Max / Reset no longer jump down when the CP change appears',
+			'The header and CP bar stay in place when Next Upgrades opens'
+		]
+	},
+	{
 		date: '2026-10-11',
 		kind: 'new',
 		title: 'CP Breakdown',
