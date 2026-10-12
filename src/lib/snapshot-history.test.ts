@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { characterKey, listSavedCharacters, removeSavedCharacter, saveCharacter, setLoadoutKind, setSnapshot } from './saved-character';
+import { characterKey, eraseSnapshot, listSavedCharacters, removeSavedCharacter, saveCharacter, setLoadoutKind, setSnapshot } from './saved-character';
 import { MAX_SNAPSHOTS, listSnapshots, recordSnapshots } from './snapshot-history';
 import type { Loadout } from './upgrade-planner/types';
 
@@ -18,8 +18,12 @@ Object.assign(globalThis, {
 	sessionStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} }
 });
 
-const lo = (score: number, lastUpdated: number) =>
-	({ type: 'ark_passive', classId: 'blade', itemLevel: 1805, lastUpdated, battlePoint: { isSupport: false, parts: [] }, combatPower: { id: 1, score } }) as unknown as Loadout;
+// Gear follows the score unless given, so different scores are different gear.
+const lo = (score: number, lastUpdated: number, gear: number = score) =>
+	({
+		type: 'ark_passive', classId: 'blade', itemLevel: 1805, lastUpdated, battlePoint: { isSupport: false, parts: [] }, combatPower: { id: 1, score },
+		items: [{ slot: 'weapon', id: gear, data: { type: 'weapon' } }]
+	}) as unknown as Loadout;
 const base = { name: 'Soulshan', region: 'NA', header: null };
 const key = characterKey(base);
 
@@ -40,6 +44,23 @@ describe('snapshot history', () => {
 		]);
 	});
 
+	it("treats the same gear as one snapshot, whatever bible's snapshot time, and moves its date up", () => {
+		saveCharacter({ ...base, loadout: lo(6600, 1000), loadouts: { current: lo(6600, 1000) }, loadoutKind: 'current' });
+		const id = listSnapshots(key)[0].id;
+		saveCharacter({ ...base, loadout: lo(6600, 5000), loadouts: { current: lo(6600, 5000), estimated: lo(6600, 5000) }, loadoutKind: 'estimated' });
+		expect(listSnapshots(key)).toMatchObject([{ id, takenAt: 5000 }]);
+		// Different gear at the same CP is still its own snapshot.
+		saveCharacter({ ...base, loadout: lo(6600, 6000, 1), loadouts: { current: lo(6600, 6000, 1) }, loadoutKind: 'current' });
+		expect(listSnapshots(key)).toHaveLength(2);
+	});
+
+	it('folds copies kept before gear was compared into the newest', () => {
+		const copy = (t: number) => ({ id: `current:${t}:6600`, kind: 'current', takenAt: t, loadout: lo(6600, t) });
+		store.set('loa-sim:snapshots', JSON.stringify({ [key]: [copy(1000), copy(2000), copy(3000)] }));
+		recordSnapshots(key, { loadouts: { current: lo(6500, 4000) } });
+		expect(listSnapshots(key).map((s) => [s.takenAt, s.loadout.combatPower?.score])).toEqual([[4000, 6500], [3000, 6600]]);
+	});
+
 	it('simulates an earlier snapshot until switched back or loaded again', () => {
 		saveCharacter({ ...base, loadout: lo(6650, 1000), loadouts: { current: lo(6650, 1000) }, loadoutKind: 'current' });
 		saveCharacter({ ...base, loadout: lo(6500, 2000), loadouts: { current: lo(6500, 2000) }, loadoutKind: 'current' });
@@ -54,6 +75,18 @@ describe('snapshot history', () => {
 		expect(listSavedCharacters()[0].snapshotId).toBeUndefined();
 		expect(listSavedCharacters()[0].loadout?.combatPower?.score).toBe(6510);
 		expect(setSnapshot(key, 'missing')).toBeNull();
+	});
+
+	it('erases a kept snapshot, going back to the bible loadout if it was simulated', () => {
+		saveCharacter({ ...base, loadout: lo(6650, 1000), loadouts: { current: lo(6650, 1000) }, loadoutKind: 'current' });
+		saveCharacter({ ...base, loadout: lo(6500, 2000), loadouts: { current: lo(6500, 2000) }, loadoutKind: 'current' });
+		const old = listSnapshots(key).find((s) => s.loadout.combatPower?.score === 6650)!;
+		setSnapshot(key, old.id);
+		const back = eraseSnapshot(key, old.id)!;
+		expect(back.snapshotId).toBeUndefined();
+		expect(back.loadout?.combatPower?.score).toBe(6500);
+		expect(listSnapshots(key).map((s) => s.loadout.combatPower?.score)).toEqual([6500]);
+		expect(listSavedCharacters()[0].loadout?.combatPower?.score).toBe(6500);
 	});
 
 	it(`keeps at most ${MAX_SNAPSHOTS} per character and forgets them with the character`, () => {

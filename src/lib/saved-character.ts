@@ -2,7 +2,7 @@
 // Several characters can be kept; the most recently loaded comes first.
 
 import type { CharacterData, LoadoutKind } from '$lib/bible-data';
-import { findSnapshot, forgetSnapshots, recordSnapshots } from '$lib/snapshot-history';
+import { findSnapshot, forgetSnapshots, recordSnapshots, removeSnapshot } from '$lib/snapshot-history';
 
 const KEY = 'loa-sim:characters';
 const LEGACY_KEY = 'loa-eff:character';
@@ -140,5 +140,19 @@ export function setSnapshot(key: string, id: string): SavedCharacter | null {
 	entry.loadout = snapshot.loadout;
 	entry.snapshotId = id;
 	write(list);
+	return entry;
+}
+
+/** Erases a kept snapshot; if it was being simulated, the character goes back to its chosen bible loadout. */
+export function eraseSnapshot(key: string, id: string): SavedCharacter | null {
+	removeSnapshot(key.toLowerCase(), id);
+	const list = read();
+	const entry = list.find((c) => characterKey(c) === key.toLowerCase());
+	if (!entry) return null;
+	if (entry.snapshotId === id) {
+		entry.loadout = entry.loadouts?.[entry.loadoutKind ?? 'current'] ?? entry.loadout;
+		delete entry.snapshotId;
+		write(list);
+	}
 	return entry;
 }

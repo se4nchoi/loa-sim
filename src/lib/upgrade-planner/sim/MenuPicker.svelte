@@ -43,6 +43,8 @@
 
 	let open = $state(false);
 	// Long single-column lists (skills, engravings) get a search box.
+	/** Options with a remove action (kept snapshots) get an × beside them. */
+	const removable = $derived(options.some((o) => o.onremove));
 	/** Multi-column pickers (core points, gem tiers) lay options out as compact cells. */
 	const cells = $derived(columns > 1);
 	const searchable = $derived(columns === 1 && !options.some((o) => o.row) && options.length >= 12);
@@ -163,33 +165,55 @@
 				{#if !shown.length}<p class="px-2.5 py-2 text-sm text-surface-400">No matches.</p>{/if}
 			{/if}
 			{#each shown as o (o.value)}
-				<button
-					type="button"
-					role="option"
-					aria-selected={o.value === value}
-					disabled={o.disabled}
-					title={o.title}
-					class:opacity-40={o.disabled}
-					class:cursor-not-allowed={o.disabled}
-					class="flex rounded-xs text-sm hover:bg-surface-800 {cells ? 'min-w-12 flex-col items-center justify-center px-1.5 py-1 font-semibold leading-tight' : 'flex-row items-center gap-2 px-2.5 py-1.5 text-left'} {o.value === value ? 'bg-surface-800 ring-1 ring-accent-500/60' : ''} {o.muted ? 'text-surface-400' : ''}"
-					style:color={o.color}
-					onclick={() => pick(o.value)}
-				>
-					{#if o.glyph}<Glyph kind={o.glyph} dim={o.muted} />{/if}
-					{#if o.iconUrl}<img src={o.iconUrl} alt="" class="size-6 shrink-0 rounded-xs" loading="lazy" />{/if}
-					{#if o.marker !== undefined}<span class="flex w-2 shrink-0 justify-center">{#if o.marker}<span class="size-1.5 rounded-full" style:background-color={o.marker}></span>{/if}</span>{/if}
-					<span class="whitespace-nowrap {cells ? '' : 'flex-1'}">{o.label}{#if o.suffix}<span class="ml-1" style:color={o.suffix.color}>{o.suffix.label}</span>{/if}</span>
-					{#if o.note !== undefined}<span class="w-14 shrink-0 pl-2 whitespace-nowrap text-surface-400">{o.note}</span>{/if}
-					{#if o.detail}<span class="pl-3 text-right tabular-nums" style:color={o.detail.color}>{o.detail.label}</span>{/if}
-					{#if previews.has(o.value) && o.value !== value}
-						{@const p = previews.get(o.value)!}
-						<!-- Cells (core points) stack % and raw CP under the label so they stay narrow. -->
-						<span class="flex {cells ? 'flex-col items-center font-normal' : 'flex-row items-baseline gap-2'}">
-							<span class="{cells ? 'text-[10px]' : 'text-xs font-semibold'} tabular-nums {p > 0.005 ? 'text-green-400' : p < -0.005 ? 'text-red-400' : 'text-surface-500'}">{formatPct(p)}%</span>
-							{#if raw(p)}<span class="text-surface-400 tabular-nums {cells ? 'text-[10px]' : 'w-12 text-right text-xs'}">{raw(p)}</span>{/if}
-						</span>
-					{/if}
-				</button>
+				{#snippet option()}
+					<button
+						type="button"
+						role="option"
+						aria-selected={o.value === value}
+						disabled={o.disabled}
+						title={o.title}
+						class:opacity-40={o.disabled}
+						class:cursor-not-allowed={o.disabled}
+						class="flex {removable ? 'min-w-0 flex-1' : ''} rounded-xs text-sm hover:bg-surface-800 {cells ? 'min-w-12 flex-col items-center justify-center px-1.5 py-1 font-semibold leading-tight' : 'flex-row items-center gap-2 px-2.5 py-1.5 text-left'} {o.value === value ? 'bg-surface-800 ring-1 ring-accent-500/60' : ''} {o.muted ? 'text-surface-400' : ''}"
+						style:color={o.color}
+						onclick={() => pick(o.value)}
+					>
+						{#if o.glyph}<Glyph kind={o.glyph} dim={o.muted} />{/if}
+						{#if o.iconUrl}<img src={o.iconUrl} alt="" class="size-6 shrink-0 rounded-xs" loading="lazy" />{/if}
+						{#if o.marker !== undefined}<span class="flex w-2.5 shrink-0 justify-center">{#if o.marker}<svg class="size-2.5" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5L9 8.5H1z" fill={o.marker} /></svg>{/if}</span>{/if}
+						<span class="whitespace-nowrap {cells ? '' : 'flex-1'}">{o.label}{#if o.suffix}<span class="ml-1" style:color={o.suffix.color}>{o.suffix.label}</span>{/if}</span>
+						{#if o.note !== undefined}<span class="w-14 shrink-0 pl-2 whitespace-nowrap text-surface-400">{o.note}</span>{/if}
+						{#if o.detail}<span class="pl-3 text-right tabular-nums" style:color={o.detail.color}>{o.detail.label}</span>{/if}
+						{#if previews.has(o.value) && o.value !== value}
+							{@const p = previews.get(o.value)!}
+							<!-- Cells (core points) stack % and raw CP under the label so they stay narrow. -->
+							<span class="flex {cells ? 'flex-col items-center font-normal' : 'flex-row items-baseline gap-2'}">
+								<span class="{cells ? 'text-[10px]' : 'text-xs font-semibold'} tabular-nums {p > 0.005 ? 'text-green-400' : p < -0.005 ? 'text-red-400' : 'text-surface-500'}">{formatPct(p)}%</span>
+								{#if raw(p)}<span class="text-surface-400 tabular-nums {cells ? 'text-[10px]' : 'w-12 text-right text-xs'}">{raw(p)}</span>{/if}
+							</span>
+						{/if}
+					</button>
+				{/snippet}
+				{#if removable}
+					<!-- Removable rows (kept snapshots): an × beside the option; the others keep its space so columns line up. -->
+					<div class="flex flex-row items-center">
+						{@render option()}
+						{#if o.onremove}
+							<button
+								type="button"
+								class="flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-500 hover:bg-surface-800 hover:text-red-300"
+								aria-label={o.removeLabel ?? `Remove ${o.label}`}
+								title={o.removeLabel ?? `Remove ${o.label}`}
+								onclick={(e) => {
+									e.stopPropagation();
+									o.onremove?.();
+								}}
+							>✕</button>
+						{:else}<span class="w-7 shrink-0"></span>{/if}
+					</div>
+				{:else}
+					{@render option()}
+				{/if}
 			{/each}
 		</div>
 		{/if}

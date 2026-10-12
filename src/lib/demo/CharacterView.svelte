@@ -21,7 +21,8 @@
 		onloadout,
 		older = [],
 		snapshotId,
-		onsnapshot
+		onsnapshot,
+		onerase
 	}: {
 		name: string;
 		region: string;
@@ -41,6 +42,8 @@
 		/** The kept snapshot being simulated, if any. */
 		snapshotId?: string;
 		onsnapshot?: (id: string) => void;
+		/** Erases a kept snapshot (its × in the menu). */
+		onerase?: (id: string) => void;
 	} = $props();
 
 	const LOADOUT_LABELS: Record<LoadoutKind, { label: string; title: string }> = {
@@ -73,10 +76,11 @@
 				.map((k) => {
 					const l = loadouts![k]!;
 					const kept = k === 'estimated' ? estimatedFrom : undefined;
-					return { value: k as string, name: LOADOUT_LABELS[k].label, at: kept ?? l.lastUpdated, score: l.combatPower?.score, support: l.combatPower?.id === 2, title: loadoutOptions.find((o) => o.value === k)?.title };
+					return { value: k as string, id: undefined as string | undefined, name: LOADOUT_LABELS[k].label, at: kept ?? l.lastUpdated, score: l.combatPower?.score, support: l.combatPower?.id === 2, title: loadoutOptions.find((o) => o.value === k)?.title };
 				}),
 			...older.map((s) => ({
 				value: `snap:${s.id}`,
+				id: s.id as string | undefined,
 				name: s.kind === 'estimated' ? 'Estimate' : 'Raid snapshot',
 				at: s.takenAt as number | undefined,
 				score: s.loadout.combatPower?.score,
@@ -94,6 +98,8 @@
 			note: r.at ? shortDay(r.at) : '',
 			detail: { label: r.score?.toFixed(2) ?? '?', color: r.support ? 'var(--color-green-400)' : 'var(--color-red-400)' },
 			marker: i === 0 && top >= 0 ? 'var(--color-accent-400)' : '',
+			onremove: r.id && onerase ? () => onerase(r.id!) : undefined,
+			removeLabel: `Erase the ${r.name.toLowerCase()} from ${r.at ? shortDay(r.at) : 'earlier'}`,
 			title: i === 0 && top >= 0 ? `${r.title ?? ''} Highest Combat Power of these.`.trim() : r.title
 		}));
 	});

@@ -4,8 +4,8 @@
 	import CharacterSwitcher from '$lib/CharacterSwitcher.svelte';
 	import CharacterView from '$lib/demo/CharacterView.svelte';
 	import type { LoadoutKind } from '$lib/bible-data';
-	import { characterKey, loadSavedCharacter, rememberViewed, setLoadoutKind, setSnapshot } from '$lib/saved-character';
-	import { listSnapshots, recordSnapshots, snapshotId } from '$lib/snapshot-history';
+	import { characterKey, eraseSnapshot, loadSavedCharacter, rememberViewed, setLoadoutKind, setSnapshot } from '$lib/saved-character';
+	import { gearKey, gearOf, listSnapshots, recordSnapshots } from '$lib/snapshot-history';
 	import { onMount } from 'svelte';
 
 	// ?c=na/soulshan picks a saved character; without it (the Simulator tab), the one last viewed here.
@@ -24,15 +24,29 @@
 	const onsnapshot = (id: string) => {
 		if (saved) switched = setSnapshot(characterKey(saved), id) ?? switched;
 	};
+	/** Erases a kept snapshot (the × in the loadout menu). */
+	let erased = $state(0);
+	const onerase = (id: string) => {
+		if (!saved) return;
+		switched = eraseSnapshot(characterKey(saved), id) ?? switched;
+		erased++;
+	};
 	// Kept snapshots other than bible's two current loadouts. Characters saved before history existed start theirs here.
 	let older = $state<ReturnType<typeof listSnapshots>>([]);
 	$effect(() => {
+		void erased;
 		if (!saved) return;
 		const key = characterKey(saved);
 		rememberViewed(key);
 		recordSnapshots(key, saved, saved.savedAt);
-		const listed = new Set((['current', 'estimated'] as const).flatMap((k) => (saved.loadouts?.[k] ? [snapshotId(k, saved.loadouts[k]!)] : [])));
-		older = listSnapshots(key).filter((s) => !listed.has(s.id));
+		// The chosen snapshot can be folded into a copy of the same gear: go back to bible's loadout then.
+		if (saved.snapshotId && !listSnapshots(key).some((s) => s.id === saved.snapshotId)) {
+			switched = eraseSnapshot(key, saved.snapshotId) ?? switched;
+			return;
+		}
+		// Same gear as one of bible's two (re-snapshotted unchanged) isn't listed twice.
+		const listed = new Set((['current', 'estimated'] as const).flatMap((k) => (saved.loadouts?.[k] ? [gearKey(saved.loadouts[k]!)] : [])));
+		older = listSnapshots(key).filter((s) => !listed.has(gearOf(s)) || s.id === saved.snapshotId);
 	});
 
 	onMount(() => {
@@ -56,6 +70,7 @@
 			{older}
 			snapshotId={saved.snapshotId}
 			{onsnapshot}
+			{onerase}
 		/>
 	{/key}
 {/if}
