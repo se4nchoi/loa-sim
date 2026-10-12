@@ -44,7 +44,7 @@
 	let open = $state(false);
 	// Long single-column lists (skills, engravings) get a search box.
 	/** Options with a remove action (kept snapshots) get an × beside them. */
-	const removable = $derived(options.some((o) => o.onremove));
+	const removable = $derived(options.some((o) => o.onremove || o.locked));
 	/** Multi-column pickers (core points, gem tiers) lay options out as compact cells. */
 	const cells = $derived(columns > 1);
 	const searchable = $derived(columns === 1 && !options.some((o) => o.row) && options.length >= 12);
@@ -210,6 +210,10 @@
 									o.onremove?.();
 								}}
 							>✕</button>
+						{:else if o.locked}
+							<span class="flex size-7 shrink-0 items-center justify-center text-surface-500" title={o.locked} aria-label={o.locked}>
+								<svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.2" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>
+							</span>
 						{:else}<span class="w-7 shrink-0"></span>{/if}
 					</div>
 				{:else}

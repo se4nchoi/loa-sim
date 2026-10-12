@@ -46,8 +46,8 @@
 	} = $props();
 
 	const LOADOUT_LABELS: Record<LoadoutKind, { label: string; title: string }> = {
-		estimated: { label: 'Best gear seen', title: "lostark.bible's estimate: the best raid gear it has seen across snapshots (e.g. gems a snapshot caught unequipped)" },
-		current: { label: 'Latest raid snapshot', title: 'Exactly what lostark.bible saw the last time you entered a raid' }
+		estimated: { label: 'Bible best gear seen', title: "lostark.bible's estimate: the best raid gear it has seen across snapshots (e.g. gems a snapshot caught unequipped)" },
+		current: { label: 'Latest bible snapshot', title: 'Exactly what lostark.bible saw the last time you entered a raid' }
 	};
 	const loadoutOptions = $derived(
 		(['estimated', 'current'] as const)
@@ -84,7 +84,7 @@
 			...older.map((s) => ({
 				value: `snap:${s.id}`,
 				id: s.id as string | undefined,
-				name: s.kind === 'estimated' ? 'Earlier best gear seen' : 'Earlier raid snapshot',
+				name: s.kind === 'estimated' ? 'Saved best gear seen' : 'Saved raid snapshot',
 				at: s.takenAt as number | undefined,
 				score: s.loadout.combatPower?.score,
 				support: s.loadout.combatPower?.id === 2,
@@ -103,6 +103,8 @@
 			detail: { label: r.score?.toFixed(2) ?? '?', color: r.support ? 'var(--color-green-400)' : 'var(--color-red-400)' },
 			marker: i === 0 && top >= 0 ? 'var(--color-accent-400)' : '',
 			onremove: r.id && onerase ? () => onerase(r.id!) : undefined,
+			// bible's two are whatever its page lists now: they change when bible re-snapshots and can't be erased here.
+			locked: r.id ? undefined : "From lostark.bible's page as it is now: it updates when bible takes a new snapshot, and can't be erased here",
 			removeLabel: `Erase the ${r.name.toLowerCase()} from ${r.at ? shortDay(r.at) : 'earlier'}`,
 			title: i === 0 && top >= 0 ? `${r.title ?? ''} Highest Combat Power of these.`.trim() : r.title
 		}));

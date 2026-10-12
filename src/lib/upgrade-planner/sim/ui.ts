@@ -87,6 +87,8 @@ export interface MenuOption<V> {
 	/** Shows an × beside the option that calls this (the menu stays open). */
 	onremove?: () => void;
 	removeLabel?: string;
+	/** Can't be removed: a lock sits where the × would be, with this as its tooltip. */
+	locked?: string;
 	muted?: boolean;
 	/** Visible but unavailable, e.g. an astrogem exceeding the core's Willpower. */
 	disabled?: boolean;

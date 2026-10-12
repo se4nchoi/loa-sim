@@ -21,7 +21,7 @@ export const UPDATES: SiteUpdate[] = [
 		points: [
 			'Switching snapshots is about 5× faster, and the menu closes right away',
 			'The button always reads "Snapshot on MM-DD" with its CP, so it no longer jumps',
-			'"Estimated raid loadout" is now "Best gear seen"'
+			'lostark.bible’s two loadouts are now "Latest bible snapshot" and "Bible best gear seen", with a lock since they can’t be erased'
 		]
 	},
 	{
