@@ -33,6 +33,12 @@
 	let loading = $state<string | null>(null);
 
 	let rosterAt = $state<number | null>(null);
+	/** Until sign-in is checked (and, when signed in, the roster is in), rows are reserved with skeletons instead of
+	 *  showing saved characters that may belong to the roster: they'd jump from Characters up into Roster. */
+	let booting = $state(true);
+	const ROWS_KEY = 'loa-sim:roster-rows';
+	/** How many roster rows showed last time, so the skeleton reserves about the same height. */
+	let skeletonRows = $state(3);
 	let refreshing = $state(false);
 	async function refreshRoster() {
 		rosterError = null;
@@ -56,12 +62,27 @@
 		saveRegion(region);
 		input = page.url.searchParams.get('name') ?? '';
 		try {
+			const rows = localStorage.getItem(ROWS_KEY);
+			if (rows !== null) skeletonRows = Math.min(12, Math.max(1, Number(rows) || 1));
+		} catch {
+			/* default */
+		}
+		try {
 			await completeSignIn(new URL(location.href)); // the production callback lands here
 		} catch (e) {
 			rosterError = e instanceof Error ? e.message : String(e);
 		}
 		signedIn = !!bibleToken();
-		if (!signedIn) return;
+		booting = false;
+		if (!signedIn) {
+			// Signed out: next time the skeleton is one row, about the sign-in button's height.
+			try {
+				localStorage.setItem(ROWS_KEY, '1');
+			} catch {
+				/* not remembered */
+			}
+			return;
+		}
 		// Show the roster saved last time right away; fetch it again only when it's old (or on ↻).
 		const cached = cachedRoster();
 		if (cached) ((roster = cached.roster), (rosterAt = cached.at));
@@ -76,6 +97,19 @@
 	const hiddenSet = $derived(new Set(hidden));
 	const shownRoster = $derived((roster ?? []).filter((c) => showHidden || !hiddenSet.has(characterKey(c))));
 	const hiddenCount = $derived((roster ?? []).filter((c) => hiddenSet.has(characterKey(c))).length);
+	const rosterPending = $derived(booting || (signedIn && roster === null && !rosterError));
+	// Remember the roster's height (rows plus the "hidden · show" line) for next time's skeleton.
+	$effect(() => {
+		if (!roster) return;
+		const rows = shownRoster.length + (hiddenCount ? 1 : 0);
+		try {
+			localStorage.setItem(ROWS_KEY, String(rows));
+		} catch {
+			/* not remembered */
+		}
+	});
+	/** A character being loaded by name that has no row yet: it gets a skeleton row where it will appear. */
+	const loadingNew = $derived(!!loading && !savedByKey.has(loading) && !rosterKeys.has(loading));
 	const openUrl = (c: { region: string; name: string }) => `/sim?c=${encodeURIComponent(characterKey(c))}`;
 
 	/** Character just loaded or reloaded, for a brief ✓ on its button. */
@@ -165,6 +199,18 @@
 	<meta name="twitter:card" content="summary_large_image" />
 	<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"loa-sim","url":"https://loa-sim.vercel.app/","applicationCategory":"GameApplication","operatingSystem":"Any","description":"Lost Ark Combat Power simulator for NA and EUC characters.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
 </svelte:head>
+
+<!-- A placeholder row, the same height as a character row. -->
+{#snippet skeleton()}
+	<div class="flex flex-row items-center gap-3 px-3 py-2" aria-hidden="true">
+		<span class="size-9 shrink-0 animate-pulse rounded-full bg-surface-800"></span>
+		<span class="flex min-w-0 flex-1 flex-col gap-1.5">
+			<span class="h-4 w-32 max-w-full animate-pulse rounded-xs bg-surface-800"></span>
+			<span class="h-3 w-44 max-w-full animate-pulse rounded-xs bg-surface-800/70"></span>
+		</span>
+		<span class="h-8 w-16 shrink-0 animate-pulse rounded-xs bg-surface-800"></span>
+	</div>
+{/snippet}
 
 <!-- One compact character row: class emblem, name, item level · CP, then its actions. -->
 {#snippet row(c: { region: string; name: string }, classId: string | undefined, ilvl: number | undefined, cp: { score: number; support: boolean } | undefined, note: string | undefined, dismiss: { label: string; icon: 'hide' | 'show' | 'remove'; run: () => void } | null, muted = false)}
@@ -265,13 +311,15 @@
 				<button type="button" class="text-xs text-surface-400 underline hover:text-surface-100" onclick={() => ((signedIn = false), (roster = null), signOut())}>Sign out</button>
 			{/if}
 		</div>
-		{#if !signedIn}
+		{#if rosterPending}
+			<div role="status" aria-label="Loading your roster" class="flex flex-col divide-y divide-neutral-950">
+				{#each { length: skeletonRows } as _, i (i)}{@render skeleton()}{/each}
+			</div>
+		{:else if !signedIn}
 			<div class="flex flex-row flex-wrap items-center gap-3 px-3 py-3">
 				<button type="button" class={primary} onclick={startSignIn}>Sign in with lostark.bible</button>
 				<span class="text-xs text-surface-400">Lists your characters to load in one click.</span>
 			</div>
-		{:else if roster === null && !rosterError}
-			<p class="px-3 py-3 text-sm text-surface-400">Loading your roster…</p>
 		{:else if roster?.length === 0}
 			<p class="px-3 py-3 text-sm text-surface-400">No characters on your linked rosters yet.</p>
 		{:else if roster}
@@ -300,9 +348,10 @@
 	</section>
 
 	<!-- Characters loaded by name (or pasted), not on the roster. -->
-	{#if typed.length}
+	{#if !rosterPending && (typed.length || loadingNew)}
 		<section class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 			<div class="bg-black/10 px-3 py-2 font-bold">Characters</div>
+			{#if loadingNew}{@render skeleton()}{/if}
 			{#each typed as c (characterKey(c))}
 				{@render row(
 					c,
