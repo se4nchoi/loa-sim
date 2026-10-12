@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { getContext, untrack } from 'svelte';
 	import { engravingIcon, iconUrl } from '../icons';
 	import type { RoleTables } from '../roles';
 	import type { SimState } from '../simulate';
@@ -63,8 +63,24 @@
 	};
 	// Only while the suggestions are open: trying every stone pair on every engraving pair is ~300 full simulations,
 	// which made every load and snapshot switch stall for the folded panel.
+	// They're worked out a frame after opening (or after a change while open), with a spinner meanwhile, so the panel
+	// opens at once instead of freezing first.
 	let stonesOpen = $state(false);
-	const stonePicks = $derived(stonesOpen ? bestStones(ids, (stones) => preview((s) => withStones(s, stones))) : []);
+	let stonePicks = $state<StonePick[] | null>(null);
+	$effect(() => {
+		if (!stonesOpen) return void (stonePicks = null);
+		const list = ids;
+		// One cheap preview here ties this to the simulation, so the picks redo when anything that moves CP changes.
+		preview(() => {});
+		stonePicks = null;
+		let cancelled = false;
+		requestAnimationFrame(() =>
+			setTimeout(() => {
+				if (!cancelled) stonePicks = untrack(() => bestStones(list, (stones) => preview((s) => withStones(s, stones))));
+			})
+		);
+		return () => (cancelled = true);
+	});
 	const stoneEngravings = (stones: Record<number, number>) => Object.entries(stones)
 		.filter(([, level]) => level > 0)
 		.sort(([, a], [, b]) => b - a)
@@ -85,6 +101,16 @@
 		muted: lv === 0
 	}));
 </script>
+
+{#snippet working(cls: string)}
+	<span class="flex items-center gap-2 text-surface-400 {cls}">
+		<svg class="size-4 animate-spin text-accent-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+			<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" stroke-width="3" />
+			<path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+		</svg>
+		<span class="sr-only">Loading</span>
+	</span>
+{/snippet}
 
 <SimCard title="Engravings" {delta}>
 	{#snippet actions()}
@@ -180,12 +206,17 @@
 				</summary>
 				<div class="mt-2 flex h-[25rem] min-w-0 flex-col gap-2">
 				<div class="grid h-28 shrink-0 grid-rows-3 gap-1 rounded-xs border border-sky-500/60 bg-sky-950/30 p-2" aria-label="Best stone kit engravings">
-					{#each stoneEngravings(stonePicks[0]?.stones ?? {}) as id (id)}
-						<div class="flex min-w-0 items-center gap-2 font-semibold text-surface-100">
-							<ItemIcon src={engravingIcon(id)} size="size-6" />
-							<span class="min-w-0 truncate" title={engravingName(id)}>{engravingName(id)}</span>
-						</div>
-					{/each}
+					{#if stonePicks}
+						{#each stoneEngravings(stonePicks[0]?.stones ?? {}) as id (id)}
+							<div class="flex min-w-0 items-center gap-2 font-semibold text-surface-100">
+								<ItemIcon src={engravingIcon(id)} size="size-6" />
+								<span class="min-w-0 truncate" title={engravingName(id)}>{engravingName(id)}</span>
+							</div>
+						{/each}
+					{:else}
+						<!-- Same two rows the picks take, so nothing moves when they arrive. -->
+						<div class="row-span-2 flex items-center" role="status">{@render working('w-full justify-center')}</div>
+					{/if}
 					<div class="flex items-center gap-2 border-t border-sky-700/60 pt-1 text-red-300">
 						<ItemIcon src={engravingIcon(1801)} size="size-6" />
 						<span>Defense Reduction <span class="text-surface-400">· penalty</span></span>
@@ -197,7 +228,8 @@
 					<p class="mt-1 truncate" title={stoneLabel(Object.fromEntries(ids.map((id) => [id, sim.engravings[id].stone])))}>Current: <span class="text-surface-100">{stoneLabel(Object.fromEntries(ids.map((id) => [id, sim.engravings[id].stone])))}</span></p>
 				</div>
 				<ul class="flex min-h-0 min-w-0 flex-1 flex-col divide-y divide-surface-700 overflow-y-auto pr-2 [scrollbar-gutter:stable]" aria-label="Recommended stone combinations">
-					{#each stonePicks as p (p.pattern.join('/'))}
+					{#if !stonePicks}<li class="flex py-2">{@render working('w-full justify-center')}</li>{/if}
+					{#each stonePicks ?? [] as p (p.pattern.join('/'))}
 						<li class="grid min-w-0 shrink-0 grid-cols-[4.5rem_minmax(0,1fr)_auto_auto] items-center gap-2 py-2">
 							<span class="flex min-w-0 flex-col gap-1 leading-tight">
 								<span class="font-bold tabular-nums" style:color={STONE_COLOR}>Lv. {p.pattern[0]} / {p.pattern[1]}</span>
