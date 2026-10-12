@@ -94,7 +94,11 @@ entries: `name`, `desc`, `category` buff / debuff, `buffCategory`, `type`, `icon
 2000263 Combat Blessing III); the missing one looks like an id the meter composes. The same folder has `Skill.json`,
 `SkillEffect.json`, `ArkPassive.json`, `ArkGrid.json`, `CombatEffect.json`, … Next: classify ids into crit rate,
 crit damage, damage %, defense down and "other" from `perLevelData` / `type`, and check against a few known synergies.
-(It's the meter's bundled data: read it locally like the encounters, or check its license before shipping a copy.)
+License: `meter-data/` lives in the LOA Logs repo (`snoww/loa-logs`, `src-tauri/meter-data/`), which is **GPL-3.0**
+(the older `lost-ark-dev/meter-data` has no license, last pushed 2024-06). So read `SkillBuff.json` at runtime from
+the player's own LOA Logs folder, next to `encounters.db` (nothing redistributed, and it matches their meter's
+version). Baking a copy or a derived table into loa-sim would mean shipping GPL-3.0 material; loa-sim has no license
+of its own yet, so that's a deliberate choice, not a default.
 
 ## Rough shape once the fields are known
 
