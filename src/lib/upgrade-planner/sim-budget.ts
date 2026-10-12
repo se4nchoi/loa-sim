@@ -64,7 +64,23 @@ export function budgetChanges(loadout: Loadout, base: SimState, target: SimState
 			}
 		}
 	}
-	if (different(base.sidereal, target.sidereal)) add('Equipment', 'Sidereal weapon changes', base.sidereal, target.sidereal);
+	// Sidereal weapons have no cost data yet, so each step up says so (it used to be one unpriced row the total skipped,
+	// which read as free); steps down are excluded like other reductions.
+	if (base.sidereal && target.sidereal && different(base.sidereal, target.sidereal)) {
+		const from = base.sidereal, to = target.sidereal;
+		const elgic = (n: number) => (n ? `Elgic ${'I'.repeat(n)}` : 'no Elgic');
+		const unavailable = (detail: string) => ({ status: 'unavailable' as const, detail });
+		if (to.infusion !== from.infusion)
+			add('Equipment', `Sidereal weapon: ${elgic(from.infusion)} → ${elgic(to.infusion)}`, from.infusion, to.infusion,
+				to.infusion > from.infusion ? unavailable('Elgic infusion cost is not calculated.') : { status: 'excluded' });
+		if (to.evolution !== from.evolution)
+			add('Equipment', `Sidereal weapon +${from.evolution} → +${to.evolution}`, [from.infusion, from.evolution], [to.infusion, to.evolution],
+				to.evolution > from.evolution || to.infusion > from.infusion ? unavailable('Sidereal weapon evolution cost is not calculated.') : { status: 'excluded' });
+		// Elgic III folds advanced honing into its own levels.
+		if (to.infusion !== 3 && to.advanced !== from.advanced)
+			add('Equipment', `Sidereal weapon advanced honing ${from.advanced} → ${to.advanced}`, from.advanced, to.advanced,
+				to.advanced > from.advanced ? unavailable('Advanced honing cost is not calculated.') : { status: 'excluded' });
+	}
 	for (const slot of HONING_SLOTS) {
 		const from = base.quality[slot], to = target.quality[slot];
 		if (from !== undefined && to !== undefined && from !== to) add('Equipment', `${HONING_SLOT_LABELS[slot]} quality ${from} → ${to}`, from, to, to > from ? { fixed: qualityCost(slot, from, to).gold, detail: 'Average tap gold with unlimited Chaos Stones; stops at this quality or higher. No pity.' } : { status: 'excluded' });

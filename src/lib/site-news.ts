@@ -16,6 +16,12 @@ export interface SiteUpdate {
 export const UPDATES: SiteUpdate[] = [
 	{
 		date: '2026-10-12',
+		kind: 'fix',
+		title: 'Sidereal budget',
+		points: ['Sidereal weapon upgrades no longer look free in the Budget: each step shows "Cost unavailable", since its cost isn’t worked out yet']
+	},
+	{
+		date: '2026-10-12',
 		kind: 'improved',
 		title: 'Faster switching',
 		points: [

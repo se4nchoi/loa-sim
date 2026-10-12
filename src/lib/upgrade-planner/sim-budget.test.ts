@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import soulshan from './fixtures/na-soulshan.json';
+import mira from './fixtures/na-mira.json';
 import { initSimState } from './simulate';
 import { budgetChanges, budgetPriceUpgrades, priceBudget, type BudgetChange } from './sim-budget';
 import { tapsFor } from './honing-cost';
@@ -108,5 +109,22 @@ describe('current changes budget', () => {
 		expect(changes.filter((r) => r.tap)).toHaveLength(25);
 		expect(changes.filter((r) => r.status === 'unavailable')).toHaveLength(3);
 		expect(changes[0].fixed).toBe(0);
+	});
+	it('marks sidereal weapon steps up as unpriced, not free, and excludes steps down', () => {
+		const sidereal = mira as unknown as Loadout;
+		const base = initSimState(sidereal);
+		expect(base.sidereal).toMatchObject({ infusion: 3, evolution: 8 });
+		const up = structuredClone(base);
+		up.sidereal!.evolution = 10;
+		const [row] = budgetChanges(sidereal, base, up);
+		expect(row).toMatchObject({ title: 'Sidereal weapon +8 → +10', status: 'unavailable' });
+		expect(priceBudget([row], {}, {}, {}, {})[0].average).toBeUndefined();
+		const down = structuredClone(base);
+		down.sidereal!.evolution = 7;
+		expect(budgetChanges(sidereal, base, down)).toMatchObject([{ status: 'excluded' }]);
+		// Elgic III folds advanced honing in, so dropping to Elgic II lists the infusion and evolution only.
+		const lower = structuredClone(base);
+		lower.sidereal = { infusion: 2, evolution: 8, advanced: 40 };
+		expect(budgetChanges(sidereal, base, lower).map((r) => [r.title, r.status])).toEqual([['Sidereal weapon: Elgic III → Elgic II', 'excluded']]);
 	});
 });

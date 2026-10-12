@@ -24,6 +24,8 @@
 	const characterCosts = $derived(costsForCharacter(characterKey));
 	const lines = $derived(priceBudget(changes, gold.prices, gold.bound[characterKey] ?? {}, characterCosts, gold.bookPrices));
 	const average = $derived(lines.reduce((sum, row) => sum + (row.average ?? 0), 0));
+	/** Nothing in the plan has a price yet: show a dash, not a 0 that reads as free. */
+	const nonePriced = $derived(lines.length > 0 && !lines.some((row) => !row.status && row.average !== undefined));
 	const pending = $derived(lines.filter((row) => row.status === 'unavailable' || (!row.status && (row.average === undefined || row.missing.length > 0))).length);
 	const materials = $derived(inventoryIds ?? [...new Set(changes.flatMap((row) => row.tap ? [...Object.keys(row.tap.mats), ...[row.tap.breath, row.tap.moreBreath].filter((b) => b && b.max > 0).map((b) => String(b!.id)), 'shards'] : []))]);
 	const groups = $derived([...new Set(lines.map((row) => row.section))]);
@@ -54,7 +56,7 @@
 	</div>
 	<div class="min-h-0 space-y-4 overflow-y-auto p-4">
 		<div class="tabular-nums">
-			<div><p class="text-xs text-surface-400">{pending ? 'Priced subtotal · average' : 'Estimated total · average'}</p><p class="mt-1 flex items-center gap-1.5 text-xl font-bold text-amber-200"><img src={GOLD_ICON} alt="Gold" class="size-5" />{formatGold(average)}</p></div>
+			<div><p class="text-xs text-surface-400">{pending ? 'Priced subtotal · average' : 'Estimated total · average'}</p><p class="mt-1 flex items-center gap-1.5 text-xl font-bold text-amber-200"><img src={GOLD_ICON} alt="Gold" class="size-5" />{nonePriced ? '—' : formatGold(average)}</p></div>
 		</div>
 		{#if pending}<p class="text-xs text-amber-300">{pending} unpriced change{pending === 1 ? '' : 's'}.</p>{/if}
 		<section aria-label="Current inventory" class="text-xs text-surface-500">
