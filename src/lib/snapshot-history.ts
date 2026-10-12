@@ -25,17 +25,20 @@ type Store = Record<string, Snapshot[]>;
 export const snapshotId = (kind: LoadoutKind, l: Loadout) => `${kind}:${l.lastUpdated ?? 0}:${l.combatPower?.score ?? 0}`;
 
 /**
- * What makes two snapshots the same: the gear itself (items, gems, ark grid, engravings, karma), not when bible took
- * it. bible re-snapshots and rebuilds its estimate without gear changes, which would otherwise fill the history with
- * copies. A short FNV-1a hash of that, so entries stay small.
+ * What makes two snapshots the same: the same gear (items, gems, ark grid, engravings, karma) at the same CP, not when
+ * bible took it. bible re-snapshots and rebuilds its estimate without changes, which would otherwise fill the history
+ * with copies. CP is part of it because it also moves with things outside that gear (cards, collections, Paradise,
+ * ark passive), and such a change is a different snapshot. A short FNV-1a hash, so entries stay small.
  */
 export function gearKey(l: Loadout): string {
-	const text = JSON.stringify([l.classId, l.items ?? [], l.gems ?? [], l.arkGridCores ?? [], l.engravings ?? [], l.karma ?? null]);
+	const text = JSON.stringify([l.classId, l.combatPower?.score ?? null, l.items ?? [], l.gems ?? [], l.arkGridCores ?? [], l.engravings ?? [], l.karma ?? null]);
 	let h = 0x811c9dc5;
 	for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
-	return `${h.toString(36)}:${text.length}`;
+	return `${GEAR_VERSION}${h.toString(36)}:${text.length}`;
 }
-export const gearOf = (s: Snapshot) => s.gear ?? gearKey(s.loadout);
+/** Bumped when gearKey changes, so kept fingerprints from before are worked out again. */
+const GEAR_VERSION = 'g2:';
+export const gearOf = (s: Snapshot) => (s.gear?.startsWith(GEAR_VERSION) ? s.gear : gearKey(s.loadout));
 
 function read(): Store {
 	try {
@@ -81,7 +84,7 @@ export function recordSnapshots(key: string, data: Pick<CharacterData, 'loadouts
 		const same = list.find((s) => gearOf(s) === gear);
 		if (same) {
 			if (takenAt > same.takenAt) ((same.takenAt = takenAt), (changed = true));
-			if (!same.gear) ((same.gear = gear), (changed = true));
+			if (same.gear !== gear) ((same.gear = gear), (changed = true));
 			continue;
 		}
 		list.push({ id: snapshotId(kind, loadout), kind, takenAt, gear, loadout });

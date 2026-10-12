@@ -52,6 +52,9 @@ describe('snapshot history', () => {
 		// Different gear at the same CP is still its own snapshot.
 		saveCharacter({ ...base, loadout: lo(6600, 6000, 1), loadouts: { current: lo(6600, 6000, 1) }, loadoutKind: 'current' });
 		expect(listSnapshots(key)).toHaveLength(2);
+		// So is the same gear at another CP (cards, collections, … changed), with its own CP kept.
+		saveCharacter({ ...base, loadout: lo(6650, 7000, 1), loadouts: { current: lo(6650, 7000, 1) }, loadoutKind: 'current' });
+		expect(listSnapshots(key).map((s) => s.loadout.combatPower?.score)).toEqual([6650, 6600, 6600]);
 	});
 
 	it('folds copies kept before gear was compared into the newest', () => {
@@ -59,6 +62,12 @@ describe('snapshot history', () => {
 		store.set('loa-sim:snapshots', JSON.stringify({ [key]: [copy(1000), copy(2000), copy(3000)] }));
 		recordSnapshots(key, { loadouts: { current: lo(6500, 4000) } });
 		expect(listSnapshots(key).map((s) => [s.takenAt, s.loadout.combatPower?.score])).toEqual([[4000, 6500], [3000, 6600]]);
+	});
+
+	it('works fingerprints from an earlier rule out again instead of saving a copy', () => {
+		store.set('loa-sim:snapshots', JSON.stringify({ [key]: [{ id: 'current:1000:6600', kind: 'current', takenAt: 1000, gear: 'old-rule', loadout: lo(6600, 1000) }] }));
+		recordSnapshots(key, { loadouts: { current: lo(6600, 2000) } });
+		expect(listSnapshots(key)).toMatchObject([{ id: 'current:1000:6600', takenAt: 2000 }]);
 	});
 
 	it('simulates an earlier snapshot until switched back or loaded again', () => {
