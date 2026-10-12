@@ -6,7 +6,8 @@
 <span
 	class="inline-flex shrink-0 items-center gap-1 rounded-xs border border-surface-600 bg-surface-800 px-1.5 py-0.5 text-[11px] font-semibold text-surface-200 transition group-hover:border-surface-400 group-hover:text-surface-50"
 >
-	{open ? 'Hide' : 'Show'}
+	<!-- Both words share one cell, so the button keeps the width of the longer one and nothing shifts. -->
+	<span class="grid"><span class="col-start-1 row-start-1" class:invisible={!open}>Hide</span><span class="col-start-1 row-start-1" class:invisible={open}>Show</span></span>
 	<svg viewBox="0 0 16 16" class="size-3 transition-transform {open ? 'rotate-180' : ''}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 		<path d="M4 6l4 4 4-4" />
 	</svg>

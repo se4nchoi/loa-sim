@@ -16,6 +16,16 @@ export interface SiteUpdate {
 export const UPDATES: SiteUpdate[] = [
 	{
 		date: '2026-10-12',
+		kind: 'fix',
+		title: 'iPhone menus',
+		points: [
+			'Menus no longer stretch tall with big empty rows on iPhone',
+			'The snapshot menu fits on the screen',
+			'Show / Hide on the CP bar no longer shifts the bar'
+		]
+	},
+	{
+		date: '2026-10-12',
 		kind: 'improved',
 		title: 'Ark Grid sim',
 		points: [

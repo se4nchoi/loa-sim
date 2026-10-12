@@ -41,7 +41,8 @@
 	</button>
 	{#if onbudget}<button type="button" onclick={onbudget} class="h-7 shrink-0 rounded-xs border border-amber-300/70 bg-amber-500/5 px-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/15" aria-haspopup="dialog">Budget</button>{/if}
 	<button type="button" class="flex h-7 shrink-0 items-center gap-1 rounded-xs border border-surface-600 bg-surface-800 px-2 text-xs font-semibold text-surface-100" aria-expanded={open} aria-controls="mobile-summary" onclick={() => open = !open}>
-			{open ? 'Hide' : 'Show'}
+			<!-- Both words share one cell, so the button keeps the width of the longer one and nothing shifts. -->
+			<span class="grid"><span class="col-start-1 row-start-1" class:invisible={!open}>Hide</span><span class="col-start-1 row-start-1" class:invisible={open}>Show</span></span>
 			<svg class="size-3 transition {open ? 'rotate-180' : ''}" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>
 	</button>
 	</div>
