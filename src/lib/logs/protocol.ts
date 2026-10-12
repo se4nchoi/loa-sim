@@ -24,33 +24,11 @@ export interface SkillShare {
 	cooldownUse?: number;
 }
 
-/**
- * What one more of a stat would have added to the player's damage, in percent, averaged over runs. LOA Logs works these
- * out per fight from the player's inspected stats (`encounter.misc.contributionSplits`); only recent meter versions
- * save them, so `runs` counts the runs that had them.
- */
-export interface StatValues {
-	runs: number;
-	/** Per +1 percentage point. */
-	additionalDamage: number;
-	critRate: number;
-	critDamage: number;
-	evoDamage: number;
-	attackPowerPct: number;
-	weaponPowerPct: number;
-	/** Per +1,000 flat. */
-	mainStat: number;
-	weaponPower: number;
-	attackPower: number;
-}
-
 export type LogsRequest =
 	| { id: number; type: 'open'; file: File }
-	| { id: number; type: 'shares'; player: string; encounterIds: number[] }
-	| { id: number; type: 'statValues'; player: string; encounterIds: number[] };
+	| { id: number; type: 'shares'; player: string; encounterIds: number[] };
 
 export type LogsResponse =
 	| { id: number; type: 'encounters'; encounters: EncounterRow[] }
 	| { id: number; type: 'shares'; runs: number; shares: SkillShare[] }
-	| { id: number; type: 'statValues'; values: StatValues | null }
 	| { id: number; type: 'error'; message: string };

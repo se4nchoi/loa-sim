@@ -19,9 +19,8 @@
 		base,
 		gems,
 		delta,
-		characterName,
-		characterKey
-	}: { sim: SimState; base: SimState; gems: GemPart[]; delta: SectionDelta; characterName?: string; characterKey?: string } = $props();
+		characterName
+	}: { sim: SimState; base: SimState; gems: GemPart[]; delta: SectionDelta; characterName?: string } = $props();
 
 	const KINDS: GemKind[] = ['damage', 'cooldown'];
 	const GEM_INFO = [
@@ -237,7 +236,6 @@
 				</details>
 				<LogsImport
 					{characterName}
-					{characterKey}
 					onapply={(shares, cooldownUse) => {
 						sim.skillShares = withGroups(shares);
 						sim.skillCooldownUse = withGroups(cooldownUse, 'max');

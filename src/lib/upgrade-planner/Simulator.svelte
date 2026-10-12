@@ -353,7 +353,7 @@
 				<section id="sim-bracelet" aria-label="Bracelet" class="scroll-mt-28 max-lg:scroll-mt-32"><SimBracelet bind:sim {base} {loadout} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} /></section>
 			</div>
 			<div class="flex min-w-0 flex-col gap-2">
-				<section id="sim-gems" aria-label="Gems" class="scroll-mt-28 max-lg:scroll-mt-32"><SimGems bind:sim {base} {gems} {characterName} {characterKey} delta={sections.gems} /></section>
+				<section id="sim-gems" aria-label="Gems" class="scroll-mt-28 max-lg:scroll-mt-32"><SimGems bind:sim {base} {gems} {characterName} delta={sections.gems} /></section>
 				<section id="sim-engravings" aria-label="Engravings" class="scroll-mt-28 max-lg:scroll-mt-32"><SimEngravings bind:sim {base} {preview} delta={sections.engravings} /></section>
 				<section id="sim-karma" aria-label="Karma" class="scroll-mt-28 max-lg:scroll-mt-32"><SimKarma bind:sim {base} delta={sections.karma} /></section>
 				<section id="sim-skins" aria-label="Skins" class="scroll-mt-28 max-lg:scroll-mt-32"><SimSkins bind:sim {base} {itemIds} {mainStatName} delta={sections.skins} /></section>

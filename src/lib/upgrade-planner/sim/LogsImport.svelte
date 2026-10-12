@@ -2,8 +2,7 @@
 	Fill skill damage shares from the player's own LOA Logs database (encounters.db), read locally in a worker.
 -->
 <script lang="ts">
-	import { LoaLogsReader, RANGE_LABELS, rangeOf, type EncounterRow, type RangePreset, type SkillShare, type StatValues } from '$lib/logs/loa-logs';
-	import { setStatValues } from '$lib/logs/stat-values-store.svelte';
+	import { LoaLogsReader, RANGE_LABELS, rangeOf, type EncounterRow, type RangePreset, type SkillShare } from '$lib/logs/loa-logs';
 	import { raidGateOf } from '$lib/logs/raids';
 	import { onDestroy } from 'svelte';
 	import { iconUrl } from '../icons';
@@ -11,12 +10,9 @@
 
 	let {
 		characterName,
-		characterKey,
 		onapply
 	}: {
 		characterName?: string;
-		/** Where the meter's stat values are kept (Next Upgrades' DPS figures). */
-		characterKey?: string;
 		/** Damage share and cooldown use per skill, both in percent. */
 		onapply: (shares: Record<number, number>, cooldownUse: Record<number, number>) => void;
 	} = $props();
@@ -33,8 +29,6 @@
 	let limit = $state(0);
 	let clearedOnly = $state(true);
 	let result = $state<{ runs: number; shares: SkillShare[] } | null>(null);
-	/** LOA Logs' own per-stat values for the same runs (recent meter versions only). */
-	let stats = $state<StatValues | null>(null);
 	/** Folded away after shares are applied; the header then says what's in use. */
 	let open = $state(true);
 	let applied = $state<{ runs: number; range: string; raid: string } | null>(null);
@@ -138,7 +132,6 @@
 		const who = player;
 		if (!reader || !who || !ids.length) {
 			result = null;
-			stats = null;
 			return;
 		}
 		const mine = ++seq;
@@ -146,10 +139,6 @@
 			.shares(who, ids)
 			.then((r) => mine === seq && (result = r))
 			.catch((err) => mine === seq && (error = err.message));
-		reader
-			.statValues(who, ids)
-			.then((v) => mine === seq && (stats = v))
-			.catch(() => mine === seq && (stats = null));
 	});
 
 	const iconOf = (icon: string) => (icon ? iconUrl(icon.replace(/\.png$/i, '').split('/').pop()) : undefined);
@@ -261,13 +250,6 @@
 					</span>
 				{/each}
 			</div>
-			<p class="text-xs {stats ? 'text-surface-300' : 'text-surface-500'}">
-				{#if stats}
-					DPS values in {stats.runs} of {result.runs} run{result.runs === 1 ? '' : 's'}: Next Upgrades will show DPS next to CP.
-				{:else}
-					These runs don't have LOA Logs' stat values (newer meter versions save them), so Next Upgrades stays CP only.
-				{/if}
-			</p>
 			<div class="flex flex-row items-center gap-2">
 				<button
 					type="button"
@@ -281,7 +263,6 @@
 						);
 						// Fold away once applied; the header says what's in use.
 						applied = { runs: result!.runs, range: RANGE_LABELS[range], raid: raidLabel };
-						if (characterKey) setStatValues(characterKey, stats ? { values: stats, label: `${RANGE_LABELS[range]} · ${raidLabel}`, at: Date.now() } : null);
 						open = false;
 					}}
 				>
