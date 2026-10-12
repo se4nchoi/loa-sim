@@ -116,9 +116,11 @@ describe('current changes budget', () => {
 		expect(base.sidereal).toMatchObject({ infusion: 3, evolution: 8 });
 		const up = structuredClone(base);
 		up.sidereal!.evolution = 10;
-		const [row] = budgetChanges(sidereal, base, up);
-		expect(row).toMatchObject({ title: 'Sidereal weapon +8 → +10' });
-		expect(row.status).toBeUndefined();
+		const rows = budgetChanges(sidereal, base, up);
+		// One row per evolution level, like honing, so each step can be priced.
+		expect(rows.map((r) => r.title)).toEqual(['Sidereal weapon +8 → +9', 'Sidereal weapon +9 → +10']);
+		expect(rows.every((r) => r.status === undefined)).toBe(true);
+		const [row] = rows;
 		expect(priceBudget([row], {}, {}, {}, {})[0].average).toBeUndefined();
 		expect(priceBudget([row], {}, {}, { [row.key]: 1_200_000 }, {})[0].average).toBe(1_200_000);
 		const down = structuredClone(base);

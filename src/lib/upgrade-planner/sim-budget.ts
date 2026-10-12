@@ -64,23 +64,25 @@ export function budgetChanges(loadout: Loadout, base: SimState, target: SimState
 			}
 		}
 	}
-	// Esther (sidereal) costs aren't worked out here: each step up is its own row the player can put a gold cost on, to
-	// weigh it against the CP (it used to be one unnamed row the total skipped, which read as free). Steps down are
-	// excluded like other reductions.
+	// Esther (sidereal) costs aren't worked out here: each step up is its own row (one per Elgic infusion and per
+	// evolution level, like honing) that the player can put a gold cost on. Steps down are excluded like other
+	// reductions.
 	if (base.sidereal && target.sidereal && different(base.sidereal, target.sidereal)) {
 		const from = base.sidereal, to = target.sidereal;
 		const elgic = (n: number) => (n ? `Elgic ${'I'.repeat(n)}` : 'no Elgic');
-		const priceable = { detail: 'Not calculated: add your own gold cost to weigh it against the CP.' };
-		if (to.infusion !== from.infusion)
-			add('Equipment', `Sidereal weapon: ${elgic(from.infusion)} → ${elgic(to.infusion)}`, from.infusion, to.infusion,
-				to.infusion > from.infusion ? priceable : { status: 'excluded' });
-		if (to.evolution !== from.evolution)
-			add('Equipment', `Sidereal weapon +${from.evolution} → +${to.evolution}`, [from.infusion, from.evolution], [to.infusion, to.evolution],
-				to.evolution > from.evolution || to.infusion > from.infusion ? priceable : { status: 'excluded' });
+		if (to.infusion > from.infusion)
+			for (let n = from.infusion + 1; n <= to.infusion; n++) add('Equipment', `Sidereal weapon: ${elgic(n - 1)} → ${elgic(n)}`, n - 1, n);
+		else if (to.infusion < from.infusion)
+			add('Equipment', `Sidereal weapon: ${elgic(from.infusion)} → ${elgic(to.infusion)}`, from.infusion, to.infusion, { status: 'excluded' });
+		if (to.evolution > from.evolution)
+			for (let level = from.evolution + 1; level <= to.evolution; level++)
+				add('Equipment', `Sidereal weapon +${level - 1} → +${level}`, [to.infusion, level - 1], [to.infusion, level]);
+		else if (to.evolution < from.evolution)
+			add('Equipment', `Sidereal weapon +${from.evolution} → +${to.evolution}`, [from.infusion, from.evolution], [to.infusion, to.evolution], { status: 'excluded' });
 		// Elgic III folds advanced honing into its own levels.
 		if (to.infusion !== 3 && to.advanced !== from.advanced)
 			add('Equipment', `Sidereal weapon advanced honing ${from.advanced} → ${to.advanced}`, from.advanced, to.advanced,
-				to.advanced > from.advanced ? priceable : { status: 'excluded' });
+				to.advanced > from.advanced ? {} : { status: 'excluded' });
 	}
 	for (const slot of HONING_SLOTS) {
 		const from = base.quality[slot], to = target.quality[slot];
