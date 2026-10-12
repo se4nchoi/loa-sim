@@ -46,8 +46,11 @@
 		const onWiden = () => desktop.matches && (open = false);
 		desktop.addEventListener('change', onWiden);
 		window.addEventListener('resize', onWiden);
-		const before = document.body.style.overflow;
-		document.body.style.overflow = 'hidden';
+		// Lock the page on <html>: with html's overflow-x clipped, overflow on <body> would make the body its own scroll
+		// box and the sticky site header and CP bar would stick to it, sliding off the top.
+		const root = document.documentElement;
+		const before = root.style.overflow;
+		root.style.overflow = 'hidden';
 		const onKey = (e: KeyboardEvent) => e.key === 'Escape' && (open = false);
 		window.addEventListener('keydown', onKey);
 		// iOS Safari ignores overflow:hidden on the body: block page-scrolling swipes outside the sheet instead
@@ -59,7 +62,7 @@
 		};
 		document.addEventListener('touchmove', onTouchMove, { passive: false });
 		return () => {
-			document.body.style.overflow = before;
+			root.style.overflow = before;
 			window.removeEventListener('keydown', onKey);
 			document.removeEventListener('touchmove', onTouchMove);
 			desktop.removeEventListener('change', onWiden);
