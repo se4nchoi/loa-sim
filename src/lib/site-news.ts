@@ -17,7 +17,12 @@ export const UPDATES: SiteUpdate[] = [
 		title: 'Astrogem WP',
 		points: ['Pick any astrogem, even past the core’s Willpower: ones that don’t fit turn red and don’t count until the core has room (e.g. as Ancient)']
 	},
-	{ date: '2026-10-12', kind: 'improved', title: 'Load stays put', points: ['Load several characters in a row without being sent to the simulator'] },
+	{
+		date: '2026-10-12',
+		kind: 'improved',
+		title: 'Character load UX',
+		points: ['Loading a character no longer sends you to the simulator page']
+	},
 	{
 		date: '2026-10-12',
 		kind: 'fix',
