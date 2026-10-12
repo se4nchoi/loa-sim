@@ -107,6 +107,12 @@ Synergy types → buckets (`statusEffectValues`, /10,000 unless noted), per the 
 | `skill_damage_amplify` | [1] × the casting support's brand power, limited to skill [0] / skill effect [4] when set |
 | `attack_power_amplify` | [0] % of the **caster's** base Atk |
 
+**Support stats the logs don't have** (decided 2026-10-12): `attack_power_amplify` needs the caster's base Atk and
+`skill_damage_amplify` the caster's brand power, which the meter reads live from party members. Defaults from a real
+1750 Artist (Brushann's bible loadout): **base Atk 166,260** (main stat 635,059, Weapon Power 226,415, Atk +7.4%)
+and **brand power 8%** (High necklace line); both adjustable. They matter because a support's Atk buff adds to the
+player's attack power before multipliers, so it lowers what main stat / Weapon Power upgrades are worth.
+
 To replay an upgrade we need each bucket's **current total** per hit: the player's own static stats (bible loadout:
 evolution damage from Ark Passive, Atk %, crit damage, …) plus the buffs active on that hit (the classification).
 
