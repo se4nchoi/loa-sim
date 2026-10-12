@@ -78,7 +78,7 @@
 	<div class="flex flex-row items-center gap-2 bg-black/10 px-3 py-2">
 		{#if heading}
 			<span class="font-bold">Updates</span>
-			{#if freshCount}<span class="rounded-full bg-accent-700 px-1.5 text-[10px] font-bold text-white">{freshCount} new</span>{/if}
+			{#if freshCount}<span class="shrink-0 rounded-full bg-accent-700 px-1.5 text-[10px] font-bold whitespace-nowrap text-white">{freshCount} new</span>{/if}
 		{/if}
 		<span class={heading ? 'ml-auto' : 'flex-1 [&>div]:w-full'}>
 			<Segmented
@@ -98,8 +98,9 @@
 			<ul class="flex flex-col divide-y divide-neutral-950">
 				{#each shown as u, i (i)}
 					{#snippet lead()}
-						<span class="flex w-[3.6rem] shrink-0 items-center gap-1 text-xs text-surface-500 tabular-nums">
-							{day(u.date)}{#if isFresh(u.date)}<span class="size-1.5 rounded-full bg-accent-400" aria-label="New since your last visit"></span>{/if}
+						<!-- The new dot sits in the row's left padding: it appears after load, so it mustn't take room. -->
+						<span class="relative flex w-[3.6rem] shrink-0 items-center text-xs text-surface-500 tabular-nums">
+							{#if isFresh(u.date)}<span class="absolute top-1/2 -left-2 size-1.5 -translate-y-1/2 rounded-full bg-accent-400" aria-label="New since your last visit"></span>{/if}{day(u.date)}
 						</span>
 					{/snippet}
 					{#snippet tag()}{@render badge(u.kind, KIND[u.kind], 'w-[4.5rem]')}{/snippet}

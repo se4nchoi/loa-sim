@@ -20,7 +20,7 @@
 <section aria-label="Updates" class="flex flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 lg:hidden">
 	<button type="button" class="flex w-full min-w-0 flex-row items-center gap-2 bg-black/10 px-3 py-2 text-left" aria-expanded={open} aria-controls="site-news-strip" onclick={() => (open = !open)}>
 		<span class="shrink-0 font-bold text-surface-100">Updates</span>
-		{#if freshCount}<span class="shrink-0 rounded-full bg-accent-700 px-1.5 text-[10px] font-bold text-white">{freshCount} new</span>{/if}
+		{#if freshCount}<span class="shrink-0 rounded-full bg-accent-700 px-1.5 text-[10px] font-bold whitespace-nowrap text-white">{freshCount} new</span>{/if}
 		<!-- Folded: the newest update and its tag; open, the list below shows it. -->
 		<span class="flex min-w-0 flex-1 items-center justify-end gap-2">
 			{#if !open && latest}
