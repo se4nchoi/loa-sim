@@ -56,12 +56,12 @@
 	<li>
 		<button
 			type="button"
-			class="relative flex w-full flex-row items-center gap-2 px-3 py-2 text-left text-sm hover:bg-white/[0.03]"
+			class="relative flex w-full flex-row items-center gap-2 py-2 pr-5 pl-3 text-left text-sm hover:bg-white/[0.03]"
 			aria-expanded={!!open[key]}
 			onclick={(e) => toggle(key, e.currentTarget)}
 		>
-			<!-- The new dot sits in the left padding: it appears after load, so it mustn't take room. -->
-			{#if fresh}<span class="absolute top-1/2 left-1 size-1.5 -translate-y-1/2 rounded-full bg-accent-400" aria-label="New since your last visit"></span>{/if}
+			<!-- The new dot sits in the right padding, past the chevron: it appears after load, so it mustn't take room. -->
+			{#if fresh}<span class="absolute top-1/2 right-2 size-1.5 -translate-y-1/2 rounded-full bg-accent-400" aria-label="New since your last visit"></span>{/if}
 			{@render tag()}
 			<span data-title class="min-w-0 flex-1 truncate text-surface-100">{title}</span>
 			{@render trail?.()}
