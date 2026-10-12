@@ -57,7 +57,8 @@ same math runs on totals, a little less precisely.
 
 - **Feast: on by default** (Atk. / Move Speed +5%), toggle to a great-success feast (+6%). Speed turns into damage
   for **Raid Captain** (damage from Move Speed bonus) and **Supersonic Breakthrough** (damage from Atk. / Move Speed)
-  while Swiftness, class buffs and feast don't already reach their caps, so the replay needs the player's in-fight
+  while Swiftness, class buffs and feast don't already reach their caps, and it offsets **Mass Increase**'s Atk.
+  Speed penalty, so the replay needs the player's in-fight
   Atk. / Move Speed: profile + class buffs + feast, capped per effect. Everything else about speed (more casts per
   fight) stays with the cast-count estimate. The logs show a feast on ~99% of hits.
 - **Azena's blessing: off by default** (it's a paid subscription); a toggle adds +6,000 main stat. **Main stat food:
