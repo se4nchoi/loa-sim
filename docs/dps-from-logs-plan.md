@@ -2,6 +2,22 @@
 
 Status: planning. 2026-10-12: a real `encounters.db` checked, per-hit data confirmed (see "What the logs hold").
 
+## Branch: `dps-sim/v0` (experimental)
+
+The DPS work lives on `dps-sim/v0`, not `main`. It was briefly on `main` (`acacb39`, "DPS from your logs (first
+step)") and was **reverted there** (`c1f4e4e`) so the live site doesn't carry it while it's experimental; the plan
+notes stayed on `main`.
+
+- Work on this branch: `git fetch && git switch dps-sim/v0`.
+- **When it's ready for `main`**: merging alone won't bring the code back, because `main` already has the revert.
+  On `main`, first `git revert c1f4e4e` (revert the revert), then merge `dps-sim/v0`.
+
+What v0 has: Gems → Add damage shares → Load shares from LOA Logs also reads the meter's stat values
+(`contributionSplits`) for the chosen runs, keeps them per character (`loa-sim:stat-values`), and Next Upgrades
+shows "DPS ≈" next to CP for dealers on upgrades those values cover (`dps-stats.ts`). Next: test the import with a
+real `encounters.db` in the browser, a "Most DPS" sort, DPS in All Upgrades, more stat types (bracelet crit lines,
+evolution damage).
+
 ## Idea
 
 For each simulated change (accessory line, bracelet, engraving, gem, ark grid, …), show the **DPS gain for this
