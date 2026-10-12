@@ -116,6 +116,21 @@ player's attack power before multipliers, so it lowers what main stat / Weapon P
 To replay an upgrade we need each bucket's **current total** per hit: the player's own static stats (bible loadout:
 evolution damage from Ark Passive, Atk %, crit damage, …) plus the buffs active on that hit (the classification).
 
+### Shortcut: the meter already saves marginal values
+
+`encounter.misc.contributionSplits[]` (per player, by `name`) holds, from LOA Logs' own model with the player's
+**inspected** stats, `{ damageDoneByStat, damageDoneByStatPlusValue }` pairs for `additionalDamage1percentDamage`,
+`criticalHitRate1percentDamage`, `criticalDamageRate1percentDamage`, `evoDamage1percentDamage`,
+`attackPower1percentDamage`, `weaponPower1percentDamage`, `mainStat1000Damage`, `weaponPower1000Damage`,
+`attackPower1000Damage`, plus `raidCaptainEfficiency`, `bluntThornEfficiency`, `supersonicBreakthroughEfficiency`
+and crit splits (`damageDoneWithAverageCrits`, …). Gain = plus ÷ base − 1. Soulshan, Deskaluda: +1% additional
+damage → +0.668%, crit rate +0.15% (near the cap), crit damage +0.363%, evo damage +0.453%, Atk % +0.897%,
++1,000 main stat +0.053%, +1,000 Weapon Power +0.159%. Brushann: crit damage only +0.05–0.16% but crit rate
++0.84–0.95%; the per-character differences are the point.
+
+Caveat: only filled in on recent logs (7 of the last 400 clears, all 2026-10-10 / 10-11, meter 1.51.x; it's on by
+default and off in low performance mode). Older runs have zeros.
+
 ## Assumptions
 
 - **Feast: on by default** (Atk. / Move Speed +5%), toggle to a great-success feast (+6%). Speed turns into damage
