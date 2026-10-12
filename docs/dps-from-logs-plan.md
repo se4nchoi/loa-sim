@@ -72,6 +72,34 @@ burst windows and boss phases (damage-reduction phases, shields, Deathlord Mode 
 always come together, so observational fits can't separate them. Which bonuses share an additive bucket has to come
 from game mechanics (the client's damage formula / KR community references), not from these logs.
 
+### The damage formula LOA Logs uses (answers add vs multiply)
+
+LOA Logs computes rDPS the same way we want to replay: per hit, change the stats, recompute the hit's final attack
+power, and scale the logged damage by the ratio (`compute_hit_stat_damage_metrics` in `live/rdps.rs`, formula in
+`calculate_final_attack_power`, `live/player_stats.rs`, read 2026-10-12). Its structure, described here (not copied;
+the code is GPL-3.0): **every named stat is a bucket whose sources add; buckets multiply** (`mad(x)` = × (1 + x)).
+
+1. Attack power before multipliers (main stat, Weapon Power, flat Atk).
+2. × (1 + each of): `evolution_damage`, `attack_power_rate`, `skill_damage_sub_rate_1`, `skill_damage_sub_rate_2`,
+   `attack_power_sub_rate_1`, `attack_power_sub_rate_2`, `outgoing_dmg_stat_amp`, `skill_damage_amplify`,
+   `skill_damage_rate`, and the hit's element rate.
+3. × (1 + `modify_damage_combat_effect`) × the boss "damage window" buckets, each its own: `domination_damage_rate`,
+   `broken_bone_damage_rate`, `npc_action_weakness_damage_rate`, `stagger_combat_effect_damage_rate`, elemental
+   damage taken, and the target's `physical|magical_inc_rate`, `_inc_sub_rate_1`, `_inc_sub_rate_2`.
+4. × (1 + `move_speed_to_damage_rate`) (Raid Captain) × (1 + `critical_hit_to_damage_rate`) × element amplification.
+5. × defense: (1 + D) / (1 + D × remaining), D = 1, remaining = (1 − amplify reduction)(1 − def_x reduction)
+   (1 − penetration)(1 − skill penetration): every defense layer multiplies what's left (12% and 20% → 0.88 × 0.80).
+6. × front / back attack amplify on front / back hits.
+7. Crit: × (1 + `critical_damage_rate`)(1 + `critical_damage_rate_2`) × crit damage amplify; as an expectation,
+   × (1 + min(crit rate, cap 100%) × (full crit multiplier − 1)).
+
+Hyper Awakening hits only take `ultimate_awakening_damage_rate`. So "a new +6% damage taken" is worth 6% only if
+nothing else is in its bucket: with Total Offensive (+3%) already in `inc_sub_rate_1`, another `inc_sub_rate_1`
+source adds to that 3%; an `inc_rate` one multiplies. The buff → bucket map is the `keyStat` / `type` reading above.
+
+To replay an upgrade we need each bucket's **current total** per hit: the player's own static stats (bible loadout:
+evolution damage from Ark Passive, Atk %, crit damage, …) plus the buffs active on that hit (the classification).
+
 ## Assumptions
 
 - **Feast: on by default** (Atk. / Move Speed +5%), toggle to a great-success feast (+6%). Speed turns into damage
