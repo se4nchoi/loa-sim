@@ -1,6 +1,6 @@
-# DPS gain from the player's own logs (plan, not started)
+# DPS gain from the player's own logs (plan; log contents checked)
 
-Status: planning, parked 2026-10-12. Pick up on the home laptop, where an `encounters.db` is available.
+Status: planning. 2026-10-12: a real `encounters.db` checked, per-hit data confirmed (see "What the logs hold").
 
 ## Idea
 
@@ -63,12 +63,32 @@ same math runs on totals, a little less precisely.
 - **Which runs**: same raid / gate / difficulty, recent runs, cleared only (the Gems import already filters like
   this: `LogsImport.svelte`, `rangeOf`, `raidGateOf`).
 
-## First step at home
+## What the logs hold (checked 2026-10-12 on a real `encounters.db`)
 
-Open a real `encounters.db` and list what each skill entry in `entity.skills` holds, and whether there is a per-hit or per-cast log (for exact replay). Today
-`src/lib/logs/logs-worker.ts` reads only `total_damage` and `timeAvailable`. Believed to exist but unconfirmed: crits
-and crit damage, back / front attack damage, buffed-by / debuffed-by damage per buff id, casts and hits. Which of
-these exist decides how much of the table above is buildable.
+Format version 5 (`encounter.version`), logs back to 2025-11-06. Per player per fight, `entity.skills` and
+`entity.damage_stats` are **gzip-compressed JSON** (start with `1f 8b`); `skill_stats` and `ark_passive_data` are
+plain JSON.
+
+- `entity.skills`: map of skill id → `totalDamage`, `hits`, `crits`, `critDamage`, `backAttacks` / `frontAttacks`,
+  `backAttackDamage` / `frontAttackDamage`, `buffedBy` / `debuffedBy` (damage per buff id), `buffedBySupport`,
+  `buffedByIdentity`, `buffedByHat`, `casts`, `timeAvailable`, gem levels (`gemDamage`, `gemCooldown`, `gemTier`),
+  `tripodIndex`, and **`skillCastLog`: every cast with every hit**.
+- Each hit: `timestamp`, `damage`, `crit`, `backAttack`, `frontAttack`, `buffedBy` (buff ids active on the player),
+  `debuffedBy` (debuff ids on the target), `stagger`.
+- `entity` also has `ndps` / `unbuffed_dps`, `combat_power`, `spec`, `engravings`, `ark_passive_data`.
+
+Coverage over the last 25 cleared runs: the per-hit log adds up to **96–99.6% of a dealer's damage** (Souleater,
+Soulfist, Guardian Knight; Hard, Nightmare and Level 3). Supports 48–85% (their own damage isn't the point). Crit /
+back / front flags on every hit, buff lists on 98–100% of hits.
+
+So **exact replay is possible**: every "Exactly" row in the table above can be computed hit by hit, and crit rate as
+an expected value from each skill's own hits.
+
+## Next step
+
+Buff and debuff ids are just numbers. To tell a crit synergy or a damage buff from the rest (for the synergy options
+above, and to work from nDPS by taking support / party buffs out), we need what each id is: a lookup from the game
+data (the same Maxroll tables `scripts/bake-game-data.mjs` caches) or the meter's own buff table.
 
 ## Rough shape once the fields are known
 
