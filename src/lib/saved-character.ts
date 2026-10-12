@@ -2,6 +2,7 @@
 // Several characters can be kept; the most recently loaded comes first.
 
 import type { CharacterData, LoadoutKind } from '$lib/bible-data';
+import { findSnapshot, forgetSnapshots, recordSnapshots } from '$lib/snapshot-history';
 
 const KEY = 'loa-sim:characters';
 const LEGACY_KEY = 'loa-eff:character';
@@ -16,6 +17,8 @@ export interface SavedCharacter extends CharacterData {
 	savedAt: number;
 	/** When lostark.bible last listed the estimated raid loadout (earlier than savedAt when it was kept, see below). */
 	estimatedAt?: number;
+	/** Set while an earlier kept snapshot is simulated (see snapshot-history); `loadout` is then that snapshot. */
+	snapshotId?: string;
 }
 
 export const characterKey = (c: { region: string; name: string }) => `${c.region}/${c.name}`.toLowerCase();
@@ -68,6 +71,7 @@ export function saveCharacter(data: CharacterData) {
 		entry.loadout = entry.loadouts[entry.loadoutKind] ?? data.loadout;
 	}
 	write([entry, ...read().filter((c) => characterKey(c) !== characterKey(entry))]);
+	recordSnapshots(characterKey(entry), entry, now);
 }
 
 export const listSavedCharacters = (): SavedCharacter[] => read().sort((a, b) => b.savedAt - a.savedAt);
@@ -111,6 +115,7 @@ export function rememberViewed(key: string) {
 
 export function removeSavedCharacter(key: string) {
 	write(read().filter((c) => characterKey(c) !== key.toLowerCase()));
+	forgetSnapshots(key.toLowerCase());
 }
 
 /** Switches a saved character between its estimated raid loadout and its latest raid snapshot. */
@@ -121,6 +126,19 @@ export function setLoadoutKind(key: string, kind: LoadoutKind): SavedCharacter |
 	if (!entry || !loadout) return null;
 	entry.loadout = loadout;
 	entry.loadoutKind = kind;
+	delete entry.snapshotId;
+	write(list);
+	return entry;
+}
+
+/** Simulates an earlier kept snapshot of a saved character (until it's switched back or loaded again). */
+export function setSnapshot(key: string, id: string): SavedCharacter | null {
+	const list = read();
+	const entry = list.find((c) => characterKey(c) === key.toLowerCase());
+	const snapshot = entry && findSnapshot(characterKey(entry), id);
+	if (!entry || !snapshot) return null;
+	entry.loadout = snapshot.loadout;
+	entry.snapshotId = id;
 	write(list);
 	return entry;
 }

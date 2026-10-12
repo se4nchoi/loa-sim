@@ -4,7 +4,8 @@
 	import CharacterSwitcher from '$lib/CharacterSwitcher.svelte';
 	import CharacterView from '$lib/demo/CharacterView.svelte';
 	import type { LoadoutKind } from '$lib/bible-data';
-	import { characterKey, loadSavedCharacter, rememberViewed, setLoadoutKind } from '$lib/saved-character';
+	import { characterKey, loadSavedCharacter, rememberViewed, setLoadoutKind, setSnapshot } from '$lib/saved-character';
+	import { listSnapshots, recordSnapshots, snapshotId } from '$lib/snapshot-history';
 	import { onMount } from 'svelte';
 
 	// ?c=na/soulshan picks a saved character; without it (the Simulator tab), the one last viewed here.
@@ -19,8 +20,19 @@
 		if (saved) switched = setLoadoutKind(characterKey(saved), kind) ?? switched;
 	};
 
+	/** An earlier kept snapshot; remembered for the character until it's switched back or loaded again. */
+	const onsnapshot = (id: string) => {
+		if (saved) switched = setSnapshot(characterKey(saved), id) ?? switched;
+	};
+	// Kept snapshots other than bible's two current loadouts. Characters saved before history existed start theirs here.
+	let older = $state<ReturnType<typeof listSnapshots>>([]);
 	$effect(() => {
-		if (saved) rememberViewed(characterKey(saved));
+		if (!saved) return;
+		const key = characterKey(saved);
+		rememberViewed(key);
+		recordSnapshots(key, saved, saved.savedAt);
+		const listed = new Set((['current', 'estimated'] as const).flatMap((k) => (saved.loadouts?.[k] ? [snapshotId(k, saved.loadouts[k]!)] : [])));
+		older = listSnapshots(key).filter((s) => !listed.has(s.id));
 	});
 
 	onMount(() => {
@@ -41,6 +53,9 @@
 			loadoutKind={saved.loadoutKind}
 			estimatedFrom={saved.estimatedAt && saved.estimatedAt < saved.savedAt ? saved.estimatedAt : undefined}
 			{onloadout}
+			{older}
+			snapshotId={saved.snapshotId}
+			{onsnapshot}
 		/>
 	{/key}
 {/if}
