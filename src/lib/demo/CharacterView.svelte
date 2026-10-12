@@ -73,23 +73,28 @@
 				.map((k) => {
 					const l = loadouts![k]!;
 					const kept = k === 'estimated' ? estimatedFrom : undefined;
-					return { value: k as string, name: LOADOUT_LABELS[k].label, at: kept ?? l.lastUpdated, score: l.combatPower?.score, title: loadoutOptions.find((o) => o.value === k)?.title };
+					return { value: k as string, name: LOADOUT_LABELS[k].label, at: kept ?? l.lastUpdated, score: l.combatPower?.score, support: l.combatPower?.id === 2, title: loadoutOptions.find((o) => o.value === k)?.title };
 				}),
 			...older.map((s) => ({
 				value: `snap:${s.id}`,
 				name: s.kind === 'estimated' ? 'Estimate' : 'Raid snapshot',
 				at: s.takenAt as number | undefined,
 				score: s.loadout.combatPower?.score,
+				support: s.loadout.combatPower?.id === 2,
 				title: `An earlier ${s.kind === 'estimated' ? 'lostark.bible estimate' : 'raid snapshot'}, kept in this browser from a past load (lostark.bible only lists the latest).`
 			}))
 		];
 		const best = Math.max(...rows.map((r) => r.score ?? 0));
-		return rows.map((r) => ({
+		const top = rows.findIndex((r) => best > 0 && r.score === best);
+		// The highest CP first, marked; the rest in their order (bible's two, then kept ones newest first).
+		const ordered = top > 0 ? [rows[top], ...rows.filter((_, i) => i !== top)] : rows;
+		return ordered.map((r, i) => ({
 			value: r.value,
 			label: r.name,
 			note: r.at ? shortDay(r.at) : '',
-			detail: { label: r.score?.toFixed(2) ?? '?', color: best > 0 && r.score === best ? 'var(--color-green-400)' : undefined },
-			title: best > 0 && r.score === best ? `${r.title ?? ''} Highest Combat Power of these.`.trim() : r.title
+			detail: { label: r.score?.toFixed(2) ?? '?', color: r.support ? 'var(--color-green-400)' : 'var(--color-red-400)' },
+			marker: i === 0 && top >= 0 ? 'var(--color-accent-400)' : '',
+			title: i === 0 && top >= 0 ? `${r.title ?? ''} Highest Combat Power of these.`.trim() : r.title
 		}));
 	});
 	const menuValue = $derived(snapshotId ? `snap:${snapshotId}` : (loadoutKind ?? ''));

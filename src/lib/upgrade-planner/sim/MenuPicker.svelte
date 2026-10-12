@@ -177,6 +177,7 @@
 				>
 					{#if o.glyph}<Glyph kind={o.glyph} dim={o.muted} />{/if}
 					{#if o.iconUrl}<img src={o.iconUrl} alt="" class="size-6 shrink-0 rounded-xs" loading="lazy" />{/if}
+					{#if o.marker !== undefined}<span class="flex w-2 shrink-0 justify-center">{#if o.marker}<span class="size-1.5 rounded-full" style:background-color={o.marker}></span>{/if}</span>{/if}
 					<span class="whitespace-nowrap {cells ? '' : 'flex-1'}">{o.label}{#if o.suffix}<span class="ml-1" style:color={o.suffix.color}>{o.suffix.label}</span>{/if}</span>
 					{#if o.note !== undefined}<span class="w-14 shrink-0 pl-2 whitespace-nowrap text-surface-400">{o.note}</span>{/if}
 					{#if o.detail}<span class="pl-3 text-right tabular-nums" style:color={o.detail.color}>{o.detail.label}</span>{/if}

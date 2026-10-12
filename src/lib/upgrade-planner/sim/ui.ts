@@ -82,6 +82,8 @@ export interface MenuOption<V> {
 	note?: string;
 	/** A value in its own right-aligned column (e.g. a snapshot's CP), so values line up down the list. */
 	detail?: { label: string; color?: string };
+	/** A small circle in a slot before the label (e.g. the highest CP); '' keeps the slot empty so labels line up. */
+	marker?: string;
 	muted?: boolean;
 	/** Visible but unavailable, e.g. an astrogem exceeding the core's Willpower. */
 	disabled?: boolean;
