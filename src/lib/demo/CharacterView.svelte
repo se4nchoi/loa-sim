@@ -174,5 +174,22 @@
 {#if !loadout}
 	<p class="text-surface-300">This character has no Ark Passive loadout with combat power data yet.</p>
 {:else}
-	<Simulator {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />
+	<!-- While a snapshot switch resolves, the simulator dims under a spinner, so the cards changing (another loadout can
+	     have more gems, different cores) reads as loading rather than a jolt. -->
+	<div class="relative" aria-busy={pending !== null}>
+		{#if pending !== null}
+			<div class="absolute inset-0 z-30 bg-surface-950/60" role="status" aria-live="polite">
+				<div class="sticky top-[40vh] flex justify-center">
+					<span class="flex items-center gap-2 rounded-xs border border-surface-600 bg-surface-900 px-3 py-2 text-sm text-surface-100 shadow-lg shadow-black/50">
+						<svg class="size-4 animate-spin text-accent-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+							<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" stroke-width="3" />
+							<path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+						</svg>
+						Loading snapshot…
+					</span>
+				</div>
+			</div>
+		{/if}
+		<Simulator {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />
+	</div>
 {/if}

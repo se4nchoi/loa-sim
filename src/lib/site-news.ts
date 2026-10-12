@@ -18,7 +18,7 @@ export const UPDATES: SiteUpdate[] = [
 		date: '2026-10-12',
 		kind: 'improved',
 		title: 'Faster switching',
-		points: ['Switching snapshots is about 5× faster', 'Stone kit suggestions are only worked out while that panel is open']
+		points: ['Switching snapshots is about 5× faster, with a spinner while it loads', 'Stone kit suggestions are only worked out while that panel is open']
 	},
 	{
 		date: '2026-10-12',
