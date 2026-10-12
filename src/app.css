@@ -105,19 +105,13 @@ body {
 html {
 	scrollbar-gutter: stable;
 }
-/* Muted panels (the Updates list): space for the bar is always kept, and the bar barely shows until hovered. */
+/* Panels that scroll without a visible bar (the Updates list): no bar means no lane kept for it, so rows and their
+   dividers reach the card edge and unfolding a row never shifts anything. Wheel, trackpad and touch still scroll. */
 .scroll-muted {
-	scrollbar-gutter: stable;
-	scrollbar-color: color-mix(in oklab, var(--color-surface-700) 50%, transparent) transparent;
+	scrollbar-width: none;
 }
-.scroll-muted:hover {
-	scrollbar-color: var(--color-surface-700) transparent;
-}
-.scroll-muted::-webkit-scrollbar-thumb {
-	background-color: color-mix(in oklab, var(--color-surface-700) 50%, transparent);
-}
-.scroll-muted::-webkit-scrollbar-thumb:hover {
-	background-color: var(--color-surface-600);
+.scroll-muted::-webkit-scrollbar {
+	display: none;
 }
 
 /* Next Upgrades: the row a click came from, highlighted briefly in All Upgrades. */
