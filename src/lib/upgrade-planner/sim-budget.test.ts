@@ -110,15 +110,17 @@ describe('current changes budget', () => {
 		expect(changes.filter((r) => r.status === 'unavailable')).toHaveLength(3);
 		expect(changes[0].fixed).toBe(0);
 	});
-	it('marks sidereal weapon steps up as unpriced, not free, and excludes steps down', () => {
+	it('lists sidereal weapon steps up for the player to price, and excludes steps down', () => {
 		const sidereal = mira as unknown as Loadout;
 		const base = initSimState(sidereal);
 		expect(base.sidereal).toMatchObject({ infusion: 3, evolution: 8 });
 		const up = structuredClone(base);
 		up.sidereal!.evolution = 10;
 		const [row] = budgetChanges(sidereal, base, up);
-		expect(row).toMatchObject({ title: 'Sidereal weapon +8 → +10', status: 'unavailable' });
+		expect(row).toMatchObject({ title: 'Sidereal weapon +8 → +10' });
+		expect(row.status).toBeUndefined();
 		expect(priceBudget([row], {}, {}, {}, {})[0].average).toBeUndefined();
+		expect(priceBudget([row], {}, {}, { [row.key]: 1_200_000 }, {})[0].average).toBe(1_200_000);
 		const down = structuredClone(base);
 		down.sidereal!.evolution = 7;
 		expect(budgetChanges(sidereal, base, down)).toMatchObject([{ status: 'excluded' }]);
