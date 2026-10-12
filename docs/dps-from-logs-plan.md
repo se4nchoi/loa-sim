@@ -59,7 +59,9 @@ same math runs on totals, a little less precisely.
   hit, so the replay leaves it alone; it only matters for the cast-count estimate (cooldown / speed changes). The
   logs show a feast on ~99% of hits anyway.
 - **Azena's blessing: off by default** (it's a paid subscription); a toggle adds +6,000 main stat. **Main stat food:
-  off by default**, its own toggle. Main stat upgrades are valued on the in-fight main stat (profile + whichever of
+  off by default**, one choice (only one dish works at a time) of the top two Masterwork steak meals:
+  Specialist's Beef Tenderloin (+8,000 Str / Dex / Int, ilvl 1580) or Virtuoso's Striploin (+12,000, ilvl 1640);
+  cheaper ones (Master's Herb, +6,000) are left out. Main stat upgrades are valued on the in-fight main stat (profile + whichever of
   these are on), since base attack goes with √(main stat × Weapon Power): a higher in-fight main stat makes each
   main stat upgrade worth a little less.
 - **Poison / bleed (battle items) proc the same way** across a run and across the averaged runs. Their damage isn't
