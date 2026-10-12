@@ -7,7 +7,8 @@ import * as SQLite from 'wa-sqlite';
 import SQLiteESMFactory from 'wa-sqlite/dist/wa-sqlite.mjs';
 import wasmUrl from 'wa-sqlite/dist/wa-sqlite.wasm?url';
 import * as VFS from 'wa-sqlite/src/VFS.js';
-import type { LogsRequest, LogsResponse, SkillShare, EncounterRow } from './protocol';
+import type { LogsRequest, LogsResponse, SkillShare, EncounterRow, StatValues } from './protocol';
+import { averageStatValues, splitOf } from './stat-values';
 
 const DB_NAME = 'encounters.db';
 /** wa-sqlite hands the VFS the name with any URI query ("encounters.db?immutable=1"); compare the bare name. */
@@ -185,6 +186,28 @@ async function skillShares(player: string, ids: number[]): Promise<{ runs: numbe
 	return { runs, shares };
 }
 
+/** The meter's per-stat values for the player, averaged over the runs that have them (see stat-values.ts). */
+async function statValues(player: string, ids: number[]): Promise<StatValues | null> {
+	// `misc` lives on `encounter`; very old databases don't have it.
+	const cols = await query(`SELECT name FROM pragma_table_info('encounter')`);
+	if (!cols.some((c) => c.name === 'misc')) return null;
+	const splits = [];
+	for (let i = 0; i < ids.length; i += 200) {
+		const chunk = ids.slice(i, i + 200);
+		const rows = await query(`SELECT misc FROM encounter WHERE id IN (${chunk.map(() => '?').join(',')})`, chunk);
+		for (const row of rows) {
+			let misc: unknown = null;
+			try {
+				misc = await decodeSkills(row.misc);
+			} catch {
+				// unreadable misc: the run just doesn't count
+			}
+			splits.push(splitOf(misc, player));
+		}
+	}
+	return averageStatValues(splits);
+}
+
 self.onmessage = async (e: MessageEvent<LogsRequest>) => {
 	const req = e.data;
 	const reply = (r: LogsResponse) => self.postMessage(r);
@@ -194,6 +217,8 @@ self.onmessage = async (e: MessageEvent<LogsRequest>) => {
 			reply({ id: req.id, type: 'encounters', encounters: await listEncounters() });
 		} else if (req.type === 'shares') {
 			reply({ id: req.id, type: 'shares', ...(await skillShares(req.player, req.encounterIds)) });
+		} else if (req.type === 'statValues') {
+			reply({ id: req.id, type: 'statValues', values: await statValues(req.player, req.encounterIds) });
 		}
 	} catch (err) {
 		const code = (err as { code?: number })?.code;

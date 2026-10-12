@@ -22,6 +22,9 @@
 	import UpgradeTitle from './UpgradeTitle.svelte';
 	import { btn } from './sim/ui';
 	import { CATEGORY_LABELS, topDistinct, type Upgrade } from './upgrades';
+	import { applyUpgrade } from './apply-upgrade';
+	import { dpsGainPct, statDeltas } from './dps-stats';
+	import { loadStatValues, statValues } from '$lib/logs/stat-values-store.svelte';
 
 	let {
 		loadout,
@@ -90,7 +93,7 @@
 		dialogOpen = true;
 	});
 
-	onMount(loadGold);
+	onMount(() => (loadGold(), loadStatValues()));
 	/** Most CP first, or (with gold costs entered) least gold per 1% CP first. */
 	// In gold mode, unpriced rows (biggest gain first) fill the card so costs can be added right here.
 	const priced = $derived(gold.mode === 'gold' ? topDistinct(byGold(upgrades, costs), limit) : []);
@@ -99,6 +102,21 @@
 			? [...priced, ...topDistinct(upgrades.filter((u) => !supportsGoldCost(u) || costs[u.key] === undefined), limit - priced.length)]
 			: topDistinct(upgrades, limit)
 	);
+	// DPS from LOA Logs' own per-stat values, when the player loaded them for this (dealer) character; only for upgrades
+	// those values describe (see dps-stats.ts).
+	const meter = $derived(roleOf(loadout).support ? null : (statValues.byCharacter[characterKey]?.values ?? null));
+	const dps = $derived.by(() => {
+		const out = new Map<string, number>();
+		if (!meter) return out;
+		const base = simBase ?? initSimState(loadout);
+		for (const u of shown) {
+			const next = structuredClone(simNow);
+			if (!applyUpgrade(loadout, next, base, u)) continue;
+			const d = statDeltas(loadout, simNow, next, base);
+			if (d) out.set(u.key, dpsGainPct(d, meter));
+		}
+		return out;
+	});
 	const unpriced = $derived(new Set(goldUpgrades.filter((u) => u.category !== 'honing' && costs[u.key] === undefined).map((u) => accessoryPriceKey(u.key, {}))).size);
 </script>
 
@@ -192,6 +210,7 @@
 						{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span>
 						{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
 						<span class="block text-[10px] text-surface-100">{formatCp(cp * (1 + u.gainPct / 100))} <span class={roleOf(loadout).support ? 'text-green-400' : 'text-red-400'}>({formatPct(cp * u.gainPct / 100)})</span></span>
+						{#if dps.has(u.key)}<span class="block text-[11px] text-sky-300" title="Damage gained in your own logs, from LOA Logs' stat values">DPS ≈{formatPct(dps.get(u.key)!)}%</span>{/if}
 						{#if honing}
 							<span class="mt-0.5 flex h-6 items-center justify-end text-[11px] text-amber-300/90" title="Gold per 1% Combat Power, from the average honing cost"
 								>{formatGold(honing.expected / u.gainPct)} / 1%</span

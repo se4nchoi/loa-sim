@@ -1,8 +1,8 @@
 // Page-side client for the LOA Logs worker, plus the time-range presets.
 
-import type { EncounterRow, LogsRequest, LogsResponse, SkillShare } from './protocol';
+import type { EncounterRow, LogsRequest, LogsResponse, SkillShare, StatValues } from './protocol';
 
-export type { EncounterRow, SkillShare };
+export type { EncounterRow, SkillShare, StatValues };
 
 /** A request without its correlation id (distributes over the union). */
 type Outgoing<T> = T extends unknown ? Omit<T, 'id'> : never;
@@ -35,6 +35,11 @@ export class LoaLogsReader {
 	async shares(player: string, encounterIds: number[]): Promise<{ runs: number; shares: SkillShare[] }> {
 		const r = await this.send<'shares'>({ type: 'shares', player, encounterIds });
 		return { runs: r.runs, shares: r.shares };
+	}
+
+	/** The meter's per-stat values averaged over these runs; null when none of them have values. */
+	async statValues(player: string, encounterIds: number[]): Promise<StatValues | null> {
+		return (await this.send<'statValues'>({ type: 'statValues', player, encounterIds })).values;
 	}
 
 	close() {
