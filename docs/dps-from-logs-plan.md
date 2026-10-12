@@ -97,6 +97,16 @@ Hyper Awakening hits only take `ultimate_awakening_damage_rate`. So "a new +6% d
 nothing else is in its bucket: with Total Offensive (+3%) already in `inc_sub_rate_1`, another `inc_sub_rate_1`
 source adds to that 3%; an `inc_rate` one multiplies. The buff → bucket map is the `keyStat` / `type` reading above.
 
+Synergy types → buckets (`statusEffectValues`, /10,000 unless noted), per the meter:
+
+| `type` | Slot → bucket |
+|---|---|
+| `instant_stat_amplify` | [0] crit rate, [1] crit damage, **[7] `outgoing_dmg_stat_amp`** (so Party: Damage Amplification etc. add with each other), [2] / [3] physical / magical defense break, [9] / [10] physical / magical crit damage amplify |
+| `directional_attack_amplify` | [0] / 100 front, [4] / 100 back attack amplify |
+| `instant_stat_amplify_by_contents` | −[2] element damage amplification, only when the hit's element is [1] |
+| `skill_damage_amplify` | [1] × the casting support's brand power, limited to skill [0] / skill effect [4] when set |
+| `attack_power_amplify` | [0] % of the **caster's** base Atk |
+
 To replay an upgrade we need each bucket's **current total** per hit: the player's own static stats (bible loadout:
 evolution damage from Ark Passive, Atk %, crit damage, …) plus the buffs active on that hit (the classification).
 
