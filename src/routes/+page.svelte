@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { ROSTER_TTL_MS, bibleToken, cachedRoster, completeSignIn, fetchRoster, hiddenRosterKeys, saveHiddenRosterKeys, signOut, startSignIn, type RosterCharacter } from '$lib/bible-oauth';
 	import { REGIONS, bibleDataUrl, parseCharacterInput, parsePastedData, type Region } from '$lib/bible-data';
@@ -79,24 +78,30 @@
 	const hiddenCount = $derived((roster ?? []).filter((c) => hiddenSet.has(characterKey(c))).length);
 	const openUrl = (c: { region: string; name: string }) => `/sim?c=${encodeURIComponent(characterKey(c))}`;
 
-	/** Loads a character's current bible snapshot via our server, saves it here and opens the simulator. */
-	/** Character just reloaded in place, for a brief ✓ on its button. */
+	/** Character just loaded or reloaded, for a brief ✓ on its button. */
 	let refreshed = $state<string | null>(null);
 	let refreshedTimer: ReturnType<typeof setTimeout>;
+	/** Last character loaded from the search box, for the "Loaded … · Open" line under it. */
+	let searched = $state<{ region: string; name: string } | null>(null);
 
-	/** With `open` false (↻), the saved copy is updated and the page stays here. */
-	async function load(r: string, name: string, open = true) {
+	function loaded(key: string) {
+		saved = listSavedCharacters();
+		refreshed = key;
+		clearTimeout(refreshedTimer);
+		refreshedTimer = setTimeout(() => (refreshed = null), 1500);
+	}
+
+	/** Loads a character's current bible snapshot via our server and saves it here; the page stays on Characters. */
+	async function load(r: string, name: string, fromSearch = false) {
 		const key = characterKey({ region: r, name });
 		loading = key;
 		error = null;
+		searched = null;
 		try {
 			const body = await loadCharacter(r, name);
-			if (open) return void goto(openUrl(body));
-			saved = listSavedCharacters();
 			loading = null;
-			refreshed = key;
-			clearTimeout(refreshedTimer);
-			refreshedTimer = setTimeout(() => (refreshed = null), 1500);
+			loaded(key);
+			if (fromSearch) ((searched = { region: body.region, name: body.name }), (input = ''));
 		} catch (e) {
 			// Fall back to pasting the data for this character.
 			region = r as Region;
@@ -122,7 +127,9 @@
 			}
 			saveCharacter(data);
 			saveRegion(data.region);
-			goto(openUrl(data));
+			loaded(characterKey(data));
+			searched = { region: data.region, name: data.name };
+			((pasted = ''), (input = ''), (showPaste = false));
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
 		}
@@ -177,7 +184,7 @@
 		</a>
 		{#if have}
 			<a href={openUrl(c)} class={primary}>Open</a>
-			<button type="button" class={secondary} disabled={loading !== null} onclick={() => load(c.region, c.name, false)} title="Reload the latest lostark.bible snapshot">
+			<button type="button" class={secondary} disabled={loading !== null} onclick={() => load(c.region, c.name)} title="Reload the latest lostark.bible snapshot">
 				{loading === key ? '…' : refreshed === key ? '✓' : '↻'}
 			</button>
 		{:else}
@@ -211,12 +218,12 @@
 		</ul>
 	</div>
 
-	<!-- Search: load any character straight into the simulator. -->
+	<!-- Search: load any character into the list below. -->
 	<form
 		class="flex flex-row gap-2"
 		onsubmit={(e) => {
 			e.preventDefault();
-			if (target) load(target.region, target.name);
+			if (target) load(target.region, target.name, true);
 		}}
 	>
 		<select bind:value={region} onchange={(e) => saveRegion(e.currentTarget.value)} aria-label="Region" class={field}>
@@ -230,6 +237,11 @@
 	{#if input && !target}<span class="-mt-2 text-sm text-red-400">Enter a character name, or a lostark.bible/character/… link.</span>{/if}
 	{#if error}
 		<p class="-mt-2 text-sm text-red-400">{error}</p>
+	{:else if searched}
+		<p class="-mt-2 text-sm text-surface-300">
+			✓ Loaded {searched.name}{#if searched.region !== 'NA'} ({searched.region}){/if} ·
+			<a href={openUrl(searched)} class="text-accent-300 underline hover:text-accent-200">Open in simulator</a>
+		</p>
 	{/if}
 </div>
 <div class="flex min-w-0 flex-col gap-4 pb-6 lg:col-start-1">
