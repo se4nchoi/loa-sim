@@ -129,7 +129,7 @@
 	{@const iconId = tier === gems[i].tier ? gems[i].regular : tier === 'T3' ? 65021000 : 65031000}
 	{@const look = itemLook(gemId(iconId, gem.kind, gem.level))}
 	<div class="flex h-11 w-[9.75rem] flex-row items-center gap-1.5 rounded-xs p-1 max-sm:w-auto {gemChanged(i) ? 'bg-accent-500/10 ring-1 ring-accent-500' : ''}">
-		<MenuPicker iconOnly value={tier ?? 'T4'} options={TIER_OPTIONS} label={`${skillName(gem.skill)} ${gem.kind} gem tier`} changed={tier !== gems[i].tier} onpick={(v) => { if (v === gems[i].tier) delete gem.tier; else gem.tier = v; }}>
+		<MenuPicker iconOnly value={tier ?? 'T4'} options={TIER_OPTIONS} columns={2} label={`${skillName(gem.skill)} ${gem.kind} gem tier`} changed={tier !== gems[i].tier} onpick={(v) => { if (v === gems[i].tier) delete gem.tier; else gem.tier = v; }}>
 			{#snippet trigger()}<ItemIcon src={look.icon} grade={look.grade} size="size-9" badge={gem.level} title={`${look.name} (${tier}) · Change gem tier`} />{/snippet}
 		</MenuPicker>
 		<Stepper bind:value={gem.level} min={1} max={10} changed={gem.level !== base.gems[i].level} label={`${skillName(gem.skill)} ${gem.kind} gem level`} width="w-6" buttonsOnlyOnPhones />
