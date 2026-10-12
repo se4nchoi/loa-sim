@@ -16,6 +16,16 @@ export interface SiteUpdate {
 export const UPDATES: SiteUpdate[] = [
 	{
 		date: '2026-10-12',
+		kind: 'new',
+		title: 'Saved snapshots',
+		points: [
+			'Every snapshot you load is now saved in your browser, up to 8 per character; past 8, the oldest is pruned',
+			'Same gear with the same CP counts as a duplicate and isn’t saved',
+			'Pick between or delete saved snapshots in the Simulator tab, under your character’s name'
+		]
+	},
+	{
+		date: '2026-10-12',
 		kind: 'improved',
 		title: 'Astrogem WP',
 		points: ['Astrogems over the core’s Willpower can be picked; they show red and don’t count']
@@ -68,20 +78,10 @@ export interface SiteIssue {
 	points?: string[];
 }
 
+// Resolved (kept here, not shown; these aren't GitHub issues):
+// - 2026-10-12 "CP lower than your gear" (known issue: bible lists only two loadouts, neither may have your gear) and
+//   "Pick from saved snapshots" (planned): both resolved by Saved snapshots (snapshot-history.ts).
 export const ISSUES: SiteIssue[] = [
-	{
-		status: 'known issue',
-		title: 'CP lower than your gear',
-		points: [
-			'We only get two loadouts from lostark.bible, and neither may have your current gear',
-			'Fix: equip it in game, swap characters, then hit ↻ on the character here'
-		]
-	},
-	{
-		status: 'planned',
-		title: 'Pick from saved snapshots',
-		points: ['Your browser will keep each snapshot you load, so you can switch between them instead of relying on what bible has right now']
-	},
 	{
 		status: 'investigating',
 		title: 'Pet ranch CP',
