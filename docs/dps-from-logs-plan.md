@@ -53,6 +53,18 @@ by gold per DPS gained, as Next Upgrades does with CP).
 Exact replay needs per-hit data (damage with crit / back / front flags). If the logs keep only per-skill totals, the
 same math runs on totals, a little less precisely.
 
+## Assumptions
+
+- **Feast is always on.** Regular feast: Atk. / Move Speed +5%, with an option for the crit feast (+6%). Speed doesn't
+  scale a hit, so the replay leaves it alone; it only matters for the cast-count estimate (cooldown / speed
+  changes). The logs show a feast on ~99% of hits anyway.
+- **Azena's blessing: +6,000 main stat** (more with food, as an option). Main stat upgrades are valued on the
+  in-fight main stat (profile + blessing + food), since base attack goes with √(main stat × Weapon Power): leaving
+  the blessing out would make every main stat upgrade look slightly bigger.
+- **Poison / bleed (battle items) proc the same way** across a run and across the averaged runs. Their damage isn't
+  on skill casts (part of the 1–4% the per-hit log doesn't cover) and doesn't come from the player's stats, so it's
+  a fixed amount before and after an upgrade.
+
 ## Open problems
 
 - **Synergies.** A flat +6% damage synergy is easy. Crit synergies are flaky: they depend on party makeup and uptime,
