@@ -8,7 +8,7 @@ import { HONING_SLOT_LABELS } from './honing-upgrades';
 import { qualityCost } from './quality';
 import { roleOf } from './roles';
 import { skinParts, skinPriceKey } from './skins';
-import { activeGems, gemParts, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
+import { activeGems, arkGridOverWillpower, gemParts, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
 import { ASTROGEM_OPTION_NAMES, CORE_BREAKPOINTS, CORE_GRADE_CAP, ENGRAVING_BOOK_STEPS, KARMA_MAX_LEVEL, karmaRank } from './tables';
 import type { Loadout } from './types';
 import { coreLabel, coreStates, engravingName, type Upgrade } from './upgrades';
@@ -53,7 +53,10 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 		add({ key, category: 'gem', title: `${tier} gem Lv. ${lv} → ${Number(lv) + 1}`, detail: `${count} gems`, count });
 	}
 
-	for (const core of coreStates(l)) {
+	// A core over its Willpower has inactive astrogems: core and astrogem steps from there would mislead (the fix is
+	// room in Willpower, not more points), so the Ark Grid sits out until it fits. The list says so.
+	const arkGridOk = !arkGridOverWillpower(state.arkGrid);
+	for (const core of arkGridOk ? coreStates(l) : []) {
 		const current = state.arkGrid.find((c) => c.id === core.id);
 		if (!current) continue;
 		const info = simCoreInfo(core.info, current);
@@ -63,7 +66,7 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 		if (!next) continue;
 		add({ key: `core:${core.id}:${next}`, category: 'core', title: `${coreLabel(info)} core → ${next}P`, detail: '', approximate: info.weaponCore || core.modelValue !== core.value });
 	}
-	for (const id of role.astrogemOptions) {
+	for (const id of arkGridOk ? role.astrogemOptions : []) {
 		const opts = state.arkGrid.flatMap((c) => activeGems(c).flatMap((g) => g.opts.filter((o) => o.id === id)));
 		if (!opts.some((o) => o.level < 5)) continue;
 		const level = opts.reduce((n, o) => n + o.level, 0);

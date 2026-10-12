@@ -403,6 +403,10 @@ export function gemsActive(core: SimCore): boolean[] {
 	});
 }
 
+/** Whether any core holds an equipped astrogem it can't power (an over-Willpower edit). */
+export const arkGridOverWillpower = (arkGrid: SimCore[]) =>
+	arkGrid.some((c) => gemsActive(c).some((on, i) => !on && !c.gems[i].removed));
+
 /** The astrogems that count: equipped and powered. */
 export const activeGems = (core: SimCore | undefined) => {
 	if (!core) return [];

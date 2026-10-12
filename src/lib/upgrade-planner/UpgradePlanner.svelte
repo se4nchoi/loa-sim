@@ -15,7 +15,7 @@
 	import { liveUpgrades } from './live-upgrades';
 	import { accessoryPriceKey } from './accessory-sets';
 	import { rollsFor, setAccRolls } from './acc-rolls.svelte';
-	import { initSimState, type SimState } from './simulate';
+	import { arkGridOverWillpower, initSimState, type SimState } from './simulate';
 	import { roleOf } from './roles';
 	import type { Loadout } from './types';
 	import UpgradeDialog from './UpgradeDialog.svelte';
@@ -119,6 +119,11 @@
 			/>
 		</div>
 	</div>
+	{#if arkGridOverWillpower(simNow.arkGrid)}
+		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-amber-300" title="An astrogem doesn't fit its core's Willpower, so Ark Grid steps can't be worked out from here">
+			Ark Grid upgrades are left out: a core needs more Willpower than it has.
+		</p>
+	{/if}
 	{#if upgrades.length === 0}
 		<p class="p-2 text-sm text-surface-300">No one-step upgrades found for this loadout.</p>
 	{:else}

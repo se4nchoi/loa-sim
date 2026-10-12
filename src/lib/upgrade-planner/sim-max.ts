@@ -31,14 +31,14 @@ function maxGemChoices(attr: 'order' | 'chaos', scoring: number[]): SimAstrogem[
 		}));
 }
 
-/** Max one gem within the current core, or a whole core (Ancient + four max-cut gems). */
+/** Max one gem or a whole core: either way the core goes Ancient (17 Willpower), with max-cut gems that fit it. */
 export function maxArkGridCore(l: Loadout, s: SimState, core: CoreState, score: ScoreEdit, gi?: number) {
 	const ci = s.arkGrid.findIndex((c) => c.id === core.id);
 	if (ci < 0) return;
 	const current = s.arkGrid[ci];
 	const role = roleOf(l);
 	const choices = maxGemChoices(core.info.attr, role.astrogemOptions);
-	const cap = CORE_WILLPOWER[gi === undefined ? 'ancient' : current.grade ?? core.info.grade];
+	const cap = CORE_WILLPOWER.ancient;
 	const variants = gi !== undefined || core.info.attr === 'order' ? [current.variant ?? coreVariant(core.id)]
 		: role.support ? [0, 1, 2, 3, 4, 5] : core.info.shape === 'star' ? [0, 1] : [0, 1, 2];
 	// Copy fields explicitly: the UI passes Svelte proxies, which structuredClone cannot read.
@@ -53,7 +53,8 @@ export function maxArkGridCore(l: Loadout, s: SimState, core: CoreState, score: 
 		}
 		if (gems.reduce((sum, g) => sum + astrogemWillpower(g), 0) > cap) return;
 		for (const variant of variants) {
-			const candidate = { ...current, ...(gi === undefined ? { grade: 'ancient' as const } : {}), variant, gems };
+			// An equipped Ancient core keeps grade unset (= as equipped), so it doesn't show as edited.
+			const candidate = { ...current, grade: core.info.grade === 'ancient' ? undefined : ('ancient' as const), variant, gems };
 			const cp = score((state) => { state.arkGrid[ci] = candidate; });
 			if (cp > best) {
 				best = cp;

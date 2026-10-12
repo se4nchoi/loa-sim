@@ -80,9 +80,10 @@
 	const efficiencyChoices = (ci: number, info: CoreInfo, gi: number): MenuOption<number>[] =>
 		astrogemEfficiencyChoices(sim.arkGrid[ci], info, gi).map((c) => ({
 			value: c.costReduc,
-			label: `Efficiency ${c.costReduc} · ${c.willpower} WP`,
-			suffix: { label: `· core ${c.total}/${c.cap}`, color: c.fits ? undefined : OVER },
-			title: c.fits ? `Reduces this astrogem's Willpower cost by ${c.costReduc}.` : overNote(c.total, c.cap)
+			// Compact cells: level and Willpower cost (red when over the core's); the core total is in the tooltip.
+			label: `Eff.${c.costReduc}`,
+			suffix: { label: `${c.willpower}WP`, color: c.fits ? 'var(--color-surface-400)' : OVER },
+			title: c.fits ? `Reduces this astrogem's Willpower cost by ${c.costReduc}: core ${c.total}/${c.cap}.` : overNote(c.total, c.cap)
 		}));
 
 	// Core type picker: another grade, and for chaos cores another option (Swift → Flashy, Absorbing → Crushing,
@@ -328,12 +329,14 @@
 													value={gem.costReduc}
 													options={efficiencyChoices(ci, info, gi)}
 													label={`Willpower efficiency ${gi + 1}`}
+													columns={3}
 													full
 													changed={before?.costReduc !== gem.costReduc}
 													onpick={(v) => setAstrogemEfficiency(sim.arkGrid[ci], info, gi, v)}
 													preview={(v) => preview((s) => { setAstrogemEfficiency(s.arkGrid[ci], info, gi, v); })}
 												>
-													{#snippet trigger()}<span class="text-xs tabular-nums" title="Willpower cost and efficiency level">{astrogemWillpower(gem)}WP <span class="text-surface-400">· Eff.{gem.costReduc}</span></span>{/snippet}
+													<!-- Narrow cores (phones) shorten the trigger so it stays on one line. -->
+														{#snippet trigger()}<span class="text-xs whitespace-nowrap tabular-nums" title="Willpower cost and efficiency level">{astrogemWillpower(gem)}WP <span class="text-surface-400"><span class="@max-[26rem]:hidden">· Eff.</span><span class="hidden @max-[26rem]:inline">E</span>{gem.costReduc}</span></span>{/snippet}
 												</MenuPicker>
 												<MenuPicker
 													value={gem.corePoints}
@@ -345,7 +348,7 @@
 													onpick={(v) => (gem.corePoints = v)}
 													preview={(v) => preview((s) => (s.arkGrid[ci].gems[gi].corePoints = v))}
 												>
-													{#snippet trigger()}<span class="text-xs font-semibold tabular-nums">{info.attr === 'order' ? 'Order' : 'Chaos'} {gem.corePoints}P</span>{/snippet}
+													{#snippet trigger()}<span class="text-xs font-semibold whitespace-nowrap tabular-nums"><span class="@max-[26rem]:hidden">{info.attr === 'order' ? 'Order' : 'Chaos'} </span>{gem.corePoints}P</span>{/snippet}
 												</MenuPicker>
 												{/if}
 										</div>
@@ -374,7 +377,7 @@
 										<div class="col-span-3 flex flex-wrap items-center justify-end gap-1">
 											{#if inactive}<span class="mr-auto rounded-xs bg-red-500/15 px-2 py-0.5 text-[11px] font-bold tracking-wide text-red-300 uppercase">Inactive · over Willpower</span>
 											{:else if isWeakest}<span class="mr-auto rounded-xs bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold tracking-wide text-amber-300 uppercase">Weakest</span>{/if}
-											<button type="button" class={btnAccent} aria-label={`Max astrogem ${gi + 1}`} onclick={() => maxCore(core, gi)} title="Best max-cut Ancient astrogem that fits this core's current Willpower">Max</button>
+											<button type="button" class={btnAccent} aria-label={`Max astrogem ${gi + 1}`} onclick={() => maxCore(core, gi)} title="Best max-cut Ancient astrogem for this slot; the core goes Ancient (17 Willpower) so it fits">Max</button>
 											{#if before && JSON.stringify(gem) !== JSON.stringify(before)}
 												<button
 													type="button"

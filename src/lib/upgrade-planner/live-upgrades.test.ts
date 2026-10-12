@@ -5,7 +5,7 @@ import brushann from './fixtures/na-brushann.json';
 import soulshan from './fixtures/na-soulshan.json';
 import type { AccRoll } from './accessory-sets';
 import { liveUpgrades } from './live-upgrades';
-import { initSimState, simulate } from './simulate';
+import { arkGridOverWillpower, initSimState, simulate } from './simulate';
 import { supportCombatPower, supportEngravingIds, supportEngravingTable } from './support';
 import type { Loadout } from './types';
 import { skinPriceKey } from './skins';
@@ -153,5 +153,19 @@ describe('accessory rolls picker', () => {
 		const t = performance.now();
 		for (let i = 0; i < 5; i++) liveUpgrades(l, weak, base, all);
 		expect((performance.now() - t) / 5).toBeLessThan(200);
+	});
+});
+
+describe('live Next Upgrades with a core over its Willpower', () => {
+	const l = soulshan as unknown as Loadout;
+	it('leaves out Ark Grid steps until the core fits, and keeps the rest', () => {
+		const base = initSimState(l);
+		const ark = (s: typeof base) => liveUpgrades(l, s, base).filter((u) => u.category === 'core' || u.category === 'astrogem');
+		expect(ark(base).length).toBeGreaterThan(0);
+		const over = structuredClone(base);
+		over.arkGrid[0].gems[0].costReduc = 0; // costs more than the core supplies: a gem goes inactive
+		expect(arkGridOverWillpower(over.arkGrid)).toBe(true);
+		expect(ark(over)).toEqual([]);
+		expect(liveUpgrades(l, over, base).length).toBeGreaterThan(0);
 	});
 });

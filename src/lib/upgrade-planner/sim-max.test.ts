@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { decodeCore } from './tables';
 import dealer from './fixtures/na-soulshan.json';
 import support from './fixtures/na-brushann.json';
 import { BRACELET_EFFECTS, ASTROGEM_ITEMS, ASTROGEM_KINDS, ITEMS } from './game-data';
@@ -55,7 +56,7 @@ describe('Max Ark Grid', () => {
 		const before = simulate(l, s).cp;
 		for (const core of coreStates(l)) maxArkGridCore(l, s, core, scoring(l, s));
 		for (const c of s.arkGrid) {
-			expect(c.grade).toBe('ancient');
+			expect(c.grade ?? decodeCore(c.id)?.grade).toBe('ancient'); // unset = an equipped Ancient core
 			expect(c.gems).toHaveLength(4);
 			expect(c.gems.reduce((sum, g) => sum + astrogemWillpower(g), 0)).toBeLessThanOrEqual(17);
 			for (const g of c.gems) {
@@ -75,7 +76,7 @@ describe('Max Ark Grid', () => {
 		}
 	});
 
-	it('maxes one removed gem without changing the core or other gems', () => {
+	it('maxes one removed gem without changing other gems, planning the core as Ancient', () => {
 		const s = initSimState(loadout);
 		const core = coreStates(loadout)[0];
 		const ci = s.arkGrid.findIndex((c) => c.id === core.id);
@@ -86,7 +87,9 @@ describe('Max Ark Grid', () => {
 		expect(s.arkGrid[ci].gems[0].removed).toBeFalsy();
 		expect(s.arkGrid[ci].gems[0].corePoints).toBe(5);
 		expect(s.arkGrid[ci].gems.slice(1)).toEqual(before.gems.slice(1));
-		expect(s.arkGrid[ci].grade).toEqual(before.grade);
+		// The core plans as Ancient: unset (as equipped) when it already is, else switched.
+		expect(s.arkGrid[ci].grade).toEqual(core.info.grade === 'ancient' ? undefined : 'ancient');
+		expect(before.grade).toBeUndefined();
 	});
 
 	it('supports reactive gem proxies without cloning them', () => {
