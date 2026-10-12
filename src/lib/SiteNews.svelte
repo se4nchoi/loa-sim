@@ -75,7 +75,7 @@
 {/snippet}
 
 <section aria-label="Updates and known issues" class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
-	<div class="flex flex-row items-center gap-2 bg-black/10 px-3 py-2">
+	<div class="flex min-h-11 flex-row items-center gap-2 bg-black/10 px-3 py-1.5">
 		{#if heading}
 			<span class="font-bold">Updates</span>
 			{#if freshCount}<span class="shrink-0 rounded-full bg-accent-700 px-1.5 text-[10px] font-bold whitespace-nowrap text-white">{freshCount} new</span>{/if}

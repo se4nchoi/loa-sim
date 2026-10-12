@@ -248,7 +248,7 @@
 	<SiteNewsStrip />
 	<!-- Roster: synced from lostark.bible. -->
 	<section class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
-		<div class="flex flex-row items-center gap-2 bg-black/10 px-3 py-2">
+		<div class="flex min-h-11 flex-row items-center gap-2 bg-black/10 px-3 py-2">
 			<img src="/bible/artist_cry.png" alt="" class="size-6" />
 			<span class="font-bold">Roster</span>
 			<span class="text-xs text-surface-500">from lostark.bible</span>
