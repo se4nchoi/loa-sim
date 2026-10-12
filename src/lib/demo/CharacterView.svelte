@@ -21,7 +21,8 @@
 		older = [],
 		snapshotId,
 		onsnapshot,
-		onerase
+		onerase,
+		onreload
 	}: {
 		name: string;
 		region: string;
@@ -43,7 +44,31 @@
 		onsnapshot?: (id: string) => void;
 		/** Erases a kept snapshot (its × in the menu). */
 		onerase?: (id: string) => void;
+		/** Reloads the character from lostark.bible; resolves whether that brought a snapshot this browser didn't have. */
+		onreload?: () => Promise<boolean>;
 	} = $props();
+
+	let edited = $state(false);
+	let reloading = $state(false);
+	let reloadNote = $state<{ text: string; tone: 'ok' | 'info' | 'error' } | null>(null);
+	let noteTimer: ReturnType<typeof setTimeout> | undefined;
+	async function reload() {
+		if (!onreload || reloading) return;
+		if (edited && !confirm('Reload from lostark.bible and discard your simulated changes?')) return;
+		reloading = true;
+		reloadNote = null;
+		clearTimeout(noteTimer);
+		try {
+			reloadNote = (await onreload())
+				? { text: 'New snapshot loaded', tone: 'ok' }
+				: { text: "No new snapshot loaded. If you expected one, check that your lostark.bible snapshot shows what you want.", tone: 'info' };
+		} catch (e) {
+			reloadNote = { text: e instanceof Error ? e.message : String(e), tone: 'error' };
+		} finally {
+			reloading = false;
+			noteTimer = setTimeout(() => (reloadNote = null), 12000);
+		}
+	}
 
 	const LOADOUT_LABELS: Record<LoadoutKind, { label: string; title: string }> = {
 		estimated: { label: 'Bible best gear seen', title: "lostark.bible's estimate: the best raid gear it has seen across snapshots (e.g. gems a snapshot caught unequipped)" },
@@ -152,7 +177,7 @@
 	{#each lines as line (line)}<span class="text-sm text-surface-300">{line}</span>{/each}
 	<!-- Always shown, so players find saved snapshots before they have any. -->
 	{#if menu.length && onsnapshot && onloadout}
-		<div class="mt-1 w-fit max-w-full">
+		<div class="mt-1 flex max-w-full flex-row items-center gap-1.5">
 			<MenuPicker value={pending ?? menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate">
 				{#snippet trigger()}
 					<!-- Same words for every choice ("Snapshot on 10-11 6620.18"), so picking one never resizes the button; the
@@ -164,7 +189,22 @@
 					</span>
 				{/snippet}
 			</MenuPicker>
+			{#if onreload}
+				<button
+					type="button"
+					class="flex size-8 shrink-0 items-center justify-center rounded-xs border border-surface-600 bg-surface-800/80 text-surface-200 transition hover:border-accent-500 hover:bg-surface-700/80 hover:text-surface-50 disabled:opacity-50"
+					onclick={reload}
+					disabled={reloading}
+					title="Reload from lostark.bible"
+					aria-label="Reload from lostark.bible"
+				>
+					<span class={reloading ? 'animate-spin' : ''}>↻</span>
+				</button>
+			{/if}
 		</div>
+		{#if reloadNote}
+			<p role="status" class="text-xs {reloadNote.tone === 'ok' ? 'text-green-400' : reloadNote.tone === 'error' ? 'text-red-400' : 'text-amber-300/90'}">{reloadNote.text}</p>
+		{/if}
 	{/if}
 	<a class="w-fit text-xs text-surface-300 underline hover:text-surface-50" href={`https://lostark.bible/character/${region}/${encodeURIComponent(name)}`} target="_blank" rel="noopener">
 		View on lostark.bible
@@ -190,6 +230,6 @@
 				</div>
 			</div>
 		{/if}
-		<Simulator {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />
+		<Simulator bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />
 	</div>
 {/if}

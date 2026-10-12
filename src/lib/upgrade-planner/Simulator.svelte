@@ -43,7 +43,8 @@
 		sidebar,
 		characterName,
 		characterKey,
-		cpDistribution = null
+		cpDistribution = null,
+		edited = $bindable(false)
 	}: {
 		loadout: Loadout;
 		sidebar?: Snippet;
@@ -51,6 +52,8 @@
 		/** "na/soulshan": keys what is kept per character (bound honing mats). */
 		characterKey?: string;
 		cpDistribution?: CpDistribution | null;
+		/** Whether the simulation differs from the loadout (read by the page, e.g. before a reload). */
+		edited?: boolean;
 	} = $props();
 
 	const base = $derived(initSimState(loadout));
@@ -234,8 +237,10 @@
 	let last = untrack(() => JSON.stringify($state.snapshot(sim)));
 	let lastAt = 0;
 	let restoring = false;
+	const startJson = $derived(JSON.stringify(initSimState(loadout)));
 	$effect(() => {
 		const now = JSON.stringify($state.snapshot(sim));
+		edited = now !== startJson;
 		untrack(() => {
 			if (now === last) return;
 			if (restoring) restoring = false;

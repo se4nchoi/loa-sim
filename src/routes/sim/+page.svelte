@@ -6,6 +6,7 @@
 	import type { LoadoutKind } from '$lib/bible-data';
 	import { characterKey, eraseSnapshot, loadSavedCharacter, rememberViewed, setLoadoutKind, setSnapshot } from '$lib/saved-character';
 	import { gearKey, gearOf, listSnapshots, recordSnapshots } from '$lib/snapshot-history';
+	import { loadCharacter } from '$lib/load-character';
 	import { onMount } from 'svelte';
 
 	// ?c=na/soulshan picks a saved character; without it (the Simulator tab), the one last viewed here.
@@ -53,6 +54,20 @@
 		if (!saved) goto('/', { replaceState: true });
 	});
 
+	/** ↻ by the snapshot picker: loads bible's latest (one request, this click); true when it's gear not kept here yet. */
+	async function onreload() {
+		if (!saved) return false;
+		const key = characterKey(saved);
+		const known = new Set([
+			...listSnapshots(key).map(gearOf),
+			...(['current', 'estimated'] as const).flatMap((k) => (saved.loadouts?.[k] ? [gearKey(saved.loadouts[k]!)] : []))
+		]);
+		const data = await loadCharacter(saved.region, saved.name);
+		switched = loadSavedCharacter(key);
+		erased++; // refresh the snapshot list
+		return (['current', 'estimated'] as const).some((k) => data.loadouts?.[k] && !known.has(gearKey(data.loadouts[k]!)));
+	}
+
 	const subtitle = $derived(
 		saved ? [saved.header?.guild?.name ?? '', `Snapshot loaded ${new Date(saved.savedAt).toLocaleString()}`] : []
 	);
@@ -71,6 +86,7 @@
 			snapshotId={saved.snapshotId}
 			{onsnapshot}
 			{onerase}
+			{onreload}
 		/>
 	{/key}
 {/if}
