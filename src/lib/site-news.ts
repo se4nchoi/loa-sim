@@ -17,21 +17,21 @@ export const UPDATES: SiteUpdate[] = [
 	{
 		date: '2026-10-12',
 		kind: 'improved',
-		title: 'Snapshot menu',
-		points: [
-			'Switching snapshots is about 5× faster, and the menu closes right away',
-			'The button always reads "Snapshot on MM-DD" with its CP, so it no longer jumps',
-			'lostark.bible’s two loadouts are now "Latest bible snapshot" and "Bible best gear seen", with a lock since they can’t be erased'
-		]
+		title: 'Faster switching',
+		points: ['Switching snapshots is about 5× faster', 'Stone kit suggestions are only worked out while that panel is open']
 	},
 	{
 		date: '2026-10-12',
 		kind: 'fix',
-		title: 'iPhone menus',
+		title: 'UI fixes',
 		points: [
 			'Menus no longer stretch tall with big empty rows on iPhone',
-			'The snapshot menu fits on the screen',
-			'Show / Hide on the CP bar no longer shifts the bar'
+			'The snapshot menu fits on the screen and closes right away when you pick',
+			'The snapshot button always reads "Snapshot on MM-DD" with its CP, so it no longer jumps',
+			'lostark.bible’s two loadouts are now "Latest bible snapshot" and "Bible best gear seen", with a lock since they can’t be erased',
+			'Show / Hide on the CP bar no longer shifts the bar',
+			'Astrogem Willpower and points pickers fit on one line on phones',
+			'Willpower efficiency picker uses compact cells with the CP change'
 		]
 	},
 	{
@@ -44,12 +44,6 @@ export const UPDATES: SiteUpdate[] = [
 			'Max on an astrogem: that type maxed, without changing the core',
 			'Next Upgrades leaves out the Ark Grid while a core is over its Willpower'
 		]
-	},
-	{
-		date: '2026-10-12',
-		kind: 'fix',
-		title: 'Minor UI fixes',
-		points: ['Astrogem Willpower and points pickers fit on one line on phones', 'Willpower efficiency picker uses compact cells with the CP change']
 	},
 	{
 		date: '2026-10-12',
