@@ -53,6 +53,25 @@ by gold per DPS gained, as Next Upgrades does with CP).
 Exact replay needs per-hit data (damage with crit / back / front flags). If the logs keep only per-skill totals, the
 same math runs on totals, a little less precisely.
 
+### Speed → damage (from `Ability.json` / `ArkPassive.json`)
+
+- **Raid Captain** (ability 1254, `troop_leader`): Outgoing Damage + `values[0]`/100 % of the Move Speed bonus,
+  24% at the first level up to ~61% (rows follow the engraving grade × books × stone layout, like the CP table).
+- **Supersonic Breakthrough** (ark passive 1040200 → ability 1000420, `sonic_boom`): Evolution damage + `v[0]` % of
+  the Atk. + Move Speed bonus; if both are over the cap, + `v[1]` and `v[2]` % of the bonus above the cap; total
+  capped at `v[3]`. Level 1 [500, 400, 1500, 1200] = 5% / +4% / 15% / 12% cap; level 2 doubles.
+- Only needed when an upgrade changes speed (Swiftness, feast toggle): at the player's current speed these are
+  already in the logged damage.
+
+### Do bonuses add or multiply? (regression tried, inconclusive)
+
+Fit log(hit damage) on buff indicators with fixed effects per (skill, hit index, crit / back / front) and per run,
+Soulshan, 30 clears, 20,473 hits: coefficients are nowhere near the documented values (Total Offensive, +3% damage
+taken, fits +300%; Corrosion fits −48%), residual sd 0.70. Buffs aren't independent of the fight: they cluster in
+burst windows and boss phases (damage-reduction phases, shields, Deathlord Mode changing a skill's hits) and several
+always come together, so observational fits can't separate them. Which bonuses share an additive bucket has to come
+from game mechanics (the client's damage formula / KR community references), not from these logs.
+
 ## Assumptions
 
 - **Feast: on by default** (Atk. / Move Speed +5%), toggle to a great-success feast (+6%). Speed turns into damage
