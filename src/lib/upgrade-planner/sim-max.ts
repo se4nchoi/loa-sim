@@ -31,19 +31,29 @@ function maxGemChoices(attr: 'order' | 'chaos', scoring: number[]): SimAstrogem[
 		}));
 }
 
-/** Max one gem or a whole core: either way the core goes Ancient (17 Willpower), with max-cut gems that fit it. */
+/**
+ * Max a whole core, or one astrogem in it.
+ * - Core: Ancient (17 Willpower); a dealer's chaos core takes its first-tier option (Weapon → Attack, Flashy,
+ *   Smoldering; supports pick the best option by CP); four max-cut astrogems, the best combination that fits.
+ * - Astrogem: the same type maxed (Ancient grade, 5 points, efficiency 5, its scoring options at Lv. 5); the core is
+ *   left alone, and maxing can only lower its Willpower. An empty slot has no type: the best gem that fits.
+ */
 export function maxArkGridCore(l: Loadout, s: SimState, core: CoreState, score: ScoreEdit, gi?: number) {
 	const ci = s.arkGrid.findIndex((c) => c.id === core.id);
 	if (ci < 0) return;
 	const current = s.arkGrid[ci];
 	const role = roleOf(l);
-	const choices = maxGemChoices(core.info.attr, role.astrogemOptions);
-	const cap = CORE_WILLPOWER.ancient;
-	const variants = gi !== undefined || core.info.attr === 'order' ? [current.variant ?? coreVariant(core.id)]
-		: role.support ? [0, 1, 2, 3, 4, 5] : core.info.shape === 'star' ? [0, 1] : [0, 1, 2];
+	const whole = gi === undefined;
+	const sameType = !whole && !current.gems[gi].removed ? ASTROGEM_ITEMS[current.gems[gi].itemId] : undefined;
+	const choices = maxGemChoices(core.info.attr, role.astrogemOptions).filter((g) => !sameType || ASTROGEM_ITEMS[g.itemId] === sameType);
+	const cap = whole ? CORE_WILLPOWER.ancient : CORE_WILLPOWER[current.grade ?? core.info.grade];
+	const equipped = coreVariant(core.id);
+	const variants = !whole || core.info.attr === 'order' ? [current.variant ?? equipped] : role.support ? [0, 1, 2, 3, 4, 5] : [0];
+	// An equipped grade / option stays unset (= as equipped), so it doesn't show as edited.
+	const grade = whole ? (core.info.grade === 'ancient' ? undefined : ('ancient' as const)) : current.grade;
 	// Copy fields explicitly: the UI passes Svelte proxies, which structuredClone cannot read.
 	const gems = current.gems.map((g) => ({ ...g, opts: g.opts.map((o) => ({ ...o })) }));
-	const targets = gi === undefined ? [0, 1, 2, 3] : [gi];
+	const targets = whole ? [0, 1, 2, 3] : [gi];
 	let best = -Infinity;
 	let winner: SimState['arkGrid'][number] | undefined;
 	const visit = (i: number) => {
@@ -51,10 +61,10 @@ export function maxArkGridCore(l: Loadout, s: SimState, core: CoreState, score: 
 			for (const g of choices) { gems[targets[i]] = g; visit(i + 1); }
 			return;
 		}
-		if (gems.reduce((sum, g) => sum + astrogemWillpower(g), 0) > cap) return;
-		for (const variant of variants) {
-			// An equipped Ancient core keeps grade unset (= as equipped), so it doesn't show as edited.
-			const candidate = { ...current, grade: core.info.grade === 'ancient' ? undefined : ('ancient' as const), variant, gems };
+		// The same type maxed never costs more, so only new picks (a whole core, an empty slot) are held to the cap.
+		if (!sameType && gems.reduce((sum, g) => sum + astrogemWillpower(g), 0) > cap) return;
+		for (const v of variants) {
+			const candidate = { ...current, grade, variant: v === equipped ? undefined : v, gems };
 			const cp = score((state) => { state.arkGrid[ci] = candidate; });
 			if (cp > best) {
 				best = cp;
@@ -67,7 +77,6 @@ export function maxArkGridCore(l: Loadout, s: SimState, core: CoreState, score: 
 	if (winner) s.arkGrid[ci] = winner;
 }
 
-/** Highest legal T4 rolls, from itemRandom 213400023#6 (Ancient bracelet). */
 export const BRACELET_MAX_STATS = [
 	{ kind: 'stat', index: 11, value: 16000 },
 	{ kind: 'stat', index: 6, value: 6000 },

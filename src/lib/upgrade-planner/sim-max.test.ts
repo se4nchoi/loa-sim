@@ -7,7 +7,7 @@ import { SUPPORT_BRACELET_EFFECTS } from './support-data';
 import { astrogemWillpower } from './arkgrid-optimize';
 import { honingUpgrades } from './honing-upgrades';
 import { BRACELET_MAX_STATS, maxArkGridCore, maxBracelet, maxEquipment, maxScore } from './sim-max';
-import { initSimState, simulate, type SimState } from './simulate';
+import { coreVariant, initSimState, simulate, type SimState } from './simulate';
 import { coreStates } from './upgrades';
 import type { Loadout } from './types';
 
@@ -76,7 +76,7 @@ describe('Max Ark Grid', () => {
 		}
 	});
 
-	it('maxes one removed gem without changing other gems, planning the core as Ancient', () => {
+	it('maxes one removed gem without changing the core or other gems', () => {
 		const s = initSimState(loadout);
 		const core = coreStates(loadout)[0];
 		const ci = s.arkGrid.findIndex((c) => c.id === core.id);
@@ -87,9 +87,32 @@ describe('Max Ark Grid', () => {
 		expect(s.arkGrid[ci].gems[0].removed).toBeFalsy();
 		expect(s.arkGrid[ci].gems[0].corePoints).toBe(5);
 		expect(s.arkGrid[ci].gems.slice(1)).toEqual(before.gems.slice(1));
-		// The core plans as Ancient: unset (as equipped) when it already is, else switched.
-		expect(s.arkGrid[ci].grade).toEqual(core.info.grade === 'ancient' ? undefined : 'ancient');
-		expect(before.grade).toBeUndefined();
+		expect(s.arkGrid[ci].grade).toEqual(before.grade);
+	});
+
+	it('maxes an equipped astrogem as its own type, leaving the core alone', () => {
+		const s = initSimState(loadout);
+		const core = coreStates(loadout).find((c) => c.info.grade !== 'ancient') ?? coreStates(loadout)[0];
+		const ci = s.arkGrid.findIndex((c) => c.id === core.id);
+		const before = structuredClone(s.arkGrid[ci]);
+		maxArkGridCore(loadout, s, core, scoring(loadout, s), 1);
+		const g = s.arkGrid[ci].gems[1];
+		expect(ASTROGEM_ITEMS[g.itemId]).toBe(ASTROGEM_ITEMS[before.gems[1].itemId]);
+		expect(ITEMS[g.itemId][2]).toBe(6);
+		expect(g).toMatchObject({ corePoints: 5, costReduc: 5 });
+		expect(g.opts.every((o) => o.level === 5)).toBe(true);
+		expect(s.arkGrid[ci].grade).toEqual(before.grade);
+		expect(s.arkGrid[ci].variant).toEqual(before.variant);
+		expect(s.arkGrid[ci].gems.filter((_, i) => i !== 1)).toEqual(before.gems.filter((_, i) => i !== 1));
+	});
+
+	it("puts a dealer's chaos core on its first-tier option", () => {
+		const s = initSimState(loadout);
+		for (const core of coreStates(loadout).filter((c) => c.info.attr === 'chaos')) {
+			maxArkGridCore(loadout, s, core, scoring(loadout, s));
+			const c = s.arkGrid.find((x) => x.id === core.id)!;
+			expect(c.variant ?? coreVariant(core.id)).toBe(0);
+		}
 	});
 
 	it('supports reactive gem proxies without cloning them', () => {

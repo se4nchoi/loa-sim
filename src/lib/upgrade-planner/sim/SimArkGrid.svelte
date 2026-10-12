@@ -206,7 +206,7 @@
 	info={`Click a core or astrogem name to change its type, or its WP value to edit Willpower efficiency (0–5). Choose None to unequip an astrogem and free Willpower. Other types keep grade, points, Willpower reduction and option levels; incompatible options are replaced. Choices over the core's Willpower can still be picked: astrogems that don't fit (in slot order) turn red and don't count until the core has room, e.g. as Ancient. Greyed stat options don't count for ${support ? 'support' : 'DPS'} Combat Power.`}
 >
 	{#snippet actions()}
-		<button type="button" class={btnAccent} onclick={() => rows.forEach(({ core }) => maxCore(core))} title="Max every core and its astrogems within Willpower capacity">Max</button>
+		<button type="button" class={btnAccent} onclick={() => rows.forEach(({ core }) => maxCore(core))} title="Every core Ancient with its best max-cut astrogems">Max</button>
 		<button type="button" class={btn} onclick={() => (sim.arkGrid = structuredClone($state.snapshot(base.arkGrid)))}>Reset</button>
 	{/snippet}
 	{#if rows.length === 0}
@@ -289,7 +289,7 @@
 											</span>
 										</span>
 									</div>
-									<button type="button" class={btnAccent} aria-label={`Max ${coreLabel(info)}`} onclick={() => maxCore(core)} title="Ancient core and four max-cut astrogems; best simulated CP within Willpower">Max</button>
+									<button type="button" class={btnAccent} aria-label={`Max ${coreLabel(info)}`} onclick={() => maxCore(core)} title="Ancient core (chaos: first-tier option) and the best four max-cut astrogems within its 17 Willpower">Max</button>
 									<button type="button" class={btn} aria-label={`Reset ${coreLabel(info)}`} onclick={() => (sim.arkGrid[ci] = structuredClone($state.snapshot(base.arkGrid[ci])))}>Reset</button>
 								</div>
 								{#each sim.arkGrid[ci].gems as gem, gi (gi)}
@@ -377,7 +377,7 @@
 										<div class="col-span-3 flex flex-wrap items-center justify-end gap-1">
 											{#if inactive}<span class="mr-auto rounded-xs bg-red-500/15 px-2 py-0.5 text-[11px] font-bold tracking-wide text-red-300 uppercase">Inactive · over Willpower</span>
 											{:else if isWeakest}<span class="mr-auto rounded-xs bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold tracking-wide text-amber-300 uppercase">Weakest</span>{/if}
-											<button type="button" class={btnAccent} aria-label={`Max astrogem ${gi + 1}`} onclick={() => maxCore(core, gi)} title="Best max-cut Ancient astrogem for this slot; the core goes Ancient (17 Willpower) so it fits">Max</button>
+											<button type="button" class={btnAccent} aria-label={`Max astrogem ${gi + 1}`} onclick={() => maxCore(core, gi)} title="This astrogem's type maxed: Ancient, 5 points, efficiency 5, best options at Lv. 5 (an empty slot gets the best gem that fits)">Max</button>
 											{#if before && JSON.stringify(gem) !== JSON.stringify(before)}
 												<button
 													type="button"
