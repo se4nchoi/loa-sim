@@ -18,20 +18,21 @@ export const UPDATES: SiteUpdate[] = [
 		date: '2026-10-12',
 		kind: 'improved',
 		title: 'Faster switching',
-		points: ['Switching snapshots is about 5× faster, with a spinner while it loads', 'Stone kit suggestions are only worked out while that panel is open']
+		points: [
+			'Switching snapshots is about 5× faster, with a spinner while the new one loads',
+			'Suggested stone kit engravings open right away and fill in a moment later'
+		]
 	},
 	{
 		date: '2026-10-12',
 		kind: 'fix',
 		title: 'UI fixes',
 		points: [
-			'Menus no longer stretch tall with big empty rows on iPhone',
-			'The snapshot menu fits on the screen and closes right away when you pick',
-			'The snapshot button always reads "Snapshot on MM-DD" with its CP, so it no longer jumps',
-			'lostark.bible’s two loadouts are now "Latest bible snapshot" and "Bible best gear seen", with a lock since they can’t be erased',
-			'Show / Hide on the CP bar no longer shifts the bar',
-			'Astrogem Willpower and points pickers fit on one line on phones',
-			'Willpower efficiency picker uses compact cells with the CP change'
+			'Menus on iPhone no longer stretch tall with big empty rows',
+			'The snapshot menu fits on a phone screen and closes as soon as you pick',
+			'The snapshot button reads "Snapshot on MM-DD" with its CP; the menu has the full names',
+			'lostark.bible’s two loadouts are now "Latest bible snapshot" and "Bible best gear seen", with a lock: they follow bible and can’t be erased',
+			'Astrogem Willpower and points pickers fit on one line on phones, and show each choice’s CP change'
 		]
 	},
 	{
@@ -40,9 +41,9 @@ export const UPDATES: SiteUpdate[] = [
 		title: 'Ark Grid sim',
 		points: [
 			'Max on the Ark Grid: every core Ancient with the best astrogems',
-			'Max on a core: Ancient, first-tier option, best astrogems that fit',
+			'Max on a core: Ancient, first-tier option, best astrogems that fit its Willpower',
 			'Max on an astrogem: that type maxed, without changing the core',
-			'Next Upgrades leaves out the Ark Grid while a core is over its Willpower'
+			'While a core is over its Willpower, Next Upgrades skips Ark Grid suggestions until you free some up'
 		]
 	},
 	{
@@ -50,22 +51,22 @@ export const UPDATES: SiteUpdate[] = [
 		kind: 'new',
 		title: 'Saved snapshots',
 		points: [
-			'Every snapshot you load is now saved in your browser, up to 8 per character; past 8, the oldest is pruned',
-			'Same gear with the same CP counts as a duplicate and isn’t saved',
-			'Pick between or delete saved snapshots in the Simulator tab, under your character’s name'
+			'lostark.bible only keeps your latest snapshots, so gear you swapped out used to be gone; now every snapshot you load is kept in your browser',
+			'Up to 8 per character (the oldest go first); the same gear at the same CP isn’t saved twice',
+			'Pick or delete them from the snapshot menu under your character’s name'
 		]
 	},
 	{
 		date: '2026-10-12',
 		kind: 'improved',
 		title: 'Astrogem WP',
-		points: ['Astrogems over the core’s Willpower can be picked; they show red and don’t count']
+		points: ['You can pick astrogems over the core’s Willpower to plan ahead; they show red and don’t count until the core can power them']
 	},
 	{
 		date: '2026-10-12',
 		kind: 'improved',
 		title: 'Character load UX',
-		points: ['Loading a character no longer sends you to the simulator page']
+		points: ['Loading a character keeps you on the Characters tab, so you can load several in a row']
 	},
 	{
 		date: '2026-10-12',
@@ -73,7 +74,6 @@ export const UPDATES: SiteUpdate[] = [
 		title: 'Mobile UI',
 		points: [
 			'Menus no longer grow as you scroll or run off the screen',
-			'Smaller core point and gem tier pickers',
 			'Max / Reset no longer jump down when the CP change appears',
 			'The header and CP bar stay in place when Next Upgrades opens'
 		]
@@ -82,23 +82,26 @@ export const UPDATES: SiteUpdate[] = [
 		date: '2026-10-11',
 		kind: 'new',
 		title: 'CP Breakdown',
-		points: ['Press ? on the CP Simulator card to see what makes up your CP, and how much each part adds']
+		points: [
+			'Press ? on the CP Simulator card to see how your CP is made up: base attack, then each section’s bonus and its share of your CP',
+			'Sections are grouped into Character, Gear and Systems, and base attack shows what +1% main stat, Weapon Power or Atk. adds'
+		]
 	},
 	{
 		date: '2026-10-11',
 		kind: 'new',
 		title: 'Paradise orbs',
-		points: ['Swap orbs and try different Paradise power to see the CP change']
+		points: ['Swap orbs and try different Paradise power to see the CP change; each orb scales with its own season’s power']
 	},
-	{ date: '2026-10-11', kind: 'improved', title: 'Faster simulator', points: ['Less lag when changing lots of things at once'] },
-	{ date: '2026-10-11', kind: 'fix', title: 'iPhone zoom', points: ['Tapping a field no longer zooms in'] },
-	{ date: '2026-10-10', kind: 'new', title: 'Skin upgrades', points: ['Skins show up in Next Upgrades, with gold prices'] },
-	{ date: '2026-10-10', kind: 'new', title: 'Equipment quality', points: ['Try different quality on your gear and see the cost'] },
-	{ date: '2026-10-10', kind: 'new', title: 'Gem tier swaps', points: ['Switch gems between T3 and T4'] },
-	{ date: '2026-10-10', kind: 'fix', title: 'Gem skill icons', points: ['Guardian Knight and Asura icons were wrong'] },
-	{ date: '2026-10-09', kind: 'new', title: 'Change budget', points: ['See how much gold all your simulated changes would cost'] },
-	{ date: '2026-10-09', kind: 'new', title: 'Accessory roll picker', points: ['Pick which rolls to look at in All Upgrades (H-H, H-M, …)'] },
-	{ date: '2026-10-09', kind: 'improved', title: 'Phone layout', points: ['CP stays pinned up top, Next Upgrades opens from the bottom'] }
+	{ date: '2026-10-11', kind: 'improved', title: 'Faster simulator', points: ['CP recalculates once you stop changing things, so sliders and steppers stay responsive'] },
+	{ date: '2026-10-11', kind: 'fix', title: 'iPhone zoom', points: ['Tapping a field no longer zooms the page in'] },
+	{ date: '2026-10-10', kind: 'new', title: 'Skin upgrades', points: ['Skins add main stat (Legendary: +2% per piece), so they show up in Next Upgrades with gold prices'] },
+	{ date: '2026-10-10', kind: 'new', title: 'Equipment quality', points: ['Try higher quality on your gear and see the CP and the cost'] },
+	{ date: '2026-10-10', kind: 'new', title: 'Gem tier swaps', points: ['Switch gems between T3 and T4 to see what moving a gem to T4 is worth'] },
+	{ date: '2026-10-10', kind: 'fix', title: 'Gem skill icons', points: ['Guardian Knight and Asura gem skills showed the wrong icons'] },
+	{ date: '2026-10-09', kind: 'new', title: 'Change budget', points: ['The Budget button adds up the gold cost of everything you’ve changed, using your material prices and bound mats'] },
+	{ date: '2026-10-09', kind: 'new', title: 'Accessory rolls', points: ['Choose which roll combos All Upgrades compares (H-H, H-M, …), so it matches what you’d actually buy'] },
+	{ date: '2026-10-09', kind: 'improved', title: 'Phone layout', points: ['CP stays pinned at the top, and Next Upgrades opens from the bottom'] }
 ];
 
 export type IssueStatus = 'in progress' | 'planned' | 'known issue' | 'investigating';
