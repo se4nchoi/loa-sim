@@ -46,8 +46,8 @@
 	} = $props();
 
 	const LOADOUT_LABELS: Record<LoadoutKind, { label: string; title: string }> = {
-		estimated: { label: 'Estimated raid loadout', title: "lostark.bible's estimate: the best raid gear it has seen (e.g. gems a snapshot caught unequipped)" },
-		current: { label: 'Latest raid snapshot', title: 'Exactly what lostark.bible saw last time in a raid' }
+		estimated: { label: 'Best gear seen', title: "lostark.bible's estimate: the best raid gear it has seen across snapshots (e.g. gems a snapshot caught unequipped)" },
+		current: { label: 'Latest raid snapshot', title: 'Exactly what lostark.bible saw the last time you entered a raid' }
 	};
 	const loadoutOptions = $derived(
 		(['estimated', 'current'] as const)
@@ -67,7 +67,11 @@
 
 	// With earlier snapshots kept, one menu lists bible's two loadouts and those, so the player can go back to the one
 	// that has their gear (bible only keeps the latest). Each row: what it is, its date, and its CP in a column.
-	const shortDay = (t: number) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+	/** MM-DD, like the Updates card. */
+	const shortDay = (t: number) => {
+		const d = new Date(t);
+		return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+	};
 	const menu = $derived.by(() => {
 		const rows = [
 			...(['estimated', 'current'] as const)
@@ -80,7 +84,7 @@
 			...older.map((s) => ({
 				value: `snap:${s.id}`,
 				id: s.id as string | undefined,
-				name: s.kind === 'estimated' ? 'Estimate' : 'Raid snapshot',
+				name: s.kind === 'estimated' ? 'Earlier best gear seen' : 'Earlier raid snapshot',
 				at: s.takenAt as number | undefined,
 				score: s.loadout.combatPower?.score,
 				support: s.loadout.combatPower?.id === 2,
@@ -110,11 +114,22 @@
 			: [...menu, { value: 'hint', label: 'Older snapshots show up here as you reload this character', disabled: true, muted: true, marker: '' }]
 	);
 	const menuValue = $derived(snapshotId ? `snap:${snapshotId}` : (loadoutKind ?? ''));
-	const picked = $derived(menu.find((o) => o.value === menuValue));
+	/**
+	 * Switching rebuilds the whole simulator for the new loadout, which takes a moment on phones. The menu closes and
+	 * the button shows the choice first; the switch starts once that has been drawn.
+	 */
+	let pending = $state<string | null>(null);
 	function pickMenu(v: string) {
-		if (v.startsWith('snap:')) onsnapshot?.(v.slice(5));
-		else onloadout?.(v as LoadoutKind);
+		pending = v;
+		requestAnimationFrame(() =>
+			setTimeout(() => {
+				pending = null;
+				if (v.startsWith('snap:')) onsnapshot?.(v.slice(5));
+				else onloadout?.(v as LoadoutKind);
+			})
+		);
 	}
+	const shownPick = $derived(menu.find((o) => o.value === (pending ?? menuValue)));
 
 	const ilvl = $derived(itemLevel ?? loadout?.itemLevel ?? null);
 	const lines = $derived((Array.isArray(subtitle) ? subtitle : [subtitle]).filter((l): l is string => !!l));
@@ -136,12 +151,14 @@
 	<!-- Always shown, so players find saved snapshots before they have any. -->
 	{#if menu.length && onsnapshot && onloadout}
 		<div class="mt-1 w-fit max-w-full">
-			<MenuPicker value={menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate">
+			<MenuPicker value={pending ?? menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate">
 				{#snippet trigger()}
-					<span class="flex min-w-0 flex-row items-baseline gap-1.5 text-xs">
-						<span class="truncate">{picked?.label ?? 'Loadout'}</span>
-						{#if picked?.note}<span class="shrink-0 text-surface-400">{picked.note}</span>{/if}
-						{#if picked}<span class="shrink-0 font-semibold tabular-nums" style:color={picked.detail.color}>{picked.detail.label}</span>{/if}
+					<!-- Same words for every choice ("Snapshot on 10-11 6620.18"), so picking one never resizes the button; the
+					     menu has the full names. -->
+					<span class="flex min-w-0 flex-row items-baseline gap-1.5 text-xs" title={shownPick?.label}>
+						<span class="shrink-0">Snapshot{shownPick?.note ? ' on' : ''}</span>
+						{#if shownPick?.note}<span class="shrink-0 text-surface-300 tabular-nums">{shownPick.note}</span>{/if}
+						{#if shownPick}<span class="shrink-0 font-semibold tabular-nums" style:color={shownPick.detail.color}>{shownPick.detail.label}</span>{/if}
 					</span>
 				{/snippet}
 			</MenuPicker>

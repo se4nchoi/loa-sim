@@ -152,7 +152,10 @@
 	const snapshot = () => $state.snapshot(sim) as SimState;
 	$effect(() => {
 		const next = snapshot();
-		const timer = setTimeout(() => (calculated = next), 250);
+		// Only a real change: a new loadout already set both, and recalculating the same state again cost a second stall.
+		const timer = setTimeout(() => {
+			if (JSON.stringify(next) !== JSON.stringify(calculated)) calculated = next;
+		}, 250);
 		return () => clearTimeout(timer);
 	});
 	const baseline = $derived(simulate(loadout, base, base));

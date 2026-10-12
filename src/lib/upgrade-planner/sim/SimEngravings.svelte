@@ -61,7 +61,10 @@
 	const withStones = (s: SimState, stones: Record<number, number>) => {
 		for (const id of Object.keys(s.engravings).map(Number)) s.engravings[id].stone = stones[id] ?? 0;
 	};
-	const stonePicks = $derived(bestStones(ids, (stones) => preview((s) => withStones(s, stones))));
+	// Only while the suggestions are open: trying every stone pair on every engraving pair is ~300 full simulations,
+	// which made every load and snapshot switch stall for the folded panel.
+	let stonesOpen = $state(false);
+	const stonePicks = $derived(stonesOpen ? bestStones(ids, (stones) => preview((s) => withStones(s, stones))) : []);
 	const stoneEngravings = (stones: Record<number, number>) => Object.entries(stones)
 		.filter(([, level]) => level > 0)
 		.sort(([, a], [, b]) => b - a)
@@ -169,7 +172,7 @@
 			<p class="mt-2 text-xs text-amber-300">An ability stone carries at most two engravings ({stoned} set).</p>
 		{/if}
 		{#if ids.length > 1}
-			<details class="group mt-2 min-w-0 rounded-xs border border-surface-700 bg-black/15 p-3 text-xs text-surface-300 open:h-[29rem]" aria-label="Stone kit suggestions">
+			<details bind:open={stonesOpen} class="group mt-2 min-w-0 rounded-xs border border-surface-700 bg-black/15 p-3 text-xs text-surface-300 open:h-[29rem]" aria-label="Stone kit suggestions">
 				<summary class="flex h-7 cursor-pointer list-none items-center gap-2 font-semibold text-surface-100 hover:text-accent-200 [&::-webkit-details-marker]:hidden">
 					<ItemIcon src={iconUrl('Use_13_225')} grade={6} size="size-7" title="Soaring Stone Engraving Setting Kit" />
 					<span>Suggested Stone Kit Engravings</span>

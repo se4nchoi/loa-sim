@@ -16,6 +16,16 @@ export interface SiteUpdate {
 export const UPDATES: SiteUpdate[] = [
 	{
 		date: '2026-10-12',
+		kind: 'improved',
+		title: 'Snapshot menu',
+		points: [
+			'Switching snapshots is about 5× faster, and the menu closes right away',
+			'The button always reads "Snapshot on MM-DD" with its CP, so it no longer jumps',
+			'"Estimated raid loadout" is now "Best gear seen"'
+		]
+	},
+	{
+		date: '2026-10-12',
 		kind: 'fix',
 		title: 'iPhone menus',
 		points: [
