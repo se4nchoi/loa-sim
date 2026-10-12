@@ -53,7 +53,8 @@ export const UPDATES: SiteUpdate[] = [
 		points: [
 			'lostark.bible only keeps your latest snapshots, so gear you swapped out used to be gone; now every snapshot you load is kept in your browser',
 			'Up to 8 per character (the oldest go first); the same gear at the same CP isn’t saved twice',
-			'Pick or delete them from the snapshot menu under your character’s name'
+			'Pick or delete them from the snapshot menu under your character’s name',
+			'↻ next to that menu reloads your character from lostark.bible without leaving the simulator'
 		]
 	},
 	{
