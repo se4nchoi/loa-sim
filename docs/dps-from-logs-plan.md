@@ -55,9 +55,11 @@ same math runs on totals, a little less precisely.
 
 ## Assumptions
 
-- **Feast: on by default** (Atk. / Move Speed +5%), toggle to a great-success feast (+6%). Speed doesn't scale a
-  hit, so the replay leaves it alone; it only matters for the cast-count estimate (cooldown / speed changes). The
-  logs show a feast on ~99% of hits anyway.
+- **Feast: on by default** (Atk. / Move Speed +5%), toggle to a great-success feast (+6%). Speed turns into damage
+  for **Raid Captain** (damage from Move Speed bonus) and **Supersonic Breakthrough** (damage from Atk. / Move Speed)
+  while Swiftness, class buffs and feast don't already reach their caps, so the replay needs the player's in-fight
+  Atk. / Move Speed: profile + class buffs + feast, capped per effect. Everything else about speed (more casts per
+  fight) stays with the cast-count estimate. The logs show a feast on ~99% of hits.
 - **Azena's blessing: off by default** (it's a paid subscription); a toggle adds +6,000 main stat. **Main stat food:
   off by default**, one choice (only one dish works at a time) of the top two Masterwork steak meals:
   Specialist's Beef Tenderloin (+8,000 Str / Dex / Int, ilvl 1580) or Virtuoso's Striploin (+12,000, ilvl 1640);
