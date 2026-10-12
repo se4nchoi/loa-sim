@@ -134,10 +134,26 @@ Ids above 1,000,000,000 are the meter's own: `1e9 + source skill id + buff id` (
 `s` in `buff.sourceSkills` (all 8 sampled resolve: Party: Damage Amplification ×3, Moonfall, Fighting Spirit, …).
 
 With those rules, damage-relevant effects cover the hits' buff weight; the rest is speed, food, shields, cooldown,
-and damage-over-time on the boss. Left to do: `combat_effect` options (~3%: bracelet Pray "+1.3% damage", Ark Grid
-Destiny cores) via `CombatEffect.json`; skill-specific Ark Grid buffs whose value lives in `ArkGrid.json`
-(Destiny: Footsteps of the Dead); and `instant_stat_amplify_by_contents` (content buffs, different slot layout, e.g.
-Lostwind Cliff holy damage taken +3.5%).
+and damage-over-time on the boss.
+
+- **Conditional effects** (`passiveOptions` `combat_effect` → `CombatEffect.json[keyIndex].effects[]`): each has
+  `conditions` and `actions`. Over 24 clears the action is almost always `modify_damage` (args[0] in 1/100 %: Pray
+  130 = +1.3%, Destiny: Finisher 2500 = +25%); conditions are `current_skill` (match the hit's skill id),
+  `identity_stance` (Decimation lists all stances: always on), none, or `npc_grade_greater` (a boss: always on in
+  raids). `exec_start_skill` (Destiny: Regain) only fires another skill, whose hits are logged on their own;
+  `modify_damage_shield_multiplier` (Spear of Justice) is a fight mechanic.
+- **Values in description templates**: e.g. Destiny: Footsteps of the Dead has no options; its desc reads
+  `<$TABLE_ABILITYFEATURE Value03 3461200 1/>`, which is `Ability.json[3461200].levels[1].values[3]` = 5400 →
+  Stygian skill damage +54% (+64% at level 2), `values[7]` = 2 uses, `values[2]` = the skill group. Fill templates
+  from the table they name.
+- **Content buffs** (`instant_stat_amplify_by_contents`, e.g. Lostwind Cliff holy damage taken +3.5%) are fight
+  mechanics: fixed context like poison / bleed.
+
+What the classification is for: the replay compares each hit with itself, so a buff that's the same before and
+after an upgrade cancels out. It matters for (1) crit rate (cap at 100% per skill, value crit upgrades), (2)
+effects in the **same additive bucket** as the upgrade (a new damage % adds to them rather than multiplying, so it's
+worth less): which effects share a bucket is the open question, and (3) effects the upgrade itself replaces
+(a bracelet effect, an Ark Grid core).
 
 License: `meter-data/` lives in the LOA Logs repo (`snoww/loa-logs`, `src-tauri/meter-data/`), which is **GPL-3.0**
 (the older `lost-ark-dev/meter-data` has no license, last pushed 2024-06). So read `SkillBuff.json` at runtime from
