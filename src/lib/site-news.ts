@@ -16,6 +16,23 @@ export interface SiteUpdate {
 export const UPDATES: SiteUpdate[] = [
 	{
 		date: '2026-10-12',
+		kind: 'improved',
+		title: 'Ark Grid sim',
+		points: [
+			'Max on the Ark Grid: every core Ancient with the best astrogems',
+			'Max on a core: Ancient, first-tier option, best astrogems that fit',
+			'Max on an astrogem: that type maxed, without changing the core',
+			'Next Upgrades leaves out the Ark Grid while a core is over its Willpower'
+		]
+	},
+	{
+		date: '2026-10-12',
+		kind: 'fix',
+		title: 'Minor UI fixes',
+		points: ['Astrogem Willpower and points pickers fit on one line on phones', 'Willpower efficiency picker uses compact cells with the CP change']
+	},
+	{
+		date: '2026-10-12',
 		kind: 'new',
 		title: 'Saved snapshots',
 		points: [
