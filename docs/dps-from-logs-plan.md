@@ -94,6 +94,33 @@ entries: `name`, `desc`, `category` buff / debuff, `buffCategory`, `type`, `icon
 2000263 Combat Blessing III); the missing one looks like an id the meter composes. The same folder has `Skill.json`,
 `SkillEffect.json`, `ArkPassive.json`, `ArkGrid.json`, `CombatEffect.json`, … Next: classify ids into crit rate,
 crit damage, damage %, defense down and "other" from `perLevelData` / `type`, and check against a few known synergies.
+### Reading a buff (prototyped 2026-10-12 on 18 recent clears)
+
+Values are in 1/100 %. A buff's effects come from `perLevelData[lv].passiveOptions` (`type: "stat"` with a `keyStat`)
+and, for amplify-type synergies whose options are empty, from fixed slots of `statusEffectValues` by `type`:
+
+| Source | Meaning | Checked |
+|---|---|---|
+| `stat` `critical_hit_rate` / `critical_dam_rate` | crit rate / crit damage | Master 140, Enhancement 2000 |
+| `stat` `attack_power_rate`, `attack_power_sub_rate_*` | Atk % | Adrenaline 90, Fighting Spirit 600 |
+| `stat` `skill_damage_*`, `evolution_dam_rate`, `ultimate_awakening_dam_rate` | damage % | Moonfall 1200, Dance of Passion 1400 |
+| `stat` `physical/magical_inc(_sub)_rate*` (debuff) | damage taken % | Total Offensive 300 |
+| `stat` `def_x` / `res_x` (debuff) | defense % | Defense Destruction −2000 |
+| `instant_stat_amplify` sev[0] / sev[2] / sev[7] | crit rate / defense / damage taken | Weak Point 180 (1.8%), Corrosion −180, Party: Damage Amplification 600 |
+| `skill_damage_amplify` sev[1] | damage taken | Ink Brand 1000 (10%) |
+| `directional_attack_amplify` sev[0] | back / front damage | Open Weakness 5 |
+| `attack_power_amplify` sev[0] | % of the caster's base Atk (support) | Sunsketch / Sun Well 1600 |
+
+Ids above 1,000,000,000 are the meter's own: `1e9 + source skill id + buff id` (`get_new_id` in loa-logs'
+`live/utils.rs`), so the same buff from different skills stays apart. Decode by matching `buff.id + s` for each
+`s` in `buff.sourceSkills` (all 8 sampled resolve: Party: Damage Amplification ×3, Moonfall, Fighting Spirit, …).
+
+With those rules, damage-relevant effects cover the hits' buff weight; the rest is speed, food, shields, cooldown,
+and damage-over-time on the boss. Left to do: `combat_effect` options (~3%: bracelet Pray "+1.3% damage", Ark Grid
+Destiny cores) via `CombatEffect.json`; skill-specific Ark Grid buffs whose value lives in `ArkGrid.json`
+(Destiny: Footsteps of the Dead); and `instant_stat_amplify_by_contents` (content buffs, different slot layout, e.g.
+Lostwind Cliff holy damage taken +3.5%).
+
 License: `meter-data/` lives in the LOA Logs repo (`snoww/loa-logs`, `src-tauri/meter-data/`), which is **GPL-3.0**
 (the older `lost-ark-dev/meter-data` has no license, last pushed 2024-06). So read `SkillBuff.json` at runtime from
 the player's own LOA Logs folder, next to `encounters.db` (nothing redistributed, and it matches their meter's
