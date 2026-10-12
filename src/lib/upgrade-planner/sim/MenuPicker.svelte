@@ -59,6 +59,10 @@
 	let root: HTMLDivElement;
 	/** Top-layer menus use viewport coordinates even inside transformed dialogs. */
 	function placeMenu(node: HTMLDivElement) {
+		// The class max-height (if any), read before inline styles override it.
+		const cssMax = parseFloat(getComputedStyle(node).maxHeight) || Infinity;
+		// Height is fixed at open: phone browsers grow innerHeight as their toolbar hides on scroll.
+		let limit = Infinity;
 		const place = () => {
 			if (!node.isConnected) return;
 			const margin = 8;
@@ -76,16 +80,20 @@
 			const below = window.innerHeight - anchor.bottom - margin - 4;
 			const above = anchor.top - margin - 4;
 			const flip = below < Math.min(box.height, 200) && above > below;
-			node.style.maxHeight = `${Math.max(0, flip ? above : below)}px`;
-			node.style.top = `${flip ? Math.max(margin, anchor.top - Math.min(box.height, above) - 4) : anchor.bottom + 4}px`;
+			if (limit === Infinity) limit = Math.min(cssMax, flip ? above : below);
+			const room = Math.max(0, Math.min(limit, flip ? above : below));
+			node.style.maxHeight = `${room}px`;
+			node.style.top = `${flip ? Math.max(margin, anchor.top - Math.min(box.height, room) - 4) : anchor.bottom + 4}px`;
 			node.style.marginTop = '0';
 		};
+		// Scrolling the menu's own list doesn't move its anchor.
+		const onScroll = (e: Event) => (e.target instanceof Node && node.contains(e.target)) || place();
 		void tick().then(place);
 		window.addEventListener('resize', place);
-		window.addEventListener('scroll', place, true);
+		window.addEventListener('scroll', onScroll, true);
 		return { destroy() {
 			window.removeEventListener('resize', place);
-			window.removeEventListener('scroll', place, true);
+			window.removeEventListener('scroll', onScroll, true);
 		} };
 	}
 	const previews = $derived(open && preview ? new Map(options.filter((o) => !o.disabled).map((o) => [o.value, preview(o.value)])) : new Map<T, number>());
@@ -131,7 +139,7 @@
 				style:color="var(--color-surface-100)"
 				role="listbox"
 				aria-label={label}
-				class="absolute top-full z-40 mt-1 flex w-max max-w-[92vw] overflow-auto flex-col gap-0.5 rounded-xs border border-surface-600 bg-surface-900 p-1.5 shadow-xl shadow-black/70 {align === 'right' ? 'right-0' : 'left-0'}"
+				class="absolute top-full z-40 mt-1 flex w-max max-w-[92vw] overflow-auto overscroll-contain flex-col gap-0.5 rounded-xs border border-surface-600 bg-surface-900 p-1.5 shadow-xl shadow-black/70 {align === 'right' ? 'right-0' : 'left-0'}"
 			>
 				{#each rows as r (r)}
 					{@const rowOpts = options.filter((o) => (o.row ?? '') === r)}
@@ -170,7 +178,7 @@
 			style:color="var(--color-surface-100)"
 			role="listbox"
 			aria-label={label}
-			class="absolute top-full z-40 mt-1 grid max-h-80 w-max max-w-[min(26rem,92vw)] gap-px overflow-auto rounded-xs border border-surface-600 bg-surface-900 p-1 shadow-xl shadow-black/70 {align === 'right' ? 'right-0' : 'left-0'}"
+			class="absolute top-full z-40 mt-1 grid max-h-80 w-max max-w-[min(26rem,92vw)] gap-px overflow-auto overscroll-contain rounded-xs border border-surface-600 bg-surface-900 p-1 shadow-xl shadow-black/70 {align === 'right' ? 'right-0' : 'left-0'}"
 			style:grid-template-columns="repeat({columns}, minmax(max-content, 1fr))"
 		>
 			{#if searchable}
