@@ -87,8 +87,14 @@ an expected value from each skill's own hits.
 ## Next step
 
 Buff and debuff ids are just numbers. To tell a crit synergy or a damage buff from the rest (for the synergy options
-above, and to work from nDPS by taking support / party buffs out), we need what each id is: a lookup from the game
-data (the same Maxroll tables `scripts/bake-game-data.mjs` caches) or the meter's own buff table.
+above, and to work from nDPS by taking support / party buffs out), we need what each id is. The Maxroll tables we
+cache don't have buffs, but **LOA Logs ships them**: `%LOCALAPPDATA%/LOA Logs/meter-data/SkillBuff.json` (27,667
+entries: `name`, `desc`, `category` buff / debuff, `buffCategory`, `type`, `iconShowType` (self / party / all),
+`duration`, `perLevelData` with the stat values). 5 of 6 sampled ids resolve (e.g. 605100063 Corrosion, Defense −1.8%;
+2000263 Combat Blessing III); the missing one looks like an id the meter composes. The same folder has `Skill.json`,
+`SkillEffect.json`, `ArkPassive.json`, `ArkGrid.json`, `CombatEffect.json`, … Next: classify ids into crit rate,
+crit damage, damage %, defense down and "other" from `perLevelData` / `type`, and check against a few known synergies.
+(It's the meter's bundled data: read it locally like the encounters, or check its license before shipping a copy.)
 
 ## Rough shape once the fields are known
 
