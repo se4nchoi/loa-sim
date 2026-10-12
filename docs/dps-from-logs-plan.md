@@ -34,6 +34,25 @@ CP weighs every stat for an average player. The player's own runs know things CP
 - **No separate page**: load `encounters.db` once on the simulator and let Gems, Next Upgrades and skill-dependent
   cards use it. Read in the browser as today, nothing uploaded.
 
+## Framing: replay the player's own runs
+
+A universal score (Lopec-style) needs per-class, per-build weights that still compare fairly across classes, which
+is hard. Instead, compare the player only with themselves: "if this exact run were repeated skill for skill with
+upgrade X, 300m → 306.4m", averaged over runs of the same raid / gate / difficulty, and rank upgrades by that (and
+by gold per DPS gained, as Next Upgrades does with CP).
+
+| Change | Replayable? | How |
+|---|---|---|
+| Damage multipliers (additional damage, Atk Power, skill / gem damage) | Exactly | Scale each hit it applies to |
+| Back / head attack effects | Exactly | Only the back / head hits |
+| Conditional effects | Exactly | Only hits while the condition held |
+| Crit damage | Exactly | Scale the hits that crit |
+| Crit rate | Expected value | Crits can't be re-rolled; use each skill's real rate from the run (which includes that party's crit synergies), capped at 100% |
+| Cooldown (CDR gems, Swiftness), attack / move speed, identity gain | No | They change the rotation itself; estimate separately and label it |
+
+Exact replay needs per-hit data (damage with crit / back / front flags). If the logs keep only per-skill totals, the
+same math runs on totals, a little less precisely.
+
 ## Open problems
 
 - **Synergies.** A flat +6% damage synergy is easy. Crit synergies are flaky: they depend on party makeup and uptime,
@@ -46,7 +65,7 @@ CP weighs every stat for an average player. The player's own runs know things CP
 
 ## First step at home
 
-Open a real `encounters.db` and list what each skill entry in `entity.skills` holds. Today
+Open a real `encounters.db` and list what each skill entry in `entity.skills` holds, and whether there is a per-hit or per-cast log (for exact replay). Today
 `src/lib/logs/logs-worker.ts` reads only `total_damage` and `timeAvailable`. Believed to exist but unconfirmed: crits
 and crit damage, back / front attack damage, buffed-by / debuffed-by damage per buff id, casts and hits. Which of
 these exist decides how much of the table above is buildable.
