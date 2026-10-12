@@ -80,10 +80,27 @@ describe('snapshot history', () => {
 		expect(listSavedCharacters()[0].loadout?.combatPower?.score).toBe(6650);
 		expect(setLoadoutKind(key, 'current')!.snapshotId).toBeUndefined();
 		setSnapshot(key, old.id);
+		// A lower bible snapshot joins the list but doesn't replace the one being viewed.
 		saveCharacter({ ...base, loadout: lo(6510, 3000), loadouts: { current: lo(6510, 3000) }, loadoutKind: 'current' });
+		expect(listSavedCharacters()[0].snapshotId).toBe(old.id);
+		expect(listSavedCharacters()[0].loadout?.combatPower?.score).toBe(6650);
+		expect(listSnapshots(key).map((s) => s.loadout.combatPower?.score)).toContain(6510);
+		// A higher one is shown.
+		saveCharacter({ ...base, loadout: lo(6700, 4000), loadouts: { current: lo(6700, 4000) }, loadoutKind: 'current' });
 		expect(listSavedCharacters()[0].snapshotId).toBeUndefined();
-		expect(listSavedCharacters()[0].loadout?.combatPower?.score).toBe(6510);
+		expect(listSavedCharacters()[0].loadout?.combatPower?.score).toBe(6700);
 		expect(setSnapshot(key, 'missing')).toBeNull();
+	});
+
+	it('a lower reload never replaces the viewed snapshot, even one saved before history was kept', () => {
+		// Saved by an older version: in the character list, not in the history.
+		const old = lo(6785, 1000);
+		store.set('loa-sim:characters', JSON.stringify([{ ...base, loadout: old, loadouts: { current: old }, loadoutKind: 'current', savedAt: 1000 }]));
+		saveCharacter({ ...base, loadout: lo(6389, 2000), loadouts: { current: lo(6389, 2000) }, loadoutKind: 'current' });
+		const c = listSavedCharacters()[0];
+		expect(c.loadout?.combatPower?.score).toBe(6785);
+		expect(c.snapshotId).toBeDefined();
+		expect(listSnapshots(key).map((s) => s.loadout.combatPower?.score).sort()).toEqual([6389, 6785]);
 	});
 
 	it('erases a kept snapshot, going back to the bible loadout if it was simulated', () => {

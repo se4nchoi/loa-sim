@@ -2,7 +2,7 @@
 // Several characters can be kept; the most recently loaded comes first.
 
 import type { CharacterData, LoadoutKind } from '$lib/bible-data';
-import { findSnapshot, forgetSnapshots, recordSnapshots, removeSnapshot } from '$lib/snapshot-history';
+import { findSnapshot, forgetSnapshots, gearKey, gearOf, listSnapshots, recordSnapshots, removeSnapshot } from '$lib/snapshot-history';
 
 const KEY = 'loa-sim:characters';
 const LEGACY_KEY = 'loa-eff:character';
@@ -54,7 +54,10 @@ function write(list: SavedCharacter[]) {
 }
 
 /**
- * Saves a load. bible sometimes drops a character's estimated raid loadout (e.g. right after a new raid snapshot);
+ * Saves a load. A load only adds to what this browser keeps: the snapshots already here go into the history first
+ * (so nothing is lost), and if the one being viewed scores higher than bible's new one (e.g. a card set swapped for one
+ * raid), it stays on screen; the new one joins the list to pick from.
+ * bible sometimes drops a character's estimated raid loadout (e.g. right after a new raid snapshot);
  * then the previous estimate is kept, as long as it still scores above the new snapshot (otherwise the gear has
  * moved past it).
  */
@@ -70,8 +73,20 @@ export function saveCharacter(data: CharacterData) {
 		entry.loadoutKind = prev.loadoutKind ?? 'estimated';
 		entry.loadout = entry.loadouts[entry.loadoutKind] ?? data.loadout;
 	}
-	write([entry, ...read().filter((c) => characterKey(c) !== characterKey(entry))]);
-	recordSnapshots(characterKey(entry), entry, now);
+	const key = characterKey(data);
+	if (prev) recordSnapshots(key, prev, prev.savedAt);
+	recordSnapshots(key, entry, now);
+	const viewed = prev?.loadout;
+	if (viewed && (viewed.combatPower?.score ?? 0) > (entry.loadout?.combatPower?.score ?? 0)) {
+		if (prev.snapshotId && findSnapshot(key, prev.snapshotId)) {
+			entry.loadout = viewed;
+			entry.snapshotId = prev.snapshotId;
+		} else {
+			const kept = listSnapshots(key).find((s) => gearOf(s) === gearKey(viewed));
+			if (kept) ((entry.loadout = viewed), (entry.snapshotId = kept.id));
+		}
+	}
+	write([entry, ...read().filter((c) => characterKey(c) !== key)]);
 }
 
 export const listSavedCharacters = (): SavedCharacter[] => read().sort((a, b) => b.savedAt - a.savedAt);
