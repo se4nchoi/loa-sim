@@ -50,19 +50,21 @@
 	<svg class="size-3 shrink-0 text-surface-500 transition {up ? 'rotate-180' : ''}" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4z" /></svg>
 {/snippet}
 
-<!-- One foldable line, like a notice board: [date] title tag. The title stays on one line; unfolded, a title that
+<!-- One foldable line, like a notice board: tag, title, [date]. The title stays on one line; unfolded, a title that
      didn't fit opens the text below in full (so the row never grows tall), then the points as bullets. -->
-{#snippet line(key: string, title: string, points: string[] | undefined, tag: Snippet, lead?: Snippet)}
+{#snippet line(key: string, title: string, points: string[] | undefined, tag: Snippet, trail?: Snippet, fresh = false)}
 	<li>
 		<button
 			type="button"
-			class="flex w-full flex-row items-center gap-2 px-3 py-2 text-left text-sm hover:bg-white/[0.03]"
+			class="relative flex w-full flex-row items-center gap-2 px-3 py-2 text-left text-sm hover:bg-white/[0.03]"
 			aria-expanded={!!open[key]}
 			onclick={(e) => toggle(key, e.currentTarget)}
 		>
-			{@render lead?.()}
-			<span data-title class="min-w-0 flex-1 truncate text-surface-100">{title}</span>
+			<!-- The new dot sits in the left padding: it appears after load, so it mustn't take room. -->
+			{#if fresh}<span class="absolute top-1/2 left-1 size-1.5 -translate-y-1/2 rounded-full bg-accent-400" aria-label="New since your last visit"></span>{/if}
 			{@render tag()}
+			<span data-title class="min-w-0 flex-1 truncate text-surface-100">{title}</span>
+			{@render trail?.()}
 			{@render chevron(!!open[key])}
 		</button>
 		{#if open[key] && (cut[key] || points?.length)}
@@ -97,14 +99,9 @@
 		{#if tab === 'updates'}
 			<ul class="flex flex-col divide-y divide-neutral-950">
 				{#each shown as u, i (i)}
-					{#snippet lead()}
-						<!-- The new dot sits in the row's left padding: it appears after load, so it mustn't take room. -->
-						<span class="relative flex w-[3.6rem] shrink-0 items-center text-xs text-surface-500 tabular-nums">
-							{#if isFresh(u.date)}<span class="absolute top-1/2 -left-2 size-1.5 -translate-y-1/2 rounded-full bg-accent-400" aria-label="New since your last visit"></span>{/if}{day(u.date)}
-						</span>
-					{/snippet}
+					{#snippet date()}<span class="shrink-0 text-right text-xs text-surface-500 tabular-nums">{day(u.date)}</span>{/snippet}
 					{#snippet tag()}{@render badge(u.kind, KIND[u.kind], 'w-[4.5rem]')}{/snippet}
-					{@render line(`u${i}`, u.title, u.points, tag, lead)}
+					{@render line(`u${i}`, u.title, u.points, tag, date, isFresh(u.date))}
 				{/each}
 			</ul>
 			{#if UPDATES.length > SHORT}
