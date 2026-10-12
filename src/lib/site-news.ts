@@ -16,12 +16,6 @@ export interface SiteUpdate {
 export const UPDATES: SiteUpdate[] = [
 	{
 		date: '2026-10-12',
-		kind: 'fix',
-		title: 'Sidereal budget',
-		points: ['Esther weapon upgrades no longer look free in the Budget: each step is listed on its own, and you can add your own gold cost to see if the CP is worth it']
-	},
-	{
-		date: '2026-10-12',
 		kind: 'improved',
 		title: 'Faster switching',
 		points: [
