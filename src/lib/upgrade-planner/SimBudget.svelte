@@ -93,6 +93,7 @@
 			<li>Bound materials are used first, across steps in the order listed.</li>
 			<li>Average costs carry forward estimated material use; actual honing results and remaining inventory will vary.</li>
 			<li>Saved bound material inventory is not deducted.</li>
+			<li>Esther (sidereal) weapon evolution and Elgic infusion costs aren't calculated; those steps show as Cost unavailable.</li>
 		</ul>
 	</div>
 	</div>
