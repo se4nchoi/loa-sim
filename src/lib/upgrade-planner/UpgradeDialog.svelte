@@ -53,11 +53,24 @@
 
 	let dialog: HTMLDialogElement;
 	let card = $state<HTMLDivElement>();
+	let viewportHeight = $state<number>();
+	let keyboardBottom = $state(0);
 	onMount(() => {
 		dialog.showModal();
 		dialog.focus(); // the dialog itself, not a control: no keyboard popping up, no focus ring on Close
 		if (focusKey) dialog.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.scrollIntoView({ block: 'center' });
 		track();
+		const viewport = window.visualViewport;
+		const resize = () => {
+			if (!matchMedia('(max-width: 639px)').matches) { viewportHeight = undefined; keyboardBottom = 0; return; }
+			viewportHeight = viewport?.height ?? innerHeight;
+			keyboardBottom = Math.max(0, innerHeight - (viewport?.offsetTop ?? 0) - viewportHeight);
+		};
+		resize();
+		viewport?.addEventListener('resize', resize);
+		viewport?.addEventListener('scroll', resize);
+		window.addEventListener('resize', resize);
+		return () => { viewport?.removeEventListener('resize', resize); viewport?.removeEventListener('scroll', resize); window.removeEventListener('resize', resize); };
 	});
 
 	// Groups in order of their best upgrade, each sorted by CP gain.
@@ -201,8 +214,9 @@
 
 {#snippet accessoryRow(variants: Upgrade[])}
 	{@const u = variants.find((v) => v.key === focusKey) ?? variants[0]}
-	<div data-key={u.key} class="flex items-start gap-3 border-t border-neutral-950 py-2 {variants.some((v) => v.key === focusKey) ? 'animate-[upgrade-focus_1.6s_ease-out] rounded-xs' : ''}">
+	<div data-key={u.key} data-price-row class="flex items-start gap-3 border-t border-neutral-950 py-2 {variants.some((v) => v.key === focusKey) ? 'animate-[upgrade-focus_1.6s_ease-out] rounded-xs' : ''}">
 		<div class="flex min-w-0 flex-1 flex-col gap-0.5">
+			<span class="text-xs font-semibold text-surface-400">{u.subject}</span>
 			{#each u.lines ?? [] as line (line.name)}
 				<div class="grid grid-cols-[minmax(0,8.5rem)_max-content] items-baseline gap-2 text-sm leading-snug"><span class="min-w-0 text-surface-100">{line.name}</span><span class="font-semibold" style:color={ROLL_COLORS[line.tier as keyof typeof ROLL_COLORS]}>{line.value ?? line.tier}</span></div>
 			{/each}
@@ -218,13 +232,14 @@
 <!-- Focusable itself (tabindex -1) so opening focuses the dialog, not its first input or Close. -->
 <dialog
 	bind:this={dialog}
+	style:bottom={viewportHeight === undefined ? undefined : `${keyboardBottom}px`}
 	tabindex="-1"
 	{onclose}
 	onclick={(e) => e.target === dialog && dialog.close()}
 	aria-labelledby="upgrade-planner-title"
 	class="fixed top-[80px] m-0 max-h-none outline-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
 >
-	<div bind:this={card} class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
+	<div bind:this={card} style:max-height={viewportHeight === undefined ? undefined : `${viewportHeight - 16}px`} class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 		<!-- Phones: the header is the drag-to-close zone, with a grabber. -->
 		<div class="flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold max-sm:pt-2" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), slideOut: true, enabled: () => matchMedia('(max-width: 639px)').matches }}>
 			<span class="flex basis-full justify-center pb-1 sm:hidden"><span class="h-1.5 w-12 rounded-full bg-surface-500"></span></span>
@@ -242,9 +257,9 @@
 				{/each}
 			</div>
 		{/if}
-		<div bind:this={scroller} onscroll={track} class="relative flex max-h-[70vh] w-[620px] flex-col gap-4 overflow-y-auto px-4 pb-4 max-md:w-[100vw]">
+		<div bind:this={scroller} data-upgrade-scroller onscroll={track} class="relative flex min-h-0 max-h-[70vh] w-[620px] flex-col gap-4 overflow-y-auto px-4 pb-4 max-md:w-[100vw]">
 			{#if groups.length > 1}
-				<div bind:this={bar} class="sticky top-0 z-10 -mx-4 flex flex-row flex-wrap gap-1 border-b border-neutral-950 bg-surface-900 px-4 py-2" role="navigation" aria-label="Upgrade categories">
+				<div bind:this={bar} data-upgrade-nav class="sticky top-0 z-10 -mx-4 flex flex-row flex-wrap gap-1 border-b border-neutral-950 bg-surface-900 px-4 py-2" role="navigation" aria-label="Upgrade categories">
 					{#each groups as g (g.category)}
 						<button
 							type="button"

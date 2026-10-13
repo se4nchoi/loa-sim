@@ -66,8 +66,16 @@
 				<p class="flex justify-between gap-3 border-t border-surface-700 pt-2 font-semibold text-amber-200"><span>Total gold</span><span>{money(mode === 'average' ? cost.expected : cost.worst)}</span></p>
 			</div>
 		{/if}
+		{#if cost.book}
+			<section class="rounded-xs border border-amber-500/30 p-3 text-xs" aria-label="Honing book efficiency">
+				<h3 class="mb-1 font-semibold text-amber-200">{cost.book.name}</h3>
+				<p>Saves {money(cost.book.savedGold)} gold on average versus no books.</p>
+				<p>Average books used: {quantity(cost.book.used)} · Market buys: {quantity(cost.book.bought)}</p>
+				{#if cost.book.breakEven !== null}<p>Market break-even: {money(cost.book.breakEven)} gold per book versus the best bound-only option.</p>{/if}
+			</section>
+		{/if}
 		<section aria-label="Breath strategy" class="space-y-2 rounded-xs border border-accent-500/30 bg-accent-500/5 p-3">
-			<h3 class="flex items-center gap-1.5 text-sm font-semibold text-accent-300">{#each breathIds as id}{@const icon = materialIcon(id)}{#if icon}<img src={iconUrl(icon)} alt={materialName(id)} class="size-5 shrink-0" />{/if}{/each}Chosen Breath Strategy</h3>
+			<h3 class="flex items-center gap-1.5 text-sm font-semibold text-accent-300">{#each breathIds as id}{@const icon = materialIcon(id)}{#if icon}<img src={iconUrl(icon)} alt={materialName(id)} class="size-5 shrink-0" />{/if}{/each}Chosen {cost.book ? 'Honing' : 'Breath'} Strategy</h3>
 			<ul class="list-disc space-y-1.5 pl-4 text-xs">
 				{#each strategies as strategy}
 					<li class={strategy.selected ? 'font-semibold text-accent-300' : 'text-surface-400'}>
@@ -77,6 +85,7 @@
 			</ul>
 			<hr class="border-surface-700" />
 			<p class="text-xs text-surface-400">Chosen strategy has the best gold efficiency among these options given your prices and bound stock.</p>
+			{#if cost.book}<p class="text-xs text-surface-400">Compares full quantities for an initial run of taps, then stops. Combined breath and book options share a cutoff; arbitrary per-tap mixes are not searched.</p>{/if}
 		</section>
 		<ul class="list-disc space-y-1 pl-4 text-xs text-surface-400">
 			<li>{mode === 'average' ? 'Average quantities are weighted across possible outcomes.' : 'Pity assumes every try fails until the next try is guaranteed.'}</li>

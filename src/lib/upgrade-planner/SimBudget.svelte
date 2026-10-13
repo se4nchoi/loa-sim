@@ -22,7 +22,7 @@
 	let priceInput = $state<HTMLInputElement>();
 	onMount(() => { loadGold(); dialog.showModal(); dialog.focus(); });
 	const characterCosts = $derived(costsForCharacter(characterKey));
-	const lines = $derived(priceBudget(changes, gold.prices, gold.bound[characterKey] ?? {}, characterCosts, gold.bookPrices));
+	const lines = $derived(priceBudget(changes, gold.prices, gold.bound[characterKey] ?? {}, characterCosts, gold.bookPrices, gold.honingBooks));
 	const average = $derived(lines.reduce((sum, row) => sum + (row.average ?? 0), 0));
 	/** Nothing in the plan has a price yet: show a dash, not a 0 that reads as free. */
 	const nonePriced = $derived(lines.length > 0 && !lines.some((row) => !row.status && row.average !== undefined));

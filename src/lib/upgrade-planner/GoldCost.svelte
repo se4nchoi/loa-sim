@@ -1,6 +1,7 @@
 <!-- A Next Upgrades row's gold cost: calculated honing estimates or editable prices for other upgrades. -->
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { priceEntry } from './sim/price-entry';
 	import { goldPriceButton } from './sim/ui';
 	import { GOLD_ICON } from './icons';
 	import { bookCost, costsForCharacter, formatGold, gold, manualGoldCost, parseGold, setBookPrice, setGoldCost } from './gold-costs.svelte';
@@ -50,6 +51,7 @@
 		text = u.books ? (bookPrice !== undefined ? formatGold(bookPrice) : '') : typed ? formatGold(typed) : '';
 		editing = true;
 		await tick();
+		input?.focus({ preventScroll: true });
 		input?.select();
 	}
 	function commit() {
@@ -66,6 +68,8 @@
 {#if editing}
 	<input
 		bind:this={input}
+		use:priceEntry
+		inputmode="decimal"
 		bind:value={text}
 		onblur={commit}
 		onkeydown={(e) => {

@@ -24,6 +24,8 @@ Load your character, change your gear, and see exactly what each change does to 
   rolls to consider (H-H, H-M, M-H, H-L, L-H, M-M).
 - **Standing:** see where your CP ranks, now and after your changes.
 - **Works on your phone.**
+- **Keep your upgrade plans.** Save named simulations in your browser, reopen the latest save with the same character snapshot, or export/import a JSON file to back up or share your starting gear and edits. Unsaved edits are not retained.
+- **Compare honing books.** In Honing material prices, enter an Aegir book's printed success bonus, eligible levels, market price and available bound stock. The breakdown compares book strategies and shows average savings and market break-even. Serca book presets await verified rules.
 
 <div align="center">
 <img src="docs/screenshots/gems.png" alt="Gems maxed to Lv. 10 and the simulated CP gain" width="900" />

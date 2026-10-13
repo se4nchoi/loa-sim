@@ -10,6 +10,8 @@
 	import { applyUpgrade } from './apply-upgrade';
 	import { roleOf } from './roles';
 	import UpgradePlanner from './UpgradePlanner.svelte';
+	import SavedSimulations from './SavedSimulations.svelte';
+	import { latestSimulation } from './saved-simulations';
 	import SimBudget from './SimBudget.svelte';
 	import { budgetChanges, budgetPriceUpgrades } from './sim-budget';
 	import { inventoryMaterials } from './honing-cost';
@@ -148,8 +150,9 @@
 	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
-		sim = initSimState(loadout);
-		calculated = initSimState(loadout);
+		const saved = characterKey ? latestSimulation(characterKey, loadout) : undefined;
+		sim = saved ? structuredClone(saved.state) : initSimState(loadout);
+		calculated = saved ? structuredClone(saved.state) : initSimState(loadout);
 	});
 
 	const snapshot = () => $state.snapshot(sim) as SimState;
@@ -342,6 +345,7 @@
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
 <MobileSummaryBar {current} {simulated} nav={jumpChips} onbudget={() => budgetOpen = true}>{@render summary()}</MobileSummaryBar>
+<SavedSimulations {characterKey} {loadout} state={sim} onrestore={(state) => sim = state} />
 <div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
 	<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
 	<div class="flex min-w-0 flex-col gap-2">

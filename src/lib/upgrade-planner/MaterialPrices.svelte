@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import { sheetDrag } from './sim/sheet-drag';
+	import HoningBookSettings from './HoningBookSettings.svelte';
 	import { onMount } from 'svelte';
 	import { clearMaterialInventory, restoreMaterialInventory, clearMaterialPrices, restoreMaterialPrices, formatGold, gold, parseOwned, parsePrice, setMaterialBound, setMaterialPrice, type ClearedMaterialInventory } from './gold-costs.svelte';
 	import { btn } from './sim/ui';
@@ -159,6 +160,7 @@
 					</div>
 				{/each}
 			</div>
+			<HoningBookSettings {characterKey} />
 			<p class="text-xs text-surface-500">Last changed: {changed}</p>
 		</div>
 	</div>

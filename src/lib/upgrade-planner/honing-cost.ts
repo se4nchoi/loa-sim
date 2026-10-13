@@ -17,6 +17,22 @@ export const SHARDS = 'shards';
 /** Stands for "plenty" (typed as ∞ or a very large number). */
 export const PLENTY = 1e12;
 
+/** A player-supplied book rule, gated to its printed gear family and target-level range.
+ * Rates are additive percentage points in 1/10000 units, not relative multipliers. */
+export interface HoningBook {
+	id: string;
+	name: string;
+	rate: number;
+	from: number;
+	to: number;
+}
+export type HoningBooks = Partial<Record<`${HoningSet}:${'weapon' | 'armor'}`, HoningBook>>;
+export function bookFor(set: HoningSet, slot: HoningSlot, level: number, books: HoningBooks): HoningBook | undefined {
+	const b = books[`${set}:${slot === 'weapon' ? 'weapon' : 'armor'}`];
+	return b && Number.isFinite(b.rate) && b.rate > 0 && b.rate <= 10000 &&
+		Number.isInteger(b.from) && Number.isInteger(b.to) && b.from >= 1 && b.to <= 25 && level >= b.from && level <= b.to ? b : undefined;
+}
+
 export interface HoningMaterialBreakdown {
 	materials: { id: string; perTap: number; once: number; until?: number; bound: number; bought: number; price: number; gold: number }[];
 	tapGold: number;
@@ -39,6 +55,7 @@ export interface HoningCost {
 	/** Best candidate for each breath combination and strategy family. */
 	strategies?: { label: string; materialIds: string[]; selected: boolean }[];
 	breakdown?: { average: HoningMaterialBreakdown; pity: HoningMaterialBreakdown };
+	book?: { name: string; savedGold: number; used: number; bought: number; breakEven: number | null };
 }
 
 export const tapsFor = (set: HoningSet, slot: HoningSlot, toLevel: number): HoningTap | undefined =>
@@ -67,7 +84,7 @@ function successByTap(tap: HoningTap, extra: number, until = 0): { dist: number[
  * Expected and worst-case gold for one honing step: the one-time growth (shards), gold per tap, and whatever
  * materials must be bought once bound ones run out.
  */
-export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: MaterialOwned = {}): HoningCost {
+export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: MaterialOwned = {}, book?: HoningBook): HoningCost {
 	// [id, per tap, one-time, optional last tap using this material]
 	type Requirement = [string, number, number, number?];
 	const use: Requirement[] = [[SHARDS, tap.shards, tap.growth ?? 0], ...Object.entries(tap.mats).map(([id, n]) => [id, n, 0] as Requirement)];
@@ -75,7 +92,8 @@ export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: Materi
 	// Every combination of breaths, and every initial full-breath cutoff. This includes stopping at
 	// the failure-bonus cap, but also lets prices and bound inventory favor an earlier/later cutoff.
 	// This is a prefix-strategy comparison, not a global search of arbitrary per-tap quantities.
-	const kinds = [tap.breath, tap.moreBreath].filter((b): b is NonNullable<typeof b> => !!b && b.max > 0);
+	const kinds: { id: number | string; rate: number; max: number }[] = [tap.breath, tap.moreBreath].filter((b): b is NonNullable<typeof b> => !!b && b.max > 0);
+	if (book && Number.isFinite(book.rate) && book.rate > 0 && book.rate <= 10000) kinds.push({ id: book.id, rate: book.rate, max: 1 });
 	const combos = kinds.reduce<(typeof kinds)[]>((all, b) => [...all, ...all.map((c) => [...c, b])], [[]]);
 	const options = combos.flatMap((breaths) => {
 		const extra = breaths.reduce((x, b) => x + b.rate * b.max, 0);
@@ -90,7 +108,7 @@ export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: Materi
 				mats, dist, materialIds: breaths.map((b) => String(b.id)),
 				cost: {
 					breath: breaths.length > 0,
-					breathLabel: breaths.map((b) => materialName(String(b.id))).join(' + '),
+						breathLabel: breaths.map((b) => String(b.id) === book?.id ? book.name : materialName(String(b.id))).join(' + '),
 					breathTaps,
 					breathMode,
 					expected: dist.reduce((g, p, n) => g + p * costOf(n + 1), 0),
@@ -102,6 +120,21 @@ export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: Materi
 		});
 	});
 	const best = options.reduce((a, b) => (b.cost.expected < a.cost.expected ? b : a));
+	const noBooks = options.filter((o) => !book || !o.materialIds.includes(book.id));
+	const withoutBook = noBooks.reduce((a, b) => a.cost.expected < b.cost.expected ? a : b);
+	const bookQuantity = (option: typeof best) => {
+		const mat = option.mats.find(([id]) => id === book?.id);
+		return mat ? option.dist.reduce((q, p, n) => {
+			const count = totalAt(mat, n + 1);
+			return { used: q.used + p * count, bought: q.bought + p * Math.max(0, count - (owned[mat[0]] ?? 0)) };
+		}, { used: 0, bought: 0 }) : { used: 0, bought: 0 };
+	};
+	// Compare market purchases against the best strategy that needs no purchased books (bound-only included).
+	const boundOnly = options.filter((o) => bookQuantity(o).bought === 0).reduce((a, b) => a.cost.expected < b.cost.expected ? a : b);
+	const thresholds = book ? options.flatMap((o) => {
+		const q = bookQuantity(o);
+		return q.bought > 0 ? [(boundOnly.cost.expected - o.cost.expected + q.bought * (prices[book.id] ?? 0)) / q.bought] : [];
+	}) : [];
 	const strategies = new Map<string, typeof best>();
 	for (const option of options) {
 		const key = `${option.cost.breathMode}:${option.materialIds.join(',')}`;
@@ -128,6 +161,7 @@ export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: Materi
 	});
 	return {
 		...best.cost,
+		...(book ? { book: { name: book.name, savedGold: withoutBook.cost.expected - best.cost.expected, ...bookQuantity(best), breakEven: thresholds.length ? Math.max(0, ...thresholds) : null } } : {}),
 		strategies: [...strategies.values()]
 			.sort((a, b) => ['none', 'full', 'cutoff'].indexOf(a.cost.breathMode) - ['none', 'full', 'cutoff'].indexOf(b.cost.breathMode))
 			.map((option) => ({ label: breathStrategy(option.cost), materialIds: option.materialIds, selected: option === best })),
@@ -139,7 +173,7 @@ export const breathStrategy = (cost: HoningCost): string => cost.breath
 	? cost.breathMode === 'full' ? `Full ${cost.breathLabel}.` : `Full ${cost.breathLabel} for the first ${cost.breathTaps} tap${cost.breathTaps === 1 ? '' : 's'}, then no breath.`
 	: 'No breath.';
 
-export const materialName = (id: string) => (id === SHARDS ? 'Destiny Shard' : (HONING_MATERIALS[id]?.[0] ?? id));
+export const materialName = (id: string) => id.startsWith('honing-book:') ? `Aegir ${id.endsWith('weapon') ? 'weapon' : 'armor'} honing book` : (id === SHARDS ? 'Destiny Shard' : (HONING_MATERIALS[id]?.[0] ?? id));
 /** Shards come in pouches of 500 / 1,000 / 2,000; the 1,000 pouch stands for them. */
 export const materialIcon = (id: string) => (id === SHARDS ? 'Use_12_92' : HONING_MATERIALS[id]?.[1]);
 
@@ -193,7 +227,8 @@ export function autoHoningCosts(
 	gear: GearSets,
 	prices: MaterialPrices,
 	owned: MaterialOwned = {},
-	karma: KarmaLevels = {}
+	karma: KarmaLevels = {},
+	books: HoningBooks = {}
 ): Record<string, HoningCost> {
 	const out: Record<string, HoningCost> = {};
 	for (const key of keys) {
@@ -203,7 +238,9 @@ export function autoHoningCosts(
 			continue;
 		}
 		const tap = tapForKey(key, gear);
-		const cost = tap && honingCost(tap, prices, owned);
+		const [, slot, level] = key.split(':');
+		const book = key.startsWith('honing:') ? bookFor(setOf(gear[slot as HoningSlot]), slot as HoningSlot, Number(level), books) : undefined;
+		const cost = tap && honingCost(tap, prices, owned, book);
 		if (cost) out[key] = cost;
 	}
 	return out;
