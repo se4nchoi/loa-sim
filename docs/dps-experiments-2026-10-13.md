@@ -4,7 +4,12 @@
 
 Read the user's local LOA Logs `encounters.db` without modifying it. The full file opened in the browser and
 listed 5,835 logs. Soulshan had 24 cleared runs in the Last 2 weeks selection, but only Deskaluda Normal
-(encounter 5886, 2026-10-10) supplied usable meter stat values. Skill shares now use this same contributing run,
+(encounter 5886, 2026-10-10) supplied usable meter stat values.
+
+**Caveat for that run (from the player):** Soulshan ran it with the water damage card set at only 24 awakening,
+not the full set, so the character was below its usual build: roughly CP 6,620 → ~6,300. Treat this run's stat
+values, skill shares and hit sample as from that weaker card set (the card bonus differs, which also shifts the
+relative worth of other stats a little), not from the 6,620 build bible shows. Skill shares now use this same contributing run,
 rather than all 24. A local ignored extract of 120 real Soulshan records supported repeated testing.
 
 The browser loaded Soulshan's current bible snapshot (2026-10-13), weapon +24 and 100 quality. The log predates
