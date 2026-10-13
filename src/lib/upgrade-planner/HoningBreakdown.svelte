@@ -13,8 +13,8 @@
 	const strategies = $derived((cost.strategies ?? [{ label: breathStrategy(cost), materialIds: [], selected: true }])
 		.toSorted((a, b) => Number(b.selected) - Number(a.selected)));
 	const chosenIds = $derived(strategies.find(strategy => strategy.selected)?.materialIds ?? []);
-	const breathIds = $derived(chosenIds.filter(id => !HONING_BOOKS.some(book => book.id === id)));
-	const bookId = $derived(chosenIds.find(id => HONING_BOOKS.some(book => book.id === id)));
+	const breathIds = $derived([...new Set(strategies.flatMap(strategy => strategy.materialIds))].filter(id => !HONING_BOOKS.some(book => book.id === id)));
+	const bookId = $derived(chosenIds.find(id => HONING_BOOKS.some(book => book.id === id)) ?? HONING_BOOKS.find(book => book.name === cost.book?.name)?.id);
 	const quantity = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
 	// Whole gold: decimals only add width (and shift the table on phones as the numbers change).
 	const money = (n: number) => Math.round(n).toLocaleString();
@@ -94,7 +94,7 @@
 				{#each strategies as strategy}
 					<li title={strategy.label} class={strategy.selected ? 'rounded-xs border border-accent-500/50 bg-accent-500/15 p-2 font-semibold text-accent-200' : 'px-2 py-1 text-surface-400'}>
 						{strategy.summary ?? strategy.label}
-						{#if cost.book && strategy.expected !== undefined && strategy.firstTapChance !== undefined}<span class="block font-normal">{money(strategy.expected)} gold avg · {(strategy.firstTapChance * 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}% first-tap success</span>{/if}
+						{#if strategy.expected !== undefined && strategy.firstTapChance !== undefined}<span class="mt-0.5 block font-normal text-surface-400 tabular-nums">{money(strategy.expected)} gold avg · {(strategy.firstTapChance * 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}% first-tap success</span>{/if}
 					</li>
 				{/each}
 			</ul>
