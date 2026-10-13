@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
-	import { deleteSimulation, parseSimulation, sameBaseline, savedSimulations, saveSimulation, type SavedSimulation } from './saved-simulations';
+	import { loadAutosave, deleteSimulation, parseSimulation, sameBaseline, savedSimulations, saveSimulation, type SavedSimulation } from './saved-simulations';
 	import { initSimState, simulate, type SimState } from './simulate';
 	import type { Loadout } from './types';
 	import { btn, type MenuOption } from './sim/ui';
@@ -12,12 +12,24 @@
 	let list = $state<SavedSimulation[]>([]);
 	let note = $state('');
 	let fileInput: HTMLInputElement;
+	let working = $state<SimState>();
+	$effect(() => {
+		const key = characterKey, baseline = loadout;
+		void $state.snapshot(simState);
+		let cancelled = false;
+		void tick().then(() => { if (!cancelled) working = loadAutosave(key, baseline); });
+		return () => { cancelled = true; };
+	});
 	$effect(() => { void characterKey; void loadout; untrack(() => { list = savedSimulations(characterKey); selected = ''; name = ''; note = ''; }); });
 	const shortDay = (at: number) => {
 		const d = new Date(at);
 		return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 	};
 	const options = $derived.by<MenuOption<string>[]>(() => [
+		...(working ? [
+			{ value: 'autosave', label: 'Autosaved simulation', marker: '', locked: 'Updates automatically as you edit this snapshot', title: 'Your current working copy, saved automatically in this browser' },
+			{ value: 'name-autosave', label: 'Name autosaved simulation…', marker: '' }
+		] : []),
 		...list.map(s => {
 			const base = initSimState(s.loadout);
 			const baseline = simulate(s.loadout, base, base).cp;
@@ -28,9 +40,10 @@
 				title: compatible ? s.name : 'Select this plan’s original character snapshot before loading it.',
 				onremove: () => remove(s.id), removeLabel: `Delete ${s.name}` };
 		}),
-		...(list.length ? [] : [{ value: 'hint', label: 'No saved simulations yet', disabled: true, muted: true, marker: '' }])
+		...(list.length || working ? [] : [{ value: 'hint', label: 'No saved simulations yet', disabled: true, muted: true, marker: '' }])
 	]);
-	const active = $derived(list.find(s => s.id === selected));
+	const active = $derived(list.find(s => s.id === selected && JSON.stringify(s.state) === JSON.stringify(simState)));
+	const menuValue = $derived(active?.id ?? (working ? 'autosave' : ''));
 	function save() {
 		try { const s = saveSimulation(characterKey, name, loadout, $state.snapshot(simState)); list = savedSimulations(characterKey); selected = s.id; saveOpen = false; note = ''; }
 		catch (e) { note = (e as Error).message; }
@@ -40,6 +53,8 @@
 		onrestore(structuredClone($state.snapshot(s.state))); selected = list.some(plan => plan.id === s.id) ? s.id : ''; name = s.name; note = '';
 	}
 	function pick(id: string) {
+		if (id === 'name-autosave') { name = ''; saveOpen = true; return; }
+		if (id === 'autosave') { if (working) onrestore(structuredClone($state.snapshot(working))); selected = ''; name = ''; return; }
 		const s = list.find(plan => plan.id === id); if (s) restore(s);
 	}
 	function remove(id: string) {
@@ -62,7 +77,7 @@
 		} catch (e) { note = (e as Error).message; }
 		input.value = '';
 	}
-	// A file imported on Characters is an explicit load request, consumed once; refresh stays fresh.
+	// A file imported on Characters explicitly loads its edits before autosave resumes.
 	onMount(async () => {
 		let imported: SavedSimulation | undefined;
 		try { const id = sessionStorage.getItem('loa-sim:import-plan'); imported = list.find(s => s.id === id); if (imported) sessionStorage.removeItem('loa-sim:import-plan'); } catch { /* storage blocked */ }
@@ -73,8 +88,8 @@
 <div class="min-w-0">
 	<div class="grid min-w-0 grid-cols-[minmax(0,1fr)_repeat(3,2rem)] items-center gap-1.5">
 		<div class="min-w-0 flex-1">
-			<MenuPicker value={selected} {options} onpick={pick} label="Saved simulation to load" tone="purple" repick full fitMenu>
-				{#snippet trigger()}<span class="min-w-0 truncate text-xs">{active?.name ?? 'Saved simulations'}</span>{/snippet}
+			<MenuPicker value={menuValue} {options} onpick={pick} label="Saved simulation to load" tone="purple" repick full fitMenu>
+				{#snippet trigger()}<span class="min-w-0 truncate text-xs">{active?.name ?? (working ? 'Autosaved simulation' : 'Saved simulations')}</span>{/snippet}
 			</MenuPicker>
 		</div>
 		<button type="button" class={`${btn} shrink-0`} style:height="2rem" style:width="2rem" style:padding="0" onclick={() => saveOpen = !saveOpen} aria-expanded={saveOpen} aria-label="Save simulation" title="Save simulation" disabled={!characterKey}>
