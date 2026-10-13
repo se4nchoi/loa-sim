@@ -15,6 +15,12 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-10-13',
+		kind: 'improved',
+		title: 'Minor improvements',
+		points: ['Improved price entering flow for upgrades and material inventory', 'Some mobile UI improvements']
+	},
+	{
 		date: '2026-10-12',
 		kind: 'improved',
 		title: 'Faster switching',
