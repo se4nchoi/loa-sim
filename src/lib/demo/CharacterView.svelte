@@ -180,6 +180,9 @@
 	<h1 class="text-3xl font-bold">{name}</h1>
 	{#if ilvl}<span class="text-xl font-semibold text-surface-200 tabular-nums" title="Item Level">{ilvl.toFixed(2)}</span>{/if}
 	{#each lines as line (line)}<span class="text-sm text-surface-300">{line}</span>{/each}
+	<a class="w-fit text-xs text-surface-300 underline hover:text-surface-50" href={`https://lostark.bible/character/${region}/${encodeURIComponent(name)}`} target="_blank" rel="noopener">
+		View on lostark.bible
+	</a>
 	<!-- Always shown, so players find saved snapshots before they have any. -->
 	{#if menu.length && onsnapshot && onloadout}
 		<div class="mt-1 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_repeat(3,2rem)] items-center gap-1.5">
@@ -216,9 +219,6 @@
 			<SavedSimulations characterKey={`${region}/${name}`.toLowerCase()} {loadout} state={simulation} onrestore={(state) => simulation = state} />
 		</div>
 	{/if}
-	<a class="w-fit text-xs text-surface-300 underline hover:text-surface-50" href={`https://lostark.bible/character/${region}/${encodeURIComponent(name)}`} target="_blank" rel="noopener">
-		View on lostark.bible
-	</a>
 </div>
 
 {#if !loadout}
