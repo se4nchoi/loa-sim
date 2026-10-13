@@ -9,7 +9,8 @@
 	let mode = $state<'average' | 'pity'>(untrack(() => initialMode));
 	const details = $derived(cost.breakdown?.[mode]);
 	const tapCount = $derived(mode === 'average' ? cost.taps : cost.maxTaps);
-	const strategies = $derived(cost.strategies ?? [{ label: breathStrategy(cost), materialIds: [], selected: true }]);
+	const strategies = $derived((cost.strategies ?? [{ label: breathStrategy(cost), materialIds: [], selected: true }])
+		.toSorted((a, b) => Number(b.selected) - Number(a.selected)));
 	const breathIds = $derived([...new Set(strategies.flatMap((strategy) => strategy.materialIds))]);
 	const quantity = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
 	// Whole gold: decimals only add width (and shift the table on phones as the numbers change).
@@ -82,9 +83,10 @@
 		{/if}
 		<section aria-label="Breath strategy" class="space-y-2 rounded-xs border border-accent-500/30 bg-accent-500/5 p-3">
 			<h3 class="flex items-center gap-1.5 text-sm font-semibold text-accent-300">{#each breathIds as id}{@const icon = materialIcon(id)}{#if icon}<img src={iconUrl(icon)} alt={materialName(id)} class="size-5 shrink-0" />{/if}{/each}Chosen {cost.book ? 'Honing' : 'Breath'} Strategy</h3>
-			<ul class="list-disc space-y-1.5 pl-4 text-xs">
+			<ul class="space-y-1.5 text-xs">
 				{#each strategies as strategy}
-					<li class={strategy.selected ? 'font-semibold text-accent-300' : 'text-surface-400'}>
+					<li class={strategy.selected ? 'rounded-xs border border-accent-500/50 bg-accent-500/15 p-2 font-semibold text-accent-200' : 'px-2 py-1 text-surface-400'}>
+						{#if strategy.selected}<span class="mb-1 block text-[11px] font-bold uppercase">✓ Chosen strategy</span>{/if}
 						{strategy.label}
 						{#if cost.book && strategy.expected !== undefined && strategy.firstTapChance !== undefined}<span class="block font-normal">{money(strategy.expected)} gold avg · {(strategy.firstTapChance * 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}% first-tap success</span>{/if}
 					</li>
