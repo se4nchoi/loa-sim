@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { sheetDrag } from './sim/sheet-drag';
+	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
 	import { formatCp } from './format';
 	import { costsForCharacter, formatGold, gold, loadGold, parsePrice, setBookPrice, setGoldCost } from './gold-costs.svelte';
 	import { GOLD_ICON, iconUrl } from './icons';
@@ -47,9 +47,9 @@
 	<span class="flex w-36 items-center whitespace-nowrap text-base font-bold text-amber-200 tabular-nums"><span class="flex min-w-0 flex-1 justify-center"><img src={GOLD_ICON} alt="Gold" class="size-4" /></span><span class="min-w-0 flex-1 text-right">{formatGold(value)}</span><span class="min-w-0 flex-1 pl-2 text-xs font-normal text-surface-400">avg</span></span>
 {/snippet}
 
-<dialog bind:this={dialog} tabindex="-1" {onclose} onclick={(e) => { e.stopPropagation(); if (e.target === dialog) dialog.close(); }} aria-label="Current changes budget" class="fixed top-[60px] m-0 max-h-none max-w-none bg-transparent p-0 text-surface-100 outline-none backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2">
+<dialog bind:this={dialog} use:sheetDialog={() => card} tabindex="-1" {onclose} onclick={(e) => { e.stopPropagation(); if (e.target === dialog) dialog.close(); }} aria-label="Current changes budget" class="fixed top-[60px] m-0 max-h-none max-w-none bg-transparent p-0 text-surface-100 outline-none backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2">
 	<div bind:this={card} class="flex max-h-[85dvh] w-[660px] max-w-[calc(100vw-1.5rem)] flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:max-w-none max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
-	<div class="flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3 max-sm:gap-y-1" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), slideOut: true, enabled: () => matchMedia('(max-width: 639px)').matches }}>
+	<div class="flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3 max-sm:gap-y-1" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
 		<span class="flex basis-full justify-center pb-1 sm:hidden"><span class="h-1.5 w-12 rounded-full bg-surface-500"></span></span>
 		<div class="min-w-0 flex-1"><h2 class="flex items-center gap-2 font-semibold text-amber-200"><img src={GOLD_ICON} alt="" class="size-5" />Current changes budget</h2><p class="mt-1 flex flex-wrap items-baseline gap-2 tabular-nums"><span class="text-2xl font-bold">{formatCp(current)}</span><span class="text-surface-400">→</span><span class="text-2xl font-bold {isSupport ? 'text-green-400' : 'text-red-400'}">{formatCp(simulated)}</span></p></div>
 		<button type="button" class={btn} onclick={() => dialog.close()} aria-label="Close budget">Close</button>

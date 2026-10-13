@@ -9,7 +9,7 @@ import type { HoningTap } from './honing-cost-data';
 import { ACCESSORY_SLOTS, gemParts, isOtherLine, simulate, type DpsLine, type SimState } from './simulate';
 import { skinParts, skinPriceKey } from './skins';
 import type { Loadout } from './types';
-import { engravingName, type Upgrade } from './upgrades';
+import { engravingName, relicBooksNeeded, type Upgrade } from './upgrades';
 import { formatLineValue } from './tables';
 import { qualityCost } from './quality';
 
@@ -117,7 +117,10 @@ export function budgetChanges(loadout: Loadout, base: SimState, target: SimState
 		const read = to.as ?? Number(id);
 		const same = from && (from.as ?? Number(id)) === read;
 		const before = same ? from.books : base.engravings[read]?.books ?? 0;
-		if (to.books > before) add('Engravings', `${engravingName(read)}: ${(to.books - before) * 5} relic books`, before, to.books, { books: { id: read, count: (to.books - before) * 5 } });
+		if (to.books > before) {
+			const count = relicBooksNeeded(loadout, read, before, to.books);
+			add('Engravings', `${engravingName(read)}: ${count} relic books`, before, to.books, { books: { id: read, count } });
+		}
 		if ((!same && from) || to.books < before) add('Engravings', `${engravingName(read)} engraving setup`, from, to, { status: 'excluded' });
 		if (to.stone !== (from?.stone ?? 0)) add('Engravings', `${engravingName(read)} ability stone ${from?.stone ?? 0} → ${to.stone}`, from?.stone, to.stone, { status: 'rng' });
 	}

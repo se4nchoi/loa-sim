@@ -366,6 +366,15 @@ interface EngravingState {
 
 export const engravingName = (id: number) => ENGRAVING_NAMES[id] ?? ENGRAVING_ICONS[id]?.[1] ?? `Engraving ${id}`;
 
+/** Books still to read to go from book step `from` to step `to`. A legendary-grade engraving's progress is its relic
+ *  books read so far, so a partly read step (4 of the first 5) only needs the rest. */
+export function relicBooksNeeded(l: Loadout, id: number, from: number, to: number): number {
+	const e = l.engravings?.find((x) => x.id === id);
+	const progress = e && e.grade !== 'engrave_grade05' ? e.progress : 0;
+	const read = progress > ENGRAVING_BOOK_STEPS[from] && progress < ENGRAVING_BOOK_STEPS[from + 1] ? progress : ENGRAVING_BOOK_STEPS[from];
+	return Math.max(0, ENGRAVING_BOOK_STEPS[to] - read);
+}
+
 export function engravingStates(l: Loadout): EngravingState[] {
 	const role = roleOf(l);
 	const scored = engravingPartTypes(role)
@@ -403,8 +412,8 @@ function engravingUpgrades(l: Loadout): Upgrade[] {
 						key: `engraving:${e.id}:books:${ENGRAVING_BOOK_STEPS[e.col + 1]}`,
 						category: 'engraving' as const,
 						title: `${e.name} relic books ${ENGRAVING_BOOK_STEPS[e.col]} → ${ENGRAVING_BOOK_STEPS[e.col + 1]}`,
-						detail: 'Read 5 more relic engraving books.',
-						books: { engraving: e.id, name: e.name, count: ENGRAVING_BOOK_STEPS[e.col + 1] - ENGRAVING_BOOK_STEPS[e.col] },
+						detail: `Read ${relicBooksNeeded(l, e.id, e.col, e.col + 1)} more relic engraving books.`,
+						books: { engraving: e.id, name: e.name, count: relicBooksNeeded(l, e.id, e.col, e.col + 1) },
 						gainPct: g(e.value, e.table[e.stone][e.col + 1], e.defense),
 						count: 1,
 						approximate: false

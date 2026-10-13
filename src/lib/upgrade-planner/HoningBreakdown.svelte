@@ -3,7 +3,7 @@
 	import { breathStrategy, materialIcon, materialName, type HoningCost } from './honing-cost';
 	import { GOLD_ICON, iconUrl } from './icons';
 	import { btn, btnAccent } from './sim/ui';
-	import { sheetDrag } from './sim/sheet-drag';
+	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
 	let { cost, title, initialMode = 'average', onclose }: { cost: HoningCost; title: string; initialMode?: 'average' | 'pity'; onclose: () => void } = $props();
 	let dialog: HTMLDialogElement;
 	let mode = $state<'average' | 'pity'>(untrack(() => initialMode));
@@ -12,7 +12,9 @@
 	const strategies = $derived(cost.strategies ?? [{ label: breathStrategy(cost), materialIds: [], selected: true }]);
 	const breathIds = $derived([...new Set(strategies.flatMap((strategy) => strategy.materialIds))]);
 	const quantity = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
-	const money = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+	// Whole gold: decimals only add width (and shift the table on phones as the numbers change).
+	const money = (n: number) => Math.round(n).toLocaleString();
+	const unitPrice = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 	let card = $state<HTMLDivElement>();
 	onMount(() => {
 		dialog.showModal();
@@ -20,10 +22,10 @@
 	});
 </script>
 
-<dialog bind:this={dialog} {onclose} onclick={(e) => { e.stopPropagation(); if (e.target === dialog) dialog.close(); }} aria-label="Honing material breakdown" tabindex="-1" class="m-auto max-h-[85vh] w-[640px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-sm border border-surface-700 bg-transparent p-0 text-surface-100 outline-none backdrop:bg-black/60 max-sm:mx-0 max-sm:mt-auto max-sm:mb-0 max-sm:w-full max-sm:max-w-full max-sm:rounded-none max-sm:border-0">
+<dialog bind:this={dialog} use:sheetDialog={() => card} {onclose} onclick={(e) => { e.stopPropagation(); if (e.target === dialog) dialog.close(); }} aria-label="Honing material breakdown" tabindex="-1" class="m-auto max-h-[85vh] w-[640px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-sm border border-surface-700 bg-transparent p-0 text-surface-100 outline-none backdrop:bg-black/60 max-sm:mx-0 max-sm:mt-auto max-sm:mb-0 max-sm:w-full max-sm:max-w-full max-sm:rounded-none max-sm:border-0">
 <!-- Phones: a bottom sheet; the header is the drag-to-close zone, with a grabber. -->
 <div bind:this={card} class="flex max-h-[85vh] flex-col bg-surface-900 max-sm:rounded-t-xl max-sm:border-t max-sm:border-surface-700 max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
-	<div class="flex flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3 max-sm:pt-2" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), slideOut: true, enabled: () => matchMedia('(max-width: 639px)').matches }}>
+	<div class="flex flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3 max-sm:pt-2" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
 		<span class="flex basis-full justify-center pb-1 sm:hidden"><span class="h-1.5 w-12 rounded-full bg-surface-500"></span></span>
 		<div class="min-w-0 flex-1">
 			<h2 class="font-semibold">Honing material breakdown</h2>
@@ -56,7 +58,7 @@
 								<td class="px-2 py-2 text-right text-surface-400">{quantity(material.perTap)}{#if material.until !== undefined && cost.breathMode !== 'full'}<span class="block whitespace-nowrap text-[10px]">first {material.until} taps</span>{/if}</td>
 								<td class="px-2 py-2 text-right text-surface-300">{quantity(material.bound)}</td>
 								<td class="px-2 py-2 text-right">{quantity(material.bought)}</td>
-								<td class="py-2 text-right text-amber-200" title={`${money(material.price)} gold per unit`}>{money(material.gold)}</td>
+								<td class="py-2 text-right text-amber-200" title={`${unitPrice(material.price)} gold per unit`}>{money(material.gold)}</td>
 							</tr>
 						{/each}
 					</tbody>

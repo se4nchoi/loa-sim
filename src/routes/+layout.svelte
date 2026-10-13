@@ -2,11 +2,14 @@
 	import { dev } from '$app/environment';
 	import { page } from '$app/state';
 	import { injectAnalytics } from '@vercel/analytics/sveltekit';
+	import { onMount } from 'svelte';
+	import { installTouchTips } from '$lib/touch-tips';
 	import '../app.css';
 
 	injectAnalytics({ mode: dev ? 'development' : 'production' });
 
 	let { children } = $props();
+	onMount(installTouchTips);
 
 	const tabs = [
 		{ href: '/', label: 'Characters', active: (p: string) => p === '/' },

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { sheetDrag } from './sim/sheet-drag';
+	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
 	import { onMount, untrack } from 'svelte';
 	import { formatCp, formatPct } from './format';
 	import { btn, btnAccent, ROLL_COLORS } from './sim/ui';
@@ -231,7 +231,7 @@
 
 <!-- Focusable itself (tabindex -1) so opening focuses the dialog, not its first input or Close. -->
 <dialog
-	bind:this={dialog}
+	bind:this={dialog} use:sheetDialog={() => card}
 	style:bottom={viewportHeight === undefined ? undefined : `${keyboardBottom}px`}
 	tabindex="-1"
 	{onclose}
@@ -241,7 +241,7 @@
 >
 	<div bind:this={card} style:max-height={viewportHeight === undefined ? undefined : `${viewportHeight - 16}px`} class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 		<!-- Phones: the header is the drag-to-close zone, with a grabber. -->
-		<div class="flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold max-sm:pt-2" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), slideOut: true, enabled: () => matchMedia('(max-width: 639px)').matches }}>
+		<div class="flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold max-sm:pt-2" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
 			<span class="flex basis-full justify-center pb-1 sm:hidden"><span class="h-1.5 w-12 rounded-full bg-surface-500"></span></span>
 			<span id="upgrade-planner-title">Next upgrades</span>
 			<button type="button" class="text-surface-300 hover:text-surface-50" aria-label="Close" onclick={() => dialog.close()}>
@@ -323,12 +323,15 @@
 							{@const missing = missingPriceCount(piece.options.flatMap((o) => o.variants), costs)}
 							{@const options = mode === 'gold' && missing > 0 && missingOnly[piece.name] ? piece.options.filter((o) => missingPriceCount(o.variants, costs) > 0) : piece.options}
 							<details class="group border-t border-neutral-950" open={piece.options.some((o) => o.variants.some((u) => u.key === focusKey))}>
-								<summary class="flex cursor-pointer list-none flex-row flex-wrap items-center gap-x-3 gap-y-1 py-2 hover:bg-black/15 [&::-webkit-details-marker]:hidden">
-									<span class="w-3 text-xs text-surface-500 transition-transform group-open:rotate-90">▸</span>
-									<span class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-xs"><span class="w-22 shrink-0 text-sm text-surface-100">{piece.name}</span>{#each accRolls ?? [] as roll (roll)}<span class="inline-flex items-center rounded-xs border border-surface-600 bg-black/15 px-1.5 py-0.5 font-semibold">{#each [...roll] as tier, i (i)}{#if i}<span class="text-surface-500">-</span>{/if}<span style:color={ROLL_COLORS[({ h: 'high', m: 'mid', l: 'low' } as const)[tier as 'h' | 'm' | 'l']]}>{tier.toUpperCase()}</span>{/each}</span>{/each}</span>
-									<span class="text-xs text-surface-500">{piece.options.length} option{piece.options.length === 1 ? '' : 's'}</span>
-									{#if piece.options.length}<span class="text-sm font-semibold text-green-400 tabular-nums">up to {piece.options.some((o) => o.variants.some((u) => u.approximate)) ? '≈' : ''}{formatPct(Math.max(...piece.options.flatMap((o) => o.variants.map((u) => u.gainPct))))}%</span>{/if}
-									{#if mode === 'gold' && missing}<span class="basis-full pl-6 text-xs text-amber-300">{missing} missing price{missing === 1 ? '' : 's'}</span>{/if}
+								<summary class="flex cursor-pointer list-none flex-col gap-1.5 py-2 hover:bg-black/15 [&::-webkit-details-marker]:hidden">
+									<span class="flex min-w-0 items-center gap-2">
+										<span class="w-3 shrink-0 text-xs text-surface-500 transition-transform group-open:rotate-90">▸</span>
+										<span data-accessory-name class="min-w-0 flex-1 text-sm text-surface-100">{piece.name}</span>
+										<span class="shrink-0 text-xs text-surface-500">{piece.options.length} option{piece.options.length === 1 ? '' : 's'}</span>
+										{#if piece.options.length}<span class="shrink-0 text-sm font-semibold text-green-400 tabular-nums">up to {piece.options.some((o) => o.variants.some((u) => u.approximate)) ? '≈' : ''}{formatPct(Math.max(...piece.options.flatMap((o) => o.variants.map((u) => u.gainPct))))}%</span>{/if}
+									</span>
+									<span data-accessory-rolls class="flex flex-wrap gap-1.5 pl-5 text-xs">{#each accRolls ?? [] as roll (roll)}<span class="inline-flex items-center rounded-xs border border-surface-600 bg-black/15 px-1.5 py-0.5 font-semibold">{#each [...roll] as tier, i (i)}{#if i}<span class="text-surface-500">-</span>{/if}<span style:color={ROLL_COLORS[({ h: 'high', m: 'mid', l: 'low' } as const)[tier as 'h' | 'm' | 'l']]}>{tier.toUpperCase()}</span>{/each}</span>{/each}</span>
+									{#if mode === 'gold' && missing}<span class="pl-5 text-xs text-amber-300">{missing} missing price{missing === 1 ? '' : 's'}</span>{/if}
 								</summary>
 								<div class="pl-6">
 									{#if mode === 'gold'}

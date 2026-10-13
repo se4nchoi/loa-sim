@@ -1,8 +1,8 @@
 <!-- A Next Upgrades row's gold cost: calculated honing estimates or editable prices for other upgrades. -->
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { priceEntry } from './sim/price-entry';
 	import { goldPriceButton } from './sim/ui';
+	import { numberField } from './sim/field';
 	import { GOLD_ICON } from './icons';
 	import { bookCost, costsForCharacter, formatGold, gold, manualGoldCost, parseGold, setBookPrice, setGoldCost } from './gold-costs.svelte';
 	import { breathStrategy, type HoningCost } from './honing-cost';
@@ -51,7 +51,7 @@
 		text = u.books ? (bookPrice !== undefined ? formatGold(bookPrice) : '') : typed ? formatGold(typed) : '';
 		editing = true;
 		await tick();
-		input?.focus({ preventScroll: true });
+		input?.focus({ preventScroll: true }); // numberField scrolls it into view (once, above the keyboard)
 		input?.select();
 	}
 	function commit() {
@@ -63,17 +63,34 @@
 		}
 		else setGoldCost(u.key, text.trim() ? parseGold(text) : null, characterKey);
 	}
+	/** Enter: save, then open the next row still missing a price, so a list is priced without the keyboard closing (or,
+	 *  on desktop, without reaching for the mouse). Focus moves to the next row first (its blur saves this one), so
+	 *  the focused field is never removed out from under the browser. Rows are re-checked after the save: a shared
+	 *  quote (paired earrings) can price the next row too. */
+	async function commitAndNext(field: HTMLInputElement) {
+		const scope = field.closest('dialog, [role="dialog"]') ?? document;
+		const shown = (b: HTMLButtonElement) => b.isConnected && b.hasAttribute('data-price-missing') && b.getClientRects().length > 0;
+		const after = [...scope.querySelectorAll<HTMLButtonElement>('button[data-price-missing]')].filter(
+			(b) => field.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING && shown(b)
+		);
+		if (!after.length) return field.blur();
+		after[0].focus({ preventScroll: true });
+		await tick();
+		const next = after.find(shown);
+		if (next) next.click();
+		else (document.activeElement as HTMLElement | null)?.blur();
+	}
 </script>
 
 {#if editing}
 	<input
 		bind:this={input}
-		use:priceEntry
-		inputmode="decimal"
 		bind:value={text}
+		use:numberField
+		enterkeyhint="next"
 		onblur={commit}
 		onkeydown={(e) => {
-			if (e.key === 'Enter') commit();
+			if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); commitAndNext(e.currentTarget); }
 			if (e.key === 'Escape') editing = false;
 		}}
 		placeholder={u.books ? 'per book, e.g. 80k' : 'e.g. 45k or 5.5m'}
@@ -86,6 +103,7 @@
 		<button
 			type="button"
 			disabled={!canEdit}
+			data-price-missing={canEdit && !onedit && cost === undefined ? '' : undefined}
 			onclick={edit}
 			class="col-start-1 {goldPriceButton(cost)}"
 			title={u.books
