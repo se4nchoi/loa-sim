@@ -43,7 +43,8 @@ export function enterToNext(e: KeyboardEvent, scope: HTMLElement | null | undefi
 	else field.blur();
 }
 
-/** Scroll a field to the middle of what the keyboard leaves visible, once the keyboard has opened. */
+/** Scroll a field to the middle of what the keyboard leaves visible: at once when the keyboard is already up (moving
+ *  between fields), else when it has opened. */
 export function revealAboveKeyboard(node: HTMLElement) {
 	const vv = window.visualViewport;
 	if (!vv || !matchMedia('(pointer: coarse)').matches) return;
@@ -53,10 +54,27 @@ export function revealAboveKeyboard(node: HTMLElement) {
 		done = true;
 		vv.removeEventListener('resize', reveal);
 		const r = node.getBoundingClientRect();
-		if (r.top < vv.offsetTop + 8 || r.bottom > vv.offsetTop + vv.height - 8) node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		const top = vv.offsetTop + 8, bottom = vv.offsetTop + vv.height - 8;
+		if (r.top < top || r.bottom > bottom) quickScroll(node, r.top + r.height / 2 - (vv.offsetTop + vv.height / 2));
 	};
+	if (window.innerHeight - vv.height > 120) return reveal(); // keyboard already open: no resize will come
 	vv.addEventListener('resize', reveal);
-	setTimeout(reveal, 400); // keyboard already open (moving between fields): no resize comes
+	setTimeout(reveal, 400);
+}
+
+/** Scroll the field's scroller (or the page) by `dy` px in a short ease-out: the browser's smooth scroll is slow. */
+function quickScroll(node: HTMLElement, dy: number) {
+	let box: HTMLElement | null = node.parentElement;
+	while (box && !(box.scrollHeight > box.clientHeight && /auto|scroll/.test(getComputedStyle(box).overflowY))) box = box.parentElement;
+	const scroller = box ?? document.scrollingElement ?? document.documentElement;
+	const from = scroller.scrollTop;
+	const t0 = performance.now();
+	const step = (t: number) => {
+		const k = Math.min(1, (t - t0) / 160);
+		scroller.scrollTop = from + dy * (1 - (1 - k) ** 3);
+		if (k < 1) requestAnimationFrame(step);
+	};
+	requestAnimationFrame(step);
 }
 
 /** Bottom-sheet dialogs: sit on top of the on-screen keyboard instead of under it, and shrink to the space left. */
