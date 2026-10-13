@@ -90,3 +90,27 @@ Synthetic regressions verify additional-damage replay with unrelated missing cri
 required support dilution for Weapon Power, unknown-effect blocking, mixed level dependencies, baseline
 provenance and rejection of incompatible delta reuse. Actual-run marginal validation still awaits a
 matching inspected baseline and the user's versioned runtime tables; neither is present in this workspace.
+
+## Per-encounter validation harness
+
+`validateReplayMarginals` checks eight supported stat increments against the meter's recorded values for
+one identified encounter. It refuses aggregate/mismatched cohorts, absent samples, incomplete projections,
+unresolved contexts and insufficient hit coverage. Each result is `match`, `mismatch` or `unavailable`,
+with the replay value, meter value, difference in percentage points and deduplicated input issues. Default
+numeric tolerance is 0.02 percentage points and minimum hit coverage is 95%; both are caller-controlled.
+A numerical match is a cross-check, not proof that historical context provenance or all upgrades are correct.
+
+Tests cover bucket arithmetic, measured zero versus missing data, invalid thresholds and old Deskaluda
+assumption mismatches. No validation output is used to rank upgrades automatically.
+
+Shanzkii's current NA bible snapshot was fetched for inspection (male Scrapper, recorded CP 4312.59).
+No encounter database or runtime meter-data tables are available in this workspace, so Shanzkii's sample
+counts and meter/replay agreement have not been checked. Its current snapshot cannot establish historical
+buff totals, card setup or matching encounter provenance.
+
+Remaining completeness requirements:
+- Matching historical inspected stats, cards/build and versioned runtime tables for real-run validation.
+- Per-hit stacks, buff levels and skill/class conditional scope for the relevant changed buckets.
+- Multiple matching encounters to evaluate accuracy and stability beyond a single marginal increment.
+- Conditional engraving, Ark Grid, specialization/speed and rotation-changing upgrade models.
+- Support-buff-normalized skill shares and baseline before displaying absolute projected nDPS.
