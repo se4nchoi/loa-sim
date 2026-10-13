@@ -12,7 +12,9 @@
 	const strategies = $derived(cost.strategies ?? [{ label: breathStrategy(cost), materialIds: [], selected: true }]);
 	const breathIds = $derived([...new Set(strategies.flatMap((strategy) => strategy.materialIds))]);
 	const quantity = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
-	const money = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+	// Whole gold: decimals only add width (and shift the table on phones as the numbers change).
+	const money = (n: number) => Math.round(n).toLocaleString();
+	const unitPrice = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 	let card = $state<HTMLDivElement>();
 	onMount(() => {
 		dialog.showModal();
@@ -56,7 +58,7 @@
 								<td class="px-2 py-2 text-right text-surface-400">{quantity(material.perTap)}{#if material.until !== undefined && cost.breathMode !== 'full'}<span class="block whitespace-nowrap text-[10px]">first {material.until} taps</span>{/if}</td>
 								<td class="px-2 py-2 text-right text-surface-300">{quantity(material.bound)}</td>
 								<td class="px-2 py-2 text-right">{quantity(material.bought)}</td>
-								<td class="py-2 text-right text-amber-200" title={`${money(material.price)} gold per unit`}>{money(material.gold)}</td>
+								<td class="py-2 text-right text-amber-200" title={`${unitPrice(material.price)} gold per unit`}>{money(material.gold)}</td>
 							</tr>
 						{/each}
 					</tbody>

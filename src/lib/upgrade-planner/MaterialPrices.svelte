@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import { sheetDrag } from './sim/sheet-drag';
+	import { aboveKeyboard, enterToNext, numberField } from './sim/field';
 	import { onMount } from 'svelte';
 	import { clearMaterialInventory, restoreMaterialInventory, clearMaterialPrices, restoreMaterialPrices, formatGold, gold, parseOwned, parsePrice, setMaterialBound, setMaterialPrice, type ClearedMaterialInventory } from './gold-costs.svelte';
 	import { btn } from './sim/ui';
@@ -91,11 +92,12 @@
 <!-- Focusable itself (tabindex -1) so opening focuses the dialog, not its first input or Close. -->
 <dialog
 	bind:this={dialog}
+	use:aboveKeyboard
 	tabindex="-1"
 	{onclose}
 	onclick={(e) => e.target === dialog && dialog.close()}
 	aria-labelledby="material-prices-title"
-	class="fixed top-[80px] m-0 max-h-none outline-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
+	class="fixed top-[80px] m-0 max-h-none outline-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-[var(--keyboard,0px)] max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
 >
 	<div bind:this={card} class="flex w-[600px] flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 		<!-- Phones: the header is the drag-to-close zone, with a grabber. -->
@@ -106,7 +108,7 @@
 				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
 			</button>
 		</div>
-		<div class="flex max-h-[70vh] flex-col gap-3 overflow-y-auto px-4 py-3 text-sm">
+		<div class="flex max-h-[70vh] flex-col gap-3 overflow-y-auto px-4 py-3 text-sm max-sm:max-h-[min(70vh,calc(var(--visible,100vh)-4.5rem))]">
 			<ul class="list-disc pl-5 text-xs text-surface-100">
 				<li>Character-bound mats are used first, then the market buy is simulated</li>
 				<li>Put a big number (9999999999) to force 0 gold for the mat</li>
@@ -139,8 +141,12 @@
 						<span class="min-w-0 leading-tight text-surface-100 max-sm:hidden">{materialName(id)}</span>
 						{#if ids.includes(id)}
 						<input
+							use:numberField
+							data-next
+							enterkeyhint="next"
 							value={shownOwned(id)}
 							onchange={(e) => commitOwned(id, e.currentTarget.value)}
+							onkeydown={(e) => enterToNext(e, card)}
 							aria-label={`${materialName(id)} bound`}
 							class="h-8 w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-right tabular-nums hover:border-surface-400 focus:border-accent-500 focus:outline-none {bound[id]
 								? 'text-surface-50'
@@ -148,9 +154,13 @@
 						/>
 						{:else}<span class="text-right text-surface-600" title="Not used by current gear">—</span>{/if}
 						<input
+							use:numberField
+							data-next
+							enterkeyhint="next"
 							value={shown(id)}
 							aria-label={`${materialName(id)} market price (${unitLabel(id)})`}
 							onchange={(e) => commit(id, e.currentTarget.value)}
+							onkeydown={(e) => enterToNext(e, card)}
 							class="h-8 w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-right tabular-nums hover:border-surface-400 focus:border-accent-500 focus:outline-none {gold.prices[id]
 								? 'text-surface-50'
 								: 'text-surface-400'}"

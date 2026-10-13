@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PartType, baseAttackPoint, combatPower, partHigh } from './cp';
+import brushann from './fixtures/na-brushann.json';
 import soulshan from './fixtures/na-soulshan.json';
 import {
 	ACCESSORY_LINES,
@@ -10,7 +11,7 @@ import {
 	engravingTable
 } from './tables';
 import type { Loadout } from './types';
-import { astrogemTotals, buildUpgrades, coreStates, evaluateAstrogemSwap, weaponPowerOf } from './upgrades';
+import { astrogemTotals, buildUpgrades, coreStates, evaluateAstrogemSwap, relicBooksNeeded, weaponPowerOf } from './upgrades';
 
 const loadout = soulshan as unknown as Loadout;
 const parts = loadout.battlePoint.parts;
@@ -105,6 +106,17 @@ describe('upgrades', () => {
 
 	it('skips relic book steps when already at 20 books', () => {
 		expect(upgrades.some((u) => u.key.startsWith('engraving:') && u.key.includes(':books:'))).toBe(false);
+	});
+
+	it('counts only the books left in a partly read step', () => {
+		const b = brushann as unknown as Loadout;
+		// 1255 has read 2 books (step 0), 1301 has read 6 (step 1): 3 and 4 books to the next step.
+		const books = (id: number) => buildUpgrades(b).find((u) => u.key.startsWith(`engraving:${id}:books:`))?.books?.count;
+		expect(books(1255)).toBe(3);
+		expect(books(1301)).toBe(4);
+		expect(relicBooksNeeded(b, 1240, 2, 4)).toBe(6);
+		expect(relicBooksNeeded(b, 1240, 3, 4)).toBe(5); // progress outside the starting step is ignored
+		expect(relicBooksNeeded(b, 9999, 0, 1)).toBe(5);
 	});
 
 	it('values a ring Crit Rate mid → high', () => {

@@ -228,7 +228,8 @@ const UNITS: Record<string, number> = { '': 1, k: 1e3, thousand: 1e3, m: 1e6, mi
 
 /** "45k", "5.5m", "5.5 million", "45,000", "45000 gold" → gold; null for empty or unreadable input. */
 export function parseGold(text: string): number | null {
-	const plain = text.trim().toLowerCase().replaceAll(',', '').replace(/\s*(gold|g)$/, '');
+	// "300k0": typed in front of a field's old 0, the stray trailing zeros after the unit are dropped.
+	const plain = text.trim().toLowerCase().replaceAll(',', '').replace(/\s*(gold|g)$/, '').replace(/([a-z])0+$/, '$1');
 	const m = plain.match(/^(\d+(?:\.\d+)?)\s*([a-z]*)$/);
 	if (!m || !(m[2] in UNITS)) return null;
 	const n = Number(m[1]) * UNITS[m[2]];
@@ -252,14 +253,17 @@ export function formatGold(g: number): string {
 /** Ark Grid rolls remain CP suggestions without a predictable gold cost. */
 export const supportsGoldCost = (u: Upgrade) => u.category !== 'core' && u.category !== 'astrogem';
 
+/** Honing (incl. the bracer) and quality are priced from materials, never typed: no material cost = no price to ask for. */
+const materialPriced = (u: Upgrade) => u.category === 'honing' || u.category === 'quality';
+
 /** Count price entries, sharing identical accessory quotes across paired slots. Costs are the resolved row totals. */
 export function missingPriceCount(upgrades: Upgrade[], costs: Record<string, number>): number {
-	return new Set(upgrades.filter((u) => supportsGoldCost(u) && costs[u.key] === undefined)
+	return new Set(upgrades.filter((u) => supportsGoldCost(u) && !materialPriced(u) && costs[u.key] === undefined)
 		.map((u) => u.books ? `book:${u.books.engraving}` : accessoryPriceKey(u.key, {}))).size;
 }
 
 /** Equipment honing is priced from materials; old manually entered totals no longer override it. */
-export const manualGoldCost = (u: Upgrade, costs: Record<string, number>) => u.category === 'honing' || u.category === 'quality' ? undefined : costs[accessoryPriceKey(u.key, costs)];
+export const manualGoldCost = (u: Upgrade, costs: Record<string, number>) => materialPriced(u) ? undefined : costs[accessoryPriceKey(u.key, costs)];
 
 /** Gold per 1% Combat Power (lower is better); null without a cost or a gain. */
 export const goldPerPct = (u: Upgrade, costs: Record<string, number>) => {
