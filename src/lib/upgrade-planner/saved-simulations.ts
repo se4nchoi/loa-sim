@@ -101,3 +101,31 @@ export function deleteSimulation(id: string) {
 export function latestSimulation(characterKey: string, loadout: Loadout): SavedSimulation | undefined {
 	return savedSimulations(characterKey).find((s) => sameBaseline(s.loadout, loadout));
 }
+
+const draftKey = (characterKey: string) => `loa-sim:autosave:v1:${characterKey.toLowerCase()}`;
+function drafts(characterKey: string): SavedSimulation[] {
+	try {
+		const list: unknown = JSON.parse(localStorage.getItem(draftKey(characterKey)) ?? '[]');
+		return Array.isArray(list) ? list.filter((s): s is SavedSimulation => record(s) && s.version === 1 &&
+			s.characterKey === characterKey.toLowerCase() && record(s.loadout) && record(s.state)) : [];
+	} catch { return []; }
+}
+
+/** Automatic working copies are separate from the player's named plans. */
+export function loadAutosave(characterKey: string, loadout: Loadout): SimState | undefined {
+	if (!characterKey) return;
+	const saved = drafts(characterKey).find(s => sameBaseline(s.loadout, loadout));
+	if (!saved) return;
+	try { return parseSimulation(JSON.stringify(saved)).state; } catch { return; }
+}
+
+/** Save synchronously after edits; invalid intermediate input must not replace a valid working copy. */
+export function autosaveSimulation(characterKey: string, loadout: Loadout, state: SimState): void {
+	if (!characterKey || !finiteJson(state) || !validState(state)) return;
+	const list = drafts(characterKey);
+	const previous = list.find(s => sameBaseline(s.loadout, loadout));
+	if (previous && JSON.stringify(previous.state) === JSON.stringify(state)) return;
+	const saved: SavedSimulation = {version:1,id:'autosave',name:'Autosave',characterKey:characterKey.toLowerCase(),savedAt:Date.now(),loadout,state};
+	try { localStorage.setItem(draftKey(characterKey), JSON.stringify([saved,...list.filter(s => !sameBaseline(s.loadout, loadout))].slice(0,8))); }
+	catch { throw new Error('Autosave unavailable: browser storage is full or blocked. Export a file to keep your changes.'); }
+}

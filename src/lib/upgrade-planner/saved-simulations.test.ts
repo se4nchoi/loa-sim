@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { deleteSimulation, latestSimulation, parseSimulation, savedSimulations, saveSimulation } from './saved-simulations';
+import { autosaveSimulation, loadAutosave, deleteSimulation, latestSimulation, parseSimulation, savedSimulations, saveSimulation } from './saved-simulations';
 import { initSimState, simulate } from './simulate';
 import type { Loadout } from './types';
 import soulshan from './fixtures/na-soulshan.json';
@@ -62,4 +62,40 @@ describe('saved simulator plans', () => {
 		store.set('loa-sim:simulations:v1', JSON.stringify([{}, s]));
 		expect(savedSimulations()).toEqual([s]);
 	});
+});
+
+
+describe('automatic working copies', () => {
+ it('restores edits separately from named plans and other characters or baselines', () => {
+  const state=initSimState(loadout);state.gear.weapon!.honing++;
+  autosaveSimulation('NA/Soulshan',loadout,state);
+  expect(loadAutosave('na/soulshan',loadout)).toEqual(state);
+  expect(savedSimulations()).toEqual([]);
+  expect(loadAutosave('ce/other',loadout)).toBeUndefined();
+  const newer=structuredClone(loadout);newer.combatPower!.score++;
+  expect(loadAutosave('na/soulshan',newer)).toBeUndefined();
+  autosaveSimulation('na/soulshan',newer,initSimState(newer));
+  expect(loadAutosave('na/soulshan',loadout)).toEqual(state);
+ });
+ it('persists reset and skips unchanged writes', () => {
+  const state=initSimState(loadout);state.gear.weapon!.honing++;
+  autosaveSimulation('na/soulshan',loadout,state);
+  blocked=true;expect(()=>autosaveSimulation('na/soulshan',loadout,state)).not.toThrow();
+  blocked=false;autosaveSimulation('na/soulshan',loadout,initSimState(loadout));
+  expect(loadAutosave('na/soulshan',loadout)).toEqual(initSimState(loadout));
+ });
+ it('retains last valid edits through temporary invalid input and reports storage failures', () => {
+  const state=initSimState(loadout);state.gear.weapon!.honing++;
+  autosaveSimulation('na/soulshan',loadout,state);
+  const invalid=structuredClone(state);invalid.gear.weapon!.honing=NaN;
+  autosaveSimulation('na/soulshan',loadout,invalid);
+  expect(loadAutosave('na/soulshan',loadout)).toEqual(state);
+  blocked=true;state.gear.weapon!.honing--;
+  expect(()=>autosaveSimulation('na/soulshan',loadout,state)).toThrow('Autosave unavailable');
+  expect(loadAutosave('na/soulshan',loadout)).not.toEqual(state);
+ });
+ it('ignores corrupt working copies', () => {
+  store.set('loa-sim:autosave:v1:na/soulshan','broken');
+  expect(loadAutosave('na/soulshan',loadout)).toBeUndefined();
+ });
 });

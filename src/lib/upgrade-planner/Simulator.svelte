@@ -8,6 +8,7 @@
 	import { setContext, untrack, type Snippet, tick } from 'svelte';
 	import { className as classNameOf } from './class-names';
 	import { applyUpgrade } from './apply-upgrade';
+	import { autosaveSimulation, loadAutosave } from './saved-simulations';
 	import { roleOf } from './roles';
 	import UpgradePlanner from './UpgradePlanner.svelte';
 	import SimBudget from './SimBudget.svelte';
@@ -149,11 +150,20 @@
 	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
-		sim = initSimState(loadout);
-		calculated = initSimState(loadout);
+		const currentLoadout = loadout, key = characterKey ?? '';
+		untrack(() => {
+			sim = loadAutosave(key, currentLoadout) ?? initSimState(currentLoadout);
+			calculated = structuredClone($state.snapshot(sim));
+		});
 	});
 
 	const snapshot = () => $state.snapshot(sim) as SimState;
+	let autosaveError = $state('');
+	$effect(() => {
+		const state = snapshot();
+		try { untrack(() => autosaveSimulation(characterKey ?? '', loadout, state)); autosaveError = ''; }
+		catch (e) { autosaveError = (e as Error).message; }
+	});
 	$effect(() => {
 		const next = snapshot();
 		// Only a real change: a new loadout already set both, and recalculating the same state again cost a second stall.
@@ -342,6 +352,7 @@
 {/snippet}
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
+{#if autosaveError}<p class="mb-2 text-xs text-amber-300" role="alert">{autosaveError}</p>{/if}
 <MobileSummaryBar {current} {simulated} nav={jumpChips} onbudget={() => budgetOpen = true}>{@render summary()}</MobileSummaryBar>
 <div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
 	<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
