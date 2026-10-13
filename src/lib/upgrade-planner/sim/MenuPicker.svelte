@@ -16,6 +16,8 @@
 		trigger,
 		label,
 		changed = false,
+		tone = 'default',
+		repick = false,
 		preview,
 		align = 'left',
 		columns = 1,
@@ -28,6 +30,9 @@
 		trigger: Snippet;
 		label: string;
 		changed?: boolean;
+		tone?: 'default' | 'purple';
+		/** Re-selecting a saved plan restores it even after editing it. */
+		repick?: boolean;
 		preview?: (v: T) => number;
 		align?: 'left' | 'right';
 		columns?: number;
@@ -68,7 +73,7 @@
 	const pick = (v: T) => {
 		if (options.find((o) => o.value === v)?.disabled) return;
 		open = false;
-		if (v !== value) onpick(v);
+		if (v !== value || repick) onpick(v);
 	};
 </script>
 
@@ -86,9 +91,9 @@
 <div class="relative min-w-0 max-w-full {full ? 'flex w-full' : 'inline-flex'}" bind:this={root}>
 	<button
 		type="button"
-		class="inline-flex max-w-full min-w-0 items-center rounded-xs {iconOnly ? 'h-9 p-0 hover:ring-2 hover:ring-accent-400 hover:ring-offset-2 hover:ring-offset-surface-950 focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-950' : 'h-8 gap-1.5 px-2 max-[360px]:gap-1 max-[360px]:px-1'} {full ? 'w-full' : ''} border bg-surface-800/80 text-sm transition hover:border-accent-500 hover:bg-surface-700/80 {changed
+		class="inline-flex max-w-full min-w-0 items-center rounded-xs {iconOnly ? 'h-9 p-0 hover:ring-2 hover:ring-accent-400 hover:ring-offset-2 hover:ring-offset-surface-950 focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-950' : 'h-8 gap-1.5 px-2 max-[360px]:gap-1 max-[360px]:px-1'} {full ? 'w-full' : ''} border text-sm transition {tone === 'purple' ? 'border-violet-500/60 bg-violet-500/10 text-violet-200 hover:border-violet-400 hover:bg-violet-500/20' : `bg-surface-800/80 hover:border-accent-500 hover:bg-surface-700/80 ${changed
 			? 'border-accent-500 bg-accent-500/15'
-			: 'border-surface-600'}"
+			: 'border-surface-600'}`}"
 		aria-haspopup="listbox"
 		aria-expanded={open}
 		aria-label={label}

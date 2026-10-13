@@ -10,7 +10,6 @@
 	import { applyUpgrade } from './apply-upgrade';
 	import { roleOf } from './roles';
 	import UpgradePlanner from './UpgradePlanner.svelte';
-	import { latestSimulation } from './saved-simulations';
 	import SimBudget from './SimBudget.svelte';
 	import { budgetChanges, budgetPriceUpgrades } from './sim-budget';
 	import { inventoryMaterials } from './honing-cost';
@@ -150,9 +149,8 @@
 	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
-		const saved = characterKey ? latestSimulation(characterKey, loadout) : undefined;
-		sim = saved ? structuredClone(saved.state) : initSimState(loadout);
-		calculated = saved ? structuredClone(saved.state) : initSimState(loadout);
+		sim = initSimState(loadout);
+		calculated = initSimState(loadout);
 	});
 
 	const snapshot = () => $state.snapshot(sim) as SimState;

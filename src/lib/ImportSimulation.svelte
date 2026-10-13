@@ -17,11 +17,12 @@
 			const [region, rawName] = s.characterKey.split('/');
 			if (!['na', 'ce'].includes(region.toLowerCase()) || !rawName || s.characterKey.split('/').length !== 2) throw new Error('This file has an unsupported character region or name.');
 			// Store the plan first: storage errors must prevent a misleading successful import.
-			saveSimulation(s.characterKey, s.name, s.loadout, s.state);
+			const plan = saveSimulation(s.characterKey, s.name, s.loadout, s.state);
 			saveCharacter({ name: normalizeName(rawName), region: region.toUpperCase(), header: null, loadout: s.loadout, loadouts: { current: s.loadout }, loadoutKind: 'current' });
 			setLoadoutKind(s.characterKey, 'current');
 			const saved = loadSavedCharacter(s.characterKey);
 			if (!saved?.loadout || !sameBaseline(saved.loadout, s.loadout)) throw new Error('Browser storage is blocked; the character could not be imported.');
+			sessionStorage.setItem('loa-sim:import-plan', plan.id);
 			await goto(`/sim?c=${encodeURIComponent(s.characterKey.toLowerCase())}`);
 		} catch (e) { error = (e as Error).message; }
 		control.value = '';
