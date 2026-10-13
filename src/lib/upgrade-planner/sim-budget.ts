@@ -4,7 +4,7 @@ import { roleOf } from './roles';
 import { BRACER_TAPS } from './bracer-cost-data';
 import { HONING_SLOTS } from './honing-data';
 import { HONING_SLOT_LABELS } from './honing-upgrades';
-import { autoHoningCosts, bookFor, honingCost, materialName, tapsFor, type HoningBooks, type MaterialOwned, type MaterialPrices } from './honing-cost';
+import { autoHoningCosts, booksFor, honingCost, materialName, tapsFor, type MaterialOwned, type MaterialPrices } from './honing-cost';
 import type { HoningTap } from './honing-cost-data';
 import { ACCESSORY_SLOTS, gemParts, isOtherLine, simulate, type DpsLine, type SimState } from './simulate';
 import { skinParts, skinPriceKey } from './skins';
@@ -163,12 +163,12 @@ export function budgetPriceUpgrades(loadout: Loadout, base: SimState, target: Si
 }
 
 /** Share inventory across the plan using expected material use (an approximation), without changing saved stock. */
-export function priceBudget(changes: BudgetChange[], prices: MaterialPrices, owned: MaterialOwned, quotes: Record<string, number>, bookPrices: Record<string, number>, honingBooks: HoningBooks = {}): BudgetLine[] {
+export function priceBudget(changes: BudgetChange[], prices: MaterialPrices, owned: MaterialOwned, quotes: Record<string, number>, bookPrices: Record<string, number>): BudgetLine[] {
 	const averageStock = { ...owned };
 	return changes.map((row): BudgetLine => {
 		if (row.status) return { ...row, missing: [] };
 		if (row.tap) {
-			const book = row.honing ? bookFor(row.honing.set, row.honing.slot, row.honing.level, honingBooks) : undefined;
+			const book = row.honing ? booksFor(row.honing.set, row.honing.slot, row.honing.level) : undefined;
 			const cost = honingCost(row.tap, prices, averageStock, book);
 			const missing = new Set<string>();
 			const inventory: NonNullable<BudgetLine['inventory']> = [];

@@ -25,7 +25,7 @@ Load your character, change your gear, and see exactly what each change does to 
 - **Standing:** see where your CP ranks, now and after your changes.
 - **Works on your phone.**
 - **Keep your upgrade plans.** Save named simulations in your browser, reopen the latest save with the same character snapshot, or export/import a JSON file to back up or share your starting gear and edits. Unsaved edits are not retained.
-- **Compare honing books.** In Honing material prices, enter an Aegir book's printed success bonus, eligible levels, market price and available bound stock. The breakdown compares book strategies and shows average savings and market break-even. Serca book presets await verified rules.
+- **Compare honing books.** Hellfire books appear with the lower T4 materials: enter bound stock and market prices. Their verified success bonuses and eligible levels apply automatically; the breakdown compares books and breath, average savings, first-tap odds and market break-even. Serca books await verified rules.
 
 <div align="center">
 <img src="docs/screenshots/gems.png" alt="Gems maxed to Lv. 10 and the simulated CP gain" width="900" />

@@ -1,7 +1,7 @@
 // Gold costs players enter for Next Upgrades rows (NA has no market API). Kept per upgrade key in this browser and
 // shared by every character except skin quotes, which belong to a character. Ranking uses gold per 1% Combat Power.
 
-import { PLENTY, type HoningBooks, type HoningBook, type MaterialOwned, type MaterialPrices } from './honing-cost';
+import { PLENTY, type MaterialOwned, type MaterialPrices } from './honing-cost';
 import type { Upgrade, UpgradeCategory } from './upgrades';
 import { accessoryPriceKey } from './accessory-sets';
 
@@ -9,7 +9,6 @@ const KEY = 'loa-sim:gold-costs';
 const PRICES_KEY = 'loa-sim:material-prices';
 const MODE_KEY = 'loa-sim:upgrade-rank';
 const BOOKS_KEY = 'loa-sim:book-prices';
-const HONING_BOOKS_KEY = 'loa-sim:honing-books';
 
 export type RankMode = 'cp' | 'gold';
 
@@ -31,7 +30,6 @@ export const gold = $state<{
 	pricesAt: number | null;
 	/** Gold per relic engraving book, by engraving id; shared by every character. */
 	bookPrices: Record<string, number>;
-	honingBooks: HoningBooks;
 	mode: RankMode;
 	loaded: boolean;
 }>({
@@ -40,7 +38,6 @@ export const gold = $state<{
 	bound: {},
 	pricesAt: null,
 	bookPrices: {},
-	honingBooks: {},
 	mode: 'cp',
 	loaded: false
 });
@@ -66,15 +63,8 @@ export function loadGold() {
 		/* default */
 	}
 	gold.loaded = true;
-	try { gold.honingBooks = JSON.parse(localStorage.getItem(HONING_BOOKS_KEY) ?? '{}') ?? {}; } catch { /* defaults */ }
 }
 
-export function setHoningBook(kind: 'weapon' | 'armor', book: HoningBook | null) {
-	const key = `aegir:${kind}` as const;
-	if (book) gold.honingBooks[key] = book;
-	else delete gold.honingBooks[key];
-	try { localStorage.setItem(HONING_BOOKS_KEY, JSON.stringify(gold.honingBooks)); } catch { /* lasts for this visit */ }
-}
 
 const skinPricePrefix = (characterKey: string) => `character-skin:${encodeURIComponent(characterKey)}:`;
 

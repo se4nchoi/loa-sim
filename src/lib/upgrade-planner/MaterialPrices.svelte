@@ -3,7 +3,7 @@
 	row in Next Upgrades. Entered the way the market lists them (stones per 100, shards per 1,000); 0 = bound.
 -->
 <script lang="ts">
-	import HoningBookSettings from './HoningBookSettings.svelte';
+	import { HONING_BOOKS } from './honing-books-data';
 	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
 	import { aboveKeyboard, enterToNext, numberField } from './sim/field';
 	import { onMount } from 'svelte';
@@ -48,7 +48,7 @@
 		clearedInventory = null;
 	}
 	const upperIds = ['66110226', '66102007', '66102107', '6861013', '66111131', '66111132', SHARDS];
-	const lowerIds = ['66110225', '66102006', '66102106', '6861012'];
+	const lowerIds = ['66110225', '66102006', '66102106', '6861012', ...HONING_BOOKS.map(b => b.id)];
 	const editableIds = $derived([...new Set([...upperIds, ...lowerIds, ...ids, ...Object.keys(HONING_MATERIALS)])]);
 
 	let dialog: HTMLDialogElement;
@@ -61,7 +61,7 @@
 	/** Units the market sells in: destruction / guardian stones by 100, shards by 1,000. */
 	const unit = (id: string) => (id === SHARDS ? 1000 : id.startsWith('66102') ? 100 : 1);
 	const unitLabel = (id: string) => (unit(id) === 1 ? 'each' : `per ${unit(id).toLocaleString()}`);
-	const shown = (id: string) => formatGold((gold.prices[id] ?? 0) * unit(id));
+	const shown = (id: string) => HONING_BOOKS.some(b => b.id === id) && gold.prices[id] === undefined ? '' : formatGold((gold.prices[id] ?? 0) * unit(id));
 
 	const shownOwned = (id: string) => (!bound[id] ? '0' : bound[id] >= PLENTY ? '∞' : bound[id].toLocaleString());
 	function commitOwned(id: string, text: string) {
@@ -132,10 +132,12 @@
 				</div>
 				<span></span>
 				{#each editableIds as id (id)}
+					{@const book = HONING_BOOKS.find(b => b.id === id)}
+					{#if book}<span class="col-span-full mt-2 text-xs text-surface-100 sm:hidden">{book.name}</span>{/if}
 					{#if id === lowerIds[0]}<span class="col-span-full mt-2 border-t border-surface-700 pt-2 text-xs font-semibold text-surface-400">Lower T4 materials</span>{/if}
 					<div class="contents">
 						{#if materialIcon(id)}
-							<img src={iconUrl(materialIcon(id))} alt={materialName(id)} title={materialName(id)} class="size-8 shrink-0 rounded-xs bg-black/30" />
+							<img src={iconUrl(materialIcon(id))} alt={materialName(id)} title={book ? `${book.name}: ${Object.entries(book.rates).map(([level, rate]) => `+${level}: +${rate / 100}%`).join(', ')}` : materialName(id)} class="size-8 shrink-0 rounded-xs bg-black/30" />
 						{:else}
 							<span class="size-8 shrink-0 rounded-xs bg-black/30"></span>
 						{/if}
@@ -159,6 +161,7 @@
 							data-next
 							enterkeyhint="next"
 							value={shown(id)}
+							placeholder={book ? 'Not set' : undefined}
 							aria-label={`${materialName(id)} market price (${unitLabel(id)})`}
 							onchange={(e) => commit(id, e.currentTarget.value)}
 							onkeydown={(e) => enterToNext(e, card)}
@@ -170,7 +173,6 @@
 					</div>
 				{/each}
 			</div>
-			<HoningBookSettings {characterKey} />
 			<p class="text-xs text-surface-500">Last changed: {changed}</p>
 		</div>
 	</div>

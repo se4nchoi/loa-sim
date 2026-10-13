@@ -60,7 +60,7 @@
 	/** This character's bound honing mats. */
 	const bound = $derived(gold.bound[characterKey] ?? {});
 	// Equipment honing always uses material prices, ignoring previously entered totals.
-	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices, bound, simNow.karma, gold.honingBooks) : {});
+	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices, bound, simNow.karma) : {});
 	const costs = $derived({
 		...Object.fromEntries(upgrades.flatMap((u) => (u.knownCost === undefined ? [] : [[u.key, u.knownCost]]))),
 		...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])),
