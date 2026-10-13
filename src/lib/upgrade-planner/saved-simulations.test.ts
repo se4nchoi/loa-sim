@@ -14,6 +14,19 @@ Object.assign(globalThis, { localStorage: {
 beforeEach(() => { store.clear(); blocked = false; });
 
 describe('saved simulator plans', () => {
+	it('saving the same title, baseline and edits again is a no-op, while a new title or edits creates a plan', () => {
+		const state = initSimState(loadout);
+		state.gear.weapon!.honing++;
+		const first = saveSimulation('na/soulshan', 'Raid plan', loadout, state);
+		blocked = true; // A no-op must not attempt a storage write.
+		expect(saveSimulation('NA/Soulshan', ' Raid plan ', loadout, structuredClone(state))).toEqual(first);
+		expect(savedSimulations()).toHaveLength(1);
+		blocked = false;
+		expect(saveSimulation('na/soulshan', 'Other plan', loadout, state).id).not.toBe(first.id);
+		state.gear.weapon!.honing--;
+		expect(saveSimulation('na/soulshan', 'Raid plan', loadout, state).id).not.toBe(first.id);
+		expect(savedSimulations()).toHaveLength(3);
+	});
 	it('round trips actual edited equipment, gems and a KR bracer without changing the baseline', () => {
 		const state = initSimState(loadout);
 		state.gear.weapon!.honing++;

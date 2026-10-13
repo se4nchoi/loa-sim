@@ -84,6 +84,9 @@ export function saveSimulation(characterKey: string, name: string, loadout: Load
 	if (!trimmed || trimmed.length > 80) throw new Error('Use a name between 1 and 80 characters.');
 	const s = parseSimulation(JSON.stringify({ version: 1, id: crypto.randomUUID(), name: trimmed, characterKey: characterKey.toLowerCase(), savedAt: Date.now(), loadout, state }));
 	const list = savedSimulations();
+	const existing = list.find(plan => plan.characterKey === s.characterKey && plan.name === s.name &&
+		sameBaseline(plan.loadout, s.loadout) && JSON.stringify(plan.state) === JSON.stringify(s.state));
+	if (existing) return existing;
 	if (list.length >= LIMIT) throw new Error(`You have ${LIMIT} saved simulations. Delete one before saving another.`);
 	try { localStorage.setItem(KEY, JSON.stringify([s, ...list])); }
 	catch { throw new Error('Browser storage is full or blocked. Export a file to keep your changes.'); }
