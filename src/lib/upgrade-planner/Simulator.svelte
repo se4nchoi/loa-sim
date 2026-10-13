@@ -10,7 +10,6 @@
 	import { applyUpgrade } from './apply-upgrade';
 	import { roleOf } from './roles';
 	import UpgradePlanner from './UpgradePlanner.svelte';
-	import SavedSimulations from './SavedSimulations.svelte';
 	import { latestSimulation } from './saved-simulations';
 	import SimBudget from './SimBudget.svelte';
 	import { budgetChanges, budgetPriceUpgrades } from './sim-budget';
@@ -42,6 +41,7 @@
 
 	let {
 		loadout,
+		sim = $bindable(untrack(() => initSimState(loadout))),
 		sidebar,
 		characterName,
 		characterKey,
@@ -49,6 +49,7 @@
 		edited = $bindable(false)
 	}: {
 		loadout: Loadout;
+		sim?: SimState;
 		sidebar?: Snippet;
 		characterName?: string;
 		/** "na/soulshan": keys what is kept per character (bound honing mats). */
@@ -145,7 +146,6 @@
 		changed.observe(bar, { childList: true, subtree: true });
 		return () => (resized.disconnect(), changed.disconnect());
 	});
-	let sim = $state(untrack(() => initSimState(loadout)));
 	// Controls edit sim immediately; expensive score and recommendation work uses this settled snapshot.
 	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
@@ -345,7 +345,6 @@
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
 <MobileSummaryBar {current} {simulated} nav={jumpChips} onbudget={() => budgetOpen = true}>{@render summary()}</MobileSummaryBar>
-{#if !wide}<SavedSimulations {characterKey} {loadout} state={sim} onrestore={(state) => sim = state} />{/if}
 <div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
 	<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
 	<div class="flex min-w-0 flex-col gap-2">
@@ -369,7 +368,6 @@
 	<div class="flex flex-col gap-2 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start">
 		<div class="shrink-0 max-lg:hidden">{@render summary()}</div>
 		<div class="flex min-h-0 flex-1 flex-col gap-2 lg:overflow-y-auto">
-		{#if wide}<SavedSimulations {characterKey} {loadout} state={sim} onrestore={(state) => sim = state} />{/if}
 		<!-- Same card shape as Next Upgrades: a fixed header strip, the links fold away beneath it. -->
 		<nav aria-label="Simulator cards" class="flex shrink-0 flex-col max-lg:hidden divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 			<button

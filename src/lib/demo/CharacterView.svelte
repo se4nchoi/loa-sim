@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { Simulator } from '$lib/upgrade-planner';
+	import { untrack } from 'svelte';
+	import { initSimState, type SimState } from '$lib/upgrade-planner/simulate';
+	import SavedSimulations from '$lib/upgrade-planner/SavedSimulations.svelte';
 	import { className } from '$lib/upgrade-planner/class-names';
 	import type { CpDistribution } from '$lib/upgrade-planner/cp-distribution';
 	import type { LoadoutKind } from '$lib/bible-data';
@@ -49,6 +52,8 @@
 	} = $props();
 
 	let edited = $state(false);
+	let simulation = $state<SimState | null>(untrack(() => loadout ? initSimState(loadout) : null));
+	$effect.pre(() => { simulation = loadout ? initSimState(loadout) : null; });
 	let reloading = $state(false);
 	let reloadNote = $state<{ text: string; tone: 'ok' | 'info' | 'error' } | null>(null);
 	let noteTimer: ReturnType<typeof setTimeout> | undefined;
@@ -206,6 +211,11 @@
 			<p role="status" class="text-xs {reloadNote.tone === 'ok' ? 'text-green-400' : reloadNote.tone === 'error' ? 'text-red-400' : 'text-amber-300/90'}">{reloadNote.text}</p>
 		{/if}
 	{/if}
+	{#if loadout && simulation}
+		<div class="mt-2 w-full max-w-80">
+			<SavedSimulations characterKey={`${region}/${name}`.toLowerCase()} {loadout} state={simulation} onrestore={(state) => simulation = state} />
+		</div>
+	{/if}
 	<a class="w-fit text-xs text-surface-300 underline hover:text-surface-50" href={`https://lostark.bible/character/${region}/${encodeURIComponent(name)}`} target="_blank" rel="noopener">
 		View on lostark.bible
 	</a>
@@ -230,6 +240,6 @@
 				</div>
 			</div>
 		{/if}
-		<Simulator bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />
+		{#if simulation}<Simulator bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
 	</div>
 {/if}
