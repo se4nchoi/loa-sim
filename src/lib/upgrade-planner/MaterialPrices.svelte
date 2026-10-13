@@ -61,7 +61,7 @@
 	/** Units the market sells in: destruction / guardian stones by 100, shards by 1,000. */
 	const unit = (id: string) => (id === SHARDS ? 1000 : id.startsWith('66102') ? 100 : 1);
 	const unitLabel = (id: string) => (unit(id) === 1 ? 'each' : `per ${unit(id).toLocaleString()}`);
-	const shown = (id: string) => HONING_BOOKS.some(b => b.id === id) && gold.prices[id] === undefined ? '' : formatGold((gold.prices[id] ?? 0) * unit(id));
+	const shown = (id: string) => formatGold((gold.prices[id] ?? 0) * unit(id));
 
 	const shownOwned = (id: string) => (!bound[id] ? '0' : bound[id] >= PLENTY ? '∞' : bound[id].toLocaleString());
 	function commitOwned(id: string, text: string) {
@@ -161,7 +161,6 @@
 							data-next
 							enterkeyhint="next"
 							value={shown(id)}
-							placeholder={book ? 'Not set' : undefined}
 							aria-label={`${materialName(id)} market price (${unitLabel(id)})`}
 							onchange={(e) => commit(id, e.currentTarget.value)}
 							onkeydown={(e) => enterToNext(e, card)}
