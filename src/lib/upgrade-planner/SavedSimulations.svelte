@@ -18,7 +18,6 @@
 		return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 	};
 	const options = $derived.by<MenuOption<string>[]>(() => [
-		{ value: 'fresh', label: 'Starting snapshot', note: '', detail: { label: loadout.combatPower?.score.toFixed(2) ?? '?', color: 'var(--color-surface-300)' }, marker: '' },
 		...list.map(s => {
 			const base = initSimState(s.loadout);
 			const baseline = simulate(s.loadout, base, base).cp;
@@ -41,7 +40,6 @@
 		onrestore(structuredClone($state.snapshot(s.state))); selected = list.some(plan => plan.id === s.id) ? s.id : ''; name = s.name; note = '';
 	}
 	function pick(id: string) {
-		if (id === 'fresh') { onrestore(initSimState(loadout)); selected = ''; name = ''; note = ''; return; }
 		const s = list.find(plan => plan.id === id); if (s) restore(s);
 	}
 	function remove(id: string) {
@@ -73,13 +71,15 @@
 </script>
 
 <div class="min-w-0">
-	<div class="flex flex-wrap items-center gap-1.5">
-		<MenuPicker value={selected} {options} onpick={pick} label="Saved simulation to load" tone="purple" repick>
-			{#snippet trigger()}<span class="min-w-0 truncate text-xs">{active?.name ?? 'Saved simulations'}</span>{/snippet}
-		</MenuPicker>
-		<button type="button" class={btn} style:height="2rem" onclick={() => saveOpen = !saveOpen} aria-expanded={saveOpen} aria-label="Save simulation" disabled={!characterKey}>Save</button>
-		<button type="button" class={btn} style:height="2rem" onclick={exportFile} disabled={!characterKey}>Export</button>
-		<button type="button" class={btn} style:height="2rem" onclick={() => fileInput.click()} disabled={!characterKey}>Import</button>
+	<div class="flex min-w-0 items-center gap-1.5">
+		<div class="min-w-0 flex-1">
+			<MenuPicker value={selected} {options} onpick={pick} label="Saved simulation to load" tone="purple" repick full>
+				{#snippet trigger()}<span class="min-w-0 truncate text-xs">{active?.name ?? 'Saved simulations'}</span>{/snippet}
+			</MenuPicker>
+		</div>
+		<button type="button" class={`${btn} shrink-0`} style:height="2rem" onclick={() => saveOpen = !saveOpen} aria-expanded={saveOpen} aria-label="Save simulation" disabled={!characterKey}>Save</button>
+		<button type="button" class={`${btn} shrink-0`} style:height="2rem" onclick={exportFile} disabled={!characterKey}>Export</button>
+		<button type="button" class={`${btn} shrink-0`} style:height="2rem" onclick={() => fileInput.click()} disabled={!characterKey}>Import</button>
 		<input bind:this={fileInput} type="file" accept="application/json,.json" class="hidden" onchange={importFile} aria-label="Import simulation file" />
 	</div>
 	{#if saveOpen}
