@@ -42,7 +42,7 @@ describe('additive honing books', () => {
 		expect(honingCost(tapsFor('aegir', 'weapon', 19)!, { '66112555': 0 })).toEqual(auto['honing:weapon:19']);
 		const inventory = inventoryMaterials({ weapon: { set: 'aegir' }, head: {} });
 		expect(inventory).toContain('66112543'); expect(inventory).toContain('66112555');
-		expect(inventory).not.toContain('66112546');
+		expect(inventory).toContain('66112546');
 	});
 	it('reduces average materials needed and accounts for books in a multi-step budget', () => {
 		const materialTap = { ...tap, mats: { stone: 10 } };
@@ -54,8 +54,11 @@ describe('additive honing books', () => {
 	});
 	it('does not change results when no book stock or quote is available', () => {
 		const t = HONING_COSTS.aegir.weapon[14];
-		const { book: details, ...cost } = honingCost({ ...t, books: [book] }, {});
-		expect(cost).toEqual(honingCost(t, {}));
+		const { book: details, strategies, ...cost } = honingCost({ ...t, books: [book] }, {});
+		const { strategies: baselineStrategies, ...baseline } = honingCost(t, {});
+		expect(cost).toEqual(baseline);
+		const calculations = (list: typeof strategies) => list?.map(({ materialIds, expected, firstTapChance, selected }) => ({ materialIds, expected, firstTapChance, selected }));
+		expect(calculations(strategies)).toEqual(calculations(baselineStrategies));
 		expect(details).toMatchObject({ used: 0, bought: 0, savedGold: 0 });
 	});
 	it('uses unknown-price books only up to entered bound stock', () => {

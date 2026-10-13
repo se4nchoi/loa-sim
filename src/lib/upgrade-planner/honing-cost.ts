@@ -45,7 +45,7 @@ export interface HoningCost {
 	breathTaps?: number;
 	breathMode?: 'none' | 'full' | 'cutoff';
 	/** Best candidate for each breath combination and strategy family. */
-	strategies?: { label: string; materialIds: string[]; selected: boolean; expected?: number; firstTapChance?: number }[];
+	strategies?: { label: string; summary?: string; materialIds: string[]; selected: boolean; expected?: number; firstTapChance?: number }[];
 	breakdown?: { average: HoningMaterialBreakdown; pity: HoningMaterialBreakdown };
 	book?: { name: string; savedGold: number; used: number; bought: number; breakEven: number | null; unavailable: boolean };
 }
@@ -166,14 +166,22 @@ export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: Materi
 			unavailable: books.every(b => prices[b.id] === undefined && (owned[b.id] ?? 0) < 1) } } : {}),
 		strategies: [...strategies.values()]
 			.sort((a, b) => ['none', 'full', 'cutoff'].indexOf(a.cost.breathMode) - ['none', 'full', 'cutoff'].indexOf(b.cost.breathMode))
-			.map((option) => ({ label: breathStrategy(option.cost), materialIds: option.materialIds, selected: option === best,
-				expected: option.cost.expected, firstTapChance: option.dist[0] })),
+			.map((option) => {
+				const hasBook = option.materialIds.some(id => bookIds.has(id));
+				const hasBreath = option.materialIds.some(id => !bookIds.has(id));
+				const enhanced = books.some(b => option.materialIds.includes(b.id) && b.name.startsWith('Enhanced'));
+				const summary = [hasBreath ? 'Full breath' : 'No breath', ...(books.length ? [hasBook ? `Full books${enhanced ? ' (enhanced)' : ''}` : 'No books'] : [])].join(' + ');
+				return { label: breathStrategy(option.cost).replace(/then no breath\.$/, books.length ? 'then no breath or books.' : 'then no breath.'), summary: option.cost.breathMode === 'cutoff'
+					? `${summary} for the first ${option.cost.breathTaps} taps, then ${books.length ? 'no breath or books' : 'no breath'}.` : `${summary}.`,
+					materialIds: option.materialIds, selected: option === best,
+					expected: option.cost.expected, firstTapChance: option.dist[0] };
+			}),
 		...(best.mats.some(([, n, once]) => n > 0 || once > 0) ? { breakdown: { average: breakdown(true), pity: breakdown(false) } } : {})
 	};
 }
 
 export const breathStrategy = (cost: HoningCost): string => cost.breath
-	? cost.breathMode === 'full' ? `Full ${cost.breathLabel}.` : `Full ${cost.breathLabel} for the first ${cost.breathTaps} tap${cost.breathTaps === 1 ? '' : 's'}, then no breath.`
+	? cost.breathMode === 'full' ? `Full ${cost.breathLabel}.` : `Full ${cost.breathLabel} for the first ${cost.breathTaps} tap${cost.breathTaps === 1 ? '' : 's'}, then ${cost.book ? 'no breath or books' : 'no breath'}.`
 	: 'No breath.';
 
 export const materialName = (id: string) => HONING_BOOKS.find(b => b.id === id)?.name ?? (id === SHARDS ? 'Destiny Shard' : (HONING_MATERIALS[id]?.[0] ?? id));
@@ -263,9 +271,20 @@ export function materialsFor(keys: string[], gear: GearSets): string[] {
 	return [...[...ids].sort((a, b) => order(a) - order(b) || a.localeCompare(b)), ...(ids.size ? [SHARDS] : [])];
 }
 
-/** Inventory follows equipped gear, independently of which upgrades remain available. */
+/** Any equipped piece enables its whole material family, including both shared breaths. */
 export function inventoryMaterials(gear: GearSets, hasBracer = false): string[] {
-	const keys = Object.entries(gear).filter(([, item]) => item).map(([slot]) => `honing:${slot}:1`);
-	if (hasBracer) keys.push('bracer:epic:1');
-	return [...new Set([...materialsFor(keys, gear), ...HONING_BOOKS.filter(b => Object.entries(gear).some(([slot, item]) => item && b.set === setOf(item) && b.kind === (slot === 'weapon' ? 'weapon' : 'armor'))).map(b => b.id)])];
+	const sets = new Set(Object.values(gear).filter(item => !!item).map(setOf));
+	const ids = new Set<string>();
+	for (const set of sets) {
+		for (const kind of ['weapon', 'armor'] as const) {
+			const tap = HONING_COSTS[set][kind][0];
+			for (const id of Object.keys(tap.mats)) ids.add(id);
+			// Early Aegir levels are guaranteed, but breath stock still needs to be editable.
+			ids.add(String(tap.breath.id));
+		}
+		ids.add(SHARDS);
+	}
+	if (hasBracer) for (const id of materialsFor(['bracer:epic:1'], {})) ids.add(id);
+	for (const book of HONING_BOOKS) if (sets.has(book.set)) ids.add(book.id);
+	return [...ids];
 }

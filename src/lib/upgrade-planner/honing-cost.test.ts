@@ -19,6 +19,17 @@ describe('honing cost', () => {
 		expect(mixed).toContain('66110225');
 		expect(mixed).toContain('66110226');
 	});
+	it('enables the full material family and both shared breaths from even one armor piece', () => {
+		const lower = inventoryMaterials({ head: { set: 'aegir' } });
+		for (const id of ['66102006', '66102106', '66110225', '6861012', '66111131', '66111132', '66112543', '66112546']) expect(lower).toContain(id);
+		expect(lower).not.toContain('66102007');
+		const upper = inventoryMaterials({ head: {} });
+		for (const id of ['66102007', '66102107', '66110226', '6861013', '66111131', '66111132']) expect(upper).toContain(id);
+		expect(upper).not.toContain('66102006');
+		expect(upper).not.toContain('66112543');
+		const mixed = inventoryMaterials({ head: { set: 'aegir' }, hand: {} });
+		expect(new Set(mixed)).toEqual(new Set([...lower, ...upper]));
+	});
 	it('does not automatically exchange regular bound materials for Serca honing', () => {
 		const tap = tapsFor('serca', 'weapon', 1)!;
 		const prices = { '66102007': 30, '66110226': 15 };

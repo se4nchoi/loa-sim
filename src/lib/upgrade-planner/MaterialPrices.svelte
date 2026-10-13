@@ -115,7 +115,7 @@
 				<li>Put a big number (9999999999) to force 0 gold for the mat</li>
 				<li>Calculates the average-tap and pity-tap cost of each honing step</li>
 				<li>Character-bound mats are saved per character; market prices are shared</li>
-				<li>Inventory shows materials for the current gear. Update it after exchanging materials in-game.</li>
+				<li>Any pre-Serca piece enables lower T4 inventory; any Serca piece enables higher T4 inventory. Breath stock is shared across both sets. Update inventory after exchanging materials in-game.</li>
 				<li>Books with no bound stock or entered market price are excluded from strategies. Enter 0 to compare free market books.</li>
 				<li class="text-amber-300/80">Each upgrade is priced on its own: every one assumes all of this character's bound mats are available to it (3k leapstones count in full for an armor tap or a weapon tap)</li>
 			</ul>

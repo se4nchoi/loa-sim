@@ -85,8 +85,9 @@
 			<h3 class="flex items-center gap-1.5 text-sm font-semibold text-accent-300">{#each breathIds as id}{@const icon = materialIcon(id)}{#if icon}<img src={iconUrl(icon)} alt={materialName(id)} class="size-5 shrink-0" />{/if}{/each}Chosen {cost.book ? 'Honing' : 'Breath'} Strategy</h3>
 			<ul class="space-y-1.5 text-xs">
 				{#each strategies as strategy}
-					<li class={strategy.selected ? 'rounded-xs border border-accent-500/50 bg-accent-500/15 p-2 font-semibold text-accent-200' : 'px-2 py-1 text-surface-400'}>
-						{strategy.label}
+					<li title={strategy.label} class={strategy.selected ? 'rounded-xs border border-accent-500/50 bg-accent-500/15 p-2 font-semibold text-accent-200' : 'px-2 py-1 text-surface-400'}>
+						{strategy.summary ?? strategy.label}
+						<span class="mt-1 flex gap-1">{#each strategy.materialIds as id}{@const icon = materialIcon(id)}{#if icon}<img src={iconUrl(icon)} alt={materialName(id)} title={materialName(id)} class="size-4" />{/if}{/each}</span>
 						{#if cost.book && strategy.expected !== undefined && strategy.firstTapChance !== undefined}<span class="block font-normal">{money(strategy.expected)} gold avg · {(strategy.firstTapChance * 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}% first-tap success</span>{/if}
 					</li>
 				{/each}
