@@ -10,7 +10,7 @@
 	import { characterKey, listSavedCharacters, type SavedCharacter } from '$lib/saved-character';
 	import { classIconUrl } from '$lib/upgrade-planner/class-icons';
 
-	let { current }: { /** Key of the character on screen ("na/soulshan"). */ current: string } = $props();
+	let { current, simulatorPath = '/sim' }: { /** Key of the character on screen ("na/soulshan"). */ current: string; simulatorPath?: '/sim' | '/dps' } = $props();
 
 	let loading = $state<string | null>(null);
 	let error = $state<string | null>(null);
@@ -32,7 +32,7 @@
 		};
 	});
 
-	const openUrl = (key: string) => `/sim?c=${encodeURIComponent(key)}`;
+	const openUrl = (key: string) => `${simulatorPath}?c=${encodeURIComponent(key)}`;
 
 	async function pick(key: string) {
 		error = null;

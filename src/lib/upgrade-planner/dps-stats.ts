@@ -6,9 +6,10 @@
 // A straight-line estimate: fine for one upgrade, a little off for very large jumps.
 
 import type { StatValues } from '$lib/logs/protocol';
+import { bracerStats } from './bracer';
 import { qualityStat } from './quality';
 import { ACCESSORY_LINES } from './tables';
-import { ACCESSORY_SLOTS, isOtherLine, simulate, type SimState } from './simulate';
+import { ACCESSORY_SLOTS, braceletStats, braceletEffects, isOtherLine, simulate, type SimState } from './simulate';
 import type { Loadout } from './types';
 
 export interface StatDeltas {
@@ -21,10 +22,14 @@ export interface StatDeltas {
 	attackPowerPct: number;
 	/** Flat Atk. Power. */
 	attackPower: number;
+	/** T4 gem base-attack multiplier; separate from accessory Atk. Power %. */
+	baseAttackPct?: number;
+	/** Evolution-damage percentage points, used by the explicit per-hit model. */
+	evolutionDamage?: number;
 }
 
 /** Fields whose changes the stat values cover; the rest of SimState either doesn't move stats or isn't covered. */
-const COVERED = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins']);
+const COVERED = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet']);
 /** Not about the character's gear: ignore when comparing. */
 const IGNORED = new Set<keyof SimState>(['skillShares', 'skillCooldownUse']);
 /** Accessory lines and the stat each feeds (values are 1/100 %, flat lines whole numbers). Weapon Power lines come
@@ -53,6 +58,29 @@ function lineTotals(state: SimState): Partial<Record<keyof StatDeltas, number>> 
 
 const changed = (a: unknown, b: unknown) => JSON.stringify(a) !== JSON.stringify(b);
 
+// These T4 families have one variable stat and an identical secondary bonus at every roll.
+// Only within-family roll changes are covered; adding/removing/swapping a family needs its secondary effect too.
+const BRACELET_ROLLS: Record<number, { stat: keyof StatDeltas; values: number[] }> = {
+	1101: { stat: 'critRate', values: [5, 4.2, 3.4, 2.6] },
+	1102: { stat: 'critDamage', values: [10, 8.4, 6.8, 5.2] },
+	1104: { stat: 'additionalDamage', values: [3.5, 3, 2.5, 2] }
+};
+function braceletTotals(s: SimState) {
+	const stats: Partial<Record<keyof StatDeltas, number>> = {};
+	const signature: string[] = [];
+	for (const key of braceletEffects(s.bracelet)) {
+		const [kind, id] = key.split(':').map(Number);
+		const family = Math.floor(id / 10), roll = id % 10 - 1;
+		const entry = kind === 3 ? BRACELET_ROLLS[family] : undefined;
+		if (!entry || roll < 0 || roll >= entry.values.length) { signature.push(key); continue; }
+		signature.push(`family:${family}`);
+		stats[entry.stat] = (stats[entry.stat] ?? 0) + entry.values[roll];
+	}
+	// Main stat and flat Weapon Power are read by simulate(); other combat stats need separate models.
+	const unknownStats = braceletStats(s.bracelet).filter(x => ![3, 4, 5, 11, 151].includes(x.index) || (x.type ?? 2) !== 2);
+	return { stats, signature: signature.sort(), unknownStats };
+}
+
 /**
  * Raw stat change from `from` to `to`, or null when something changed that the stat values don't describe (an
  * engraving, a gem, an Outgoing Damage line, …).
@@ -66,9 +94,11 @@ export function statDeltas(l: Loadout, from: SimState, to: SimState, base: SimSt
 	const uncoveredLines = (s: SimState) =>
 		ACCESSORY_SLOTS.map((slot) => (s.accessories[slot] ?? []).filter((ln) => isOtherLine(ln) || !LINE_STAT[ln.key] && !ln.key.startsWith('weapon_')));
 	if (changed(uncoveredLines(from), uncoveredLines(to))) return null;
+	const ba = braceletTotals(from), bb = braceletTotals(to);
+	if (changed(ba.signature, bb.signature) || changed(ba.unknownStats, bb.unknownStats)) return null;
 	const a = simulate(l, from, base), b = simulate(l, to, base);
 	const la = lineTotals(from), lb = lineTotals(to);
-	const line = (k: keyof StatDeltas) => (lb[k] ?? 0) - (la[k] ?? 0);
+	const line = (k: keyof StatDeltas) => (lb[k] ?? 0) - (la[k] ?? 0) + (bb.stats[k] ?? 0) - (ba.stats[k] ?? 0);
 	const weaponQuality = (s: SimState) => (s.quality.weapon === undefined ? 0 : qualityStat('weapon', s.quality.weapon) / 100);
 	return {
 		mainStat: b.mainStat - a.mainStat,
@@ -77,7 +107,8 @@ export function statDeltas(l: Loadout, from: SimState, to: SimState, base: SimSt
 		critRate: line('critRate'),
 		critDamage: line('critDamage'),
 		attackPowerPct: line('attackPowerPct'),
-		attackPower: line('attackPower')
+		attackPower: line('attackPower') + bracerStats(to.bracer).attackFlat - bracerStats(from.bracer).attackFlat,
+		...(bracerStats(to.bracer).attackPercent !== bracerStats(from.bracer).attackPercent ? { baseAttackPct: bracerStats(to.bracer).attackPercent - bracerStats(from.bracer).attackPercent } : {})
 	};
 }
 
@@ -91,5 +122,6 @@ export function dpsGainPct(d: StatDeltas, v: StatValues): number {
 		d.critRate * v.critRate +
 		d.critDamage * v.critDamage +
 		d.attackPowerPct * v.attackPowerPct
+		+ (d.evolutionDamage ?? 0) * v.evoDamage
 	);
 }

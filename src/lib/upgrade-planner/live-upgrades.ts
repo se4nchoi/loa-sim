@@ -12,11 +12,12 @@ import { activeGems, arkGridOverWillpower, gemParts, simCoreInfo, simCorePoints,
 import { ASTROGEM_OPTION_NAMES, CORE_BREAKPOINTS, CORE_GRADE_CAP, ENGRAVING_BOOK_STEPS, KARMA_MAX_LEVEL, karmaRank } from './tables';
 import type { Loadout } from './types';
 import { coreLabel, coreStates, engravingName, type Upgrade } from './upgrades';
+import { GEM_SKILLS } from './game-data';
 
 const RANK_START = [0, 1, 5, 9, 13, 17, 21];
 
 /** accRolls: which main-line rolls the accessory ladder offers (default: see DEFAULT_ACC_ROLLS). */
-export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRolls?: AccRoll[]): Upgrade[] {
+export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRolls?: AccRoll[], perSkillGems = false): Upgrade[] {
 	const cp = simulate(l, state, base).cp;
 	if (!(cp > 0)) return [];
 	const role = roleOf(l);
@@ -46,6 +47,10 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 		const info = gemInfo[i];
 		if (!info?.table || gem.level >= 10) return;
 		const key = `gem:${gem.tier ?? info.tier}:${gem.level}`;
+		if (perSkillGems) {
+			add({ key: `${key}:${i}`, category: 'gem', subject: gem.skill !== null ? GEM_SKILLS[gem.skill]?.[0] ?? `Skill ${gem.skill}` : `Gem ${i + 1}`, title: `${gem.kind === 'damage' ? 'Damage' : 'Cooldown'} gem Lv. ${gem.level} → ${gem.level + 1}`, detail: '' });
+			return;
+		}
 		gemGroups.set(key, (gemGroups.get(key) ?? 0) + 1);
 	});
 	for (const [key, count] of gemGroups) {

@@ -1,6 +1,7 @@
 # DPS gain from the player's own logs (plan; log contents checked)
 
-Status: planning. 2026-10-12: a real `encounters.db` checked, per-hit data confirmed (see "What the logs hold").
+Status: experimental implementation. 2026-10-13: real database import, combined stat/gem estimates, DPS ranking,
+and per-hit damage-gem cross-checks tested. See [experiment results](dps-experiments-2026-10-13.md).
 
 ## Branch: `dps-sim/v0` (experimental)
 
@@ -14,9 +15,31 @@ notes stayed on `main`.
 
 What v0 has: Gems → Add damage shares → Load shares from LOA Logs also reads the meter's stat values
 (`contributionSplits`) for the chosen runs, keeps them per character (`loa-sim:stat-values`), and Next Upgrades
-shows "DPS ≈" next to CP for dealers on upgrades those values cover (`dps-stats.ts`). Next: test the import with a
-real `encounters.db` in the browser, a "Most DPS" sort, DPS in All Upgrades, more stat types (bracelet crit lines,
-evolution damage).
+shows "DPS ≈" next to CP for dealers on upgrades those values cover (`dps-stats.ts`). The separate DPS Sim tab
+now combines stat and gem changes, includes T4 gem base attack, retains imported shares across reloads, offers
+Most DPS sorting with individual skill-gem upgrades, and shows DPS in All Upgrades. Within-family T4 bracelet
+crit-rate, crit-damage, and additional-damage roll changes are covered; unknown effects remain explicit.
+
+Stat values and skill shares use the same contributing runs. This matters: 24 recent Soulshan clears yielded
+only one run with stat values. Sample-quality details now expose dates, encounter/difficulty, gem checks,
+build/CP differences, stat-value sample counts/ranges and hit coverage. Difficulty is filterable during import.
+The per-hit stat replay experiment handles nonlinear attack scaling, separate base/attack-rate buckets and
+explicit crit caps under editable assumptions. It stays separate from rankings: logs omit actual per-hit stat
+totals and caps. The backend also models Blunt Thorn conversion when the caller supplies its versioned
+parameters and uncapped hit context; the current replay UI does not supply that context automatically.
+Exact context reconstruction, evolution-damage editing,
+conditional bracelet/engraving/core effects, and absolute nDPS remain future work.
+
+See [sample quality and replay results](dps-replay-experiments-2026-10-13.md). This work also corrects the earlier
+gem base-attack estimate: gem bonuses belong to the base-attack multiplier, not the accessory Atk. Power bucket.
+
+[Blunt Thorn boundary and reconstruction experiments](dps-crit-conversion-experiments.md) verify both caps
+and show that matching the recorded +1% crit/evolution marginals cannot recover the true overcap distribution.
+
+The [runtime context audit](dps-context-audit.md) adds a decoder for caller-supplied buff/passive tables,
+preserves recorded buff sources and per-hit IDs, and tests provenance. Recorded source skills resolve composed-ID
+collisions; missing stacks, buff levels, baseline stats and unmodeled effects remain explicit. This backend is
+not promoted into upgrade ranking, and UI polish remains deferred.
 
 ## Idea
 
@@ -47,8 +70,9 @@ CP weighs every stat for an average player. The player's own runs know things CP
 - **Base on nDPS** (damage without external buffs), so the player's own stat changes show cleanly.
 - **The logs pick up the build.** Per-skill data shows which build the player runs (e.g. Blunt Thorn efficiency), so
   the model doesn't have to guess.
-- **No separate page**: load `encounters.db` once on the simulator and let Gems, Next Upgrades and skill-dependent
-  cards use it. Read in the browser as today, nothing uploaded.
+- **Separate experimental tab (requested 2026-10-13)**: DPS Sim shares the simulator controls and character
+  snapshots, while experimental stat estimates stay out of the regular Simulator tab. Imported stat values and
+  skill shares are retained per character. Read the database in the browser; nothing uploaded.
 
 ## Framing: replay the player's own runs
 

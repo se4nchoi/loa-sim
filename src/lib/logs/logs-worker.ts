@@ -7,8 +7,9 @@ import * as SQLite from 'wa-sqlite';
 import SQLiteESMFactory from 'wa-sqlite/dist/wa-sqlite.mjs';
 import wasmUrl from 'wa-sqlite/dist/wa-sqlite.wasm?url';
 import * as VFS from 'wa-sqlite/src/VFS.js';
-import type { LogsRequest, LogsResponse, SkillShare, EncounterRow, StatValues } from './protocol';
+import type { LogsRequest, LogsResponse, SkillShare, EncounterRow, StatValues, ReplayRun } from './protocol';
 import { averageStatValues, splitOf } from './stat-values';
+import { replayRun, type LoggedReplaySkill } from './replay-data';
 
 const DB_NAME = 'encounters.db';
 /** wa-sqlite hands the VFS the name with any URI query ("encounters.db?immutable=1"); compare the bare name. */
@@ -192,9 +193,10 @@ async function statValues(player: string, ids: number[]): Promise<StatValues | n
 	const cols = await query(`SELECT name FROM pragma_table_info('encounter')`);
 	if (!cols.some((c) => c.name === 'misc')) return null;
 	const splits = [];
+	const encounterIds: number[] = [];
 	for (let i = 0; i < ids.length; i += 200) {
 		const chunk = ids.slice(i, i + 200);
-		const rows = await query(`SELECT misc FROM encounter WHERE id IN (${chunk.map(() => '?').join(',')})`, chunk);
+		const rows = await query(`SELECT id, misc FROM encounter WHERE id IN (${chunk.map(() => '?').join(',')})`, chunk);
 		for (const row of rows) {
 			let misc: unknown = null;
 			try {
@@ -202,10 +204,42 @@ async function statValues(player: string, ids: number[]): Promise<StatValues | n
 			} catch {
 				// unreadable misc: the run just doesn't count
 			}
-			splits.push(splitOf(misc, player));
+			const split = splitOf(misc, player);
+			if (averageStatValues([split])) encounterIds.push(Number(row.id));
+			splits.push(split);
 		}
 	}
-	return averageStatValues(splits);
+	const values = averageStatValues(splits);
+	return values ? { ...values, encounterIds } : null;
+}
+
+async function replayRuns(player: string, ids: number[]): Promise<ReplayRun[]> {
+	const wanted = new Set(ids);
+	const encounters = (await listEncounters()).filter(r => wanted.has(r.id));
+	const columns = new Set((await query(`SELECT name FROM pragma_table_info('entity')`)).map(r => r.name));
+	const miscColumns = new Set((await query(`SELECT name FROM pragma_table_info('encounter')`)).map(r => r.name));
+	const cp = columns.has('combat_power') ? 'combat_power' : 'NULL';
+	const hash = columns.has('loadout_hash') ? 'loadout_hash' : 'NULL';
+	const spec = columns.has('spec') ? 'spec' : 'NULL';
+	const passives = columns.has('ark_passive_data') ? 'ark_passive_data' : 'NULL';
+	const out: ReplayRun[] = [];
+	let retainedHits = 0;
+	for (const [index, row] of encounters.entries()) {
+		const [entity] = await query(`SELECT skills, ${cp} AS cp, ${hash} AS hash, ${spec} AS spec, ${passives} AS passives FROM entity WHERE encounter_id = ? AND name = ?`, [row.id, player]);
+		if (!entity) continue;
+		let misc: unknown = null;
+		let buffMetadata: Record<string,unknown> = {};
+		const fields = ['misc','buffs','debuffs'].map(key => miscColumns.has(key) ? key : `NULL AS ${key}`).join(', ');
+		const [encounter] = await query(`SELECT ${fields} FROM encounter WHERE id = ?`, [row.id]);
+		try { misc = await decodeSkills(encounter?.misc); } catch { /* old/unreadable misc */ }
+		for (const field of ['buffs','debuffs']) try { buffMetadata = {...buffMetadata,...await decodeSkills(encounter?.[field])}; } catch { /* source metadata remains unavailable */ }
+		const run = replayRun({ ...row, player }, await decodeSkills(entity.skills) as Record<string, LoggedReplaySkill>, misc, entity.cp, entity.hash, entity.spec, entity.passives, buffMetadata);
+		// Retain per-hit data for at most 20 newest contributing runs; metadata still covers the full cohort.
+		if (index >= 20 || retainedHits + run.hits.length > 3000) run.hits = [];
+		retainedHits += run.hits.length;
+		out.push(run);
+	}
+	return out;
 }
 
 self.onmessage = async (e: MessageEvent<LogsRequest>) => {
@@ -219,6 +253,8 @@ self.onmessage = async (e: MessageEvent<LogsRequest>) => {
 			reply({ id: req.id, type: 'shares', ...(await skillShares(req.player, req.encounterIds)) });
 		} else if (req.type === 'statValues') {
 			reply({ id: req.id, type: 'statValues', values: await statValues(req.player, req.encounterIds) });
+		} else if (req.type === 'replay') {
+			reply({ id: req.id, type: 'replay', runs: await replayRuns(req.player, req.encounterIds) });
 		}
 	} catch (err) {
 		const code = (err as { code?: number })?.code;

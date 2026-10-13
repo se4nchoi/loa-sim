@@ -4,6 +4,7 @@
 <script lang="ts">
 	import { LoaLogsReader, RANGE_LABELS, rangeOf, type EncounterRow, type RangePreset, type SkillShare, type StatValues } from '$lib/logs/loa-logs';
 	import { setStatValues } from '$lib/logs/stat-values-store.svelte';
+	import type { ReplayRun } from '$lib/logs/protocol';
 	import { raidGateOf } from '$lib/logs/raids';
 	import { onDestroy } from 'svelte';
 	import { iconUrl } from '../icons';
@@ -29,12 +30,15 @@
 
 	let player = $state('');
 	let boss = $state('');
+	let difficulty = $state('');
+	const difficulties = $derived([...new Set((encounters ?? []).filter(r => r.player === player).map(r => r.difficulty).filter(Boolean))].sort());
 	let range = $state<RangePreset>('last-2-weeks');
 	let limit = $state(0);
 	let clearedOnly = $state(true);
 	let result = $state<{ runs: number; shares: SkillShare[] } | null>(null);
 	/** LOA Logs' own per-stat values for the same runs (recent meter versions only). */
 	let stats = $state<StatValues | null>(null);
+	let replay = $state<ReplayRun[]>([]);
 	/** Folded away after shares are applied; the header then says what's in use. */
 	let open = $state(true);
 	let applied = $state<{ runs: number; range: string; raid: string } | null>(null);
@@ -57,6 +61,7 @@
 				? (players.find((p) => p.name.toLowerCase() === characterName.toLowerCase())?.name ?? '')
 				: (players[0]?.name ?? '');
 			boss = '';
+			difficulty = '';
 		} catch (err) {
 			error = err instanceof Error ? err.message : String(err);
 			encounters = null;
@@ -108,7 +113,7 @@
 	/** Runs matching the raid / cleared filters inside a time preset. */
 	const inRange = (preset: RangePreset) => {
 		const [from, to] = rangeOf(preset);
-		return mine.filter((r) => matchesRaid(r) && r.start >= from && r.start < to && (!clearedOnly || r.cleared !== false));
+		return mine.filter((r) => matchesRaid(r) && (!difficulty || r.difficulty === difficulty) && r.start >= from && r.start < to && (!clearedOnly || r.cleared === true));
 	};
 	const RANGES = Object.keys(RANGE_LABELS) as RangePreset[];
 	const counts = $derived(Object.fromEntries(RANGES.map((p) => [p, inRange(p).length])) as Record<RangePreset, number>);
@@ -134,22 +139,33 @@
 	// Recompute shares whenever the selection changes.
 	let seq = 0;
 	$effect(() => {
+		const request = ++seq;
 		const ids = selected.map((r) => r.id);
 		const who = player;
 		if (!reader || !who || !ids.length) {
 			result = null;
 			stats = null;
+			replay = [];
 			return;
 		}
-		const mine = ++seq;
-		reader
-			.shares(who, ids)
-			.then((r) => mine === seq && (result = r))
-			.catch((err) => mine === seq && (error = err.message));
-		reader
-			.statValues(who, ids)
-			.then((v) => mine === seq && (stats = v))
-			.catch(() => mine === seq && (stats = null));
+		result = null;
+		stats = null;
+		replay = [];
+		error = null;
+		const activeReader = reader;
+		void (async () => {
+			try {
+				const values = await activeReader.statValues(who, ids);
+				const cohort = values?.encounterIds?.length ? values.encounterIds : ids;
+				const [shares, runs] = await Promise.all([activeReader.shares(who, cohort), activeReader.replay(who, cohort)]);
+				if (request !== seq) return;
+				stats = values;
+				result = shares;
+				replay = runs;
+			} catch (err) {
+				if (request === seq) error = err instanceof Error ? err.message : String(err);
+			}
+		})();
 	});
 
 	const iconOf = (icon: string) => (icon ? iconUrl(icon.replace(/\.png$/i, '').split('/').pop()) : undefined);
@@ -213,6 +229,10 @@
 					</optgroup>
 				{/if}
 			</select>
+			<select class={selectClass(false)} bind:value={difficulty} aria-label="Difficulty">
+				<option value="">All difficulties</option>
+				{#each difficulties as value}<option value={value}>{value}</option>{/each}
+			</select>
 			<label class="flex items-center gap-1.5 text-xs text-surface-300">
 				<input type="checkbox" bind:checked={clearedOnly} class="accent-accent-500" /> Cleared only
 			</label>
@@ -263,9 +283,9 @@
 			</div>
 			<p class="text-xs {stats ? 'text-surface-300' : 'text-surface-500'}">
 				{#if stats}
-					DPS values in {stats.runs} of {result.runs} run{result.runs === 1 ? '' : 's'}: Next Upgrades will show DPS next to CP.
+					DPS values and skill shares use the same {stats.runs} run{stats.runs === 1 ? '' : 's'} of {selected.length} selected. Next Upgrades will show DPS next to CP.
 				{:else}
-					These runs don't have LOA Logs' stat values (newer meter versions save them), so Next Upgrades stays CP only.
+					These runs don't have LOA Logs' stat values. Skill-based gem estimates are available; stat upgrades remain unestimated.
 				{/if}
 			</p>
 			<div class="flex flex-row items-center gap-2">
@@ -281,7 +301,12 @@
 						);
 						// Fold away once applied; the header says what's in use.
 						applied = { runs: result!.runs, range: RANGE_LABELS[range], raid: raidLabel };
-						if (characterKey) setStatValues(characterKey, stats ? { values: stats, label: `${RANGE_LABELS[range]} · ${raidLabel}`, at: Date.now() } : null);
+						if (characterKey) setStatValues(characterKey, {
+							values: stats, label: `${RANGE_LABELS[range]} · ${raidLabel}${difficulty ? ` · ${difficulty}` : ''}`, at: Date.now(),
+							skillShares: Object.fromEntries(result!.shares.map(s => [s.id, s.pct])),
+							skillCooldownUse: Object.fromEntries(result!.shares.flatMap(s => s.cooldownUse === undefined ? [] : [[s.id, s.cooldownUse * 100]])),
+							sample: { selected: selected.length, source: fileName, runs: replay }
+						});
 						open = false;
 					}}
 				>

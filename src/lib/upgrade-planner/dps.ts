@@ -10,8 +10,21 @@
 //   casts_ratio = 1 / (1 − u + u·k)
 // u = 1 (always cast off cooldown) is the optimistic 1 / k; u = 0 means cooldown gems add nothing.
 
-import { GEM_EFFECTS } from './game-data';
+import { GEM_EFFECTS, GEM_SKILL_GROUPS } from './game-data';
 import type { GemPart, SimGem } from './simulate';
+
+/** Map logged member skills to gem groups; shares add, cooldown use takes the busiest member. */
+export function withGemGroups(gems: SimGem[], values: Record<number, number>, combine: 'sum' | 'max' = 'sum'): Record<number, number> {
+	const out = { ...values };
+	for (const gem of gems) {
+		const members = gem.skill !== null ? GEM_SKILL_GROUPS[gem.skill] : undefined;
+		if (!members || out[gem.skill!] !== undefined) continue;
+		const known = members.filter(m => values[m] !== undefined).map(m => values[m]);
+		if (!known.length) continue;
+		out[gem.skill!] = combine === 'sum' ? known.reduce((a, b) => a + b, 0) : Math.max(...known);
+	}
+	return out;
+}
 
 const effect = (gem: SimGem, tier: 'T4' | 'T3') => (GEM_EFFECTS[tier][gem.kind][gem.level - 1] ?? 0) / 1e4;
 

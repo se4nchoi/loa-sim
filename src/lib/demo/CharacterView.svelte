@@ -8,6 +8,7 @@
 	import type { Loadout } from '$lib/upgrade-planner/types';
 
 	let {
+		dpsMode = false,
 		name,
 		region,
 		subtitle,
@@ -24,6 +25,7 @@
 		onerase,
 		onreload
 	}: {
+		dpsMode?: boolean;
 		name: string;
 		region: string;
 		/** Lines under the name (guild, snapshot time). */
@@ -230,6 +232,6 @@
 				</div>
 			</div>
 		{/if}
-		<Simulator bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />
+		<Simulator {dpsMode} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />
 	</div>
 {/if}

@@ -1,6 +1,6 @@
 // Page-side client for the LOA Logs worker, plus the time-range presets.
 
-import type { EncounterRow, LogsRequest, LogsResponse, SkillShare, StatValues } from './protocol';
+import type { EncounterRow, LogsRequest, LogsResponse, SkillShare, StatValues, ReplayRun } from './protocol';
 
 export type { EncounterRow, SkillShare, StatValues };
 
@@ -40,6 +40,9 @@ export class LoaLogsReader {
 	/** The meter's per-stat values averaged over these runs; null when none of them have values. */
 	async statValues(player: string, encounterIds: number[]): Promise<StatValues | null> {
 		return (await this.send<'statValues'>({ type: 'statValues', player, encounterIds })).values;
+	}
+	async replay(player: string, encounterIds: number[]): Promise<ReplayRun[]> {
+		return (await this.send<'replay'>({ type: 'replay', player, encounterIds })).runs;
 	}
 
 	close() {

@@ -14,6 +14,9 @@
 	import { adjustSkinSetup, skinGrade, skinParts, type SimSkins } from './skins';
 
 	let {
+		dpsMode = false,
+		dps = new Map<string, number>(),
+		dpsRank = false,
 		upgrades,
 		characterKey = '',
 		cp,
@@ -29,6 +32,9 @@
 		skins,
 		isSupport = false
 	}: {
+		dpsMode?: boolean;
+		dps?: Map<string, number>;
+		dpsRank?: boolean;
 		upgrades: Upgrade[];
 		characterKey?: string;
 		cp: number;
@@ -60,6 +66,7 @@
 		track();
 	});
 
+	const score = (u: Upgrade) => dpsRank ? (dps.get(u.key) ?? -Infinity) : u.gainPct;
 	// Groups in order of their best upgrade, each sorted by CP gain.
 	const sorted = (list: Upgrade[]) => {
 		const by = new Map<UpgradeCategory, Upgrade[]>();
@@ -68,8 +75,8 @@
 		if (accRolls && !by.has('accessory')) by.set('accessory', []);
 		if (skins?.bonus !== 8 && !by.has('skin')) by.set('skin', []);
 		return [...by.entries()]
-			.map(([category, items]) => ({ category, list: items.toSorted((a, b) => b.gainPct - a.gainPct) }))
-			.sort((a, b) => (b.list[0]?.gainPct ?? 0) - (a.list[0]?.gainPct ?? 0));
+			.map(([category, items]) => ({ category, list: items.toSorted((a, b) => score(b) - score(a) || b.gainPct - a.gainPct) }))
+			.sort((a, b) => (b.list[0] ? score(b.list[0]) : -Infinity) - (a.list[0] ? score(a.list[0]) : -Infinity));
 	};
 	// While open, the order stays as it was when the dialog opened (an Apply or a filter would otherwise reshuffle
 	// rows under the cursor); values still update, gone rows drop out, new ones join the end. Reopening re-sorts.
@@ -83,8 +90,8 @@
 	};
 	const groups = $derived(
 		sorted(upgrades)
-			.map((g) => ({ ...g, list: g.list.toSorted((a, b) => byOpened(rowAt, a.key, b.key, b.gainPct - a.gainPct)) }))
-			.sort((a, b) => byOpened(categoryAt, a.category, b.category, (b.list[0]?.gainPct ?? 0) - (a.list[0]?.gainPct ?? 0)))
+			.map((g) => ({ ...g, list: g.list.toSorted((a, b) => byOpened(rowAt, a.key, b.key, score(b) - score(a) || b.gainPct - a.gainPct)) }))
+			.sort((a, b) => byOpened(categoryAt, a.category, b.category, (b.list[0] ? score(b.list[0]) : -Infinity) - (a.list[0] ? score(a.list[0]) : -Infinity)))
 	);
 	// Sticky category bar: jump to a section; the one scrolled to is highlighted.
 	let scroller = $state<HTMLDivElement>();
@@ -130,7 +137,7 @@
 		for (const key of [...rowAt.keys()]) if (key.startsWith('accset:')) rowAt.delete(key);
 		onaccrolls?.([...draft]);
 	}
-	const best = $derived(mode === 'gold' ? byGold(upgrades, costs).slice(0, 3) : upgrades.slice(0, 3));
+	const best = $derived(!dpsRank && mode === 'gold' ? byGold(upgrades, costs).slice(0, 3) : upgrades.slice(0, 3));
 	const missingTotal = $derived(missingPriceCount(upgrades, costs));
 	function adjustSkin(index: number, bonus: number) {
 		if (!skins) return;
@@ -150,6 +157,7 @@
 {/snippet}
 
 {#snippet cpAfter(u: Upgrade)}
+	{#if dpsMode}<span class="block text-xs text-sky-300 tabular-nums">{dps.has(u.key) ? 'DPS ≈' + formatPct(dps.get(u.key)!) + '%' : 'DPS unestimated'}</span>{/if}
 	<span class="block text-xs text-surface-100 tabular-nums">{formatCp(cp * (1 + u.gainPct / 100))} <span class={isSupport ? 'text-green-400' : 'text-red-400'}>({formatPct(cp * u.gainPct / 100)})</span></span>
 {/snippet}
 

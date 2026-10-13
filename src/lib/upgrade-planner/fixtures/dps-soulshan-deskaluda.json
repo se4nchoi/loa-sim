@@ -1,0 +1,164 @@
+{
+  "id": 5886,
+  "start": 1791592140981,
+  "boss": "Deskaluda",
+  "difficulty": "Normal",
+  "duration": 79427,
+  "split": {
+    "name": "Soulshan",
+    "additionalDamage1percentDamage": {
+      "damageDoneByStat": 76469410382,
+      "damageDoneByStatPlusValue": 76980542624
+    },
+    "criticalHitRate1percentDamage": {
+      "damageDoneByStat": 76469410382,
+      "damageDoneByStatPlusValue": 76583849792
+    },
+    "criticalDamageRate1percentDamage": {
+      "damageDoneByStat": 76469410382,
+      "damageDoneByStatPlusValue": 76747028960
+    },
+    "evoDamage1percentDamage": {
+      "damageDoneByStat": 76469410382,
+      "damageDoneByStatPlusValue": 76816046705
+    },
+    "attackPower1percentDamage": {
+      "damageDoneByStat": 76469410382,
+      "damageDoneByStatPlusValue": 77155048006
+    },
+    "weaponPower1percentDamage": {
+      "damageDoneByStat": 76469410382,
+      "damageDoneByStatPlusValue": 76734935822
+    },
+    "mainStat1000Damage": {
+      "damageDoneByStat": 76469410382,
+      "damageDoneByStatPlusValue": 76510292963
+    },
+    "weaponPower1000Damage": {
+      "damageDoneByStat": 76469410382,
+      "damageDoneByStatPlusValue": 76591004319
+    },
+    "attackPower1000Damage": {
+      "damageDoneByStat": 76469410382,
+      "damageDoneByStatPlusValue": 76752343205
+    }
+  },
+  "skills": [
+    {
+      "id": 46000,
+      "name": "Weapon Attack",
+      "totalDamage": 45021216
+    },
+    {
+      "id": 46001,
+      "name": "46001",
+      "totalDamage": 108590382
+    },
+    {
+      "id": 46021,
+      "name": "Scythe Dash",
+      "totalDamage": 0,
+      "timeAvailable": 61364
+    },
+    {
+      "id": 46040,
+      "name": "Stand Up",
+      "totalDamage": 0,
+      "timeAvailable": 72389
+    },
+    {
+      "id": 46050,
+      "name": "Deathlord Mode",
+      "totalDamage": 33966589,
+      "timeAvailable": 76418
+    },
+    {
+      "id": 46400,
+      "name": "Gluttony",
+      "totalDamage": 15725613984,
+      "timeAvailable": 33364,
+      "gemDamage": 9,
+      "gemCooldown": 9,
+      "gemTier": 4
+    },
+    {
+      "id": 46410,
+      "name": "Death Order",
+      "totalDamage": 2623349673,
+      "timeAvailable": 24854,
+      "gemCooldown": 9,
+      "gemTier": 4
+    },
+    {
+      "id": 46430,
+      "name": "Astaros",
+      "totalDamage": 20895198249,
+      "timeAvailable": 18860,
+      "gemDamage": 10,
+      "gemCooldown": 9,
+      "gemTier": 4
+    },
+    {
+      "id": 46440,
+      "name": "Soul Drain",
+      "totalDamage": 929884915,
+      "timeAvailable": 27538,
+      "gemCooldown": 9,
+      "gemTier": 4
+    },
+    {
+      "id": 46450,
+      "name": "Death Yard",
+      "totalDamage": 630552602,
+      "timeAvailable": 32917,
+      "gemCooldown": 9,
+      "gemTier": 4
+    },
+    {
+      "id": 46500,
+      "name": "Reaper's Scythe",
+      "totalDamage": 3718971830,
+      "timeAvailable": 37556,
+      "gemDamage": 9
+    },
+    {
+      "id": 46520,
+      "name": "Guillotine Swing",
+      "totalDamage": 9089460073,
+      "timeAvailable": 26004,
+      "gemDamage": 9
+    },
+    {
+      "id": 46530,
+      "name": "Vestige",
+      "totalDamage": 17208224922,
+      "timeAvailable": 25101,
+      "gemDamage": 9,
+      "gemCooldown": 9,
+      "gemTier": 4
+    },
+    {
+      "id": 46610,
+      "name": "The End",
+      "totalDamage": 4636452095,
+      "timeAvailable": 56311
+    },
+    {
+      "id": 46640,
+      "name": "Fatal Finale",
+      "totalDamage": 824123852,
+      "timeAvailable": 14513
+    },
+    {
+      "id": 46910,
+      "name": "46910",
+      "totalDamage": 0,
+      "timeAvailable": 78424
+    },
+    {
+      "id": 170000706,
+      "name": "Broadwave",
+      "totalDamage": 858280143
+    }
+  ]
+}

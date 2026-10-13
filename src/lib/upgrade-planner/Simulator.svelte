@@ -10,6 +10,9 @@
 	import { applyUpgrade } from './apply-upgrade';
 	import { roleOf } from './roles';
 	import UpgradePlanner from './UpgradePlanner.svelte';
+	import DpsStatus from './DpsStatus.svelte';
+	import { loadStatValues, statValues } from '$lib/logs/stat-values-store.svelte';
+	import { withGemGroups } from './dps';
 	import SimBudget from './SimBudget.svelte';
 	import { budgetChanges, budgetPriceUpgrades } from './sim-budget';
 	import { inventoryMaterials } from './honing-cost';
@@ -39,6 +42,7 @@
 	import { coreStates, type Upgrade } from './upgrades';
 
 	let {
+		dpsMode = false,
 		loadout,
 		sidebar,
 		characterName,
@@ -46,6 +50,7 @@
 		cpDistribution = null,
 		edited = $bindable(false)
 	}: {
+		dpsMode?: boolean;
 		loadout: Loadout;
 		sidebar?: Snippet;
 		characterName?: string;
@@ -148,8 +153,16 @@
 	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
-		sim = initSimState(loadout);
-		calculated = initSimState(loadout);
+		const next = initSimState(loadout);
+		const key = characterKey;
+		untrack(() => {
+			loadStatValues();
+			const saved = key ? statValues.byCharacter[key] : undefined;
+			if (saved?.skillShares) next.skillShares = withGemGroups(next.gems, saved.skillShares);
+			if (saved?.skillCooldownUse) next.skillCooldownUse = withGemGroups(next.gems, saved.skillCooldownUse, 'max');
+		});
+		sim = next;
+		calculated = structuredClone(next);
 	});
 
 	const snapshot = () => $state.snapshot(sim) as SimState;
@@ -340,6 +353,10 @@
 	/>
 {/snippet}
 
+{#if dpsMode}
+	<DpsStatus {loadout} {characterKey} simState={calculated} simBase={base} />
+{/if}
+
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
 <MobileSummaryBar {current} {simulated} nav={jumpChips} onbudget={() => budgetOpen = true}>{@render summary()}</MobileSummaryBar>
 <div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
@@ -377,7 +394,7 @@
 			</button>
 			<div hidden={folded.nav}>{@render jumpChips("p-2")}</div>
 		</nav>
-		{#if wide}<UpgradePlanner class="lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={calculated} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
+		{#if wide}<UpgradePlanner {dpsMode} class="lg:min-h-56 lg:flex-1" {loadout} {characterKey} {characterName} simState={calculated} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
 		{@render sidebar?.()}
 		</div>
 	</div>
@@ -398,11 +415,11 @@
 	</button>
 {/if}
 <BottomDrawer bind:open={drawerOpen} label="Next Upgrades" top={drawerTop}>
-	<UpgradePlanner scroll class="min-h-0 flex-1 rounded-none shadow-none" limit={1000} {loadout} {characterKey} {characterName} simState={calculated} simBase={base} currentCp={simulated} onapply={applySuggestion} />
+	<UpgradePlanner {dpsMode} scroll class="min-h-0 flex-1 rounded-none shadow-none" limit={1000} {loadout} {characterKey} {characterName} simState={calculated} simBase={base} currentCp={simulated} onapply={applySuggestion} />
 </BottomDrawer>
 
 {#if budgetOpen}
-	{#if !wide}<UpgradePlanner class="hidden" {loadout} {characterKey} {characterName} simState={calculated} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
+	{#if !wide}<UpgradePlanner {dpsMode} class="hidden" {loadout} {characterKey} {characterName} simState={calculated} simBase={base} currentCp={simulated} onapply={applySuggestion} pricingRequest={budgetPricing} onpricingclose={() => budgetPricing = null} />{/if}
 	<SimBudget isSupport={loadout.battlePoint.isSupport} changes={budgetChanges(loadout, base, calculated)} inventoryIds={inventoryMaterials(sim.gear, !!sim.bracer)} priceUpgrades={budgetPriceUpgrades(loadout, base, calculated)} onprice={(u) => budgetPricing = u} {current} {simulated} {characterKey} {characterName} onclose={() => { budgetOpen = false; budgetPricing = null; }} />
 {/if}
 

@@ -31,6 +31,10 @@ export interface SkillShare {
  */
 export interface StatValues {
 	runs: number;
+	/** Runs that contributed stat values, so skill shares use the same cohort. */
+	encounterIds?: number[];
+	statSamples?: Record<string, number>;
+	statRanges?: Record<string, { min: number; max: number }>;
 	/** Per +1 percentage point. */
 	additionalDamage: number;
 	critRate: number;
@@ -44,13 +48,50 @@ export interface StatValues {
 	attackPower: number;
 }
 
+export interface ReplayHit {
+	skill: number;
+	damage: number;
+	crit: boolean;
+	hyper: boolean;
+	timestamp?: number;
+	buffedBy?: number[];
+	debuffedBy?: number[];
+}
+export interface ReplaySkill {
+	id: number;
+	name: string;
+	totalDamage: number;
+	hits: number;
+	crits: number;
+	damageGem?: number;
+	cooldownGem?: number;
+}
+export interface ReplayRun extends EncounterRow {
+	combatPower: number | null;
+	loadoutHash: string | null;
+	totalDamage: number;
+	/** Logged hits, not reconstructed stat contexts. */
+	hits: ReplayHit[];
+	skills: ReplaySkill[];
+	/** Aggregate all-crits / no-crits ratio; not a per-hit crit multiplier. */
+	effectiveCritMultiplier: number | null;
+	/** Meter recorded a nonzero Blunt Thorn contribution; its overcap conversion needs a separate model. */
+	critConversion?: boolean;
+	buildSpec?: string;
+	arkPassives?: Record<string, { id: number; lv: number }[]>;
+	meterVersion?: string;
+	buffSources?: Record<number,{skill?:number;name?:string;uniqueGroup?:number}>;
+}
+
 export type LogsRequest =
 	| { id: number; type: 'open'; file: File }
 	| { id: number; type: 'shares'; player: string; encounterIds: number[] }
-	| { id: number; type: 'statValues'; player: string; encounterIds: number[] };
+	| { id: number; type: 'statValues'; player: string; encounterIds: number[] }
+	| { id: number; type: 'replay'; player: string; encounterIds: number[] };
 
 export type LogsResponse =
 	| { id: number; type: 'encounters'; encounters: EncounterRow[] }
 	| { id: number; type: 'shares'; runs: number; shares: SkillShare[] }
 	| { id: number; type: 'statValues'; values: StatValues | null }
+	| { id: number; type: 'replay'; runs: ReplayRun[] }
 	| { id: number; type: 'error'; message: string };

@@ -1,0 +1,97 @@
+<script lang="ts">
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import CharacterSwitcher from '$lib/CharacterSwitcher.svelte';
+	import CharacterView from '$lib/demo/CharacterView.svelte';
+	import type { LoadoutKind } from '$lib/bible-data';
+	import { characterKey, eraseSnapshot, loadSavedCharacter, rememberViewed, setLoadoutKind, setSnapshot } from '$lib/saved-character';
+	import { gearKey, gearOf, listSnapshots, recordSnapshots } from '$lib/snapshot-history';
+	import { loadCharacter } from '$lib/load-character';
+	import { onMount } from 'svelte';
+	let { dpsMode = false }: { dpsMode?: boolean } = $props();
+
+	// ?c=na/soulshan picks a saved character; without it (the Simulator tab), the one last viewed here.
+	let switched = $state<ReturnType<typeof loadSavedCharacter>>(null);
+	const wanted = $derived(page.url.searchParams.get('c'));
+	// After a loadout switch, show the updated save, but only for the character it was made on.
+	const saved = $derived(
+		switched && (!wanted || characterKey(switched) === wanted.toLowerCase()) ? switched : loadSavedCharacter(wanted)
+	);
+	/** Estimated raid loadout ↔ latest raid snapshot; remembered for the character. */
+	const onloadout = (kind: LoadoutKind) => {
+		if (saved) switched = setLoadoutKind(characterKey(saved), kind) ?? switched;
+	};
+
+	/** An earlier kept snapshot; remembered for the character until it's switched back or loaded again. */
+	const onsnapshot = (id: string) => {
+		if (saved) switched = setSnapshot(characterKey(saved), id) ?? switched;
+	};
+	/** Erases a kept snapshot (the × in the loadout menu). */
+	let erased = $state(0);
+	const onerase = (id: string) => {
+		if (!saved) return;
+		switched = eraseSnapshot(characterKey(saved), id) ?? switched;
+		erased++;
+	};
+	// Kept snapshots other than bible's two current loadouts. Characters saved before history existed start theirs here.
+	let older = $state<ReturnType<typeof listSnapshots>>([]);
+	$effect(() => {
+		void erased;
+		if (!saved) return;
+		const key = characterKey(saved);
+		rememberViewed(key);
+		recordSnapshots(key, saved, saved.savedAt);
+		// The chosen snapshot can be folded into a copy of the same gear: go back to bible's loadout then.
+		if (saved.snapshotId && !listSnapshots(key).some((s) => s.id === saved.snapshotId)) {
+			switched = eraseSnapshot(key, saved.snapshotId) ?? switched;
+			return;
+		}
+		// Same gear as one of bible's two (re-snapshotted unchanged) isn't listed twice.
+		const listed = new Set((['current', 'estimated'] as const).flatMap((k) => (saved.loadouts?.[k] ? [gearKey(saved.loadouts[k]!)] : [])));
+		older = listSnapshots(key).filter((s) => !listed.has(gearOf(s)) || s.id === saved.snapshotId);
+	});
+
+	onMount(() => {
+		if (!saved && !dpsMode) goto('/', { replaceState: true });
+	});
+
+	/** ↻ by the snapshot picker: loads bible's latest (one request, this click); true when it's gear not kept here yet. */
+	async function onreload() {
+		if (!saved) return false;
+		const key = characterKey(saved);
+		const known = new Set([
+			...listSnapshots(key).map(gearOf),
+			...(['current', 'estimated'] as const).flatMap((k) => (saved.loadouts?.[k] ? [gearKey(saved.loadouts[k]!)] : []))
+		]);
+		const data = await loadCharacter(saved.region, saved.name);
+		switched = loadSavedCharacter(key);
+		erased++; // refresh the snapshot list
+		return (['current', 'estimated'] as const).some((k) => data.loadouts?.[k] && !known.has(gearKey(data.loadouts[k]!)));
+	}
+
+	const subtitle = $derived(
+		saved ? [saved.header?.guild?.name ?? '', `Snapshot loaded ${new Date(saved.savedAt).toLocaleString()}`] : []
+	);
+</script>
+
+{#if saved}
+	<CharacterSwitcher current={characterKey(saved)} simulatorPath={dpsMode ? '/dps' : '/sim'} />
+	{#key `${saved.region}/${saved.name}`}
+		<CharacterView {dpsMode} name={saved.name} region={saved.region} {subtitle} itemLevel={saved.header?.ilvl} loadout={saved.loadout}
+			cpDistribution={saved.cpDistribution}
+			loadouts={saved.loadouts}
+			loadoutKind={saved.loadoutKind}
+			estimatedFrom={saved.estimatedAt && saved.estimatedAt < saved.savedAt ? saved.estimatedAt : undefined}
+			{onloadout}
+			{older}
+			snapshotId={saved.snapshotId}
+			{onsnapshot}
+			{onerase}
+			{onreload}
+		/>
+	{/key}
+{:else if dpsMode}
+	<h1 class="text-xl font-semibold">DPS Sim <span class="text-sm text-amber-300">Experimental</span></h1>
+	<p class="mt-2 text-surface-300">Load a character, then import your LOA Logs to test DPS estimates for upgrades.</p>
+	<a href="/" class="mt-4 inline-block rounded-xs bg-accent-700 px-3 py-2 font-semibold text-white hover:bg-accent-600">Load a character</a>
+{/if}

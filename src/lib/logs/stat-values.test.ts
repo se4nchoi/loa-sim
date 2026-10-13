@@ -31,4 +31,14 @@ describe('meter stat values', () => {
 	it('is null when no run has values', () => {
 		expect(averageStatValues([null, { name: 'Soulshan' }])).toBeNull();
 	});
+	it('averages missing fields over their actual samples instead of treating them as zero', () => {
+		const a = split('Soulshan',0.3,0.05);
+		const b = split('Soulshan',0.4,0.06);
+		a.weaponPower1000Damage = pair(0.16);
+		const v = averageStatValues([a,b])!;
+		expect(v.weaponPower).toBeCloseTo(0.16,9);
+		expect(v.statSamples?.weaponPower).toBe(1);
+		expect(v.statRanges?.critDamage.min).toBeCloseTo(0.3,9);
+		expect(v.statRanges?.critDamage.max).toBeCloseTo(0.4,9);
+	});
 });

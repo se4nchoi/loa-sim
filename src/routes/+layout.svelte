@@ -10,7 +10,8 @@
 
 	const tabs = [
 		{ href: '/', label: 'Characters', active: (p: string) => p === '/' },
-		{ href: '/sim', label: 'Simulator', active: (p: string) => p.startsWith('/sim') || p.startsWith('/character') }
+		{ href: '/sim', label: 'Simulator', active: (p: string) => p.startsWith('/sim') || p.startsWith('/character') },
+		{ href: '/dps', label: 'DPS Sim', active: (p: string) => p.startsWith('/dps') }
 	];
 </script>
 
@@ -22,7 +23,7 @@
 			{#each tabs as t (t.href)}
 				{@const on = t.active(page.url.pathname)}
 				<a
-					href={t.href}
+					href={t.href !== '/' && page.url.searchParams.has('c') ? `${t.href}?c=${encodeURIComponent(page.url.searchParams.get('c')!)}` : t.href}
 					class="flex items-center border-b-2 px-3 transition {on ? 'border-accent-500 text-surface-50' : 'border-transparent text-surface-300 hover:text-surface-50'}"
 					aria-current={on ? 'page' : undefined}
 				>
