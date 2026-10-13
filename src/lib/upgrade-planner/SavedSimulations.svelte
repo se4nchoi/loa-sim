@@ -71,9 +71,9 @@
 </script>
 
 <div class="min-w-0">
-	<div class="flex min-w-0 items-center gap-1.5">
+	<div class="grid min-w-0 grid-cols-[minmax(0,1fr)_repeat(3,2rem)] items-center gap-1.5">
 		<div class="min-w-0 flex-1">
-			<MenuPicker value={selected} {options} onpick={pick} label="Saved simulation to load" tone="purple" repick full>
+			<MenuPicker value={selected} {options} onpick={pick} label="Saved simulation to load" tone="purple" repick full fitMenu>
 				{#snippet trigger()}<span class="min-w-0 truncate text-xs">{active?.name ?? 'Saved simulations'}</span>{/snippet}
 			</MenuPicker>
 		</div>

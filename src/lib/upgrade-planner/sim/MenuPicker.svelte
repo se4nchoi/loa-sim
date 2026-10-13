@@ -18,6 +18,7 @@
 		changed = false,
 		tone = 'default',
 		repick = false,
+		fitMenu = false,
 		preview,
 		align = 'left',
 		columns = 1,
@@ -33,6 +34,8 @@
 		tone?: 'default' | 'purple';
 		/** Re-selecting a saved plan restores it even after editing it. */
 		repick?: boolean;
+		/** Match the dropdown to the selector width. */
+		fitMenu?: boolean;
 		preview?: (v: T) => number;
 		align?: 'left' | 'right';
 		columns?: number;
@@ -105,7 +108,7 @@
 	{#if open}
 		{#if rows}
 			<div
-				use:placeMenu={align}
+				use:placeMenu={{ align, fit: fitMenu }}
 				popover="manual"
 				style:color="var(--color-surface-100)"
 				role="listbox"
@@ -144,7 +147,7 @@
 			</div>
 		{:else}
 		<div
-			use:placeMenu={align}
+			use:placeMenu={{ align, fit: fitMenu }}
 			popover="manual"
 			style:color="var(--color-surface-100)"
 			role="listbox"

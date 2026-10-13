@@ -182,12 +182,12 @@
 	{#each lines as line (line)}<span class="text-sm text-surface-300">{line}</span>{/each}
 	<!-- Always shown, so players find saved snapshots before they have any. -->
 	{#if menu.length && onsnapshot && onloadout}
-		<div class="mt-1 flex max-w-full flex-row items-center gap-1.5">
-			<MenuPicker value={pending ?? menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate">
+		<div class="mt-1 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_repeat(3,2rem)] items-center gap-1.5">
+			<MenuPicker value={pending ?? menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate" full fitMenu>
 				{#snippet trigger()}
 					<!-- Same words for every choice ("Snapshot on 10-11 6620.18"), so picking one never resizes the button; the
 					     menu has the full names. -->
-					<span class="flex min-w-0 flex-row items-baseline gap-1.5 text-xs" title={shownPick?.label}>
+					<span class="flex min-w-0 flex-row items-baseline gap-1.5 overflow-hidden text-xs" title={shownPick?.label}>
 						<span class="shrink-0">Snapshot{shownPick?.note ? ' on' : ''}</span>
 						{#if shownPick?.note}<span class="shrink-0 text-surface-300 tabular-nums">{shownPick.note}</span>{/if}
 						{#if shownPick}<span class="shrink-0 font-semibold tabular-nums" style:color={shownPick.detail.color}>{shownPick.detail.label}</span>{/if}
@@ -212,7 +212,7 @@
 		{/if}
 	{/if}
 	{#if loadout && simulation}
-		<div class="mt-2 w-full max-w-80">
+		<div class="mt-2 w-full max-w-[27.125rem]">
 			<SavedSimulations characterKey={`${region}/${name}`.toLowerCase()} {loadout} state={simulation} onrestore={(state) => simulation = state} />
 		</div>
 	{/if}
