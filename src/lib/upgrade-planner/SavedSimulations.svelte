@@ -41,11 +41,11 @@
 	}
 </script>
 
-<details class="mb-2 rounded-xs border border-surface-700 bg-surface-900 p-2">
+<details class="mb-2 min-w-0 shrink-0 rounded-xs border border-surface-700 bg-surface-900 p-2">
 	<summary class="cursor-pointer text-sm font-semibold text-surface-100">Saved simulations{#if list.length} · {list.length}{/if}</summary>
 	<p class="my-2 text-xs text-surface-400">Save your edits before leaving. Saved plans stay separate from real gear snapshots. Export a file to back up or share a plan.</p>
 	<div class="flex flex-wrap items-center gap-2">
-		<input aria-label="Simulation name" bind:value={name} maxlength="80" class="h-8 min-w-0 rounded-xs border border-surface-600 bg-surface-800 px-2 text-sm" />
+		<input aria-label="Simulation name" bind:value={name} maxlength="80" class="h-8 min-w-0 w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-sm" />
 		<button type="button" class={btn} onclick={save} disabled={!characterKey}>Save changes</button>
 		<button type="button" class={btn} onclick={exportFile} disabled={!characterKey}>Export</button>
 		<button type="button" class={btn} onclick={() => fileInput.click()} disabled={!characterKey}>Import</button>
