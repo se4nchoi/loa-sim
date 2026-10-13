@@ -4,7 +4,7 @@
      top shows how the score splits between them, and every row has a bar for its own share. -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { sheetDrag } from './sheet-drag';
+	import { sheetDialog, sheetDrag } from './sheet-drag';
 	import { formatCp, formatPct } from '../format';
 	import { CATEGORIES, type BreakdownCategory, type BreakdownSide, type CpBreakdown } from '../cp-breakdown';
 	import { btn } from './ui';
@@ -83,7 +83,7 @@
 {/snippet}
 
 <dialog
-	bind:this={dialog}
+	bind:this={dialog} use:sheetDialog={() => card}
 	tabindex="-1"
 	{onclose}
 	onclick={(e) => {
@@ -99,7 +99,7 @@
 	>
 		<div
 			class="flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3 max-sm:gap-y-1"
-			use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), slideOut: true, enabled: () => matchMedia('(max-width: 639px)').matches }}
+			use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}
 		>
 			<span class="flex basis-full justify-center pb-1 sm:hidden"><span class="h-1.5 w-12 rounded-full bg-surface-500"></span></span>
 			<div class="min-w-0 flex-1">

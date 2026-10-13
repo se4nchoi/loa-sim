@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { sheetDrag } from './sim/sheet-drag';
+	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
 	import { onMount, untrack } from 'svelte';
 	import { formatCp, formatPct } from './format';
 	import { btn, btnAccent, ROLL_COLORS } from './sim/ui';
@@ -217,7 +217,7 @@
 
 <!-- Focusable itself (tabindex -1) so opening focuses the dialog, not its first input or Close. -->
 <dialog
-	bind:this={dialog}
+	bind:this={dialog} use:sheetDialog={() => card}
 	tabindex="-1"
 	{onclose}
 	onclick={(e) => e.target === dialog && dialog.close()}
@@ -226,7 +226,7 @@
 >
 	<div bind:this={card} class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 		<!-- Phones: the header is the drag-to-close zone, with a grabber. -->
-		<div class="flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold max-sm:pt-2" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), slideOut: true, enabled: () => matchMedia('(max-width: 639px)').matches }}>
+		<div class="flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold max-sm:pt-2" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
 			<span class="flex basis-full justify-center pb-1 sm:hidden"><span class="h-1.5 w-12 rounded-full bg-surface-500"></span></span>
 			<span id="upgrade-planner-title">Next upgrades</span>
 			<button type="button" class="text-surface-300 hover:text-surface-50" aria-label="Close" onclick={() => dialog.close()}>
