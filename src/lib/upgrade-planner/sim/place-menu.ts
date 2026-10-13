@@ -9,7 +9,9 @@
 
 import { tick } from 'svelte';
 
-export function placeMenu(node: HTMLElement, align: 'left' | 'right' = 'left') {
+export function placeMenu(node: HTMLElement, options: 'left' | 'right' | { align: 'left' | 'right'; fit: boolean } = 'left') {
+	const align = typeof options === 'string' ? options : options.align;
+	const fit = typeof options !== 'string' && options.fit;
 	const anchor = node.parentElement!;
 	// The class max-height (if any), read before inline styles override it.
 	const cssMax = parseFloat(getComputedStyle(node).maxHeight) || Infinity;
@@ -25,7 +27,7 @@ export function placeMenu(node: HTMLElement, align: 'left' | 'right' = 'left') {
 		if (!node.matches(':popover-open')) node.showPopover();
 		node.style.right = 'auto';
 		node.style.alignContent = 'start';
-		node.style.width = 'max-content';
+		node.style.width = fit ? `${Math.min(at.width, window.innerWidth - margin * 2)}px` : 'max-content';
 		node.style.maxWidth = `${window.innerWidth - margin * 2}px`;
 		node.style.minWidth = `${Math.min(at.width, window.innerWidth - margin * 2)}px`;
 		// Natural height: let it size to content, then read it back (scrollHeight excludes the border).

@@ -7,8 +7,6 @@ export interface SheetDragOptions {
 	/** The element that moves (the sheet). */
 	sheet: () => HTMLElement | undefined;
 	close: () => void;
-	/** Slide the sheet out before calling close (dialogs); a component with its own out-transition skips it. */
-	slideOut?: boolean;
 	/** Only drag when this says so (e.g. phones only). */
 	enabled?: () => boolean;
 }
@@ -49,17 +47,10 @@ export function sheetDrag(node: HTMLElement, options: SheetDragOptions) {
 		if (!active || !sheet) return;
 		active = false;
 		const speed = dy / Math.max(1, performance.now() - start.t); // px per ms
-		if (moved && (dy > sheet.offsetHeight / 3 || speed > 0.6)) {
-			if (opts.slideOut) {
-				sheet.style.transition = 'transform 200ms ease-in';
-				sheet.style.transform = 'translateY(100%)';
-				setTimeout(() => {
-					opts.close();
-					sheet.style.transform = '';
-					sheet.style.transition = '';
-				}, 200);
-			} else opts.close();
-		} else {
+		// Closing leaves the sheet where the finger let go: the sheet's own out-animation (sheetDialog, the drawer's
+		// transition) slides it down from there.
+		if (moved && (dy > sheet.offsetHeight / 3 || speed > 0.6)) opts.close();
+		else {
 			sheet.style.transition = SPRING;
 			sheet.style.transform = '';
 		}
@@ -88,6 +79,63 @@ export function sheetDrag(node: HTMLElement, options: SheetDragOptions) {
 			node.removeEventListener('pointerup', up);
 			node.removeEventListener('pointercancel', up);
 			node.removeEventListener('click', click, true);
+		}
+	};
+}
+
+const PHONE = '(max-width: 639px)';
+
+/**
+ * Bottom-sheet dialogs on phones: every close (Close button, backdrop tap, Escape, a drag) slides the sheet down
+ * from wherever it is and fades the backdrop before the dialog really closes. Larger screens close at once.
+ *   <dialog use:sheetDialog={() => card}>…</dialog>
+ */
+export function sheetDialog(dialog: HTMLDialogElement, sheet: () => HTMLElement | undefined) {
+	let getSheet = sheet;
+	let closing = false;
+	const nativeClose = HTMLDialogElement.prototype.close;
+	dialog.close = function (returnValue?: string) {
+		const el = getSheet();
+		if (closing) return;
+		if (!el || !dialog.open || !matchMedia(PHONE).matches || matchMedia('(prefers-reduced-motion: reduce)').matches)
+			return nativeClose.call(dialog, returnValue);
+		closing = true;
+		const transform = getComputedStyle(el).transform;
+		const from = transform && transform !== 'none' ? new DOMMatrix(transform).m42 : 0;
+		const slide = el.animate([{ transform: `translateY(${from}px)` }, { transform: 'translateY(100%)' }], {
+			duration: 220,
+			easing: 'cubic-bezier(0.4, 0, 1, 1)',
+			fill: 'forwards'
+		});
+		try {
+			dialog.animate({ opacity: [1, 0] }, { duration: 220, fill: 'forwards', pseudoElement: '::backdrop' });
+		} catch {
+			/* no ::backdrop animations: it just goes with the dialog */
+		}
+		const done = () => {
+			nativeClose.call(dialog, returnValue);
+			// Drop the slide and fade (not the sheet's CSS open animation), so a reopened dialog starts clean.
+			for (const a of dialog.getAnimations({ subtree: true })) if (!(a instanceof CSSAnimation)) a.cancel();
+			el.style.transform = '';
+			el.style.transition = '';
+			closing = false;
+		};
+		slide.finished.then(done, done);
+	};
+	// Escape goes through the same slide.
+	const cancel = (e: Event) => {
+		if (!matchMedia(PHONE).matches) return;
+		e.preventDefault();
+		dialog.close();
+	};
+	dialog.addEventListener('cancel', cancel);
+	return {
+		update(next: () => HTMLElement | undefined) {
+			getSheet = next;
+		},
+		destroy() {
+			dialog.removeEventListener('cancel', cancel);
+			delete (dialog as { close?: unknown }).close;
 		}
 	};
 }

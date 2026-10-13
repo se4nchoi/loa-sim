@@ -23,7 +23,7 @@
 <ItemIcon src={look?.icon} grade={look?.grade} title={look ? `${look.name} +${sim.bracer!.honing}\n${details}` : 'Bracer · Not equipped'} />
 <span class="min-w-0 text-sm font-semibold text-surface-100" title={sim.bracer ? details : 'Belgardin Bracer'}>
 	Bracer
-	<span class="block text-[10px] font-normal text-surface-400">KR preview</span>
+	<span class="block text-[10px] font-normal text-surface-400" title="KR honing and stats; global release audit pending">KR preview</span>
 </span>
 {#if sim.bracer}
 	<Stepper bind:value={sim.bracer.honing} min={BRACER_LIMITS[sim.bracer.grade][0]} max={BRACER_LIMITS[sim.bracer.grade][1]} prefix="+" label="Bracer honing" width="w-7" {changed} />

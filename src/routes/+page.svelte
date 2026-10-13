@@ -10,6 +10,7 @@
 	import { onMount } from 'svelte';
 	import SiteNews from '$lib/SiteNews.svelte';
 	import SiteNewsStrip from '$lib/SiteNewsStrip.svelte';
+	import ImportSimulation from '$lib/ImportSimulation.svelte';
 
 	let region = $state<Region>('NA');
 	let input = $state('');
@@ -258,6 +259,7 @@
 	<div class="flex flex-col gap-1">
 		<h1 class="text-2xl font-bold">Combat Power Simulator</h1>
 		<p class="text-sm text-surface-300">Load a character, change its gear, and see what each change does to Combat Power.</p>
+		<ImportSimulation />
 		<ul class="list-disc pl-5 text-xs text-surface-400">
 			<li>Uses only what lostark.bible already shows publicly for a character.</li>
 			<li>Nothing is saved anywhere except your browser: loaded characters, your roster and your edits stay on this device.</li>

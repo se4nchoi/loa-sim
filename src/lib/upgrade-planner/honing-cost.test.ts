@@ -7,6 +7,13 @@ import { BRACER_TAPS } from './bracer-cost-data';
 const free = (tap: ReturnType<typeof tapsFor>) => Object.fromEntries([...Object.keys(tap!.mats), SHARDS].map((id) => [id, 0]));
 
 describe('honing cost', () => {
+	it('distinguishes red, blue and combined bracer breath strategies', () => {
+		const cost = honingCost(BRACER_TAPS[0], {});
+		const full = cost.strategies!.filter(strategy => !strategy.summary?.includes('first'));
+		expect(full.map(strategy => strategy.summary)).toEqual(expect.arrayContaining([
+			'No breath.', 'Full red breath.', 'Full blue breath.', 'Full red breath + Full blue breath.'
+		]));
+	});
 	it('shows bound inventory for the equipped progression, including mixed gear', () => {
 		const serca = inventoryMaterials({ weapon: {}, head: {} });
 		expect(serca).toContain('66102007');
@@ -18,6 +25,17 @@ describe('honing cost', () => {
 		expect(mixed).toContain('66102107');
 		expect(mixed).toContain('66110225');
 		expect(mixed).toContain('66110226');
+	});
+	it('enables the full material family and both shared breaths from even one armor piece', () => {
+		const lower = inventoryMaterials({ head: { set: 'aegir' } });
+		for (const id of ['66102006', '66102106', '66110225', '6861012', '66111131', '66111132', '66112543', '66112546']) expect(lower).toContain(id);
+		expect(lower).not.toContain('66102007');
+		const upper = inventoryMaterials({ head: {} });
+		for (const id of ['66102007', '66102107', '66110226', '6861013', '66111131', '66111132']) expect(upper).toContain(id);
+		expect(upper).not.toContain('66102006');
+		expect(upper).not.toContain('66112543');
+		const mixed = inventoryMaterials({ head: { set: 'aegir' }, hand: {} });
+		expect(new Set(mixed)).toEqual(new Set([...lower, ...upper]));
 	});
 	it('does not automatically exchange regular bound materials for Serca honing', () => {
 		const tap = tapsFor('serca', 'weapon', 1)!;

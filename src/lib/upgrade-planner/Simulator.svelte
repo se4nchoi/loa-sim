@@ -40,6 +40,7 @@
 
 	let {
 		loadout,
+		sim = $bindable(untrack(() => initSimState(loadout))),
 		sidebar,
 		characterName,
 		characterKey,
@@ -47,6 +48,7 @@
 		edited = $bindable(false)
 	}: {
 		loadout: Loadout;
+		sim?: SimState;
 		sidebar?: Snippet;
 		characterName?: string;
 		/** "na/soulshan": keys what is kept per character (bound honing mats). */
@@ -143,7 +145,6 @@
 		changed.observe(bar, { childList: true, subtree: true });
 		return () => (resized.disconnect(), changed.disconnect());
 	});
-	let sim = $state(untrack(() => initSimState(loadout)));
 	// Controls edit sim immediately; expensive score and recommendation work uses this settled snapshot.
 	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.

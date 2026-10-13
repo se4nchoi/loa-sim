@@ -108,6 +108,8 @@ fs.writeFileSync(
 	'src/lib/upgrade-planner/honing-cost-data.ts',
 	`${header('Normal honing costs per tap for T4 Serca and Aegir gear, by target level (index 0 = +1).')}
 export interface HoningTap {
+	/** Eligible book bonuses attached by tapsFor; regular/enhanced variants are mutually exclusive. */
+	books?: { id: string; name: string; rate: number }[];
 	/** One-time shards to grow the item to this level before tapping. */
 	growth: number;
 	/** Base success chance, its growth per failure and the cap on that growth (1/10000). */

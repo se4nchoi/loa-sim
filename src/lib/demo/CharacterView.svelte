@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { Simulator } from '$lib/upgrade-planner';
+	import { untrack } from 'svelte';
+	import { initSimState, type SimState } from '$lib/upgrade-planner/simulate';
+	import SavedSimulations from '$lib/upgrade-planner/SavedSimulations.svelte';
 	import { className } from '$lib/upgrade-planner/class-names';
 	import type { CpDistribution } from '$lib/upgrade-planner/cp-distribution';
 	import type { LoadoutKind } from '$lib/bible-data';
@@ -49,6 +52,8 @@
 	} = $props();
 
 	let edited = $state(false);
+	let simulation = $state<SimState | null>(untrack(() => loadout ? initSimState(loadout) : null));
+	$effect.pre(() => { simulation = loadout ? initSimState(loadout) : null; });
 	let reloading = $state(false);
 	let reloadNote = $state<{ text: string; tone: 'ok' | 'info' | 'error' } | null>(null);
 	let noteTimer: ReturnType<typeof setTimeout> | undefined;
@@ -175,14 +180,17 @@
 	<h1 class="text-3xl font-bold">{name}</h1>
 	{#if ilvl}<span class="text-xl font-semibold text-surface-200 tabular-nums" title="Item Level">{ilvl.toFixed(2)}</span>{/if}
 	{#each lines as line (line)}<span class="text-sm text-surface-300">{line}</span>{/each}
+	<a class="w-fit text-xs text-surface-300 underline hover:text-surface-50" href={`https://lostark.bible/character/${region}/${encodeURIComponent(name)}`} target="_blank" rel="noopener">
+		View on lostark.bible
+	</a>
 	<!-- Always shown, so players find saved snapshots before they have any. -->
 	{#if menu.length && onsnapshot && onloadout}
-		<div class="mt-1 flex max-w-full flex-row items-center gap-1.5">
-			<MenuPicker value={pending ?? menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate">
+		<div class="mt-1 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_repeat(3,2rem)] items-center gap-1.5">
+			<MenuPicker value={pending ?? menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate" full fitMenu>
 				{#snippet trigger()}
 					<!-- Same words for every choice ("Snapshot on 10-11 6620.18"), so picking one never resizes the button; the
 					     menu has the full names. -->
-					<span class="flex min-w-0 flex-row items-baseline gap-1.5 text-xs" title={shownPick?.label}>
+					<span class="flex min-w-0 flex-row items-baseline gap-1.5 overflow-hidden text-xs" title={shownPick?.label}>
 						<span class="shrink-0">Snapshot{shownPick?.note ? ' on' : ''}</span>
 						{#if shownPick?.note}<span class="shrink-0 text-surface-300 tabular-nums">{shownPick.note}</span>{/if}
 						{#if shownPick}<span class="shrink-0 font-semibold tabular-nums" style:color={shownPick.detail.color}>{shownPick.detail.label}</span>{/if}
@@ -206,9 +214,11 @@
 			<p role="status" class="text-xs {reloadNote.tone === 'ok' ? 'text-green-400' : reloadNote.tone === 'error' ? 'text-red-400' : 'text-amber-300/90'}">{reloadNote.text}</p>
 		{/if}
 	{/if}
-	<a class="w-fit text-xs text-surface-300 underline hover:text-surface-50" href={`https://lostark.bible/character/${region}/${encodeURIComponent(name)}`} target="_blank" rel="noopener">
-		View on lostark.bible
-	</a>
+	{#if loadout && simulation}
+		<div class="mt-2 w-full max-w-[27.125rem]">
+			<SavedSimulations characterKey={`${region}/${name}`.toLowerCase()} {loadout} state={simulation} onrestore={(state) => simulation = state} />
+		</div>
+	{/if}
 </div>
 
 {#if !loadout}
@@ -230,6 +240,6 @@
 				</div>
 			</div>
 		{/if}
-		<Simulator bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />
+		{#if simulation}<Simulator bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
 	</div>
 {/if}

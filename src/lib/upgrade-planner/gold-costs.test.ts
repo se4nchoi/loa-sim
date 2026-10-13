@@ -100,6 +100,11 @@ describe('gold costs', () => {
 		expect(missingPriceCount([ear1, ear2, skin, core], {})).toBe(2);
 		expect(missingPriceCount([ear1, ear2, skin, core], { [ear1.key]: 5000, [ear2.key]: 5000, [skin.key]: 0 })).toBe(0);
 	});
+	it('never asks for a price on material-priced rows (honing, bracer, quality) without a material cost', () => {
+		const bracer = { ...up('bracer:legendary:16', 1), category: 'honing' as const };
+		const quality = { ...up('quality:weapon:100', 1), category: 'quality' as const };
+		expect(missingPriceCount([bracer, quality], {})).toBe(0);
+	});
 	it('shares accessory prices across display line order without mixing different rolls', () => {
 		const u = { ...up('accset:ear1:atk_pct.high,weapon_pct.mid', 1), category: 'accessory' as const };
 		const prices = { 'accset:ear1:weapon_pct.mid,atk_pct.high': 50000 };
@@ -167,6 +172,7 @@ describe('gold costs', () => {
 		expect(parseOwned('')).toBe(0);
 		expect(parseOwned('3,000')).toBe(3000);
 		expect(parseOwned('12k')).toBe(12000);
+		expect(parseOwned('300k0')).toBe(300000); // typed in front of the field's old 0
 		expect(parseOwned('∞')).toBe(1e12);
 		expect(parseOwned('9999999999')).toBe(9999999999);
 		expect(parseOwned('99999')).toBe(99999);
