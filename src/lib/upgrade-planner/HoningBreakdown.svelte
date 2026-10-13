@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import { breathStrategy, materialIcon, materialName, type HoningCost } from './honing-cost';
+	import { HONING_BOOKS } from './honing-books-data';
 	import { GOLD_ICON, iconUrl } from './icons';
 	import { btn, btnAccent } from './sim/ui';
 	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
@@ -11,7 +12,9 @@
 	const tapCount = $derived(mode === 'average' ? cost.taps : cost.maxTaps);
 	const strategies = $derived((cost.strategies ?? [{ label: breathStrategy(cost), materialIds: [], selected: true }])
 		.toSorted((a, b) => Number(b.selected) - Number(a.selected)));
-	const breathIds = $derived([...new Set(strategies.flatMap((strategy) => strategy.materialIds))]);
+	const chosenIds = $derived(strategies.find(strategy => strategy.selected)?.materialIds ?? []);
+	const breathIds = $derived(chosenIds.filter(id => !HONING_BOOKS.some(book => book.id === id)));
+	const bookId = $derived(chosenIds.find(id => HONING_BOOKS.some(book => book.id === id)));
 	const quantity = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
 	// Whole gold: decimals only add width (and shift the table on phones as the numbers change).
 	const money = (n: number) => Math.round(n).toLocaleString();
@@ -82,12 +85,15 @@
 			</section>
 		{/if}
 		<section aria-label="Breath strategy" class="space-y-2 rounded-xs border border-accent-500/30 bg-accent-500/5 p-3">
-			<h3 class="flex items-center gap-1.5 text-sm font-semibold text-accent-300">{#each breathIds as id}{@const icon = materialIcon(id)}{#if icon}<img src={iconUrl(icon)} alt={materialName(id)} class="size-5 shrink-0" />{/if}{/each}Chosen {cost.book ? 'Honing' : 'Breath'} Strategy</h3>
+			<h3 class="flex items-center gap-1.5 text-sm font-semibold text-accent-300">
+				{#each breathIds as id}{@const icon = materialIcon(id)}{#if icon}<img src={iconUrl(icon)} alt={materialName(id)} title={materialName(id)} class="size-5 shrink-0" />{/if}{/each}
+				<span class="min-w-0 flex-1">Chosen {cost.book ? 'Honing' : 'Breath'} Strategy</span>
+				{#if bookId}{@const icon = materialIcon(bookId)}{#if icon}<img src={iconUrl(icon)} alt={materialName(bookId)} title={materialName(bookId)} class="size-5 shrink-0" />{/if}{/if}
+			</h3>
 			<ul class="space-y-1.5 text-xs">
 				{#each strategies as strategy}
 					<li title={strategy.label} class={strategy.selected ? 'rounded-xs border border-accent-500/50 bg-accent-500/15 p-2 font-semibold text-accent-200' : 'px-2 py-1 text-surface-400'}>
 						{strategy.summary ?? strategy.label}
-						<span class="mt-1 flex gap-1">{#each strategy.materialIds as id}{@const icon = materialIcon(id)}{#if icon}<img src={iconUrl(icon)} alt={materialName(id)} title={materialName(id)} class="size-4" />{/if}{/each}</span>
 						{#if cost.book && strategy.expected !== undefined && strategy.firstTapChance !== undefined}<span class="block font-normal">{money(strategy.expected)} gold avg · {(strategy.firstTapChance * 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}% first-tap success</span>{/if}
 					</li>
 				{/each}
