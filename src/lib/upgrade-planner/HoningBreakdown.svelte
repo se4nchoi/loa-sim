@@ -86,7 +86,6 @@
 			<ul class="space-y-1.5 text-xs">
 				{#each strategies as strategy}
 					<li class={strategy.selected ? 'rounded-xs border border-accent-500/50 bg-accent-500/15 p-2 font-semibold text-accent-200' : 'px-2 py-1 text-surface-400'}>
-						{#if strategy.selected}<span class="mb-1 block text-[11px] font-bold uppercase">✓ Chosen strategy</span>{/if}
 						{strategy.label}
 						{#if cost.book && strategy.expected !== undefined && strategy.firstTapChance !== undefined}<span class="block font-normal">{money(strategy.expected)} gold avg · {(strategy.firstTapChance * 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}% first-tap success</span>{/if}
 					</li>
