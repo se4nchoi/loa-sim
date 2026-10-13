@@ -169,8 +169,11 @@ export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: Materi
 			.map((option) => {
 				const hasBook = option.materialIds.some(id => bookIds.has(id));
 				const hasBreath = option.materialIds.some(id => !bookIds.has(id));
+				const breathLabel = tap.moreBreath && hasBreath
+					? option.materialIds.filter(id => !bookIds.has(id)).map(id => id === '66111131' ? 'Full red breath' : id === '66111132' ? 'Full blue breath' : 'Full breath').join(' + ')
+					: hasBreath ? 'Full breath' : 'No breath';
 				const enhanced = books.some(b => option.materialIds.includes(b.id) && b.name.startsWith('Enhanced'));
-				const summary = [hasBreath ? 'Full breath' : 'No breath', ...(books.length ? [hasBook ? `Full books${enhanced ? ' (enhanced)' : ''}` : 'No books'] : [])].join(' + ');
+				const summary = [breathLabel, ...(books.length ? [hasBook ? `Full books${enhanced ? ' (enhanced)' : ''}` : 'No books'] : [])].join(' + ');
 				return { label: breathStrategy(option.cost).replace(/then no breath\.$/, books.length ? 'then no breath or books.' : 'then no breath.'), summary: option.cost.breathMode === 'cutoff'
 					? `${summary} for the first ${option.cost.breathTaps} taps, then ${books.length ? 'no breath or books' : 'no breath'}.` : `${summary}.`,
 					materialIds: option.materialIds, selected: option === best,

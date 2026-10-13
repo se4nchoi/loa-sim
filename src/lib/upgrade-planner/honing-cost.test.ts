@@ -7,6 +7,13 @@ import { BRACER_TAPS } from './bracer-cost-data';
 const free = (tap: ReturnType<typeof tapsFor>) => Object.fromEntries([...Object.keys(tap!.mats), SHARDS].map((id) => [id, 0]));
 
 describe('honing cost', () => {
+	it('distinguishes red, blue and combined bracer breath strategies', () => {
+		const cost = honingCost(BRACER_TAPS[0], {});
+		const full = cost.strategies!.filter(strategy => !strategy.summary?.includes('first'));
+		expect(full.map(strategy => strategy.summary)).toEqual(expect.arrayContaining([
+			'No breath.', 'Full red breath.', 'Full blue breath.', 'Full red breath + Full blue breath.'
+		]));
+	});
 	it('shows bound inventory for the equipped progression, including mixed gear', () => {
 		const serca = inventoryMaterials({ weapon: {}, head: {} });
 		expect(serca).toContain('66102007');
