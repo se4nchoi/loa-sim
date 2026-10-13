@@ -68,3 +68,25 @@ Local audit reports and bundled runner scripts stay in ignored `cache/`.
 Add dependency-specific reconstruction so sources irrelevant to a particular stat change do not block it.
 Then resolve class/skill feature scope using supplied runtime definitions and obtain a matching inspected
 baseline. Validate each projection against the saved meter marginals before allowing replay-based ranking.
+
+## Dependency-specific continuation
+
+The decoder now accepts an optional `delta` and returns the buckets required by that change in
+`dependencies`. Without `delta`, it retains the complete-context audit. Attack-stat changes require
+main stat, Weapon Power, flat/support attack and base attack; outgoing attack %, additional damage and
+crit damage use their own buckets. Crit-rate/evolution changes keep the coupled crit, crit-damage and
+evolution dependencies for conversion builds.
+
+Known unrelated buff sources can be excluded before requiring their level, stacks or caster attack.
+Every possible numeric level is checked before excluding a source. Unknown IDs, unresolved effects,
+ambiguous definitions and missing matching baseline provenance still block the projection. This does
+not infer absent historical stats or mark a current snapshot as matching encounter 5886.
+
+Use `replayAuditedHitRatio` for a projected audit: it rejects a delta requiring buckets outside the
+audited projection. The raw context is not a complete reconstructed character context. The replay UI
+and rankings remain unchanged.
+
+Synthetic regressions verify additional-damage replay with unrelated missing crit/support inputs,
+required support dilution for Weapon Power, unknown-effect blocking, mixed level dependencies, baseline
+provenance and rejection of incompatible delta reuse. Actual-run marginal validation still awaits a
+matching inspected baseline and the user's versioned runtime tables; neither is present in this workspace.

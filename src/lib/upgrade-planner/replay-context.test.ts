@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contextDecoder, type RuntimeContextTables } from './replay-context';
+import { contextDecoder, replayAuditedHitRatio, type RuntimeContextTables } from './replay-context';
 import { replayHitRatio, type HitContext } from './dps-replay';
 import realRun from './fixtures/dps-soulshan-hits.json';
 
@@ -108,4 +108,41 @@ describe('runtime context provenance', () => {
 		const ratio=replayHitRatio(hit,r.context!,{mainStat:0,weaponPower:0,attackPower:0,attackPowerPct:0,additionalDamage:0,critRate:0,critDamage:10});
 		expect(ratio).toBeCloseTo(2.3/2.2,12);
 	});
+});
+
+describe('dependency-specific reconstruction', () => {
+ const delta = {mainStat:0,weaponPower:0,attackPower:0,attackPowerPct:0,additionalDamage:1,critRate:0,critDamage:0};
+ it('allows additional damage without unrelated crit levels, stacks, or caster attack', () => {
+  const t: RuntimeContextTables = {buffs:{
+   1:{type:'instant_stat_amplify',overlap:6,perLevelData:{1:{statusEffectValues:[1000]},2:{statusEffectValues:[2000]}}},
+   2:{type:'attack_power_amplify',perLevelData:{1:{statusEffectValues:[1600]},2:{statusEffectValues:[1700]}}}
+  }};
+  const h={...hit,buffedBy:[1,2]};
+  const decode=contextDecoder(t);
+  expect(decode(h,{baseline,baselineMatchesLog:true}).context).toBeNull();
+  const r=decode(h,{baseline,baselineMatchesLog:true,delta});
+  expect(r.issues).toEqual([]);
+  expect(r.dependencies).toEqual(['additionalDamage']);
+  expect(r.context).not.toBeNull();
+  expect(replayAuditedHitRatio(h,r,delta)).toBeCloseTo(1+0.01/1.5,12);
+  expect(replayAuditedHitRatio(h,r,{...delta,weaponPower:1000})).toBeNull();
+ });
+ it('keeps support attack required for weapon-power changes', () => {
+  const t:RuntimeContextTables={buffs:{2:{type:'attack_power_amplify',perLevelData:{1:{statusEffectValues:[1600]}}}}};
+  const r=contextDecoder(t)({...hit,buffedBy:[2]},{baseline,baselineMatchesLog:true,delta:{...delta,additionalDamage:0,weaponPower:1000}});
+  expect(r.context).toBeNull();
+  expect(r.issues.some(i=>i.reason.includes('Casting support'))).toBe(true);
+ });
+ it('does not hide unknown sources or effects behind projection', () => {
+  const t:RuntimeContextTables={buffs:{1:{type:'none',perLevelData:{1:{passiveOptions:[{type:'stat',keyStat:'unknown',value:10}]}}}}};
+  expect(contextDecoder(t)({...hit,buffedBy:[1]},{baseline,baselineMatchesLog:true,delta}).context).toBeNull();
+  expect(contextDecoder(t)({...hit,buffedBy:[999]},{baseline,baselineMatchesLog:true,delta}).context).toBeNull();
+ });
+ it('checks every possible buff level before ignoring it', () => {
+  const t:RuntimeContextTables={buffs:{1:{type:'none',perLevelData:{1:{passiveOptions:[{type:'stat',keyStat:'critical_hit_rate',value:1000}]},2:{passiveOptions:[{type:'stat',keyStat:'skill_damage_rate',value:1000}]}}}}};
+  expect(contextDecoder(t)({...hit,buffedBy:[1]},{baseline,baselineMatchesLog:true,delta}).issues.some(i=>i.reason==='Buff level required')).toBe(true);
+ });
+ it('still requires matching inspected provenance', () => {
+  expect(contextDecoder({buffs:{}})({...hit,buffedBy:[]},{baseline,delta}).context).toBeNull();
+ });
 });
