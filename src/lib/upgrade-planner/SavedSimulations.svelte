@@ -24,7 +24,7 @@
 			const cp = (s.loadout.combatPower?.score ?? baseline) * simulate(s.loadout, s.state, base).cp / baseline;
 			const compatible = sameBaseline(s.loadout, loadout);
 			return { value: s.id, label: s.name, note: shortDay(s.savedAt),
-				detail: { label: cp.toFixed(2), color: 'var(--color-violet-300)' }, marker: '', disabled: !compatible,
+				detail: { label: cp.toFixed(2), color: s.loadout.combatPower?.id === 2 ? 'var(--color-green-400)' : 'var(--color-red-400)' }, marker: '', disabled: !compatible,
 				title: compatible ? s.name : 'Select this plan’s original character snapshot before loading it.',
 				onremove: () => remove(s.id), removeLabel: `Delete ${s.name}` };
 		}),
