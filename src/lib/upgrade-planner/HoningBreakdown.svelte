@@ -71,9 +71,13 @@
 		{#if cost.book}
 			<section class="rounded-xs border border-amber-500/30 p-3 text-xs" aria-label="Honing book efficiency">
 				<h3 class="mb-1 font-semibold text-amber-200">{cost.book.name}</h3>
+				{#if cost.book.unavailable}
+					<p>Books excluded from strategies: no bound stock or market price entered. Enter a price of 0 to compare free market books.</p>
+				{:else}
 				<p>Saves {money(cost.book.savedGold)} gold on average versus no books.</p>
 				<p>Average books used: {quantity(cost.book.used)} · Market buys: {quantity(cost.book.bought)}</p>
 				{#if cost.book.breakEven !== null}<p>Market break-even: {money(cost.book.breakEven)} gold per book versus the best bound-only option.</p>{/if}
+				{/if}
 			</section>
 		{/if}
 		<section aria-label="Breath strategy" class="space-y-2 rounded-xs border border-accent-500/30 bg-accent-500/5 p-3">

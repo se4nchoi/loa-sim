@@ -59,9 +59,11 @@ describe('additive honing books', () => {
 		expect(details).toMatchObject({ used: 0, bought: 0, savedGold: 0 });
 	});
 	it('uses unknown-price books only up to entered bound stock', () => {
-		expect(honingCost(tap, {}, {}, book).book!.used).toBe(0);
+		expect(honingCost(tap, {}, {}, book).book).toMatchObject({ used: 0, unavailable: true });
 		const bound = honingCost(tap, {}, { [book.id]: 1 }, book);
-		expect(bound.expected).toBe(160); expect(bound.book!.bought).toBe(0);
+		expect(bound.expected).toBe(160); expect(bound.book).toMatchObject({ bought: 0, unavailable: false });
+		const free = honingCost(tap, { [book.id]: 0 }, {}, book);
+		expect(free.book).toMatchObject({ used: 1, bought: 1, unavailable: false });
 	});
 	it('compares regular and enhanced books without stacking them and reports odds', () => {
 		const regular = { ...book, id: 'regular', rate: 1000 };

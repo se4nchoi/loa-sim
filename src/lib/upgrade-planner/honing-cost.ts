@@ -47,7 +47,7 @@ export interface HoningCost {
 	/** Best candidate for each breath combination and strategy family. */
 	strategies?: { label: string; materialIds: string[]; selected: boolean; expected?: number; firstTapChance?: number }[];
 	breakdown?: { average: HoningMaterialBreakdown; pity: HoningMaterialBreakdown };
-	book?: { name: string; savedGold: number; used: number; bought: number; breakEven: number | null };
+	book?: { name: string; savedGold: number; used: number; bought: number; breakEven: number | null; unavailable: boolean };
 }
 
 export function tapsFor(set: HoningSet, slot: HoningSlot, toLevel: number): HoningTap | undefined {
@@ -162,7 +162,8 @@ export function honingCost(tap: HoningTap, prices: MaterialPrices, owned: Materi
 	});
 	return {
 		...best.cost,
-		...(book ? { book: { name: book.name, savedGold: withoutBook.cost.expected - best.cost.expected, ...bookQuantity(best), breakEven: thresholds.length ? Math.max(0, ...thresholds) : null } } : {}),
+		...(book ? { book: { name: book.name, savedGold: withoutBook.cost.expected - best.cost.expected, ...bookQuantity(best), breakEven: thresholds.length ? Math.max(0, ...thresholds) : null,
+			unavailable: books.every(b => prices[b.id] === undefined && (owned[b.id] ?? 0) < 1) } } : {}),
 		strategies: [...strategies.values()]
 			.sort((a, b) => ['none', 'full', 'cutoff'].indexOf(a.cost.breathMode) - ['none', 'full', 'cutoff'].indexOf(b.cost.breathMode))
 			.map((option) => ({ label: breathStrategy(option.cost), materialIds: option.materialIds, selected: option === best,
