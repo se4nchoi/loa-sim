@@ -39,12 +39,14 @@ export function enterToNext(e: KeyboardEvent, scope: HTMLElement | null | undefi
 	const field = e.currentTarget as HTMLInputElement;
 	const fields = [...(scope?.querySelectorAll<HTMLInputElement>('input[data-next]') ?? [])];
 	const next = fields[fields.indexOf(field) + 1];
-	if (next) next.focus();
+	if (next) next.focus({ preventScroll: true }); // revealAboveKeyboard does the one scroll
 	else field.blur();
 }
 
-/** Scroll a field to the middle of what the keyboard leaves visible: at once when the keyboard is already up (moving
- *  between fields), else when it has opened. */
+/** Scroll a field to the middle of what the keyboard leaves visible of its list. With the keyboard already up (moving
+ *  between fields, which focus with preventScroll), at once: this is the only scroll. Otherwise the keyboard is opening
+ *  and iOS pans the screen to the field on its own, so wait until the screen stops moving and correct only what's
+ *  still off (scrolling during the pan adds both and overshoots). */
 export function revealAboveKeyboard(node: HTMLElement) {
 	const vv = window.visualViewport;
 	if (!vv || !matchMedia('(pointer: coarse)').matches) return;
@@ -52,21 +54,46 @@ export function revealAboveKeyboard(node: HTMLElement) {
 	const reveal = () => {
 		if (done) return;
 		done = true;
-		vv.removeEventListener('resize', reveal);
+		const scroller = scrollerOf(node);
+		// The visible band: the screen above the keyboard, cut to the list's own box when the list is a panel.
+		let top = vv.offsetTop, bottom = vv.offsetTop + vv.height;
+		if (scroller !== document.scrollingElement) {
+			const box = scroller.getBoundingClientRect();
+			top = Math.max(top, box.top);
+			bottom = Math.min(bottom, box.bottom);
+		}
 		const r = node.getBoundingClientRect();
-		const top = vv.offsetTop + 8, bottom = vv.offsetTop + vv.height - 8;
-		if (r.top < top || r.bottom > bottom) quickScroll(node, r.top + r.height / 2 - (vv.offsetTop + vv.height / 2));
+		if (r.top < top + 8 || r.bottom > bottom - 8) quickScroll(scroller, r.top + r.height / 2 - (top + bottom) / 2);
 	};
 	if (window.innerHeight - vv.height > 120) return reveal(); // keyboard already open: no resize will come
-	vv.addEventListener('resize', reveal);
-	setTimeout(reveal, 400);
+	let quiet: ReturnType<typeof setTimeout> | undefined;
+	const settle = () => {
+		clearTimeout(quiet);
+		quiet = setTimeout(finish, 120);
+	};
+	const finish = () => {
+		clearTimeout(quiet);
+		clearTimeout(cap);
+		vv.removeEventListener('resize', settle);
+		vv.removeEventListener('scroll', settle);
+		reveal();
+	};
+	vv.addEventListener('resize', settle);
+	vv.addEventListener('scroll', settle);
+	quiet = setTimeout(finish, 350); // the keyboard's first resize can take a moment to arrive
+	const cap = setTimeout(finish, 800);
 }
 
-/** Scroll the field's scroller (or the page) by `dy` px in a short ease-out: the browser's smooth scroll is slow. */
-function quickScroll(node: HTMLElement, dy: number) {
-	let box: HTMLElement | null = node.parentElement;
-	while (box && !(box.scrollHeight > box.clientHeight && /auto|scroll/.test(getComputedStyle(box).overflowY))) box = box.parentElement;
-	const scroller = box ?? document.scrollingElement ?? document.documentElement;
+/** The nearest box that scrolls vertically. (A sideways scroller also reports overflow-y: auto, but its content fits
+ *  its height, so the overflow check leaves it out.) */
+function scrollerOf(node: HTMLElement): HTMLElement {
+	for (let box = node.parentElement; box; box = box.parentElement)
+		if (box.scrollHeight > box.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(box).overflowY)) return box;
+	return (document.scrollingElement ?? document.documentElement) as HTMLElement;
+}
+
+/** Scroll by `dy` px in a short ease-out: the browser's smooth scroll is slow. */
+function quickScroll(scroller: HTMLElement, dy: number) {
 	const from = scroller.scrollTop;
 	const t0 = performance.now();
 	const step = (t: number) => {

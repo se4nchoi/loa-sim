@@ -51,7 +51,7 @@
 		text = u.books ? (bookPrice !== undefined ? formatGold(bookPrice) : '') : typed ? formatGold(typed) : '';
 		editing = true;
 		await tick();
-		input?.focus();
+		input?.focus({ preventScroll: true }); // numberField scrolls it into view (once, above the keyboard)
 		input?.select();
 	}
 	function commit() {
