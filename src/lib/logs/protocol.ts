@@ -83,15 +83,49 @@ export interface ReplayRun extends EncounterRow {
 	buffSources?: Record<number,{skill?:number;name?:string;uniqueGroup?:number}>;
 }
 
+/** One skill in one run, as the DPS tab keeps it (names and icons live once per character, in RunsBook). */
+export interface RunSkill {
+	id: number;
+	damage: number;
+	/** Damage dealt by crits. */
+	critDamage: number;
+	hits: number;
+	crits: number;
+	casts: number;
+	/** ms the skill was ready but not cast; unknown on old logs. */
+	timeAvailable?: number;
+	/** Gem levels the meter saw on this skill. */
+	damageGem?: number;
+	cooldownGem?: number;
+}
+
+/** One cleared run of the player, compact enough to keep hundreds in browser storage. */
+export interface RunSummary extends EncounterRow {
+	combatPower: number | null;
+	itemLevel: number | null;
+	spec: string | null;
+	engravings: string[];
+	/** Sum of the player's skill damage. */
+	damage: number;
+	skills: RunSkill[];
+	/** The meter's per-stat values for this run; null in low performance mode and on old logs. */
+	statValues: StatValues | null;
+	/** Meter recorded Blunt Thorn converting crit over the cap into evolution damage. */
+	critConversion: boolean;
+	meterVersion: string | null;
+}
+
 export type LogsRequest =
 	| { id: number; type: 'open'; file: File }
 	| { id: number; type: 'shares'; player: string; encounterIds: number[] }
 	| { id: number; type: 'statValues'; player: string; encounterIds: number[] }
-	| { id: number; type: 'replay'; player: string; encounterIds: number[] };
+	| { id: number; type: 'replay'; player: string; encounterIds: number[] }
+	| { id: number; type: 'runs'; player: string; encounterIds: number[] };
 
 export type LogsResponse =
 	| { id: number; type: 'encounters'; encounters: EncounterRow[] }
 	| { id: number; type: 'shares'; runs: number; shares: SkillShare[] }
 	| { id: number; type: 'statValues'; values: StatValues | null }
 	| { id: number; type: 'replay'; runs: ReplayRun[] }
+	| { id: number; type: 'runs'; runs: RunSummary[]; skills: Record<number, [name: string, icon: string]> }
 	| { id: number; type: 'error'; message: string };

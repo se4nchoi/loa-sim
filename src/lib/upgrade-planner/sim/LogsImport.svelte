@@ -8,6 +8,7 @@
 	import { raidGateOf } from '$lib/logs/raids';
 	import { onDestroy } from 'svelte';
 	import { iconUrl } from '../icons';
+	import { formatDate } from '../format';
 	import { btnAccent, selectClass } from './ui';
 
 	let {
@@ -116,7 +117,7 @@
 	};
 	const RANGES = Object.keys(RANGE_LABELS) as RangePreset[];
 	const counts = $derived(Object.fromEntries(RANGES.map((p) => [p, inRange(p).length])) as Record<RangePreset, number>);
-	const day = (t: number) => new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+	const day = formatDate;
 	/** "Oct 1 – now", from the weekly reset (Wednesday 10:00 UTC). */
 	const rangeText = $derived.by(() => {
 		const [from, to] = rangeOf(range);

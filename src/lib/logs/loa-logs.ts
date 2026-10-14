@@ -1,6 +1,6 @@
 // Page-side client for the LOA Logs worker, plus the time-range presets.
 
-import type { EncounterRow, LogsRequest, LogsResponse, SkillShare, StatValues, ReplayRun } from './protocol';
+import type { EncounterRow, LogsRequest, LogsResponse, SkillShare, StatValues, ReplayRun, RunSummary } from './protocol';
 
 export type { EncounterRow, SkillShare, StatValues };
 
@@ -43,6 +43,12 @@ export class LoaLogsReader {
 	}
 	async replay(player: string, encounterIds: number[]): Promise<ReplayRun[]> {
 		return (await this.send<'replay'>({ type: 'replay', player, encounterIds })).runs;
+	}
+
+	/** Compact per-run summaries for the DPS tab, plus skill names and icons. */
+	async runs(player: string, encounterIds: number[]): Promise<{ runs: RunSummary[]; skills: Record<number, [string, string]> }> {
+		const r = await this.send<'runs'>({ type: 'runs', player, encounterIds });
+		return { runs: r.runs, skills: r.skills };
 	}
 
 	close() {

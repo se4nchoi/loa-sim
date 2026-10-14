@@ -10,6 +10,7 @@ import * as VFS from 'wa-sqlite/src/VFS.js';
 import type { LogsRequest, LogsResponse, SkillShare, EncounterRow, StatValues, ReplayRun } from './protocol';
 import { averageStatValues, splitOf } from './stat-values';
 import { replayRun, type LoggedReplaySkill } from './replay-data';
+import { runSummary, type LoggedRunSkill } from './run-summary';
 
 const DB_NAME = 'encounters.db';
 /** wa-sqlite hands the VFS the name with any URI query ("encounters.db?immutable=1"); compare the bare name. */
@@ -242,6 +243,29 @@ async function replayRuns(player: string, ids: number[]): Promise<ReplayRun[]> {
 	return out;
 }
 
+/** Compact summaries of these runs for the DPS tab. Only the columns it needs; no hit traces. */
+async function runSummaries(player: string, ids: number[]) {
+	const wanted = new Set(ids);
+	const encounters = (await listEncounters()).filter(r => wanted.has(r.id));
+	const columns = new Set((await query(`SELECT name FROM pragma_table_info('entity')`)).map(r => r.name));
+	const pick = (name: string) => columns.has(name) ? name : `NULL AS ${name}`;
+	const hasMisc = (await query(`SELECT name FROM pragma_table_info('encounter')`)).some(r => r.name === 'misc');
+	const names: Record<number, [string, string]> = {};
+	const runs = [];
+	for (const row of encounters) {
+		const [entity] = await query(`SELECT skills, ${pick('combat_power')}, ${pick('gear_score')}, ${pick('spec')}, ${pick('engravings')} FROM entity WHERE encounter_id = ? AND name = ?`, [row.id, player]);
+		if (!entity) continue;
+		let misc: unknown = null;
+		if (hasMisc) try { misc = await decodeSkills((await query(`SELECT misc FROM encounter WHERE id = ?`, [row.id]))[0]?.misc); } catch { /* old/unreadable misc */ }
+		const run = runSummary({ ...row, player }, {
+			skills: await decodeSkills(entity.skills) as Record<string, LoggedRunSkill>,
+			combatPower: entity.combat_power, itemLevel: entity.gear_score, spec: entity.spec, engravings: entity.engravings
+		}, misc, names);
+		if (run) runs.push(run);
+	}
+	return { runs, skills: names };
+}
+
 self.onmessage = async (e: MessageEvent<LogsRequest>) => {
 	const req = e.data;
 	const reply = (r: LogsResponse) => self.postMessage(r);
@@ -253,6 +277,8 @@ self.onmessage = async (e: MessageEvent<LogsRequest>) => {
 			reply({ id: req.id, type: 'shares', ...(await skillShares(req.player, req.encounterIds)) });
 		} else if (req.type === 'statValues') {
 			reply({ id: req.id, type: 'statValues', values: await statValues(req.player, req.encounterIds) });
+		} else if (req.type === 'runs') {
+			reply({ id: req.id, type: 'runs', ...(await runSummaries(req.player, req.encounterIds)) });
 		} else if (req.type === 'replay') {
 			reply({ id: req.id, type: 'replay', runs: await replayRuns(req.player, req.encounterIds) });
 		}
