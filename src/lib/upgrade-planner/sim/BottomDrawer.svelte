@@ -18,6 +18,7 @@
 	import { setContext, type Snippet } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { sheetDrag } from './sheet-drag';
+	import { sheetPosition } from './sheet-position';
 
 	let {
 		open = $bindable(false),
@@ -96,7 +97,7 @@
 {#if open}
 	<div
 		bind:this={sheet}
-		style:max-height={top > 0 ? `calc(100dvh - ${Math.round(top)}px)` : undefined}
+		use:sheetPosition={{phone:'(max-width: 1023px)', top: () => top}}
 		class="fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-8.25rem)] flex-col rounded-t-xl border-t border-surface-700 bg-surface-900 shadow-2xl shadow-black lg:hidden"
 		role="dialog"
 		aria-modal="true"

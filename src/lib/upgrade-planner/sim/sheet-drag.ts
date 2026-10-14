@@ -1,3 +1,4 @@
+import { sheetPosition } from './sheet-position';
 // Drag-to-close for bottom sheets on phones: a pull on the zone moves the sheet with the finger; past a third of its
 // height or a quick flick down it closes, otherwise it springs back. Pointer downs on controls (buttons, inputs,
 // links, radios) are left alone, and a drag never also counts as a click.
@@ -92,6 +93,7 @@ const PHONE = '(max-width: 639px)';
  */
 export function sheetDialog(dialog: HTMLDialogElement, sheet: () => HTMLElement | undefined) {
 	let getSheet = sheet;
+	const positioning = sheetPosition(dialog, {card: () => getSheet()});
 	let closing = false;
 	const nativeClose = HTMLDialogElement.prototype.close;
 	dialog.close = function (returnValue?: string) {
@@ -134,6 +136,7 @@ export function sheetDialog(dialog: HTMLDialogElement, sheet: () => HTMLElement 
 			getSheet = next;
 		},
 		destroy() {
+			positioning.destroy();
 			dialog.removeEventListener('cancel', cancel);
 			delete (dialog as { close?: unknown }).close;
 		}
