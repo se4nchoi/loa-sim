@@ -86,6 +86,7 @@ export interface MenuOption<V> {
 	marker?: string;
 	/** Shows an × beside the option that calls this (the menu stays open). */
 	onremove?: () => void;
+	onsave?: (name: string) => boolean;
 	removeLabel?: string;
 	/** Can't be removed: a lock sits where the × would be, with this as its tooltip. */
 	locked?: string;

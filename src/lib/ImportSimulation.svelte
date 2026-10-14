@@ -30,7 +30,7 @@
 </script>
 
 <div class="text-xs">
-	<button type="button" disabled={!ready} class="text-accent-300 underline underline-offset-2 hover:text-accent-200 disabled:opacity-50" onclick={() => input.click()}>Import a saved simulation file</button>
+	<button type="button" disabled={!ready} class="text-accent-300 underline underline-offset-2 hover:text-accent-200 disabled:opacity-50" onclick={() => input.click()}>Or import from a loa-sim simulation file</button>
 	<input bind:this={input} type="file" accept="application/json,.json" class="hidden" aria-label="Import shared simulation" onchange={importFile} />
 	{#if error}<p class="mt-1 text-red-300" role="alert">{error}</p>{/if}
 </div>

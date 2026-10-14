@@ -259,7 +259,6 @@
 	<div class="flex flex-col gap-1">
 		<h1 class="text-2xl font-bold">Combat Power Simulator</h1>
 		<p class="text-sm text-surface-300">Load a character, change its gear, and see what each change does to Combat Power.</p>
-		<ImportSimulation />
 		<ul class="list-disc pl-5 text-xs text-surface-400">
 			<li>Uses only what lostark.bible already shows publicly for a character.</li>
 			<li>Nothing is saved anywhere except your browser: loaded characters, your roster and your edits stay on this device.</li>
@@ -282,6 +281,7 @@
 			{loading && target && loading === characterKey(target) ? 'Loading…' : 'Load'}
 		</button>
 	</form>
+	<ImportSimulation />
 	{#if input && !target}<span class="-mt-2 text-sm text-red-400">Enter a character name, or a lostark.bible/character/… link.</span>{/if}
 	{#if error}
 		<p class="-mt-2 text-sm text-red-400">{error}</p>

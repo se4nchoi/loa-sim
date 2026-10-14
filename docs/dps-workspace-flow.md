@@ -9,3 +9,5 @@ Simulator saves working copies synchronously after valid edits and restores them
 The DPS page refreshes from storage on navigation, window focus, relevant storage events from other tabs, and its Refresh saved data button. Snapshot selection and gear editing happen through the link back to Simulator. Storage is per browser origin; a localhost tab and the deployed site do not share saved data.
 
 The public Shanzkii samples remain rounded marginal estimates with partial skill coverage. The page does not convert recorded nDPS into projected absolute DPS. Unsupported changes remain visible as unestimated.
+
+Upstream integration (October 14): incorporated `main` through `ae76982`, including `sim-save` through `4d3874f`. The Simulator's latest autosave naming, saved-plan selector and input-focus improvements are retained. Its bound simulation state feeds the shared working-copy storage without duplicate autosave effects; DPS log APIs are retained despite the earlier main-branch revert. All 393 tests pass and Svelte reports zero errors/warnings.

@@ -8,9 +8,9 @@
 	import { setContext, untrack, type Snippet, tick } from 'svelte';
 	import { className as classNameOf } from './class-names';
 	import { applyUpgrade } from './apply-upgrade';
+	import { autosaveSimulation, loadAutosave } from './saved-simulations';
 	import { roleOf } from './roles';
 	import UpgradePlanner from './UpgradePlanner.svelte';
-	import { autosaveSimulation, loadAutosave } from './saved-simulations';
 	import { loadStatValues, statValues } from '$lib/logs/stat-values-store.svelte';
 	import { withGemGroups } from './dps';
 	import SimBudget from './SimBudget.svelte';
@@ -155,24 +155,23 @@
 	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
-		let next = initSimState(loadout);
-		const key = characterKey;
+		const currentLoadout = loadout, key = characterKey ?? '';
 		untrack(() => {
-			if (key) next = loadAutosave(key, loadout) ?? next;
+			const next = loadAutosave(key, currentLoadout) ?? initSimState(currentLoadout);
 			loadStatValues();
 			const saved = key ? statValues.byCharacter[key] : undefined;
 			if (saved?.skillShares) next.skillShares = withGemGroups(next.gems, saved.skillShares);
 			if (saved?.skillCooldownUse) next.skillCooldownUse = withGemGroups(next.gems, saved.skillCooldownUse, 'max');
+			sim = next;
+			calculated = structuredClone($state.snapshot(sim));
 		});
-		sim = next;
-		calculated = structuredClone(next);
 	});
 
 	const snapshot = () => $state.snapshot(sim) as SimState;
 	$effect(() => {
 		const state = snapshot();
 		if (!characterKey) return;
-		try { autosaveSimulation(characterKey, loadout, state); autosaveNote = ''; }
+		try { untrack(() => autosaveSimulation(characterKey, loadout, state)); autosaveNote = ''; }
 		catch (e) { autosaveNote = e instanceof Error ? e.message : 'Changes could not be saved.'; }
 	});
 	$effect(() => {

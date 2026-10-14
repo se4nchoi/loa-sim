@@ -10,8 +10,9 @@ step)") and was **reverted there** (`c1f4e4e`) so the live site doesn't carry it
 notes stayed on `main`.
 
 - Work on this branch: `git fetch && git switch dps-sim/v0`.
-- **When it's ready for `main`**: merging alone won't bring the code back, because `main` already has the revert.
-  On `main`, first `git revert c1f4e4e` (revert the revert), then merge `dps-sim/v0`.
+- **Integration update (2026-10-14):** `main` through `ae76982` is now merged into this branch. The merge
+  deliberately retains the experimental DPS code despite `main`'s earlier revert. When ready to ship, merge
+  `dps-sim/v0` into `main` normally after reviewing the final diff; a separate revert of `c1f4e4e` is no longer needed.
 
 What v0 has: Gems → Add damage shares → Load shares from LOA Logs also reads the meter's stat values
 (`contributionSplits`) for the chosen runs, keeps them per character (`loa-sim:stat-values`), and Next Upgrades
