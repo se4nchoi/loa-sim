@@ -69,6 +69,7 @@
 
 	// Long single-column lists (skills, engravings) get a search box.
 	/** Options with a remove action (kept snapshots) get an × beside them. */
+	const saveActions = $derived(options.some(o => o.onsave));
 	const removable = $derived(options.some((o) => o.onremove || o.onsave || o.locked));
 	/** Multi-column pickers (core points, gem tiers) lay options out as compact cells. */
 	const cells = $derived(columns > 1);
@@ -223,7 +224,7 @@
 				{/snippet}
 				{#if removable}
 					<!-- Removable rows (kept snapshots): an × beside the option; the others keep its space so columns line up. -->
-					<div class="flex min-w-0 flex-row items-center">
+					<div class="flex min-w-0 flex-row items-center {saveActions ? 'gap-1' : ''}">
 						{#if naming === o.value}
 							<input bind:this={nameInput} bind:value={nameText} onblur={() => { if (!nameText.trim()) naming = null; }} aria-label="Simulation name" placeholder="Simulation name" maxlength="80" class="h-8 min-w-0 flex-1 rounded-xs border border-violet-400 bg-surface-800 px-2 text-sm text-surface-100 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-violet-400" onkeydown={(e) => {
 								if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finishName(); }
@@ -231,11 +232,11 @@
 							}} />
 						{:else}{@render option()}{/if}
 						{#if o.onsave}
-							<button type="button" class="ml-1 flex h-7 shrink-0 items-center justify-center rounded-xs px-2 text-xs text-surface-300 hover:bg-surface-800 hover:text-surface-100" aria-label={`Save ${o.label}`} title="Save simulation" onclick={(e) => { e.stopPropagation(); finishName(o); }}>Save</button>
+							<button type="button" class="flex h-8 w-12 shrink-0 items-center justify-center rounded-xs text-xs text-surface-300 hover:bg-surface-800 hover:text-surface-100" aria-label={`Save ${o.label}`} title="Save simulation" onclick={(e) => { e.stopPropagation(); finishName(o); }}>Save</button>
 						{:else if o.onremove}
 							<button
 								type="button"
-								class="flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-500 hover:bg-surface-800 hover:text-red-300"
+								class="flex {saveActions ? 'h-8 w-12' : 'size-7'} shrink-0 items-center justify-center rounded-xs text-surface-500 hover:bg-surface-800 hover:text-red-300"
 								aria-label={o.removeLabel ?? `Remove ${o.label}`}
 								title={o.removeLabel ?? `Remove ${o.label}`}
 								onclick={(e) => {
@@ -244,10 +245,10 @@
 								}}
 							>✕</button>
 						{:else if o.locked}
-							<span class="flex size-7 shrink-0 items-center justify-center text-surface-500" title={o.locked} aria-label={o.locked}>
+							<span class="flex {saveActions ? 'h-8 w-12' : 'size-7'} shrink-0 items-center justify-center text-surface-500" title={o.locked} aria-label={o.locked}>
 								<svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.2" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>
 							</span>
-						{:else}<span class="w-7 shrink-0"></span>{/if}
+						{:else}<span class="{saveActions ? 'w-12' : 'w-7'} shrink-0"></span>{/if}
 					</div>
 				{:else}
 					{@render option()}
