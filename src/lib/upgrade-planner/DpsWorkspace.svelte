@@ -336,8 +336,10 @@
 					{@const art = raidArt(raid.name)}
 					<section class="overflow-hidden rounded-xl border border-surface-700 bg-surface-900" aria-label="Upgrades ranked by DPS">
 						<div class="relative px-4 py-3.5 {raidTone(raid.name)} border-0 border-b">
-							{#if art}<span class="absolute inset-0 opacity-40" style={art}></span>{/if}
-							<span class="absolute inset-0 bg-gradient-to-r from-black/80 to-black/20"></span>
+							<!-- The art sits on the right, about a card's shape, so its crop (tuned for cards) shows the boss
+							     instead of a thin strip across a very wide banner; it fades into the title on the left. -->
+							{#if art}<span class="absolute inset-y-0 right-0 w-[min(60%,26rem)]" style={art}></span>{/if}
+							<span class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/0"></span>
 							<div class="relative">
 								<p class="text-xs uppercase tracking-wider text-white/70">2 · Best DPS upgrades for</p>
 								<p class="text-2xl font-semibold text-white">{scopeName} <span class="ml-1 rounded-xs px-1.5 align-middle text-xs font-semibold {difficultyTone(raid.difficulty)}">{raid.difficulty || 'Normal'}</span></p>
