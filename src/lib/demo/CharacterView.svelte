@@ -185,7 +185,7 @@
 	</a>
 	<!-- Always shown, so players find saved snapshots before they have any. -->
 	{#if menu.length && onsnapshot && onloadout}
-		<div class="mt-1 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_repeat(3,2rem)] items-center gap-1.5">
+		<div class="mt-1 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_repeat(2,2rem)] items-center gap-1.5">
 			<MenuPicker value={pending ?? menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate" full fitMenu>
 				{#snippet trigger()}
 					<!-- Same words for every choice ("Snapshot on 10-11 6620.18"), so picking one never resizes the button; the
