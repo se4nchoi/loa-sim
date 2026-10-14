@@ -225,7 +225,7 @@
 					<!-- Removable rows (kept snapshots): an × beside the option; the others keep its space so columns line up. -->
 					<div class="flex min-w-0 flex-row items-center">
 						{#if naming === o.value}
-							<input bind:this={nameInput} bind:value={nameText} aria-label="Simulation name" placeholder="Simulation name" maxlength="80" class="h-8 min-w-0 flex-1 rounded-xs border border-violet-400 bg-surface-800 px-2 text-sm text-surface-100 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-violet-400" onkeydown={(e) => {
+							<input bind:this={nameInput} bind:value={nameText} onblur={() => { if (!nameText.trim()) naming = null; }} aria-label="Simulation name" placeholder="Simulation name" maxlength="80" class="h-8 min-w-0 flex-1 rounded-xs border border-violet-400 bg-surface-800 px-2 text-sm text-surface-100 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-violet-400" onkeydown={(e) => {
 								if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finishName(); }
 								else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); naming = null; }
 							}} />
