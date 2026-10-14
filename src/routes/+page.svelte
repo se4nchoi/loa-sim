@@ -199,7 +199,7 @@
 	<meta property="og:image:height" content="905" />
 	<meta property="og:image:alt" content="loa-sim: equipment honing, gems and Next Upgrades ranked by gold per 1% CP" />
 	<meta name="twitter:card" content="summary_large_image" />
-	<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"loa-sim","url":"https://loa-sim.vercel.app/","applicationCategory":"GameApplication","operatingSystem":"Any","description":"Lost Ark Combat Power simulator for NA and EUC characters.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+	<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"loa-sim","alternateName":["loa sim","Lost Ark Combat Power Simulator"],"url":"https://loa-sim.vercel.app/"},{"@type":"WebApplication","name":"loa-sim","url":"https://loa-sim.vercel.app/","applicationCategory":"GameApplication","operatingSystem":"Any","description":"Lost Ark Combat Power simulator for NA and EUC characters.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}]}</script>
 </svelte:head>
 
 <!-- A placeholder row, the same height as a character row. -->
