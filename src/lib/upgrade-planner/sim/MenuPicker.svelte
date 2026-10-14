@@ -52,7 +52,7 @@
 	let open = $state(false);
 	// Long single-column lists (skills, engravings) get a search box.
 	/** Options with a remove action (kept snapshots) get an × beside them. */
-	const removable = $derived(options.some((o) => o.onremove || o.locked));
+	const removable = $derived(options.some((o) => o.onremove || o.onsave || o.locked));
 	/** Multi-column pickers (core points, gem tiers) lay options out as compact cells. */
 	const cells = $derived(columns > 1);
 	const searchable = $derived(columns === 1 && !options.some((o) => o.row) && options.length >= 12);
@@ -207,7 +207,11 @@
 					<!-- Removable rows (kept snapshots): an × beside the option; the others keep its space so columns line up. -->
 					<div class="flex min-w-0 flex-row items-center">
 						{@render option()}
-						{#if o.onremove}
+						{#if o.onsave}
+							<button type="button" class="flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-400 hover:bg-surface-800 hover:text-surface-100" aria-label={`Save ${o.label} with a name`} title="Save with a name" onclick={(e) => { e.stopPropagation(); open = false; o.onsave?.(); }}>
+								<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M7 3v6h9V3M7 21v-8h10v8" /></svg>
+							</button>
+						{:else if o.onremove}
 							<button
 								type="button"
 								class="flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-500 hover:bg-surface-800 hover:text-red-300"

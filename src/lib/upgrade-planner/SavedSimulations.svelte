@@ -9,6 +9,7 @@
 	let name = $state('');
 	let selected = $state('');
 	let saveOpen = $state(false);
+	let nameInput = $state<HTMLInputElement>();
 	let list = $state<SavedSimulation[]>([]);
 	let note = $state('');
 	let fileInput: HTMLInputElement;
@@ -27,8 +28,7 @@
 	};
 	const options = $derived.by<MenuOption<string>[]>(() => [
 		...(working ? [
-			{ value: 'autosave', label: 'Autosaved simulation', marker: '', locked: 'Updates automatically as you edit this snapshot', title: 'Your current working copy, saved automatically in this browser' },
-			{ value: 'name-autosave', label: 'Name autosaved simulation…', marker: '' }
+			{ value: 'autosave', label: 'Autosaved simulation', marker: '', onsave: nameAutosave, title: 'Your current working copy, saved automatically in this browser' }
 		] : []),
 		...list.map(s => {
 			const base = initSimState(s.loadout);
@@ -48,12 +48,16 @@
 		try { const s = saveSimulation(characterKey, name, loadout, $state.snapshot(simState)); list = savedSimulations(characterKey); selected = s.id; saveOpen = false; note = ''; }
 		catch (e) { note = (e as Error).message; }
 	}
+	async function nameAutosave() {
+		name = ''; saveOpen = true;
+		await tick(); nameInput?.focus();
+	}
+	function confirmName() { if (saveOpen && name.trim()) save(); }
 	function restore(s: SavedSimulation) {
 		if (!sameBaseline(s.loadout, loadout)) { note = 'This plan uses a different starting snapshot. Select its original character snapshot before restoring it.'; return; }
 		onrestore(structuredClone($state.snapshot(s.state))); selected = list.some(plan => plan.id === s.id) ? s.id : ''; name = s.name; note = '';
 	}
 	function pick(id: string) {
-		if (id === 'name-autosave') { name = ''; saveOpen = true; return; }
 		if (id === 'autosave') { if (working) onrestore(structuredClone($state.snapshot(working))); selected = ''; name = ''; return; }
 		const s = list.find(plan => plan.id === id); if (s) restore(s);
 	}
@@ -92,7 +96,7 @@
 				{#snippet trigger()}<span class="min-w-0 truncate text-xs">{active?.name ?? (working ? 'Autosaved simulation' : 'Saved simulations')}</span>{/snippet}
 			</MenuPicker>
 		</div>
-		<button type="button" class={`${btn} shrink-0`} style:height="2rem" style:width="2rem" style:padding="0" onclick={() => saveOpen = !saveOpen} aria-expanded={saveOpen} aria-label="Save simulation" title="Save simulation" disabled={!characterKey}>
+		<button type="button" class={`${btn} shrink-0`} style:height="2rem" style:width="2rem" style:padding="0" onclick={nameAutosave} aria-expanded={saveOpen} aria-label="Save simulation" title="Save simulation" disabled={!characterKey}>
 			<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M7 3v6h9V3M7 21v-8h10v8" /></svg>
 		</button>
 		<button type="button" class={`${btn} shrink-0`} style:height="2rem" style:width="2rem" style:padding="0" onclick={exportFile} aria-label="Export" title="Export simulation JSON" disabled={!characterKey}>
@@ -104,12 +108,10 @@
 		<input bind:this={fileInput} type="file" accept="application/json,.json" class="hidden" onchange={importFile} aria-label="Import simulation file" />
 	</div>
 	{#if saveOpen}
-		<div class="mt-2 rounded-xs border border-surface-700 bg-surface-900 p-2">
-			<p class="mb-2 text-xs text-surface-400">Current simulated snapshot will be saved as JSON in your browser.</p>
-			<label class="flex min-w-0 flex-col gap-1 text-xs text-surface-300">Plan title
-				<input aria-label="Simulation name" bind:value={name} maxlength="80" placeholder="e.g. Gear for the next raid" class="h-8 min-w-0 w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-sm" />
+		<div class="mt-2">
+			<label class="flex min-w-0 flex-col gap-1 text-xs text-surface-300">Simulation name
+				<input bind:this={nameInput} aria-label="Simulation name" bind:value={name} onblur={confirmName} onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (name.trim()) save(); } else if (e.key === 'Escape') { e.preventDefault(); saveOpen = false; } }} maxlength="80" placeholder="e.g. Gear for the next raid" class="h-8 min-w-0 w-full rounded-xs border border-surface-600 bg-surface-800 px-2 text-sm" />
 			</label>
-			<button type="button" class={`${btn} mt-2`} onclick={save} disabled={!characterKey}>Save changes</button>
 		</div>
 	{/if}
 	{#if note}<p class="mt-2 text-xs text-red-300" role="alert">{note}</p>{/if}
