@@ -84,15 +84,12 @@
 </script>
 
 <div class="min-w-0">
-	<div class="grid min-w-0 grid-cols-[minmax(0,1fr)_repeat(3,2rem)] items-center gap-1.5">
+	<div class="grid min-w-0 grid-cols-[minmax(0,1fr)_repeat(2,2rem)] items-center gap-1.5">
 		<div class="min-w-0 flex-1">
 			<MenuPicker value={menuValue} {options} onpick={pick} label="Saved simulation to load" tone="purple" repick full fitMenu bind:naming>
 				{#snippet trigger()}<span class="min-w-0 truncate text-xs">{active?.name ?? (working ? 'Autosaved simulation' : 'Saved simulations')}</span>{/snippet}
 			</MenuPicker>
 		</div>
-		<button type="button" class={`${btn} shrink-0`} style:height="2rem" style:width="2rem" style:padding="0" onclick={() => naming = 'autosave'} aria-label="Save simulation" title="Save simulation" disabled={!characterKey}>
-			<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M7 3v6h9V3M7 21v-8h10v8" /></svg>
-		</button>
 		<button type="button" class={`${btn} shrink-0`} style:height="2rem" style:width="2rem" style:padding="0" onclick={exportFile} aria-label="Export" title="Export simulation JSON" disabled={!characterKey}>
 			<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" /></svg>
 		</button>
