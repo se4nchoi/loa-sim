@@ -1,13 +1,35 @@
-// How each raid looks on the DPS tab's cards: lostark.bible's raid header art where it has one (the banner on its log
-// pages, checked 10-14-26), else a color per raid. The game CDN's icon atlas and LOA Logs' data have no raid art.
+// How each raid looks on the DPS tab's cards: official art from the game's Korean update pages (the same Smilegate CDN
+// the item icons come from; collected 10-14-26), else a color per raid. Each raid is one or more background layers,
+// top first; `size` and `position` keep the boss in view on every card shape (position is relative to the image, so
+// Aegir and Brelshaza can share one banner: it's zoomed in on its left and right halves).
 
-const HEADERS: Record<string, string> = {
-	Kazeros: 'kazeros', Serca: 'serca', 'Horizon Cathedral': 'cathedral', Armoche: 'armoche', Mordum: 'mordum', Aegir: 'aegir',
-	Behemoth: 'behemoth', Echidna: 'echidna', Thaemine: 'thaemine', Valtan: 'valtan', Vykas: 'vykas', Hanumatan: 'hanumatan'
+const CDN = 'https://cdn-lostark.game.onstove.com';
+
+interface Layer { src: string; size: string; position: string }
+const ART: Record<string, Layer[]> = {
+	'Horizon Cathedral': [{ src: '2026/event/260318_update_Bw4Xam3S/images/pc/bg_index_1.webp', size: 'cover', position: '50% 30%' }],
+	Serca: [
+		{ src: '2026/event/260107_update_jRkCIXJ9/images/pc/@serca.webp', size: 'auto 160%', position: '75% 15%' },
+		{ src: '2026/event/260107_update_jRkCIXJ9/images/pc/bg_index.webp', size: 'cover', position: '80% 40%' }
+	],
+	Kazeros: [{ src: '2026/event/260923_update_C4XgyQie/images/pc/slide2_1.webp', size: 'cover', position: '50% 40%' }],
+	Mordum: [{ src: '2026/event/260923_update_C4XgyQie/images/pc/slide1.webp', size: 'cover', position: '30% 40%' }],
+	Armoche: [{ src: '2025/event/250820_update_7kUfourth/images/pc/@event2_img1.webp', size: 'cover', position: '50% 35%' }],
+	Aegir: [{ src: '2026/event/260422_update_oEFIvZBF/images/pc/bg_index.webp', size: 'auto 230%', position: '25% 20%' }],
+	Brelshaza: [{ src: '2026/event/260422_update_oEFIvZBF/images/pc/bg_index.webp', size: 'auto 230%', position: '72% 20%' }]
 };
 
-/** Raid (card name) → banner image, when one is known. */
-export const raidImage = (name: string): string | undefined => (HEADERS[name] ? `https://lostark.bible/i/headers/${HEADERS[name]}.jpg` : undefined);
+/** Raid (card name) → CSS background (image, size, position) of its official art, when one is known. */
+export function raidArt(name: string): string | undefined {
+	const layers = ART[name];
+	if (!layers) return undefined;
+	return [
+		`background-image: ${layers.map((l) => `url("${CDN}/${l.src}")`).join(', ')}`,
+		`background-size: ${layers.map((l) => l.size).join(', ')}`,
+		`background-position: ${layers.map((l) => l.position).join(', ')}`,
+		'background-repeat: no-repeat'
+	].join('; ');
+}
 
 // Full class strings so Tailwind keeps them.
 const TONES = [

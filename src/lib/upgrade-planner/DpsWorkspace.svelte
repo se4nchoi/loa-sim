@@ -15,7 +15,7 @@
 	import { explainGem, gemChoices, planModel, runGains, statExplanations, type GemExplanation, type StatExplanation } from './dps-explain';
 	import { modelGain, modelMarginals, type PartKey } from './dps-model';
 	import { checkEngravings, raidLoadout, type LoadoutOption } from './dps-loadout';
-	import { difficultyTone, raidImage, raidTone } from './raid-art';
+	import { difficultyTone, raidArt, raidTone } from './raid-art';
 	import { CATEGORY_LABELS, type UpgradeCategory } from './upgrades';
 	import { GEM_SKILLS } from './game-data';
 	import { formatDate, formatPct } from './format';
@@ -227,11 +227,11 @@
 </script>
 
 {#snippet raidCard(r: RaidGroup, small: boolean)}
-	{@const image = raidImage(r.name)}
+	{@const art = raidArt(r.name)}
 	{@const on = r === raid}
 	<button class="relative shrink-0 overflow-hidden rounded-xl border text-left transition {small ? 'h-24 w-36 lg:h-20 lg:w-full' : 'h-32 w-48 lg:h-20 lg:w-full'} {raidTone(r.name)} {on ? 'ring-2 ring-sky-400 ring-offset-2 ring-offset-surface-950' : 'opacity-75 hover:opacity-100'}" onclick={() => chooseRaid(r.key)} aria-pressed={on}>
-		{#if image}<img src={image} alt="" class="absolute inset-0 size-full object-cover" onerror={(e) => (e.currentTarget as HTMLImageElement).remove()} />{/if}
-		<span class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 lg:bg-gradient-to-r lg:from-black/85 lg:via-black/50 lg:to-black/10"></span>
+		{#if art}<span class="absolute inset-0" style={art}></span>{/if}
+		<span class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 lg:bg-gradient-to-r lg:from-black/80 lg:via-black/35 lg:to-transparent"></span>
 		<span class="absolute left-2 top-2 rounded-xs px-1.5 text-xs font-semibold {difficultyTone(r.difficulty)} backdrop-blur-sm lg:left-auto lg:right-2">{r.difficulty || 'Normal'}</span>
 		{#if on}<span class="absolute right-2 top-2 rounded-full bg-sky-400 px-1.5 text-xs font-bold text-surface-950 lg:hidden">✓</span>{/if}
 		<span class="absolute inset-x-2 bottom-2">
@@ -333,10 +333,10 @@
 				{#if support}
 					<p class="{panel} text-sm text-surface-300">DPS estimates cover damage dealers for now. Pick a dealer character to compare upgrades.</p>
 				{:else if raid && runs.length}
-					{@const image = raidImage(raid.name)}
+					{@const art = raidArt(raid.name)}
 					<section class="overflow-hidden rounded-xl border border-surface-700 bg-surface-900" aria-label="Upgrades ranked by DPS">
 						<div class="relative px-4 py-3.5 {raidTone(raid.name)} border-0 border-b">
-							{#if image}<img src={image} alt="" class="absolute inset-0 size-full object-cover opacity-40" onerror={(e) => (e.currentTarget as HTMLImageElement).remove()} />{/if}
+							{#if art}<span class="absolute inset-0 opacity-40" style={art}></span>{/if}
 							<span class="absolute inset-0 bg-gradient-to-r from-black/80 to-black/20"></span>
 							<div class="relative">
 								<p class="text-xs uppercase tracking-wider text-white/70">2 · Best DPS upgrades for</p>
