@@ -56,19 +56,21 @@
 	let nameInput = $state<HTMLInputElement>();
 	$effect(() => {
 		if (naming !== null) {
-			open = true; nameText = '';
+			open = true; nameText = options.find(o => o.value === naming)?.onrename ? options.find(o => o.value === naming)!.label : '';
 			void tick().then(() => nameInput?.focus());
 		}
 	});
-	function finishName() {
-		if (naming === null) return;
-		const option = options.find(o => o.value === naming);
-		if (!nameText.trim()) naming = null;
-		else if (option?.onsave?.(nameText)) { naming = null; open = false; }
+	function finishName(option = options.find(o => o.value === naming)) {
+		if (!option || !(option.onsave || option.onrename)) return;
+		const title = naming === option.value ? nameText.trim() : option.label;
+		if (!title) return;
+		if ((option.onsave ?? option.onrename)?.(title)) { naming = null; open = false; }
 	}
+
 	// Long single-column lists (skills, engravings) get a search box.
 	/** Options with a remove action (kept snapshots) get an × beside them. */
-	const removable = $derived(options.some((o) => o.onremove || o.onsave || o.locked));
+	const saveActions = $derived(options.some(o => o.onsave || o.onrename));
+	const removable = $derived(options.some((o) => o.onremove || o.onsave || o.onrename || o.locked));
 	/** Multi-column pickers (core points, gem tiers) lay options out as compact cells. */
 	const cells = $derived(columns > 1);
 	const searchable = $derived(columns === 1 && !options.some((o) => o.row) && options.length >= 12);
@@ -90,7 +92,9 @@
 	/** Row-laid-out pickers: one labelled row per `row`, its options as compact cells. */
 	const rows = $derived(options.some((o) => o.row) ? [...new Set(options.map((o) => o.row ?? ''))] : null);
 	const pick = (v: T) => {
-		if (options.find((o) => o.value === v)?.disabled) return;
+		const option = options.find(o => o.value === v);
+		if (option?.disabled) return;
+		if (option?.onsave || option?.onrename) { naming = v; return; }
 		open = false;
 		if (v !== value || repick) onpick(v);
 	};
@@ -149,7 +153,7 @@
 								class="flex h-12 w-14 min-w-0 flex-col px-1 items-center justify-center rounded-xs text-sm font-semibold hover:bg-surface-800 {o.value === value
 									? 'bg-accent-500/20 ring-1 ring-accent-500'
 									: 'bg-surface-950'} {o.muted ? 'text-surface-400' : 'text-surface-50'}"
-								onclick={() => pick(o.value)}
+								onclick={(e) => { e.stopPropagation(); pick(o.value); }}
 							>
 								{o.label}
 								{#if p !== undefined && o.value !== value}
@@ -201,7 +205,7 @@
 						class:cursor-not-allowed={o.disabled}
 						class="flex min-w-0 {removable ? 'flex-1' : ''} rounded-xs text-sm hover:bg-surface-800 {cells ? 'min-w-12 flex-col items-center justify-center px-1.5 py-1 font-semibold leading-tight' : 'flex-row items-center gap-2 px-2.5 py-1.5 text-left'} {o.value === value ? 'bg-surface-800 ring-1 ring-accent-500/60' : ''} {o.muted ? 'text-surface-400' : ''}"
 						style:color={o.color}
-						onclick={() => pick(o.value)}
+						onclick={(e) => { e.stopPropagation(); pick(o.value); }}
 					>
 						{#if o.glyph}<Glyph kind={o.glyph} dim={o.muted} />{/if}
 						{#if o.iconUrl}<img src={o.iconUrl} alt="" class="size-6 shrink-0 rounded-xs" loading="lazy" />{/if}
@@ -221,21 +225,20 @@
 				{/snippet}
 				{#if removable}
 					<!-- Removable rows (kept snapshots): an × beside the option; the others keep its space so columns line up. -->
-					<div class="flex min-w-0 flex-row items-center">
+					<div class="flex min-w-0 flex-row items-center {saveActions ? 'gap-1' : ''}">
 						{#if naming === o.value}
-							<input bind:this={nameInput} bind:value={nameText} aria-label="Simulation name" placeholder="Simulation name" maxlength="80" class="h-8 min-w-0 flex-1 rounded-xs border border-violet-400 bg-surface-800 px-2 text-sm text-surface-100 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-violet-400" onblur={finishName} onkeydown={(e) => {
+							<input bind:this={nameInput} bind:value={nameText} onblur={() => { if (!nameText.trim()) naming = null; }} aria-label="Simulation name" placeholder="Simulation name" maxlength="80" class="h-8 min-w-0 flex-1 rounded-xs border border-violet-400 bg-surface-800 px-2 text-sm text-surface-100 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-violet-400" onkeydown={(e) => {
 								if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finishName(); }
 								else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); naming = null; }
 							}} />
 						{:else}{@render option()}{/if}
-						{#if o.onsave}
-							<button type="button" class="ml-1 flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-400 hover:bg-surface-800 hover:text-surface-100" aria-label={`Save ${o.label} with a name`} title="Save with a name" onclick={(e) => { e.stopPropagation(); if (naming === o.value) finishName(); else naming = o.value; }}>
-								<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M7 3v6h9V3M7 21v-8h10v8" /></svg>
-							</button>
+						{#if o.onsave || o.onrename}
+							<button type="button" class="flex h-8 w-12 shrink-0 items-center justify-center rounded-xs text-xs text-surface-300 hover:bg-surface-800 hover:text-surface-100 disabled:opacity-40" disabled={naming !== o.value && o.loadDisabled} aria-label={`${o.onsave || naming === o.value ? 'Save' : 'Load'} ${o.label}`} onclick={(e) => { e.stopPropagation(); if (o.onsave || naming === o.value) finishName(o); else { o.onload?.(); open = false; } }}>{o.onsave || naming === o.value ? 'Save' : 'Load'}</button>
+							{#if o.onremove}<button type="button" class="flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-500 hover:bg-surface-800 hover:text-red-300" aria-label={o.removeLabel ?? `Remove ${o.label}`} onclick={(e) => { e.stopPropagation(); o.onremove?.(); }}>✕</button>{:else}<span class="w-7 shrink-0"></span>{/if}
 						{:else if o.onremove}
 							<button
 								type="button"
-								class="flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-500 hover:bg-surface-800 hover:text-red-300"
+								class="flex {saveActions ? 'h-8 w-12' : 'size-7'} shrink-0 items-center justify-center rounded-xs text-surface-500 hover:bg-surface-800 hover:text-red-300"
 								aria-label={o.removeLabel ?? `Remove ${o.label}`}
 								title={o.removeLabel ?? `Remove ${o.label}`}
 								onclick={(e) => {
@@ -244,10 +247,10 @@
 								}}
 							>✕</button>
 						{:else if o.locked}
-							<span class="flex size-7 shrink-0 items-center justify-center text-surface-500" title={o.locked} aria-label={o.locked}>
+							<span class="flex {saveActions ? 'h-8 w-12' : 'size-7'} shrink-0 items-center justify-center text-surface-500" title={o.locked} aria-label={o.locked}>
 								<svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.2" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>
 							</span>
-						{:else}<span class="w-7 shrink-0"></span>{/if}
+						{:else}<span class="{saveActions ? 'w-12' : 'w-7'} shrink-0"></span>{/if}
 					</div>
 				{:else}
 					{@render option()}

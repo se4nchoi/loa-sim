@@ -52,10 +52,14 @@ export function placeMenu(node: HTMLElement, options: 'left' | 'right' | { align
 	// Scrolling the menu's own list doesn't move its anchor.
 	const onScroll = (e: Event) => (e.target instanceof Node && node.contains(e.target)) || place();
 	void tick().then(place);
+	// A kept snapshot/plan can be deleted while the menu remains open.
+	const contents = new MutationObserver(place);
+	contents.observe(node, { childList: true, subtree: true, characterData: true });
 	window.addEventListener('resize', place);
 	window.addEventListener('scroll', onScroll, true);
 	return {
 		destroy() {
+			contents.disconnect();
 			window.removeEventListener('resize', place);
 			window.removeEventListener('scroll', onScroll, true);
 		}
