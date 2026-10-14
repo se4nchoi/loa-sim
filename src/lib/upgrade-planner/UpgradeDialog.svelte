@@ -227,10 +227,10 @@
 	aria-labelledby="upgrade-planner-title"
 	class="fixed top-[80px] m-0 max-h-none outline-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
 >
-	<div bind:this={card} class="sm:rounded-sm sm:shadow-xl sm:shadow-black/40 sm:ring-1 sm:ring-surface-700 flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
+	<div bind:this={card} class="sim-modal-card sm:rounded-sm sm:shadow-xl sm:shadow-black/40 sm:ring-1 sm:ring-surface-700 flex flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 		<DrawerHandle sheet={() => card} close={() => dialog.close()} label="upgrades" />
 		<!-- Phones: the header is the drag-to-close zone, with a grabber. -->
-		<div class="sm:px-4 sm:py-3 sm:text-base sm:font-semibold sm:text-surface-100 flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
+		<div class="sim-modal-header sm:px-4 sm:py-3 sm:text-base sm:font-semibold sm:text-surface-100 flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
 
 			<span id="upgrade-planner-title">Next upgrades</span>
 			<ModalClose close={() => dialog.close()} label="Close" />

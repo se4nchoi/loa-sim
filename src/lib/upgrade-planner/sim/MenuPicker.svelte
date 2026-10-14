@@ -203,16 +203,16 @@
 						title={o.title}
 						class:opacity-40={o.disabled}
 						class:cursor-not-allowed={o.disabled}
-						class="flex min-w-0 {removable ? 'flex-1' : ''} rounded-xs text-sm hover:bg-surface-800 {cells ? 'min-w-12 flex-col items-center justify-center px-1.5 py-1 font-semibold leading-tight' : 'flex-row items-center gap-2 px-2.5 py-1.5 text-left'} {o.value === value ? 'bg-surface-800 ring-1 ring-accent-500/60' : ''} {o.muted ? 'text-surface-400' : ''}"
+						class="flex min-w-0 {removable ? 'flex-1' : ''} rounded-xs text-sm hover:bg-surface-800 {cells ? 'min-w-12 flex-col items-center justify-center px-1.5 py-1 font-semibold leading-tight' : `flex-row ${saveActions ? 'flex-wrap gap-x-2 gap-y-0.5' : 'items-center gap-2'} px-2.5 py-1.5 text-left`} {o.value === value ? 'bg-surface-800 ring-1 ring-accent-500/60' : ''} {o.muted ? 'text-surface-400' : ''}"
 						style:color={o.color}
 						onclick={(e) => { e.stopPropagation(); pick(o.value); }}
 					>
 						{#if o.glyph}<Glyph kind={o.glyph} dim={o.muted} />{/if}
 						{#if o.iconUrl}<img src={o.iconUrl} alt="" class="size-6 shrink-0 rounded-xs" loading="lazy" />{/if}
-						{#if o.marker !== undefined}<span class="flex w-2.5 shrink-0 justify-center">{#if o.marker}<svg class="size-2.5" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5L9 8.5H1z" fill={o.marker} /></svg>{/if}</span>{/if}
-						<span class="whitespace-nowrap {cells ? '' : 'min-w-0 flex-1 truncate'}">{o.label}{#if o.suffix}<span class="ml-1" style:color={o.suffix.color}>{o.suffix.label}</span>{/if}</span>
-						{#if o.note !== undefined}<span class="w-14 shrink-0 pl-2 whitespace-nowrap text-surface-400">{o.note}</span>{/if}
-						{#if o.detail}<span class="pl-3 text-right tabular-nums" style:color={o.detail.color}>{o.detail.label}</span>{/if}
+						{#if o.marker !== undefined}<span class="flex w-2.5 shrink-0 justify-center {saveActions ? 'hidden' : ''}">{#if o.marker}<svg class="size-2.5" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5L9 8.5H1z" fill={o.marker} /></svg>{/if}</span>{/if}
+						<span class="whitespace-nowrap {cells ? '' : saveActions ? 'min-w-0 basis-full truncate' : 'min-w-0 flex-1 truncate'}">{o.label}{#if o.suffix}<span class="ml-1" style:color={o.suffix.color}>{o.suffix.label}</span>{/if}</span>
+						{#if o.note !== undefined}<span class="shrink-0 whitespace-nowrap text-surface-400 {saveActions ? 'text-xs' : 'w-14 pl-2'}">{o.note}</span>{/if}
+						{#if o.detail}<span class="pl-3 text-right tabular-nums {saveActions ? 'text-xs' : ''}" style:color={o.detail.color}>{o.detail.label}</span>{/if}
 						{#if previews.has(o.value) && o.value !== value}
 							{@const p = previews.get(o.value)!}
 							<!-- Cells (core points) stack % and raw CP under the label so they stay narrow. -->

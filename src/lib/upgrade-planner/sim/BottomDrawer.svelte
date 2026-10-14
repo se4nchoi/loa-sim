@@ -99,7 +99,7 @@
 	<div
 		bind:this={sheet}
 		use:sheetPosition={{phone:'(max-width: 1023px)', top: () => top}}
-		class="fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-8.25rem)] flex-col rounded-t-xl border-t border-surface-700 bg-surface-900 shadow-2xl shadow-black lg:hidden"
+		class="sim-modal-card fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-8.25rem)] flex-col rounded-t-xl border-t border-surface-700 bg-surface-900 shadow-2xl shadow-black lg:hidden"
 		role="dialog"
 		aria-modal="true"
 		aria-label={label}

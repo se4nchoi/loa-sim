@@ -97,11 +97,11 @@
 >
 	<div
 		bind:this={card}
-		class="sm:rounded-sm sm:shadow-xl sm:shadow-black/40 sm:ring-1 sm:ring-surface-700 flex max-h-[85dvh] w-[680px] max-w-[calc(100vw-1.5rem)] flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:max-w-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)] max-sm:rounded-t-xl max-sm:rounded-b-none"
+		class="sim-modal-card sm:rounded-sm sm:shadow-xl sm:shadow-black/40 sm:ring-1 sm:ring-surface-700 flex max-h-[85dvh] w-[680px] max-w-[calc(100vw-1.5rem)] flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:max-w-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)] max-sm:rounded-t-xl max-sm:rounded-b-none"
 	>
 		<DrawerHandle sheet={() => card} close={() => dialog.close()} label="CP breakdown" />
 		<div
-			class="sm:px-4 sm:py-3 sm:text-base sm:font-semibold sm:text-surface-100 flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3"
+			class="sim-modal-header sm:px-4 sm:py-3 sm:text-base sm:font-semibold sm:text-surface-100 flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3"
 			use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}
 		>
 
