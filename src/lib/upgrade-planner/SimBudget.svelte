@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ModalClose from './sim/ModalClose.svelte';
 	import DrawerHandle from './sim/DrawerHandle.svelte';
 	import { onMount, tick } from 'svelte';
 	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
@@ -49,12 +50,12 @@
 {/snippet}
 
 <dialog bind:this={dialog} use:sheetDialog={() => card} tabindex="-1" {onclose} onclick={(e) => { e.stopPropagation(); if (e.target === dialog) dialog.close(); }} aria-label="Current changes budget" class="fixed top-[60px] m-0 max-h-none max-w-none bg-transparent p-0 text-surface-100 outline-none backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2">
-	<div bind:this={card} class="flex max-h-[85dvh] w-[660px] max-w-[calc(100vw-1.5rem)] flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:max-w-none max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
+	<div bind:this={card} class="sm:rounded-sm sm:shadow-xl sm:shadow-black/40 sm:ring-1 sm:ring-surface-700 flex max-h-[85dvh] w-[660px] max-w-[calc(100vw-1.5rem)] flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:max-w-none max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 		<DrawerHandle sheet={() => card} close={() => dialog.close()} label="budget" />
-	<div class="flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
+	<div class="sm:px-4 sm:py-3 sm:text-base sm:font-semibold sm:text-surface-100 flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
 
-		<div class="min-w-0 flex-1"><h2 class="flex items-center gap-2 font-semibold text-amber-200"><img src={GOLD_ICON} alt="" class="size-5" />Current changes budget</h2><p class="mt-1 flex flex-wrap items-baseline gap-2 tabular-nums"><span class="text-2xl font-bold">{formatCp(current)}</span><span class="text-surface-400">→</span><span class="text-2xl font-bold {isSupport ? 'text-green-400' : 'text-red-400'}">{formatCp(simulated)}</span></p></div>
-		<button type="button" class={btn} onclick={() => dialog.close()} aria-label="Close budget">Close</button>
+		<div class="min-w-0 flex-1"><h2 class="flex items-center gap-2 font-semibold text-amber-200 sm:text-surface-100"><img src={GOLD_ICON} alt="" class="size-5" />Current changes budget</h2><p class="mt-1 flex flex-wrap items-baseline gap-2 tabular-nums"><span class="text-2xl font-bold">{formatCp(current)}</span><span class="text-surface-400">→</span><span class="text-2xl font-bold {isSupport ? 'text-green-400' : 'text-red-400'}">{formatCp(simulated)}</span></p></div>
+		<ModalClose close={() => dialog.close()} label="Close budget" />
 	</div>
 	<div class="min-h-0 space-y-4 overflow-y-auto p-4">
 		<div class="tabular-nums">

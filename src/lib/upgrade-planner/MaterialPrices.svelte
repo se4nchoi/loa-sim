@@ -3,6 +3,7 @@
 	row in Next Upgrades. Entered the way the market lists them (stones per 100, shards per 1,000); 0 = bound.
 -->
 <script lang="ts">
+	import ModalClose from './sim/ModalClose.svelte';
 	import DrawerHandle from './sim/DrawerHandle.svelte';
 	import { HONING_BOOKS } from './honing-books-data';
 	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
@@ -101,15 +102,13 @@
 	aria-labelledby="material-prices-title"
 	class="fixed top-[80px] m-0 max-h-none outline-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-[var(--keyboard,0px)] max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
 >
-	<div bind:this={card} class="flex w-[600px] flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
+	<div bind:this={card} class="sm:rounded-sm sm:shadow-xl sm:shadow-black/40 sm:ring-1 sm:ring-surface-700 flex w-[600px] flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 		<DrawerHandle sheet={() => card} close={() => dialog.close()} label="material prices" />
 		<!-- Phones: the header is the drag-to-close zone, with a grabber. -->
-		<div class="flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
+		<div class="sm:px-4 sm:py-3 sm:text-base sm:font-semibold sm:text-surface-100 flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
 
 			<span id="material-prices-title">Honing material prices</span>
-			<button type="button" class="text-surface-300 hover:text-surface-50" aria-label="Close" onclick={() => dialog.close()}>
-				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-			</button>
+			<ModalClose close={() => dialog.close()} label="Close" />
 		</div>
 		<div class="flex max-h-[70vh] flex-col gap-3 overflow-y-auto px-4 py-3 text-sm max-sm:max-h-[min(70vh,calc(var(--visible,100vh)-4.5rem))]">
 			<ul class="list-disc pl-5 text-xs text-surface-100">
