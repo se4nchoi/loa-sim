@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { gemRows, moveGem } from './gem-layout';
 	import { getContext } from 'svelte';
 	import { gemDpsGainPct } from '../dps';
 	import type { RoleTables } from '../roles';
@@ -33,7 +32,28 @@
 	].join('\n');
 	const editable = $derived(gems.map((g, i) => ({ g, i })).filter(({ g }) => g.table));
 
-	const rows = $derived(gemRows(base.gems, sim.gems, editable.map(({i}) => i)));
+	/**
+	 * One row per skill with its damage and cooldown gem side by side. Built from the loaded gems so rows don't
+	 * jump around while editing; highest gem level first, then damage before cooldown.
+	 */
+	const rows = $derived.by(() => {
+		const bySkill = new Map<string, { skill: number | null; slots: Partial<Record<GemKind, number>>; extra: number[] }>();
+		for (const { i } of editable) {
+			const g = base.gems[i];
+			const key = g.skill === null ? `none-${i}` : String(g.skill);
+			const row = bySkill.get(key) ?? { skill: g.skill, slots: {}, extra: [] };
+			if (row.slots[g.kind] === undefined) row.slots[g.kind] = i;
+			else row.extra.push(i);
+			bySkill.set(key, row);
+		}
+		const levelOf = (i: number | undefined) => (i === undefined ? 0 : base.gems[i].level);
+		return [...bySkill.values()].sort(
+			(a, b) =>
+				Math.max(levelOf(b.slots.damage), levelOf(b.slots.cooldown)) - Math.max(levelOf(a.slots.damage), levelOf(a.slots.cooldown)) ||
+				levelOf(b.slots.damage) - levelOf(a.slots.damage) ||
+				levelOf(b.slots.cooldown) - levelOf(a.slots.cooldown)
+		);
+	});
 
 	/**
 	 * Gem item id for a tier/kind/level: 650[tier][1 dmg|2 cd][level 2 digits][bound digit]. Brilliant gems (6504)
@@ -256,10 +276,13 @@
 						{#if i !== undefined}
 							{@render gemCell(i)}
 						{:else}
+							{@const other = inSlot(r, kind === 'damage' ? 'cooldown' : 'damage')}
 							<div class="flex h-11 w-[9.75rem] max-sm:w-full items-center justify-center rounded-xs border border-dashed border-surface-700 text-xs text-surface-500">
-								<MenuPicker value={-1} options={editable.map(({i}) => ({value:i,label:`${skillName(sim.gems[i].skill)} · ${sim.gems[i].kind === 'damage' ? 'DMG' : 'CD'} Lv. ${sim.gems[i].level}`}))} label={`Move gem to ${skillName(skill)} ${kind}`} onpick={(i) => moveGem(sim.gems,i,skill,kind)} full>
-									{#snippet trigger()}<span class="truncate text-xs">Move gem here</span>{/snippet}
-								</MenuPicker>
+								{#if other !== undefined && rowGems(r).length === 1}
+									<button type="button" class="h-full w-full font-semibold hover:bg-surface-800 hover:text-surface-100" onclick={() => (sim.gems[other].kind = kind)} title={`Make it a ${kind} gem`}>
+										→ {kind === 'damage' ? 'DMG' : 'CD'}
+									</button>
+								{:else}—{/if}
 							</div>
 						{/if}
 					{/each}
