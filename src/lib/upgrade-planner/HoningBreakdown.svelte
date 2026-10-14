@@ -28,9 +28,9 @@
 	});
 </script>
 
-<dialog bind:this={dialog} use:sheetDialog={() => card} {onclose} onclick={(e) => { e.stopPropagation(); if (e.target === dialog) dialog.close(); }} aria-label="Honing material breakdown" tabindex="-1" class="m-auto max-h-[85vh] w-[640px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-sm border border-surface-700 bg-transparent p-0 text-surface-100 outline-none backdrop:bg-black/60 max-sm:mx-0 max-sm:mt-auto max-sm:mb-0 max-sm:w-full max-sm:max-w-full max-sm:rounded-none max-sm:border-0">
+<dialog bind:this={dialog} use:sheetDialog={() => card} {onclose} onclick={(e) => { e.stopPropagation(); if (e.target === dialog) dialog.close(); }} aria-label="Honing material breakdown" tabindex="-1" class="m-auto max-h-[75dvh] w-[600px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-sm border border-surface-700 bg-transparent p-0 text-surface-100 outline-none backdrop:bg-black/60 max-sm:mx-0 max-sm:mt-auto max-sm:mb-0 max-sm:w-full max-sm:max-w-full max-sm:rounded-none max-sm:border-0">
 <!-- Phones: a bottom sheet; the header is the drag-to-close zone, with a grabber. -->
-<div bind:this={card} class="sim-modal-card sm:rounded-sm sm:shadow-xl sm:shadow-black/40 sm:ring-1 sm:ring-surface-700 flex max-h-[85vh] flex-col bg-surface-900 max-sm:rounded-t-xl max-sm:border-t max-sm:border-surface-700 max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
+<div bind:this={card} class="sim-modal-card sm:rounded-sm sm:shadow-xl sm:shadow-black/40 sm:ring-1 sm:ring-surface-700 flex max-h-[75dvh] flex-col bg-surface-900 max-sm:rounded-t-xl max-sm:border-t max-sm:border-surface-700 max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 		<DrawerHandle sheet={() => card} close={() => dialog.close()} label="honing breakdown" />
 	<div class="sim-modal-header sm:px-4 sm:py-3 sm:text-base sm:font-semibold sm:text-surface-100 flex flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
 
