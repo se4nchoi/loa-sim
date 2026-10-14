@@ -1,30 +1,33 @@
-// How each raid looks on the DPS tab's cards: official art from the game's Korean update pages (the same Smilegate CDN
-// the item icons come from; collected 10-14-26), else a color per raid. Each raid is one or more background layers,
-// top first; `size` and `position` keep the boss in view on every card shape (position is relative to the image, so
-// Aegir and Brelshaza can share one banner: it's zoomed in on its left and right halves).
-
-const CDN = 'https://cdn-lostark.game.onstove.com';
+// How each raid looks on the DPS tab's cards: official key art from lostark.game.onstove.com/Artwork, kept here as
+// small copies (static/raids/<raid>-640.jpg and -1280.jpg, made from the 3840x2160 originals, collected 10-14-26), else
+// a color per raid. Mordum (Act 3) has no Artwork entry and uses its update page's art from the game's CDN.
+// `position` keeps the boss in view when the art is cropped to a card or the banner.
 
 interface Layer { src: string; size: string; position: string }
+const local = (raid: string, position: string): Layer[] => [{ src: raid, size: 'cover', position }];
 const ART: Record<string, Layer[]> = {
-	'Horizon Cathedral': [{ src: '2026/event/260318_update_Bw4Xam3S/images/pc/bg_index_1.webp', size: 'cover', position: '50% 30%' }],
-	Serca: [
-		{ src: '2026/event/260107_update_jRkCIXJ9/images/pc/@serca.webp', size: 'auto 160%', position: '75% 15%' },
-		{ src: '2026/event/260107_update_jRkCIXJ9/images/pc/bg_index.webp', size: 'cover', position: '80% 40%' }
-	],
-	Kazeros: [{ src: '2026/event/260923_update_C4XgyQie/images/pc/slide2_1.webp', size: 'cover', position: '50% 40%' }],
-	Mordum: [{ src: '2026/event/260923_update_C4XgyQie/images/pc/slide1.webp', size: 'cover', position: '30% 40%' }],
-	Armoche: [{ src: '2025/event/250820_update_7kUfourth/images/pc/@event2_img1.webp', size: 'cover', position: '50% 35%' }],
-	Aegir: [{ src: '2026/event/260422_update_oEFIvZBF/images/pc/bg_index.webp', size: 'auto 230%', position: '25% 20%' }],
-	Brelshaza: [{ src: '2026/event/260422_update_oEFIvZBF/images/pc/bg_index.webp', size: 'auto 230%', position: '72% 20%' }]
+	Kazeros: local('kazeros', '50% 30%'),
+	Armoche: local('armoche', '35% 30%'),
+	Aegir: local('aegir', '55% 25%'),
+	Brelshaza: local('brelshaza', '58% 25%'),
+	'Horizon Cathedral': local('cathedral', '50% 20%'),
+	Serca: local('serca', '62% 15%'),
+	Behemoth: local('behemoth', '45% 35%'),
+	Echidna: local('echidna', '50% 18%'),
+	Thaemine: local('thaemine', '55% 35%'),
+	Mordum: [{ src: 'https://cdn-lostark.game.onstove.com/2026/event/260923_update_C4XgyQie/images/pc/slide1.webp', size: 'cover', position: '30% 40%' }]
 };
 
-/** Raid (card name) → CSS background (image, size, position) of its official art, when one is known. */
+/** One layer's image: the small copy (and its 2x for sharp screens), or a full URL as is. */
+const image = (src: string) =>
+	src.startsWith('https://') ? `url("${src}")` : `image-set(url("/raids/${src}-640.jpg") 1x, url("/raids/${src}-1280.jpg") 2x)`;
+
+/** Raid (card name) → CSS background (image, size, position) of its art, when one is known. */
 export function raidArt(name: string): string | undefined {
 	const layers = ART[name];
 	if (!layers) return undefined;
 	return [
-		`background-image: ${layers.map((l) => `url("${CDN}/${l.src}")`).join(', ')}`,
+		`background-image: ${layers.map((l) => image(l.src)).join(', ')}`,
 		`background-size: ${layers.map((l) => l.size).join(', ')}`,
 		`background-position: ${layers.map((l) => l.position).join(', ')}`,
 		'background-repeat: no-repeat'

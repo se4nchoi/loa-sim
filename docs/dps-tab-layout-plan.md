@@ -47,7 +47,7 @@ Status: step 1 (the layout) built 10-14-26: three columns from 1280px (why panel
 
 ## Raid images (resolved 10-14-26)
 
-Cards use official art from the game's Korean update microsites (`cdn-lostark.game.onstove.com/<year>/event/<date>_update_<id>/images/pc/…`, the same Smilegate CDN as the item icons), listed per raid in `raid-art.ts` with a crop that keeps the boss in view. Sources: Horizon Cathedral 260318, Serca 260107 (cutout over the temple), Kazeros and Mordum 260923, Armoche 250820, Aegir and Brelshaza 260422 (one banner, zoomed on each half). Raids without art keep a color. lostark.bible's headers are no longer used. Neria (neria.lol) self-hosts resized copies (`/raids/headers/<raid>-{320,640,1280}.{avif,webp}`); doing the same would cut the ~0.2–0.7 MB per card these originals cost.
+Cards use official key art from the game's Artwork gallery (`lostark.game.onstove.com/Artwork`, 3840×2160 JPEGs of 2–7 MB), kept as small copies in `static/raids/<raid>-640.jpg` and `-1280.jpg` (20–160 KB; the 1280 one for high-DPI screens). `raid-art.ts` lists each raid's crop. Gallery entries used: 카제로스 (Kazeros), 파멸의 성채 (Armoche), 짓밟는 자, 에기르 (Aegir), 부유하는 악몽의 진혼곡 (Brelshaza), 지평의 성당 (Horizon Cathedral), 그림자 레이드 '세르카' (Serca), 베히모스, 에키드나, 어둠군단장 카멘 (Thaemine). Mordum (Act 3) has no gallery entry and uses its update page's art from the game's CDN. Raids without art keep a color. lostark.bible's headers are not used.
 
 ## Next steps, in order
 
