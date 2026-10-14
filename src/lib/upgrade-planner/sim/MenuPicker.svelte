@@ -19,6 +19,7 @@
 		tone = 'default',
 		repick = false,
 		fitMenu = false,
+		naming = $bindable(null),
 		preview,
 		align = 'left',
 		columns = 1,
@@ -36,6 +37,7 @@
 		repick?: boolean;
 		/** Match the dropdown to the selector width. */
 		fitMenu?: boolean;
+		naming?: T | null;
 		preview?: (v: T) => number;
 		align?: 'left' | 'right';
 		columns?: number;
@@ -50,6 +52,20 @@
 	const raw = (pct: number) => (cpNow ? formatPct((cpNow() * pct) / 100, 1) : null);
 
 	let open = $state(false);
+	let nameText = $state('');
+	let nameInput = $state<HTMLInputElement>();
+	$effect(() => {
+		if (naming !== null) {
+			open = true; nameText = '';
+			void tick().then(() => nameInput?.focus());
+		}
+	});
+	function finishName() {
+		if (naming === null) return;
+		const option = options.find(o => o.value === naming);
+		if (!nameText.trim()) naming = null;
+		else if (option?.onsave?.(nameText)) { naming = null; open = false; }
+	}
 	// Long single-column lists (skills, engravings) get a search box.
 	/** Options with a remove action (kept snapshots) get an × beside them. */
 	const removable = $derived(options.some((o) => o.onremove || o.onsave || o.locked));
@@ -206,9 +222,14 @@
 				{#if removable}
 					<!-- Removable rows (kept snapshots): an × beside the option; the others keep its space so columns line up. -->
 					<div class="flex min-w-0 flex-row items-center">
-						{@render option()}
+						{#if naming === o.value}
+							<input bind:this={nameInput} bind:value={nameText} aria-label="Simulation name" placeholder="Simulation name" maxlength="80" class="h-8 min-w-0 flex-1 rounded-xs border border-violet-400 bg-surface-800 px-2 text-sm text-surface-100" onblur={finishName} onkeydown={(e) => {
+								if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finishName(); }
+								else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); naming = null; }
+							}} />
+						{:else}{@render option()}{/if}
 						{#if o.onsave}
-							<button type="button" class="flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-400 hover:bg-surface-800 hover:text-surface-100" aria-label={`Save ${o.label} with a name`} title="Save with a name" onclick={(e) => { e.stopPropagation(); open = false; o.onsave?.(); }}>
+							<button type="button" class="flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-400 hover:bg-surface-800 hover:text-surface-100" aria-label={`Save ${o.label} with a name`} title="Save with a name" onclick={(e) => { e.stopPropagation(); if (naming === o.value) finishName(); else naming = o.value; }}>
 								<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M7 3v6h9V3M7 21v-8h10v8" /></svg>
 							</button>
 						{:else if o.onremove}
