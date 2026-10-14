@@ -60,12 +60,13 @@
 			void tick().then(() => nameInput?.focus());
 		}
 	});
-	function finishName() {
-		if (naming === null) return;
-		const option = options.find(o => o.value === naming);
-		if (!nameText.trim()) naming = null;
-		else if (option?.onsave?.(nameText)) { naming = null; open = false; }
+	function finishName(option = options.find(o => o.value === naming)) {
+		if (!option?.onsave) return;
+		const title = naming === option.value ? nameText.trim() : option.label;
+		if (!title) return;
+		if (option.onsave(title)) { naming = null; open = false; }
 	}
+
 	// Long single-column lists (skills, engravings) get a search box.
 	/** Options with a remove action (kept snapshots) get an × beside them. */
 	const removable = $derived(options.some((o) => o.onremove || o.onsave || o.locked));
@@ -91,6 +92,7 @@
 	const rows = $derived(options.some((o) => o.row) ? [...new Set(options.map((o) => o.row ?? ''))] : null);
 	const pick = (v: T) => {
 		if (options.find((o) => o.value === v)?.disabled) return;
+		if (options.find(o => o.value === v)?.onsave) { naming = v; return; }
 		open = false;
 		if (v !== value || repick) onpick(v);
 	};
@@ -149,7 +151,7 @@
 								class="flex h-12 w-14 min-w-0 flex-col px-1 items-center justify-center rounded-xs text-sm font-semibold hover:bg-surface-800 {o.value === value
 									? 'bg-accent-500/20 ring-1 ring-accent-500'
 									: 'bg-surface-950'} {o.muted ? 'text-surface-400' : 'text-surface-50'}"
-								onclick={() => pick(o.value)}
+								onclick={(e) => { e.stopPropagation(); pick(o.value); }}
 							>
 								{o.label}
 								{#if p !== undefined && o.value !== value}
@@ -201,7 +203,7 @@
 						class:cursor-not-allowed={o.disabled}
 						class="flex min-w-0 {removable ? 'flex-1' : ''} rounded-xs text-sm hover:bg-surface-800 {cells ? 'min-w-12 flex-col items-center justify-center px-1.5 py-1 font-semibold leading-tight' : 'flex-row items-center gap-2 px-2.5 py-1.5 text-left'} {o.value === value ? 'bg-surface-800 ring-1 ring-accent-500/60' : ''} {o.muted ? 'text-surface-400' : ''}"
 						style:color={o.color}
-						onclick={() => pick(o.value)}
+						onclick={(e) => { e.stopPropagation(); pick(o.value); }}
 					>
 						{#if o.glyph}<Glyph kind={o.glyph} dim={o.muted} />{/if}
 						{#if o.iconUrl}<img src={o.iconUrl} alt="" class="size-6 shrink-0 rounded-xs" loading="lazy" />{/if}
@@ -223,15 +225,13 @@
 					<!-- Removable rows (kept snapshots): an × beside the option; the others keep its space so columns line up. -->
 					<div class="flex min-w-0 flex-row items-center">
 						{#if naming === o.value}
-							<input bind:this={nameInput} bind:value={nameText} aria-label="Simulation name" placeholder="Simulation name" maxlength="80" class="h-8 min-w-0 flex-1 rounded-xs border border-violet-400 bg-surface-800 px-2 text-sm text-surface-100 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-violet-400" onblur={finishName} onkeydown={(e) => {
+							<input bind:this={nameInput} bind:value={nameText} aria-label="Simulation name" placeholder="Simulation name" maxlength="80" class="h-8 min-w-0 flex-1 rounded-xs border border-violet-400 bg-surface-800 px-2 text-sm text-surface-100 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-violet-400" onkeydown={(e) => {
 								if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finishName(); }
 								else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); naming = null; }
 							}} />
 						{:else}{@render option()}{/if}
 						{#if o.onsave}
-							<button type="button" class="ml-1 flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-400 hover:bg-surface-800 hover:text-surface-100" aria-label={`Save ${o.label} with a name`} title="Save with a name" onclick={(e) => { e.stopPropagation(); if (naming === o.value) finishName(); else naming = o.value; }}>
-								<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M7 3v6h9V3M7 21v-8h10v8" /></svg>
-							</button>
+							<button type="button" class="ml-1 flex h-7 shrink-0 items-center justify-center rounded-xs px-2 text-xs text-surface-300 hover:bg-surface-800 hover:text-surface-100" aria-label={`Save ${o.label}`} title="Save simulation" onclick={(e) => { e.stopPropagation(); finishName(o); }}>Save</button>
 						{:else if o.onremove}
 							<button
 								type="button"

@@ -27,7 +27,7 @@
 	};
 	const options = $derived.by<MenuOption<string>[]>(() => [
 		...(working ? [
-			{ value: 'autosave', label: 'Autosaved simulation', marker: '', onsave: saveNamed, title: 'Your current working copy, saved automatically in this browser' }
+			{ value: 'autosave', label: 'Current simulation', marker: '', onsave: saveNamed, title: 'Your current working copy, saved automatically in this browser' }
 		] : []),
 		...list.map(s => {
 			const base = initSimState(s.loadout);
@@ -87,7 +87,7 @@
 	<div class="grid min-w-0 grid-cols-[minmax(0,1fr)_repeat(2,2rem)] items-center gap-1.5">
 		<div class="min-w-0 flex-1">
 			<MenuPicker value={menuValue} {options} onpick={pick} label="Saved simulation to load" tone="purple" repick full fitMenu bind:naming>
-				{#snippet trigger()}<span class="min-w-0 truncate text-xs">{active?.name ?? (working ? 'Autosaved simulation' : 'Saved simulations')}</span>{/snippet}
+				{#snippet trigger()}<span class="min-w-0 truncate text-xs">{active?.name ?? (working ? 'Current simulation' : 'Saved simulations')}</span>{/snippet}
 			</MenuPicker>
 		</div>
 		<button type="button" class={`${btn} shrink-0`} style:height="2rem" style:width="2rem" style:padding="0" onclick={exportFile} aria-label="Export" title="Export simulation JSON" disabled={!characterKey}>
