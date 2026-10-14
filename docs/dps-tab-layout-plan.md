@@ -45,9 +45,9 @@ Status: step 1 (the layout) built 10-14-26: three columns from 1280px (why panel
 - Simulate the gear the player actually raids in. The gear check compares each clear's recorded engravings with the loaded gear and offers the matching bible loadout / kept snapshot. Bracelets aren't in logs, so bracelet swaps can't be detected.
 - Engravings are not assumed optimal. An engraving swap is offered as an upgrade row ("Raid Captain → Super Charge: +X% DPS, −Y% CP, 0 gold") so the trade-off between gatekeeping CP and raid DPS is visible.
 
-## Open question: raid images
+## Raid images (resolved 10-14-26)
 
-Cards currently load lostark.bible's raid headers (`https://lostark.bible/i/headers/<raid>.jpg`, verified for kazeros, serca, cathedral, armoche, mordum, aegir, behemoth, echidna, thaemine, valtan, vykas, hanumatan) and fall back to a color. Copying them into `static/` needs permission: ask bible's developer, or use official Smilegate / Amazon raid art with the existing © notice.
+Cards use official art from the game's Korean update microsites (`cdn-lostark.game.onstove.com/<year>/event/<date>_update_<id>/images/pc/…`, the same Smilegate CDN as the item icons), listed per raid in `raid-art.ts` with a crop that keeps the boss in view. Sources: Horizon Cathedral 260318, Serca 260107 (cutout over the temple), Kazeros and Mordum 260923, Armoche 250820, Aegir and Brelshaza 260422 (one banner, zoomed on each half). Raids without art keep a color. lostark.bible's headers are no longer used. Neria (neria.lol) self-hosts resized copies (`/raids/headers/<raid>-{320,640,1280}.{avif,webp}`); doing the same would cut the ~0.2–0.7 MB per card these originals cost.
 
 ## Next steps, in order
 
