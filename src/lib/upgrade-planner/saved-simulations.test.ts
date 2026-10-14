@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { autosaveSimulation, loadAutosave, deleteSimulation, latestSimulation, parseSimulation, savedSimulations, saveSimulation } from './saved-simulations';
+import { renameSimulation, autosaveSimulation, loadAutosave, deleteSimulation, latestSimulation, parseSimulation, savedSimulations, saveSimulation } from './saved-simulations';
 import { initSimState, simulate } from './simulate';
 import type { Loadout } from './types';
 import soulshan from './fixtures/na-soulshan.json';
@@ -98,4 +98,15 @@ describe('automatic working copies', () => {
   store.set('loa-sim:autosave:v1:na/soulshan','broken');
   expect(loadAutosave('na/soulshan',loadout)).toBeUndefined();
  });
+});
+
+
+it('renames a saved simulation without changing its identity, timestamp or data', () => {
+ const original=saveSimulation('na/soulshan','Old',loadout,initSimState(loadout));
+ renameSimulation(original.id,' New ');
+ expect(savedSimulations()[0]).toEqual({...original,name:'New'});
+ blocked=true;expect(()=>renameSimulation(original.id,'New')).not.toThrow();
+ expect(()=>renameSimulation(original.id,'Other')).toThrow('storage');
+ expect(savedSimulations()[0].name).toBe('New');
+ expect(()=>renameSimulation(original.id,' ')).toThrow('name');
 });

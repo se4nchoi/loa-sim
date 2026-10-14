@@ -98,6 +98,18 @@ export function deleteSimulation(id: string) {
 	catch { throw new Error('Browser storage is blocked; the simulation could not be deleted.'); }
 }
 
+export function renameSimulation(id: string, name: string): void {
+	const title = name.trim();
+	if (!title || title.length > 80) throw new Error('Use a name between 1 and 80 characters.');
+	const list = savedSimulations();
+	const saved = list.find(s => s.id === id);
+	if (!saved) throw new Error('This saved simulation no longer exists.');
+	if (saved.name === title) return;
+	saved.name = title;
+	try { localStorage.setItem(KEY, JSON.stringify(list)); }
+	catch { throw new Error('Browser storage is blocked; the simulation could not be renamed.'); }
+}
+
 export function latestSimulation(characterKey: string, loadout: Loadout): SavedSimulation | undefined {
 	return savedSimulations(characterKey).find((s) => sameBaseline(s.loadout, loadout));
 }

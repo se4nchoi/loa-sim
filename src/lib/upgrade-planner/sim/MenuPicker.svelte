@@ -56,21 +56,21 @@
 	let nameInput = $state<HTMLInputElement>();
 	$effect(() => {
 		if (naming !== null) {
-			open = true; nameText = '';
+			open = true; nameText = options.find(o => o.value === naming)?.onrename ? options.find(o => o.value === naming)!.label : '';
 			void tick().then(() => nameInput?.focus());
 		}
 	});
 	function finishName(option = options.find(o => o.value === naming)) {
-		if (!option?.onsave) return;
+		if (!option || !(option.onsave || option.onrename)) return;
 		const title = naming === option.value ? nameText.trim() : option.label;
 		if (!title) return;
-		if (option.onsave(title)) { naming = null; open = false; }
+		if ((option.onsave ?? option.onrename)?.(title)) { naming = null; open = false; }
 	}
 
 	// Long single-column lists (skills, engravings) get a search box.
 	/** Options with a remove action (kept snapshots) get an × beside them. */
-	const saveActions = $derived(options.some(o => o.onsave));
-	const removable = $derived(options.some((o) => o.onremove || o.onsave || o.locked));
+	const saveActions = $derived(options.some(o => o.onsave || o.onrename));
+	const removable = $derived(options.some((o) => o.onremove || o.onsave || o.onrename || o.locked));
 	/** Multi-column pickers (core points, gem tiers) lay options out as compact cells. */
 	const cells = $derived(columns > 1);
 	const searchable = $derived(columns === 1 && !options.some((o) => o.row) && options.length >= 12);
@@ -92,8 +92,9 @@
 	/** Row-laid-out pickers: one labelled row per `row`, its options as compact cells. */
 	const rows = $derived(options.some((o) => o.row) ? [...new Set(options.map((o) => o.row ?? ''))] : null);
 	const pick = (v: T) => {
-		if (options.find((o) => o.value === v)?.disabled) return;
-		if (options.find(o => o.value === v)?.onsave) { naming = v; return; }
+		const option = options.find(o => o.value === v);
+		if (option?.disabled) return;
+		if (option?.onsave || option?.onrename) { naming = v; return; }
 		open = false;
 		if (v !== value || repick) onpick(v);
 	};
@@ -231,8 +232,9 @@
 								else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); naming = null; }
 							}} />
 						{:else}{@render option()}{/if}
-						{#if o.onsave}
-							<button type="button" class="flex h-8 w-12 shrink-0 items-center justify-center rounded-xs text-xs text-surface-300 hover:bg-surface-800 hover:text-surface-100" aria-label={`Save ${o.label}`} title="Save simulation" onclick={(e) => { e.stopPropagation(); finishName(o); }}>Save</button>
+						{#if o.onsave || o.onrename}
+							<button type="button" class="flex h-8 w-12 shrink-0 items-center justify-center rounded-xs text-xs text-surface-300 hover:bg-surface-800 hover:text-surface-100 disabled:opacity-40" disabled={naming !== o.value && o.loadDisabled} aria-label={`${o.onsave || naming === o.value ? 'Save' : 'Load'} ${o.label}`} onclick={(e) => { e.stopPropagation(); if (o.onsave || naming === o.value) finishName(o); else { o.onload?.(); open = false; } }}>{o.onsave || naming === o.value ? 'Save' : 'Load'}</button>
+							{#if o.onremove}<button type="button" class="flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-500 hover:bg-surface-800 hover:text-red-300" aria-label={o.removeLabel ?? `Remove ${o.label}`} onclick={(e) => { e.stopPropagation(); o.onremove?.(); }}>✕</button>{:else}<span class="w-7 shrink-0"></span>{/if}
 						{:else if o.onremove}
 							<button
 								type="button"
