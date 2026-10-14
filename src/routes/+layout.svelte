@@ -5,6 +5,8 @@
 	import { onMount } from 'svelte';
 	import { installTouchTips } from '$lib/touch-tips';
 	import '../app.css';
+	// The Latin Geist file the stylesheet uses: preloaded so text isn't held back until the CSS has been parsed.
+	import geistLatin from '@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url';
 
 	injectAnalytics({ mode: dev ? 'development' : 'production' });
 
@@ -16,6 +18,10 @@
 		{ href: '/sim', label: 'Simulator', active: (p: string) => p.startsWith('/sim') || p.startsWith('/character') }
 	];
 </script>
+
+<svelte:head>
+	<link rel="preload" href={geistLatin} as="font" type="font/woff2" crossorigin="anonymous" />
+</svelte:head>
 
 <div class="flex min-h-screen flex-col">
 	<!-- Fixed height: the phone CP bar docks right under it (top-12). -->
