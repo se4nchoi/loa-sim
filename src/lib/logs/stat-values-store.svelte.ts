@@ -15,6 +15,7 @@ export interface SavedStatValues {
 	skillCooldownUse?: Record<number, number>;
 	sample?: { selected: number; source: string; runs: ReplayRun[] };
 	replayPersistence?: 'metadata-only';
+	publicLog?: { id: string; url: string; characterKey: string; skillCoverage: number; dps: number; ndps: number };
 }
 
 function read(): Record<string, SavedStatValues> {
@@ -30,6 +31,13 @@ export const statValues = $state<{ byCharacter: Record<string, SavedStatValues>;
 
 export function loadStatValues() {
 	if (statValues.loaded || typeof localStorage === 'undefined') return;
+	statValues.byCharacter = read();
+	statValues.loaded = true;
+}
+
+/** Reload after another page or browser tab updates the same character's log sample. */
+export function refreshStatValues() {
+	if (typeof localStorage === 'undefined') return;
 	statValues.byCharacter = read();
 	statValues.loaded = true;
 }

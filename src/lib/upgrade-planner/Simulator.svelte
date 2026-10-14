@@ -10,7 +10,7 @@
 	import { applyUpgrade } from './apply-upgrade';
 	import { roleOf } from './roles';
 	import UpgradePlanner from './UpgradePlanner.svelte';
-	import DpsStatus from './DpsStatus.svelte';
+	import { autosaveSimulation, loadAutosave } from './saved-simulations';
 	import { loadStatValues, statValues } from '$lib/logs/stat-values-store.svelte';
 	import { withGemGroups } from './dps';
 	import SimBudget from './SimBudget.svelte';
@@ -149,13 +149,15 @@
 		return () => (resized.disconnect(), changed.disconnect());
 	});
 	let sim = $state(untrack(() => initSimState(loadout)));
+	let autosaveNote = $state('');
 	// Controls edit sim immediately; expensive score and recommendation work uses this settled snapshot.
 	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
-		const next = initSimState(loadout);
+		let next = initSimState(loadout);
 		const key = characterKey;
 		untrack(() => {
+			if (key) next = loadAutosave(key, loadout) ?? next;
 			loadStatValues();
 			const saved = key ? statValues.byCharacter[key] : undefined;
 			if (saved?.skillShares) next.skillShares = withGemGroups(next.gems, saved.skillShares);
@@ -166,6 +168,12 @@
 	});
 
 	const snapshot = () => $state.snapshot(sim) as SimState;
+	$effect(() => {
+		const state = snapshot();
+		if (!characterKey) return;
+		try { autosaveSimulation(characterKey, loadout, state); autosaveNote = ''; }
+		catch (e) { autosaveNote = e instanceof Error ? e.message : 'Changes could not be saved.'; }
+	});
 	$effect(() => {
 		const next = snapshot();
 		// Only a real change: a new loadout already set both, and recalculating the same state again cost a second stall.
@@ -353,9 +361,7 @@
 	/>
 {/snippet}
 
-{#if dpsMode}
-	<DpsStatus {loadout} {characterKey} simState={calculated} simBase={base} />
-{/if}
+{#if autosaveNote}<p class="mb-3 text-sm text-amber-300" role="status">{autosaveNote}</p>{:else}<p class="mb-3 text-xs text-surface-400">Changes saved in this browser · <a class="text-sky-300 hover:underline" href={`/dps?c=${encodeURIComponent(characterKey ?? '')}`}>Analyze in DPS Sim →</a></p>{/if}
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
 <MobileSummaryBar {current} {simulated} nav={jumpChips} onbudget={() => budgetOpen = true}>{@render summary()}</MobileSummaryBar>
