@@ -76,6 +76,7 @@
 		gateFilter = null;
 		runPick = null;
 		pick = null;
+		tab = 'All';
 		try { localStorage.setItem(raidStorage, raidKey); } catch { /* remembered for this visit only */ }
 	}
 	const raid = $derived<RaidGroup | null>(raids.find(r => r.key === selectedRaid) ?? mainRaids[0] ?? otherRaids[0] ?? null);
@@ -150,13 +151,22 @@
 	const unestimated = $derived(candidates.filter(c => c.gainPct === null));
 	const statsBlocked = $derived(!!model && !model.input.buckets);
 	const cpRank = $derived(new Map(ranked.toSorted((x, y) => y.cpPct - x.cpPct).map((c, i) => [c.id, i + 1])));
-	const listed = $derived(showAll ? ranked : ranked.slice(0, 5));
+	const dpsRank = $derived(new Map(ranked.map((c, i) => [c.id, i + 1])));
+	/** Category tabs over the ranked list; rows keep their overall DPS rank. */
+	let tab = $state('All');
+	const tabs = $derived(['All', ...new Set(ranked.map(c => c.group))]);
+	const tabLabel = (t: string) => (t === 'Gem' ? 'Gems' : t);
+	const inTab = $derived(tab === 'All' || !tabs.includes(tab) ? ranked : ranked.filter(c => c.group === tab));
+	const TOP = 8;
+	const listed = $derived(showAll ? inTab : inTab.slice(0, TOP));
+	const runsWithValues = $derived(runs.filter(r => r.statValues).length);
 	const topScale = $derived(Math.max(0.01, ...ranked.map(c => c.gainPct ?? 0)));
 	let pick = $state<string | null>(null);
 	const shown = $derived(ranked.find(c => c.id === pick) ?? ranked[0]);
 	function choose(id: string) {
 		pick = id;
-		document.getElementById('dps-why')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		// Desktop keeps the explanation beside the list (sticky); narrower screens stack it below, so go to it.
+		if (!matchMedia('(min-width: 1280px)').matches) document.getElementById('dps-why')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 
 	// Why: the breakdown of the chosen upgrade.
@@ -213,19 +223,19 @@
 	const pct = (n: number | null) => n === null ? '—' : `${formatPct(n)}%`;
 	const panel = 'rounded-xl border border-surface-700 bg-surface-900 p-4';
 	const heading = 'mb-3 text-sm font-semibold uppercase tracking-wider text-surface-400';
-	const bar = 'grid grid-cols-[minmax(0,1fr)_4.5rem] items-center gap-x-3 gap-y-1 text-sm sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_4.5rem]';
+	const bar = 'grid grid-cols-[minmax(0,1fr)_4.5rem] items-center gap-x-3 gap-y-1 text-sm';
 </script>
 
 {#snippet raidCard(r: RaidGroup, small: boolean)}
 	{@const image = raidImage(r.name)}
 	{@const on = r === raid}
-	<button class="relative shrink-0 overflow-hidden rounded-xl border text-left transition {small ? 'h-24 w-36' : 'h-32 w-48'} {raidTone(r.name)} {on ? 'ring-2 ring-sky-400 ring-offset-2 ring-offset-surface-950' : 'opacity-75 hover:opacity-100'}" onclick={() => chooseRaid(r.key)} aria-pressed={on}>
+	<button class="relative shrink-0 overflow-hidden rounded-xl border text-left transition {small ? 'h-24 w-36 lg:h-20 lg:w-full' : 'h-32 w-48 lg:h-20 lg:w-full'} {raidTone(r.name)} {on ? 'ring-2 ring-sky-400 ring-offset-2 ring-offset-surface-950' : 'opacity-75 hover:opacity-100'}" onclick={() => chooseRaid(r.key)} aria-pressed={on}>
 		{#if image}<img src={image} alt="" class="absolute inset-0 size-full object-cover" onerror={(e) => (e.currentTarget as HTMLImageElement).remove()} />{/if}
-		<span class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10"></span>
-		<span class="absolute left-2 top-2 rounded-xs px-1.5 text-xs font-semibold {difficultyTone(r.difficulty)} backdrop-blur-sm">{r.difficulty || 'Normal'}</span>
-		{#if on}<span class="absolute right-2 top-2 rounded-full bg-sky-400 px-1.5 text-xs font-bold text-surface-950">✓</span>{/if}
+		<span class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 lg:bg-gradient-to-r lg:from-black/85 lg:via-black/50 lg:to-black/10"></span>
+		<span class="absolute left-2 top-2 rounded-xs px-1.5 text-xs font-semibold {difficultyTone(r.difficulty)} backdrop-blur-sm lg:left-auto lg:right-2">{r.difficulty || 'Normal'}</span>
+		{#if on}<span class="absolute right-2 top-2 rounded-full bg-sky-400 px-1.5 text-xs font-bold text-surface-950 lg:hidden">✓</span>{/if}
 		<span class="absolute inset-x-2 bottom-2">
-			<span class="block truncate font-semibold text-white {small ? 'text-sm' : 'text-lg'}">{r.name}</span>
+			<span class="block truncate font-semibold text-white {small ? 'text-sm' : 'text-lg lg:text-base'}">{r.name}</span>
 			<span class="block truncate text-xs text-white/70">{r.subtitle ? `${r.subtitle} · ` : ''}{r.runs.length} {r.runs.length === 1 ? 'clear' : 'clears'} · {day(r.last)}</span>
 		</span>
 	</button>
@@ -233,11 +243,12 @@
 
 {#if character && loadout && analysis}
 	<CharacterSwitcher current={key} simulatorPath="/dps" />
-	<header class="mb-6 flex flex-wrap items-end gap-x-6 gap-y-3">
-		<div>
+	<!-- Top bar: who, which gear plan, and what that plan does to CP. -->
+	<header class="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-xl border border-surface-700 bg-surface-900 px-4 py-3">
+		<div class="min-w-0">
 			<p class="text-xs uppercase tracking-widest text-sky-300">DPS Sim · experimental</p>
-			<h1 class="mt-1 text-2xl font-semibold">{character.name} <span class="text-sm font-normal text-surface-400">{className(loadout.classId)}</span></h1>
-			<label class="mt-1 flex items-center gap-2 text-sm text-surface-400">Gear
+			<h1 class="mt-0.5 text-2xl font-semibold">{character.name} <span class="text-sm font-normal text-surface-400">{className(loadout.classId)}</span></h1>
+			<label class="mt-1 flex flex-wrap items-center gap-2 text-sm text-surface-400">Gear
 				<select class="rounded-xs border border-surface-600 bg-surface-800 px-2 py-0.5 text-surface-100" bind:value={selectedPlan}>
 					<option value="working">{hasAutosave ? 'Current Simulator changes' : 'Snapshot, no changes'}</option>
 					{#each plans as plan}<option value={plan.id}>{plan.name}</option>{/each}
@@ -253,190 +264,221 @@
 		{/if}
 	</header>
 
-	<!-- Which raid -->
-	<div class="mb-3 flex items-center gap-2">
-		<h2 class="text-lg font-semibold">Which raid?</h2>
-		{#if book}<button class="ml-auto text-xs text-sky-300 hover:underline" onclick={() => showImport = !showImport}>{showImport ? 'Close' : 'Re-import logs'}</button>{/if}
-	</div>
 	{#if !book || showImport}
 		<section class="mb-4 {panel}" aria-label="Import logs">
 			{#if !book}<p class="mb-3 text-sm text-surface-300">How much an upgrade is worth depends on how much damage each skill deals in your own raids. Import your LOA Logs to start.</p>{/if}
 			{#key key}<DpsRunsImport characterKey={key} characterName={character.name} ondone={() => { showImport = false; }} />{/key}
+			{#if book}<button class="mt-3 text-xs text-sky-300 hover:underline" onclick={() => (showImport = false)}>Close</button>{/if}
 		</section>
 	{/if}
+
 	{#if book}
-		<div class="-mx-1 mb-3 flex items-end gap-3 overflow-x-auto px-1 pb-2 pt-1" aria-label="Raids">
-			{#each mainRaids as r (r.key)}{@render raidCard(r, false)}{/each}
-			{#if otherRaids.length}
-				<span class="mx-1 h-24 w-px shrink-0 self-center bg-surface-700"></span>
-				<div class="shrink-0">
-					{#if raid?.kind === 'other'}{@render raidCard(raid, true)}{/if}
-					<label class="mt-1 block text-xs text-surface-400">Guardian raids and other
-						<select class="mt-0.5 block w-36 rounded-xs border border-surface-700 bg-surface-800 px-1.5 py-1 text-xs text-surface-100" value={raid?.kind === 'other' ? raid.key : ''} onchange={(e) => e.currentTarget.value && chooseRaid(e.currentTarget.value)}>
-							<option value="">{otherRaids.length} more…</option>
-							{#each otherRaids as r}<option value={r.key}>{r.name} · {r.difficulty} · {r.runs.length}</option>{/each}
-						</select>
-					</label>
-				</div>
-			{/if}
-		</div>
-		{#if raid && (raid.gates.length > 1 || gateRuns.length > 1)}
-			<div class="mb-6 flex flex-wrap items-center gap-2 text-sm">
-				{#if raid.gates.length > 1}
-					{#each [null, ...raid.gates.map(g => g.key)] as g}
-						<button class="rounded-full border px-3 py-0.5 {gateFilter === g ? 'border-sky-400 bg-sky-500/15 text-sky-200' : 'border-surface-700 text-surface-300 hover:border-surface-500'}" onclick={() => { gateFilter = g; runPick = null; }}>{g === null ? 'All gates' : gateLabel(raid.gates.find(x => x.key === g)!.boss) || raid.gates.find(x => x.key === g)!.boss}</button>
-					{/each}
-				{/if}
-				<select class="rounded-full border border-surface-700 bg-surface-900 px-3 py-0.5 text-surface-200" aria-label="Clear" value={runPick ?? ''} onchange={(e) => runPick = e.currentTarget.value ? Number(e.currentTarget.value) : null}>
-					<option value="">All {gateRuns.length} clears</option>
-					{#each gateRuns as r}<option value={r.id}>{day(r.start)} · {gateLabel(r.boss) || r.boss} · {duration(r.duration)}</option>{/each}
-				</select>
-			</div>
-		{:else}<div class="mb-6"></div>{/if}
-	{/if}
-
-	{#if gearCheck}
-		<section class="mb-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm" aria-label="Gear check">
-			<p class="text-amber-200">The gear loaded here has <span class="font-semibold">{gearCheck.check.notInRun.join(', ')}</span>, which your {raid?.name} clears didn't use (newest: {day(gearCheck.run.start)}). It may not be the gear you raid in, and upgrades below are for the gear loaded here.</p>
-			{#if gearCheck.better}
-				<button class="mt-2 rounded-lg bg-amber-500/20 px-3 py-1 font-semibold text-amber-100 hover:bg-amber-500/30" onclick={() => switchGear(gearCheck.better!.ref)}>Use {gearCheck.better.label} instead</button>
-			{:else}
-				<p class="mt-1 text-xs text-amber-200/80">None of your saved loadouts matches. Load your raid gear on lostark.bible (or in Simulator) to compare the gear you actually raid in.</p>
-			{/if}
-		</section>
-	{/if}
-
-	{#if support}
-		<p class="text-sm text-surface-300">DPS estimates cover damage dealers for now. Pick a dealer character to compare upgrades.</p>
-	{:else if raid && runs.length}
-		<!-- Upgrades for this raid -->
-		{@const image = raidImage(raid.name)}
-		<section class="mb-6 overflow-hidden rounded-xl border border-surface-700 bg-surface-900" aria-label="Upgrades ranked by DPS">
-			<div class="relative px-4 py-4 {raidTone(raid.name)} border-0 border-b">
-				{#if image}<img src={image} alt="" class="absolute inset-0 size-full object-cover opacity-40" onerror={(e) => (e.currentTarget as HTMLImageElement).remove()} />{/if}
-				<span class="absolute inset-0 bg-gradient-to-r from-black/80 to-black/20"></span>
-				<div class="relative">
-					<p class="text-xs uppercase tracking-wider text-white/70">Best DPS upgrades for</p>
-					<p class="text-2xl font-semibold text-white">{scopeName} <span class="ml-1 rounded-xs px-1.5 align-middle text-xs font-semibold {difficultyTone(raid.difficulty)}">{raid.difficulty || 'Normal'}</span></p>
-					<p class="text-xs text-white/70">From your {scopeDetail}</p>
-				</div>
-			</div>
-			{#if !ranked.length}
-				<p class="p-4 text-sm text-surface-300">No upgrade can be estimated for this raid yet.</p>
-			{/if}
-			{#each listed as c, i (c.id)}
-				{@const cr = cpRank.get(c.id) ?? 0}
-				<button class="grid w-full grid-cols-[minmax(0,1fr)_4.5rem_3.5rem] items-center gap-3 border-t border-surface-800 px-4 py-2.5 text-left text-sm transition first:border-t-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,9rem)_4.5rem_3.5rem] {c === shown ? 'bg-sky-500/10' : 'hover:bg-surface-800/60'}" onclick={() => choose(c.id)} aria-pressed={c === shown}>
-					<span class="flex min-w-0 items-center gap-3">
-						<span class="w-4 shrink-0 text-right text-xs tabular-nums text-surface-500">{i + 1}</span>
-						<span class="min-w-0">
-							<span class="block truncate {c === shown ? 'font-semibold text-surface-50' : ''}">{c.label}</span>
-							<span class="text-xs text-surface-500">{c.group}{c.rough ? ' · rough' : ''}{cr - (i + 1) >= 3 ? ` · CP ranks it #${cr}` : ''}</span>
-						</span>
-					</span>
-					<span class="hidden h-2 rounded-xs bg-surface-800 sm:block"><span class="block h-full rounded-xs {c.rough ? 'bg-amber-400/60' : 'bg-sky-400'}" style="width: {Math.max(0, c.gainPct ?? 0) / topScale * 100}%"></span></span>
-					<span class="text-right font-semibold tabular-nums text-green-400">{pct(c.gainPct)}</span>
-					<span class="text-right text-xs tabular-nums text-surface-500">{pct(c.cpPct)} CP</span>
-				</button>
-			{/each}
-			<div class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-surface-800 px-4 py-2 text-xs text-surface-400">
-				{#if ranked.length > 5}<button class="text-sky-300 hover:underline" onclick={() => showAll = !showAll}>{showAll ? 'Show top 5' : `Show all ${ranked.length}`}</button>{/if}
-				{#if showAll}<label class="flex items-center gap-1.5"><input type="checkbox" bind:checked={allOptions} /> every option per accessory slot</label>{/if}
-				{#if statsBlocked}
-					<span class="text-amber-300">Gear upgrades need one recent clear recorded with LOA Logs' low performance mode off. Gems are ranked from every clear.</span>
-				{:else if unestimated.length}
-					<span>{unestimated.length} more can't be estimated here yet{runPick === null && !raid.withStats ? ' (crit rate needs a clear of this raid with low performance mode off)' : ''}.</span>
-				{/if}
-			</div>
-		</section>
-
-		{#if shown}
-			<!-- Why -->
-			<section id="dps-why" class="mb-4 scroll-mt-4 {panel}" aria-label="Where the gain comes from">
-				<p class={heading}>Why it's worth {pct(shown.gainPct)} in {scopeName}</p>
-				<p class="mb-3 font-semibold">{shown.label}</p>
-				<div class="space-y-2">
-					{#each rows as row}
-						<div class={bar}>
-							<div class="flex min-w-0 items-center gap-2">
-								{#if row.icon}<img src={iconUrl(row.icon)} alt="" class="size-7 shrink-0 rounded-xs" />{:else if shown.gem}<span class="size-7 shrink-0"></span>{/if}
-								<div class="min-w-0"><p class="truncate">{row.name}</p><p class="text-xs text-surface-400">{row.note}</p></div>
-							</div>
-							<div class="order-last col-span-2 h-2.5 rounded-xs bg-surface-800 sm:order-none sm:col-span-1"><div class="h-full rounded-xs {row.value < 0 ? 'bg-red-400' : 'bg-sky-400'}" style="width: {Math.abs(row.value) / scale * 100}%"></div></div>
-							<span class="text-right tabular-nums">{pct(row.value)}</span>
+		<!-- Phones: raid, list, why stacked. lg: raids beside the list, why under it. xl: three columns, why sticky. -->
+		<div class="grid items-start gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_22rem]">
+			<!-- 1 · Raid, and the data behind it -->
+			<aside class="flex min-w-0 flex-col gap-3 lg:sticky lg:top-16 lg:row-span-2 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-1" aria-label="Raid">
+				<p class="text-xs font-semibold uppercase tracking-wider text-surface-400">1 · Raid</p>
+				<div class="-mx-1 flex items-end gap-3 overflow-x-auto px-1 pt-1 pb-2 lg:mx-0 lg:flex-col lg:items-stretch lg:gap-2 lg:overflow-visible lg:p-1" aria-label="Raids">
+					{#each mainRaids as r (r.key)}{@render raidCard(r, false)}{/each}
+					{#if otherRaids.length}
+						<span class="mx-1 h-24 w-px shrink-0 self-center bg-surface-700 lg:hidden"></span>
+						<div class="shrink-0 lg:w-full">
+							{#if raid?.kind === 'other'}{@render raidCard(raid, true)}{/if}
+							<label class="mt-1 block text-xs text-surface-400">Guardian raids and other
+								<select class="mt-0.5 block w-36 rounded-xs border border-surface-700 bg-surface-800 px-1.5 py-1 text-xs text-surface-100 lg:w-full" value={raid?.kind === 'other' ? raid.key : ''} onchange={(e) => e.currentTarget.value && chooseRaid(e.currentTarget.value)}>
+									<option value="">{otherRaids.length} more…</option>
+									{#each otherRaids as r}<option value={r.key}>{r.name} · {r.difficulty} · {r.runs.length}</option>{/each}
+								</select>
+							</label>
 						</div>
-					{/each}
-				</div>
-				{#if shown.gem}
-					{@const g = shown.gem}
-					<p class="mt-3 text-sm text-surface-300">
-						{#if g.choice.kind === 'damage'}
-							Level {g.choice.from} → {g.choice.to} makes {g.parts.length > 1 ? 'these skills' : 'this skill'} hit {g.effectPct.toFixed(2)}% harder, and {g.parts.length > 1 ? 'they deal' : 'it deals'} {skillShareTotal.toFixed(1)}% of your damage in {scopeName}.
-						{:else}
-							Level {g.choice.from} → {g.choice.to} shortens the cooldown. The skill is on cooldown {g.cooldownUse?.toFixed(0)}% of the fight, so it could be cast about {g.effectPct.toFixed(2)}% more often.
-						{/if}
-					</p>
-					{#if g.rough}<p class="mt-2 text-xs text-amber-300">Rough: extra casts are counted as free. In a real rotation they push other skills out, so the true gain is likely lower.</p>{/if}
-				{:else}
-					<p class="mt-3 text-sm text-surface-300">A stat's bonus adds to what you already have in its bucket, so it's worth less the more you have. Different buckets multiply.</p>
-				{/if}
-			</section>
-
-			<details class="mb-3 {panel}">
-				<summary class="cursor-pointer text-sm font-semibold text-surface-200">In your other raids</summary>
-				<div class="mt-3">
-					{#if sameEverywhere}
-						<p class="text-sm text-surface-300">The same {pct(shown.gainPct)} everywhere: it doesn't change crit rate, the one stat worth more in some fights than others.</p>
-					{:else}
-						<div class="space-y-1.5">
-							{#each acrossRaids as x (x.raid.key)}
-								<button class={bar + ' w-full text-left'} onclick={() => chooseRaid(x.raid.key)}>
-									<span class="min-w-0 truncate {x.raid === raid ? 'font-semibold text-surface-50' : ''}">{x.raid.name} <span class="rounded-xs px-1 text-xs {difficultyTone(x.raid.difficulty)}">{x.raid.difficulty}</span></span>
-									<span class="order-last col-span-2 h-2.5 rounded-xs bg-surface-800 sm:order-none sm:col-span-1"><span class="block h-full rounded-xs {x.raid === raid ? 'bg-sky-400' : 'bg-sky-400/50'}" style="width: {Math.abs(x.gain ?? 0) / raidScale * 100}%"></span></span>
-									<span class="text-right tabular-nums {x.gain === null ? 'text-surface-500' : ''}">{pct(x.gain)}</span>
-								</button>
-							{/each}
-						</div>
-						<p class="mt-2 text-xs text-surface-400">{shown.gem ? 'Skills deal a different share of your damage in each raid.' : 'Crit rate is worth more in some raids than others. "—": no clear of that raid recorded the meter\'s values.'}</p>
 					{/if}
 				</div>
-			</details>
 
-			<details class="mb-6 {panel}">
-				<summary class="cursor-pointer text-sm font-semibold text-surface-200">Run by run, and how it's calculated</summary>
-				<div class="mt-3 space-y-4">
-					{#if shownRuns.length > 1}
-						<div class="space-y-1.5">
-							{#each shownRuns as r}
+				<div class="flex flex-col gap-2.5 rounded-xl border border-surface-700 bg-surface-900 p-3 text-sm" aria-label="Your data">
+					<p class="text-xs font-semibold uppercase tracking-wider text-surface-400">Your data</p>
+					{#if gearCheck}
+						<div class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs">
+							<p class="text-amber-200">Gear check: the gear here has <span class="font-semibold">{gearCheck.check.notInRun.join(', ')}</span>, which your {raid?.name} clears didn't use (newest {day(gearCheck.run.start)}). Upgrades are for the gear loaded here.</p>
+							{#if gearCheck.better}
+								<button class="mt-1.5 rounded-md bg-amber-500/20 px-2 py-0.5 font-semibold text-amber-100 hover:bg-amber-500/30" onclick={() => switchGear(gearCheck.better!.ref)}>Use {gearCheck.better.label}</button>
+							{:else}
+								<p class="mt-1 text-amber-200/80">No saved loadout matches. Load your raid gear on lostark.bible or in Simulator.</p>
+							{/if}
+						</div>
+					{:else if raid}
+						<p class="flex items-center gap-2 text-surface-300"><span class="size-2 shrink-0 rounded-full bg-green-400"></span>Gear check: matches your clears</p>
+					{/if}
+					{#if raid}
+						<p class="flex items-center gap-2 text-surface-300"><span class="size-2 shrink-0 rounded-full {runsWithValues ? 'bg-green-400' : 'bg-amber-400'}"></span>{runsWithValues}/{runs.length} {runs.length === 1 ? 'clear' : 'clears'} with the meter's stat values</p>
+						{#if raid.gates.length > 1}
+							<div class="flex flex-wrap gap-1.5" role="group" aria-label="Gates">
+								{#each [null, ...raid.gates.map(g => g.key)] as g}
+									<button class="rounded-full border px-2.5 py-0.5 text-xs {gateFilter === g ? 'border-sky-400 bg-sky-500/15 text-sky-200' : 'border-surface-700 text-surface-300 hover:border-surface-500'}" onclick={() => { gateFilter = g; runPick = null; }}>{g === null ? 'All gates' : gateLabel(raid.gates.find(x => x.key === g)!.boss) || raid.gates.find(x => x.key === g)!.boss}</button>
+								{/each}
+							</div>
+						{/if}
+						{#if gateRuns.length > 1}
+							<select class="w-full rounded-xs border border-surface-700 bg-surface-800 px-2 py-1 text-xs text-surface-200" aria-label="Clear" value={runPick ?? ''} onchange={(e) => runPick = e.currentTarget.value ? Number(e.currentTarget.value) : null}>
+								<option value="">All {gateRuns.length} clears</option>
+								{#each gateRuns as r}<option value={r.id}>{day(r.start)} · {gateLabel(r.boss) || r.boss} · {duration(r.duration)}</option>{/each}
+							</select>
+						{/if}
+					{/if}
+					<button class="self-start text-xs text-sky-300 hover:underline" onclick={() => (showImport = !showImport)}>{showImport ? 'Close import' : 'Re-import logs'}</button>
+				</div>
+			</aside>
+
+			<!-- 2 · Best DPS upgrades for the raid -->
+			<div class="min-w-0">
+				{#if support}
+					<p class="{panel} text-sm text-surface-300">DPS estimates cover damage dealers for now. Pick a dealer character to compare upgrades.</p>
+				{:else if raid && runs.length}
+					{@const image = raidImage(raid.name)}
+					<section class="overflow-hidden rounded-xl border border-surface-700 bg-surface-900" aria-label="Upgrades ranked by DPS">
+						<div class="relative px-4 py-3.5 {raidTone(raid.name)} border-0 border-b">
+							{#if image}<img src={image} alt="" class="absolute inset-0 size-full object-cover opacity-40" onerror={(e) => (e.currentTarget as HTMLImageElement).remove()} />{/if}
+							<span class="absolute inset-0 bg-gradient-to-r from-black/80 to-black/20"></span>
+							<div class="relative">
+								<p class="text-xs uppercase tracking-wider text-white/70">2 · Best DPS upgrades for</p>
+								<p class="text-2xl font-semibold text-white">{scopeName} <span class="ml-1 rounded-xs px-1.5 align-middle text-xs font-semibold {difficultyTone(raid.difficulty)}">{raid.difficulty || 'Normal'}</span></p>
+								<p class="text-xs text-white/70">From your {scopeDetail}</p>
+							</div>
+						</div>
+						{#if tabs.length > 2}
+							<div class="flex flex-wrap gap-1.5 border-b border-surface-800 px-4 py-2" role="tablist" aria-label="Upgrade type">
+								{#each tabs as t (t)}
+									<button role="tab" aria-selected={tab === t} class="rounded-full border px-2.5 py-0.5 text-xs {tab === t ? 'border-sky-400 bg-sky-500/15 text-sky-200' : 'border-surface-700 text-surface-300 hover:border-surface-500'}" onclick={() => { tab = t; showAll = false; }}>
+										{tabLabel(t)} <span class="text-surface-500">{t === 'All' ? ranked.length : ranked.filter(c => c.group === t).length}</span>
+									</button>
+								{/each}
+							</div>
+						{/if}
+						{#if !ranked.length}
+							<p class="p-4 text-sm text-surface-300">No upgrade can be estimated for this raid yet.</p>
+						{:else}
+							<div class="grid grid-cols-[minmax(0,1fr)_4.5rem_3.5rem] gap-3 px-4 pt-2 text-xs text-surface-500 sm:grid-cols-[minmax(0,1fr)_minmax(0,9rem)_4.5rem_3.5rem]">
+								<span class="pl-7">Upgrade</span><span class="hidden sm:block"></span><span class="text-right">DPS</span><span class="text-right">CP</span>
+							</div>
+						{/if}
+						{#each listed as c (c.id)}
+							{@const r = dpsRank.get(c.id) ?? 0}
+							{@const cr = cpRank.get(c.id) ?? 0}
+							<button class="grid w-full grid-cols-[minmax(0,1fr)_4.5rem_3.5rem] items-center gap-3 border-t border-surface-800 px-4 py-2.5 text-left text-sm transition sm:grid-cols-[minmax(0,1fr)_minmax(0,9rem)_4.5rem_3.5rem] {c === shown ? 'bg-sky-500/10' : 'hover:bg-surface-800/60'}" onclick={() => choose(c.id)} aria-pressed={c === shown}>
+								<span class="flex min-w-0 items-center gap-3">
+									<span class="w-4 shrink-0 text-right text-xs tabular-nums text-surface-500">{r}</span>
+									<span class="min-w-0">
+										<span class="block truncate {c === shown ? 'font-semibold text-surface-50' : ''}">{c.label}</span>
+										<span class="text-xs text-surface-500">{c.group}{c.rough ? ' · rough' : ''}{cr - r >= 3 ? ` · CP ranks it #${cr}` : ''}</span>
+									</span>
+								</span>
+								<span class="hidden h-2 rounded-xs bg-surface-800 sm:block"><span class="block h-full rounded-xs {c.rough ? 'bg-amber-400/60' : 'bg-sky-400'}" style="width: {Math.max(0, c.gainPct ?? 0) / topScale * 100}%"></span></span>
+								<span class="text-right font-semibold tabular-nums text-green-400">{pct(c.gainPct)}</span>
+								<span class="text-right text-xs tabular-nums text-surface-500">{pct(c.cpPct)}</span>
+							</button>
+						{/each}
+						<div class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-surface-800 px-4 py-2 text-xs text-surface-400">
+							{#if inTab.length > TOP}<button class="text-sky-300 hover:underline" onclick={() => showAll = !showAll}>{showAll ? `Show top ${TOP}` : `Show all ${inTab.length}`}</button>{/if}
+							{#if showAll || tab !== 'All'}<label class="flex items-center gap-1.5"><input type="checkbox" bind:checked={allOptions} /> every option per accessory slot</label>{/if}
+							{#if statsBlocked}
+								<span class="text-amber-300">Gear upgrades need one recent clear recorded with LOA Logs' low performance mode off. Gems are ranked from every clear.</span>
+							{:else if unestimated.length}
+								<span>{unestimated.length} more can't be estimated here yet{runPick === null && !raid.withStats ? ' (crit rate needs a clear of this raid with low performance mode off)' : ''}.</span>
+							{/if}
+						</div>
+					</section>
+				{/if}
+			</div>
+
+			<!-- 3 · Why the selected upgrade is worth that -->
+			{#if !support && raid && runs.length && shown}
+				<div class="flex min-w-0 flex-col gap-3 lg:col-start-2 xl:sticky xl:top-16 xl:col-start-3 xl:row-start-1 xl:max-h-[calc(100vh-5rem)] xl:overflow-y-auto">
+					<section id="dps-why" class="scroll-mt-16 {panel}" aria-label="Where the gain comes from">
+						<p class={heading}>3 · Why it's worth {pct(shown.gainPct)}</p>
+						<p class="mb-3 font-semibold">{shown.label}</p>
+						<div class="space-y-2">
+							{#each rows as row}
 								<div class={bar}>
-									<div class="min-w-0"><p class="truncate">{day(r.start)} <span class="text-surface-400">{gateLabel(r.boss)}</span></p><p class="text-xs text-surface-400">skill deals {r.share.toFixed(1)}%</p></div>
-									<div class="order-last col-span-2 h-2.5 rounded-xs bg-surface-800 sm:order-none sm:col-span-1"><div class="h-full rounded-xs bg-sky-400/80" style="width: {Math.abs(r.totalPct) / runScale * 100}%"></div></div>
-									<span class="text-right tabular-nums">{pct(r.totalPct)}</span>
+									<div class="flex min-w-0 items-center gap-2">
+										{#if row.icon}<img src={iconUrl(row.icon)} alt="" class="size-7 shrink-0 rounded-xs" />{:else if shown.gem}<span class="size-7 shrink-0"></span>{/if}
+										<div class="min-w-0"><p class="truncate">{row.name}</p><p class="text-xs text-surface-400">{row.note}</p></div>
+									</div>
+									<span class="text-right tabular-nums">{pct(row.value)}</span>
+									<div class="col-span-2 h-2.5 rounded-xs bg-surface-800"><div class="h-full rounded-xs {row.value < 0 ? 'bg-red-400' : 'bg-sky-400'}" style="width: {Math.abs(row.value) / scale * 100}%"></div></div>
 								</div>
 							{/each}
 						</div>
-					{/if}
-					{#if model}
-						<p class="text-sm text-surface-300">
-							{#if model.build.length}
-								Your gear's damage buckets come from your {model.build.length} most recent {model.build.length === 1 ? 'clear' : 'clears'} with the meter's stat values ({model.build.map(r => `${raidGateOf(r.boss)?.label.replace(/ \(.*\)$/, '') ?? r.boss} ${day(r.start)}`).join(', ')}); they stay the same from fight to fight for the same gear.
-							{:else}
-								None of your imported clears has the meter's stat values (LOA Logs skips them in low performance mode), so gear upgrades can't be valued yet.
-							{/if}
-							{model.gateValued ? `Crit rate uses ${model.gateValued} ${model.gateValued === 1 ? 'clear' : 'clears'} here with values.` : ''}
-						</p>
-						{#if check && check.some(c => c.meter !== null)}
-							<table class="w-full max-w-md text-sm">
-								<thead class="text-xs text-surface-400"><tr><th class="pb-1 text-left font-normal">One more…</th><th class="pb-1 text-right font-normal">Our model</th><th class="pb-1 text-right font-normal">Meter here</th></tr></thead>
-								<tbody>
-									{#each check as c}<tr class="border-t border-surface-800"><td class="py-1">{c.label}</td><td class="text-right tabular-nums">{c.ours === null ? '—' : `${formatPct(c.ours, 3)}%`}</td><td class="text-right tabular-nums text-surface-400">{c.meter === null ? '—' : `${formatPct(c.meter, 3)}%`}</td></tr>{/each}
-								</tbody>
-							</table>
+						{#if shown.gem}
+							{@const g = shown.gem}
+							<p class="mt-3 text-sm text-surface-300">
+								{#if g.choice.kind === 'damage'}
+									Level {g.choice.from} → {g.choice.to} makes {g.parts.length > 1 ? 'these skills' : 'this skill'} hit {g.effectPct.toFixed(2)}% harder, and {g.parts.length > 1 ? 'they deal' : 'it deals'} {skillShareTotal.toFixed(1)}% of your damage in {scopeName}.
+								{:else}
+									Level {g.choice.from} → {g.choice.to} shortens the cooldown. The skill is on cooldown {g.cooldownUse?.toFixed(0)}% of the fight, so it could be cast about {g.effectPct.toFixed(2)}% more often.
+								{/if}
+							</p>
+							{#if g.rough}<p class="mt-2 text-xs text-amber-300">Rough: extra casts are counted as free. In a real rotation they push other skills out, so the true gain is likely lower.</p>{/if}
+						{:else}
+							<p class="mt-3 text-sm text-surface-300">A stat's bonus adds to what you already have in its bucket, so it's worth less the more you have. Different buckets multiply.</p>
 						{/if}
-					{/if}
+					</section>
+
+					<details class={panel}>
+						<summary class="cursor-pointer text-sm font-semibold text-surface-200">In your other raids</summary>
+						<div class="mt-3">
+							{#if sameEverywhere}
+								<p class="text-sm text-surface-300">The same {pct(shown.gainPct)} everywhere: it doesn't change crit rate, the one stat worth more in some fights than others.</p>
+							{:else}
+								<div class="space-y-1.5">
+									{#each acrossRaids as x (x.raid.key)}
+										<button class={bar + ' w-full text-left'} onclick={() => chooseRaid(x.raid.key)}>
+											<span class="min-w-0 truncate {x.raid === raid ? 'font-semibold text-surface-50' : ''}">{x.raid.name} <span class="rounded-xs px-1 text-xs {difficultyTone(x.raid.difficulty)}">{x.raid.difficulty}</span></span>
+											<span class="text-right tabular-nums {x.gain === null ? 'text-surface-500' : ''}">{pct(x.gain)}</span>
+											<span class="col-span-2 h-2.5 rounded-xs bg-surface-800"><span class="block h-full rounded-xs {x.raid === raid ? 'bg-sky-400' : 'bg-sky-400/50'}" style="width: {Math.abs(x.gain ?? 0) / raidScale * 100}%"></span></span>
+										</button>
+									{/each}
+								</div>
+								<p class="mt-2 text-xs text-surface-400">{shown.gem ? 'Skills deal a different share of your damage in each raid.' : 'Crit rate is worth more in some raids than others. "—": no clear of that raid recorded the meter’s values.'}</p>
+							{/if}
+						</div>
+					</details>
+
+					<details class={panel}>
+						<summary class="cursor-pointer text-sm font-semibold text-surface-200">Run by run, and how it's calculated</summary>
+						<div class="mt-3 space-y-4">
+							{#if shownRuns.length > 1}
+								<div class="space-y-1.5">
+									{#each shownRuns as r}
+										<div class={bar}>
+											<div class="min-w-0"><p class="truncate">{day(r.start)} <span class="text-surface-400">{gateLabel(r.boss)}</span></p><p class="text-xs text-surface-400">skill deals {r.share.toFixed(1)}%</p></div>
+											<span class="text-right tabular-nums">{pct(r.totalPct)}</span>
+											<div class="col-span-2 h-2.5 rounded-xs bg-surface-800"><div class="h-full rounded-xs bg-sky-400/80" style="width: {Math.abs(r.totalPct) / runScale * 100}%"></div></div>
+										</div>
+									{/each}
+								</div>
+							{/if}
+							{#if model}
+								<p class="text-sm text-surface-300">
+									{#if model.build.length}
+										Your gear's damage buckets come from your {model.build.length} most recent {model.build.length === 1 ? 'clear' : 'clears'} with the meter's stat values ({model.build.map(r => `${raidGateOf(r.boss)?.label.replace(/ \(.*\)$/, '') ?? r.boss} ${day(r.start)}`).join(', ')}); they stay the same from fight to fight for the same gear.
+									{:else}
+										None of your imported clears has the meter's stat values (LOA Logs skips them in low performance mode), so gear upgrades can't be valued yet.
+									{/if}
+									{model.gateValued ? `Crit rate uses ${model.gateValued} ${model.gateValued === 1 ? 'clear' : 'clears'} here with values.` : ''}
+								</p>
+								{#if check && check.some(c => c.meter !== null)}
+									<table class="w-full text-sm">
+										<thead class="text-xs text-surface-400"><tr><th class="pb-1 text-left font-normal">One more…</th><th class="pb-1 text-right font-normal">Our model</th><th class="pb-1 text-right font-normal">Meter here</th></tr></thead>
+										<tbody>
+											{#each check as c}<tr class="border-t border-surface-800"><td class="py-1">{c.label}</td><td class="text-right tabular-nums">{c.ours === null ? '—' : `${formatPct(c.ours, 3)}%`}</td><td class="text-right tabular-nums text-surface-400">{c.meter === null ? '—' : `${formatPct(c.meter, 3)}%`}</td></tr>{/each}
+										</tbody>
+									</table>
+								{/if}
+							{/if}
+						</div>
+					</details>
 				</div>
-			</details>
-		{/if}
+			{/if}
+		</div>
 	{/if}
 {:else}
 	<h1 class="text-2xl font-semibold">DPS Sim</h1>

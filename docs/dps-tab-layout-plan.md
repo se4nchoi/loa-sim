@@ -1,6 +1,6 @@
 # DPS tab — desktop layout and next steps (plan, 10-14-26)
 
-Status: planned, not built. The current page (raid cards on top, upgrade list, folded details) works but stacks everything in one column; on desktop it scrolls too much and feels overwhelming.
+Status: step 1 (the layout) built 10-14-26: three columns from 1280px (why panel sticky), raids beside the list from 1024px with why under it, stacked on phones. Category tabs over the list keep each row's overall DPS rank. Steps 2–4 not started.
 
 ## Layout: desktop first, three columns like the Simulator
 
