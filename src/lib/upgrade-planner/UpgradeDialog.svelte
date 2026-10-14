@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DrawerHandle from './sim/DrawerHandle.svelte';
 	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
 	import { onMount, untrack } from 'svelte';
 	import { formatCp, formatPct } from './format';
@@ -226,9 +227,10 @@
 	class="fixed top-[80px] m-0 max-h-none outline-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
 >
 	<div bind:this={card} class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
+		<DrawerHandle sheet={() => card} close={() => dialog.close()} label="upgrades" />
 		<!-- Phones: the header is the drag-to-close zone, with a grabber. -->
-		<div class="flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold max-sm:pt-2" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
-			<span class="flex basis-full justify-center pb-1 sm:hidden"><span class="h-1.5 w-12 rounded-full bg-surface-500"></span></span>
+		<div class="flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
+
 			<span id="upgrade-planner-title">Next upgrades</span>
 			<button type="button" class="text-surface-300 hover:text-surface-50" aria-label="Close" onclick={() => dialog.close()}>
 				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>

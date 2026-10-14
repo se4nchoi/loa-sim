@@ -3,6 +3,7 @@
      the CP card. Sections sit in three groups (Character, Gear, Systems), each with its own color: a stacked bar on
      top shows how the score splits between them, and every row has a bar for its own share. -->
 <script lang="ts">
+	import DrawerHandle from './DrawerHandle.svelte';
 	import { onMount } from 'svelte';
 	import { sheetDialog, sheetDrag } from './sheet-drag';
 	import { formatCp, formatPct } from '../format';
@@ -97,11 +98,12 @@
 		bind:this={card}
 		class="flex max-h-[85dvh] w-[680px] max-w-[calc(100vw-1.5rem)] flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:max-w-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)] max-sm:rounded-t-xl max-sm:rounded-b-none"
 	>
+		<DrawerHandle sheet={() => card} close={() => dialog.close()} label="CP breakdown" />
 		<div
-			class="flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3 max-sm:gap-y-1"
+			class="flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3"
 			use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}
 		>
-			<span class="flex basis-full justify-center pb-1 sm:hidden"><span class="h-1.5 w-12 rounded-full bg-surface-500"></span></span>
+
 			<div class="min-w-0 flex-1">
 				<h2 class="font-semibold">Combat Power Breakdown</h2>
 				<p class="mt-1 flex flex-wrap items-baseline gap-2 tabular-nums">

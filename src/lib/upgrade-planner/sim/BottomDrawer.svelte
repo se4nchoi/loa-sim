@@ -18,6 +18,7 @@
 	import { setContext, type Snippet } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { sheetDrag } from './sheet-drag';
+	import DrawerHandle from './DrawerHandle.svelte';
 	import { sheetPosition } from './sheet-position';
 
 	let {
@@ -104,9 +105,7 @@
 		aria-label={label}
 		transition:slide
 	>
-		<button type="button" class="flex shrink-0 flex-col items-center px-4 pt-3 pb-2" aria-label={`Close ${label}`} use:drawerDrag onclick={() => (open = false)}>
-			<span class="h-1.5 w-12 rounded-full bg-surface-500"></span>
-		</button>
+		<DrawerHandle sheet={() => sheet} close={() => open = false} {label} visibility="" phone="(max-width: 1023px)" />
 		{@render children()}
 	</div>
 {/if}
