@@ -16,7 +16,6 @@
 		onapply
 	}: {
 		characterName?: string;
-		/** Where the meter's stat values are kept (Next Upgrades' DPS figures). */
 		characterKey?: string;
 		/** Damage share and cooldown use per skill, both in percent. */
 		onapply: (shares: Record<number, number>, cooldownUse: Record<number, number>) => void;

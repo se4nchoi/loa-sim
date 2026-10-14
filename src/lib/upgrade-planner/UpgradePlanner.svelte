@@ -9,11 +9,10 @@
 	import GoldCost from './GoldCost.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
 	import { autoHoningCosts, inventoryMaterials, materialsFor } from './honing-cost';
-	import { bookCost, costsForCharacter, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, setRankMode, supportsGoldCost } from './gold-costs.svelte';
+	import { bookCost, costsForCharacter, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, missingPriceCount, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { onMount } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
-	import { accessoryPriceKey } from './accessory-sets';
 	import { rollsFor, setAccRolls } from './acc-rolls.svelte';
 	import { arkGridOverWillpower, initSimState, type SimState } from './simulate';
 	import { roleOf } from './roles';
@@ -115,7 +114,7 @@
 			? [...priced, ...topDistinct(upgrades.filter((u) => !supportsGoldCost(u) || costs[u.key] === undefined), limit - priced.length)]
 			: topDistinct(upgrades, limit)
 	);
-	const unpriced = $derived(new Set(goldUpgrades.filter((u) => u.category !== 'honing' && costs[u.key] === undefined).map((u) => accessoryPriceKey(u.key, {}))).size);
+	const unpriced = $derived(missingPriceCount(goldUpgrades, costs));
 </script>
 
 <div class="flex min-h-0 flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">

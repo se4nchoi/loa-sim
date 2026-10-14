@@ -11,7 +11,7 @@ import { skinParts, skinPriceKey } from './skins';
 import { activeGems, arkGridOverWillpower, gemParts, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
 import { ASTROGEM_OPTION_NAMES, CORE_BREAKPOINTS, CORE_GRADE_CAP, ENGRAVING_BOOK_STEPS, KARMA_MAX_LEVEL, karmaRank } from './tables';
 import type { Loadout } from './types';
-import { coreLabel, coreStates, engravingName, type Upgrade } from './upgrades';
+import { coreLabel, coreStates, engravingName, relicBooksNeeded, type Upgrade } from './upgrades';
 import { GEM_SKILLS } from './game-data';
 
 const RANK_START = [0, 1, 5, 9, 13, 17, 21];
@@ -85,7 +85,7 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 			category: 'engraving',
 			title: `${engravingName(read)} relic books ${ENGRAVING_BOOK_STEPS[e.books]} → ${ENGRAVING_BOOK_STEPS[e.books + 1]}`,
 			detail: '',
-			books: { engraving: read, name: engravingName(read), count: ENGRAVING_BOOK_STEPS[e.books + 1] - ENGRAVING_BOOK_STEPS[e.books] }
+			books: { engraving: read, name: engravingName(read), count: relicBooksNeeded(l, read, e.books, e.books + 1) }
 		});
 	}
 	// Accessories are bought whole (lines can't be changed one at a time): see accessory-sets.ts.
