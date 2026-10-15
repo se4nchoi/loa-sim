@@ -188,6 +188,7 @@
 	<title>loa-sim · Lost Ark Combat Power Simulator</title>
 	<meta name="description" content="Lost Ark Combat Power simulator for NA and EUC. Load your character from lostark.bible, change honing, gems, accessories, engravings, ark grid and more, and see the CP change. Next Upgrades ranks your best upgrades by CP or by gold." />
 	<link rel="canonical" href="https://loa-sim.vercel.app/" />
+	<meta name="google-site-verification" content="AkbK2dowunRF4576qIMFXciNLrINRR_7sBLEcygkbMo" />
 	<meta property="og:type" content="website" />
 	<meta property="og:site_name" content="loa-sim" />
 	<meta property="og:title" content="loa-sim · Lost Ark Combat Power Simulator" />
@@ -198,7 +199,7 @@
 	<meta property="og:image:height" content="905" />
 	<meta property="og:image:alt" content="loa-sim: equipment honing, gems and Next Upgrades ranked by gold per 1% CP" />
 	<meta name="twitter:card" content="summary_large_image" />
-	<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"loa-sim","url":"https://loa-sim.vercel.app/","applicationCategory":"GameApplication","operatingSystem":"Any","description":"Lost Ark Combat Power simulator for NA and EUC characters.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+	<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"loa-sim","alternateName":["loa sim","Lost Ark Combat Power Simulator"],"url":"https://loa-sim.vercel.app/"},{"@type":"WebApplication","name":"loa-sim","url":"https://loa-sim.vercel.app/","applicationCategory":"GameApplication","operatingSystem":"Any","description":"Lost Ark Combat Power simulator for NA and EUC characters.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}]}</script>
 </svelte:head>
 
 <!-- A placeholder row, the same height as a character row. -->
@@ -297,7 +298,7 @@
 	<!-- Roster: synced from lostark.bible. -->
 	<section class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 		<div class="flex min-h-11 flex-row items-center gap-2 bg-black/10 px-3 py-2">
-			<img src="/bible/artist_cry.png" alt="" class="size-6" />
+			<img src="/bible/artist_cry.webp" alt="" width="24" height="24" class="size-6" />
 			<span class="font-bold">Roster</span>
 			<span class="text-xs text-surface-500">from lostark.bible</span>
 			{#if signedIn}
