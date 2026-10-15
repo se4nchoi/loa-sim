@@ -3,6 +3,8 @@
      the CP card. Sections sit in three groups (Character, Gear, Systems), each with its own color: a stacked bar on
      top shows how the score splits between them, and every row has a bar for its own share. -->
 <script lang="ts">
+	import ModalClose from './ModalClose.svelte';
+	import DrawerHandle from './DrawerHandle.svelte';
 	import { onMount } from 'svelte';
 	import { sheetDialog, sheetDrag } from './sheet-drag';
 	import { formatCp, formatPct } from '../format';
@@ -95,13 +97,14 @@
 >
 	<div
 		bind:this={card}
-		class="flex max-h-[85dvh] w-[680px] max-w-[calc(100vw-1.5rem)] flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:max-w-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)] max-sm:rounded-t-xl max-sm:rounded-b-none"
+		class="sim-modal-card sm:rounded-sm sm:shadow-xl sm:shadow-black/40 sm:ring-1 sm:ring-surface-700 flex max-h-[85dvh] w-[680px] max-w-[calc(100vw-1.5rem)] flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:max-w-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)] max-sm:rounded-t-xl max-sm:rounded-b-none"
 	>
+		<DrawerHandle sheet={() => card} close={() => dialog.close()} label="CP breakdown" />
 		<div
-			class="flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3 max-sm:gap-y-1"
+			class="sim-modal-header sm:px-4 sm:py-3 sm:text-base sm:font-semibold sm:text-surface-100 flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3"
 			use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}
 		>
-			<span class="flex basis-full justify-center pb-1 sm:hidden"><span class="h-1.5 w-12 rounded-full bg-surface-500"></span></span>
+
 			<div class="min-w-0 flex-1">
 				<h2 class="font-semibold">Combat Power Breakdown</h2>
 				<p class="mt-1 flex flex-wrap items-baseline gap-2 tabular-nums">
@@ -109,7 +112,7 @@
 					<span class="text-2xl font-bold {support ? 'text-green-400' : 'text-red-400'}">{formatCp(total)}</span>
 				</p>
 			</div>
-			<button type="button" class={btn} onclick={() => dialog.close()} aria-label="Close breakdown">Close</button>
+			<ModalClose close={() => dialog.close()} label="Close breakdown" />
 		</div>
 		<div class="min-h-0 space-y-4 overflow-y-auto p-4 text-sm">
 			<p class="text-xs text-surface-400">
