@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { calculateCraft, saleFee } from '$lib/crafting/calculate';
+	import { calculateCraftScenarios, saleFee } from '$lib/crafting/calculate';
 	import { RECIPES, craftingScope, type CraftMaterial } from '$lib/crafting/data';
 	import RecipeBrowser from '$lib/crafting/RecipeBrowser.svelte';
+	import InventoryDialog from '$lib/crafting/InventoryDialog.svelte';
+	import Estimate from '$lib/crafting/Estimate.svelte';
+	import { inventoryDisplayMaterials } from '$lib/crafting/inventory';
 	import { recipeVariantLabel } from '$lib/crafting/recipe-labels';
+	import { itemGrade } from '$lib/crafting/item-grade';
 	import Manor from '$lib/crafting/Manor.svelte';
 	import { manorTotals } from '$lib/crafting/manor';
 	import { defaultCraftSave, loadCraftSave, saveCraftSave, type CraftRegion } from '$lib/crafting/storage';
@@ -13,15 +17,26 @@
 	let craft = $state(defaultCraftSave());
 	let ready = $state(false);
 	let saveFailed = $state(false);
+	let inventoryOpen = $state(false);
+	let strongholdOpen = $state(false);
 	onMount(() => { craft = loadCraftSave(); ready = true; });
 	$effect(() => { if (ready) saveFailed = !saveCraftSave($state.snapshot(craft)); });
 	const recipe = $derived(RECIPES.find((r) => r.id === craft.recipeId) ?? RECIPES[0]);
+	const hasRecipe = $derived(craft.favorites.includes(craft.recipeId));
+	function selectRecipe(id: string) {
+		const next = RECIPES.find(r => r.id === id);
+		if (!next) return;
+		craft.favorites = craft.favorites.map(value => RECIPES.find(r => r.id === value)?.product.id === next.product.id ? id : value);
+		craft.recipeId = id;
+	}
 	const market = $derived(craft.markets.NA);
 	const manorCategory = $derived(craftingScope(recipe));
 	const manor = $derived(manorTotals(craft.manor, manorCategory));
 	const settings = $derived({ ...craft.settings, costReduction: manor.cost, timeReduction: manor.time });
-	const result = $derived(calculateCraft(recipe, settings, market.prices, market.owned));
-	const comparisons = $derived(RECIPES.filter((r) => r.product.id === recipe.product.id).map((r) => ({ recipe: r, result: calculateCraft(r, { ...craft.settings, costReduction: manorTotals(craft.manor, craftingScope(r)).cost, timeReduction: manorTotals(craft.manor, craftingScope(r)).time }, market.prices, market.owned) }))
+	const scenarios = $derived(calculateCraftScenarios(recipe, settings, market.prices, market.owned));
+	const result = $derived(scenarios.baseline);
+	const expected = $derived(scenarios.expected);
+	const comparisons = $derived(RECIPES.filter((r) => r.product.id === recipe.product.id).map((r) => ({ recipe: r, result: calculateCraftScenarios(r, { ...craft.settings, greatSuccess: 0, costReduction: manorTotals(craft.manor, craftingScope(r)).cost, timeReduction: manorTotals(craft.manor, craftingScope(r)).time }, market.prices, market.owned).baseline }))
 		.toSorted((a, b) => recipe.tradeable === false
 			? (a.result.unitCost ?? Infinity) - (b.result.unitCost ?? Infinity)
 			: (b.result.profit ?? -Infinity) - (a.result.profit ?? -Infinity)));
@@ -81,12 +96,30 @@
 {/snippet}
 
 <div class="mx-auto max-w-[1400px] space-y-4">
-	<h1 class="text-2xl font-bold">Stronghold Crafting</h1>
+	<div class="flex flex-wrap items-center justify-between gap-3"><h1 class="text-2xl font-bold">Stronghold Crafting</h1><button type="button" class={inventoryOpen ? btnAccent : btn} aria-haspopup="dialog" aria-expanded={inventoryOpen} aria-controls="material-inventory" onclick={() => inventoryOpen = true}>Material inventory · {inventoryDisplayMaterials(market).length}</button></div>
 	{#if saveFailed}<p role="alert" class="text-sm text-amber-300">Changes could not be saved in this browser. Keep this tab open to retain your inputs.</p>{/if}
+	<section class="craft-card" aria-label="Crafting list"><RecipeBrowser bind:recipeId={craft.recipeId} bind:favorites={craft.favorites} /></section>
+	<section class="craft-card stronghold-card" aria-labelledby="stronghold-heading">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<div><h2 id="stronghold-heading" class="font-semibold text-sky-200">Stronghold settings</h2><p class="mt-1 text-xs text-surface-300">Research · Manor · Pets · Collectibles</p></div>
+			<button type="button" class={strongholdOpen ? btnAccent : btn} aria-expanded={strongholdOpen} aria-controls="stronghold-settings" onclick={() => strongholdOpen = !strongholdOpen}>{strongholdOpen ? 'Close settings' : 'Edit bonuses'}</button>
+		</div>
+		<div class="mt-3 flex flex-wrap items-center gap-2 text-xs"><span class="rounded-xs border border-amber-400/30 bg-amber-400/5 px-2 py-1 font-semibold text-amber-200">−{manor.cost}% gold</span><span class="rounded-xs border border-sky-400/30 bg-sky-400/5 px-2 py-1 font-semibold text-sky-200">−{manor.time}% time</span><span class="rounded-xs border border-surface-600 px-2 py-1 text-surface-200">−{manor.energy}% energy</span><span class="text-surface-400">Applied to {manorCategory}</span></div>
+		{#if strongholdOpen}
+			<div id="stronghold-settings" class="mt-4 border-t border-sky-400/20 pt-4"><Manor bind:setup={craft.manor} category={manorCategory} /></div>
+			<details class="mt-3 border-t border-surface-700 pt-3"><summary class="text-xs text-surface-200">Expected great success <span class="text-surface-400">· {craft.settings.greatSuccess > 0 ? `${fmt(craft.settings.greatSuccess, 3)}% actual chance` : 'Off'}</span></summary>
+				<label class="field-label mt-3 max-w-xs">Actual proc chance (%)<input type="number" min="0" max="100" step="0.001" value={craft.settings.greatSuccess} oninput={(e) => setting('greatSuccess', e.currentTarget.value)} class="craft-input" aria-label="Actual great success chance percent" /></label>
+				<p class="mt-2 text-xs text-surface-400">0 turns off the expected result. Enter your assumed actual chance, including any bonuses. Main estimates and recipe comparisons always exclude great success.</p>
+				<p class="mt-2 text-xs text-surface-400">Tooltip bonuses are not actual proc chances. A relative +5% on an assumed 5% base gives 5.25%. No base rate or bonus formula is applied automatically.</p>
+			</details>
+		{/if}
+	</section>
+	{#if hasRecipe}
 	<div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-		<div class="min-w-0 space-y-4">
+		<section class="min-w-0 lg:col-start-2 lg:row-start-1" aria-label="Crafting results"><Estimate {recipe} {result} {expected} successChance={craft.settings.greatSuccess} /></section>
+		<div class="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1 lg:row-span-2">
 			<section class="craft-card" aria-label="Crafting recipe">
-				<RecipeBrowser bind:recipeId={craft.recipeId} bind:favorites={craft.favorites} />
+				<div class="flex items-center gap-2">{@render itemIcon(recipe.product)}<div><h2 class="font-semibold" style:color={itemGrade(recipe.product.grade).color}>{recipe.product.name}</h2><p class="text-xs text-surface-400">{itemGrade(recipe.product.grade).name} · {recipeVariantLabel(recipe)}</p></div></div>
 				<div class="mt-4 grid grid-cols-2 items-end gap-3 sm:grid-cols-3">
 					<label class="field-label">Crafts<input type="number" min="1" max="100000" step="1" class="craft-input" value={craft.settings.crafts} oninput={(e) => setting('crafts', e.currentTarget.value)} aria-label="Number of crafts" /></label>
 					<div class="text-sm"><span class="block text-xs text-surface-300">Guaranteed output</span><strong class="tabular-nums">{fmt(result.output, 0)}</strong><span class="ml-1 text-xs text-surface-400">({recipe.output} per craft)</span></div>
@@ -96,33 +129,25 @@
 
 			<section class="craft-card" aria-labelledby="craft-inventory">
 				<h2 id="craft-inventory" class="mb-3 font-semibold">Materials · {recipe.path}</h2>
-				<div class="grid grid-cols-[minmax(0,1fr)_5.25rem_5.25rem] items-center gap-x-2 gap-y-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]">
+				<div class="grid grid-cols-[minmax(0,1fr)_5.25rem_5.25rem] items-start gap-x-2 gap-y-3 py-1 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]">
 					<div></div>
 					<div>{@render clearControls('owned')}<span class="text-xs text-surface-200">Owned</span></div>
 					<div>{@render clearControls('prices')}<span class="text-xs text-surface-200">Market</span></div>
 					{#each result.lines as line (line.material.id)}
-						<div class="flex min-w-0 items-center gap-2">{@render itemIcon(line.material)}<div class="min-w-0"><span class="block text-sm leading-tight">{line.material.name}</span><span class="text-xs text-surface-400">{line.perCraft} per craft</span></div></div>
-						<input type="number" min="0" step="1" placeholder="0" value={market.owned[line.material.id] ?? ''} oninput={(e) => setOwned(line.material.id, e.currentTarget.value)} class="craft-input" aria-label={`${line.material.name} owned`} />
-						<label class="text-[10px] text-surface-400"><input type="number" min="0" step="1" placeholder="Price" value={market.prices[line.material.id] ?? ''} oninput={(e) => setQuote(line.material.id, e.currentTarget.value)} class={`craft-input ${market.prices[line.material.id] === undefined ? 'border-amber-500/50' : ''}`} aria-label={`${line.material.name} price per ${line.material.bundle}`} />Gold / {line.material.bundle}</label>
+						<div class="flex min-w-0 items-center gap-2 px-1 py-1">{@render itemIcon(line.material)}<div class="min-w-0 py-1"><span class="block text-sm leading-tight" style:color={itemGrade(line.material.grade).color}>{line.material.name}</span><span class="text-xs text-surface-400">{itemGrade(line.material.grade).name} · {line.perCraft} per craft</span></div></div>
+						<input type="number" min="0" step="1" placeholder="0" value={market.owned[line.material.id] ?? ''} oninput={(e) => setOwned(line.material.id, e.currentTarget.value)} class="craft-input mt-1" aria-label={`${line.material.name} owned`} />
+						<label class="pt-1 text-[10px] text-surface-400"><input type="number" min="0" step="1" placeholder="Price" value={market.prices[line.material.id] ?? ''} oninput={(e) => setQuote(line.material.id, e.currentTarget.value)} class={`craft-input ${market.prices[line.material.id] === undefined ? 'border-amber-500/50' : ''}`} aria-label={`${line.material.name} price per ${line.material.bundle}`} />Gold / {line.material.bundle}</label>
 					{/each}
 				</div>
 				<label class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-surface-700 pt-3"><span class="text-sm">{recipe.tradeable === false ? 'Replacement value (optional)' : 'Selling price'} <span class="text-xs text-surface-400">gold each</span></span><input type="number" min="0" step="1" class="craft-input" style:width="7rem" value={market.prices[recipe.product.id] ?? ''} placeholder="Price" oninput={(e) => setQuote(recipe.product.id, e.currentTarget.value)} aria-label="Product selling price" /></label>
 				{#if recipe.tradeable === false}<p class="mt-2 text-xs text-amber-300">Bound / non-tradable output. Market-sale profit is unavailable.</p>{/if}
 			</section>
 
-			<section class="craft-card" aria-labelledby="stronghold-settings">
-				<div id="stronghold-settings"><Manor bind:setup={craft.manor} category={manorCategory} /></div>
-				<details class="mt-3 border-t border-surface-700 pt-3"><summary class="text-xs text-surface-200">Great success estimate</summary>
-					<label class="field-label mt-3 max-w-xs">Actual great success chance (%)<input type="number" min="0" max="100" step="0.1" value={craft.settings.greatSuccess} oninput={(e) => setting('greatSuccess', e.currentTarget.value)} class="craft-input" aria-label="Actual great success chance percent" /></label>
-					<p class="mt-2 text-xs text-surface-400">0 excludes bonus output. Enter an actual probability, not the relative bonus shown on a structure or outfit. Double-output crafts are averaged; short batches can vary.</p>
-				</details>
-			</section>
-
 			<section class="craft-card" aria-labelledby="route-compare">
 				<h2 id="route-compare" class="font-semibold">Compare recipes</h2><p class="mt-1 mb-3 text-xs text-surface-400">Each route uses the same craft count and inventory independently.</p>
 				<div class="grid grid-cols-[minmax(0,1fr)_6rem_6rem] gap-2 border-b border-surface-700 pb-2 text-xs text-surface-300 sm:grid-cols-[minmax(0,1fr)_8rem_8rem]"><span>Trade skill</span><span class="text-right">{recipe.tradeable === false ? 'Cost / item' : 'Profit / craft'}</span><span class="text-right">Gold to spend</span></div>
 				{#each comparisons as row (row.recipe.id)}
-					<button type="button" aria-label={`Select ${recipeVariantLabel(row.recipe)} recipe`} aria-pressed={row.recipe.id === recipe.id} onclick={() => craft.recipeId = row.recipe.id} class={`grid w-full grid-cols-[minmax(0,1fr)_6rem_6rem] items-center gap-2 border-b border-surface-800 py-3 text-left text-sm hover:bg-surface-800/50 sm:grid-cols-[minmax(0,1fr)_8rem_8rem] ${row.recipe.id === recipe.id ? 'bg-accent-500/10' : ''}`}>
+					<button type="button" aria-label={`Select ${recipeVariantLabel(row.recipe)} recipe`} aria-pressed={row.recipe.id === recipe.id} onclick={() => selectRecipe(row.recipe.id)} class={`grid w-full grid-cols-[minmax(0,1fr)_6rem_6rem] items-center gap-2 border-b border-surface-800 py-3 text-left text-sm hover:bg-surface-800/50 sm:grid-cols-[minmax(0,1fr)_8rem_8rem] ${row.recipe.id === recipe.id ? 'bg-accent-500/10' : ''}`}>
 						<span>{recipeVariantLabel(row.recipe)}{#if recipe.tradeable !== false && best?.recipe.id === row.recipe.id}<span class="ml-1 text-[10px] text-amber-300">Best priced</span>{/if}{#if row.result.missing.length}<span class="block text-[11px] text-amber-300/80">{row.result.missing.length} missing prices</span>{/if}</span>
 						<span class={`text-right font-semibold tabular-nums ${recipe.tradeable === false ? 'text-surface-100' : tone(row.result.profit)}`}>{recipe.tradeable === false ? fmt(row.result.unitCost) : signed(row.result.profit === null ? null : row.result.profit / row.result.crafts)}</span><span class="text-right tabular-nums">{fmt(row.result.cashNeeded)}</span>
 					</button>
@@ -130,57 +155,49 @@
 			</section>
 		</div>
 
-		<aside class="min-w-0 space-y-4 lg:sticky lg:top-16 lg:self-start" aria-label="Crafting results">
-			<section class="craft-card">
-				<h2 class="font-semibold">Crafting estimate</h2>
-				{#if result.missing.length}<p class="mt-2 text-xs text-amber-300">Add {result.missing.length} missing price{result.missing.length === 1 ? '' : 's'} to complete the estimate.</p>{/if}
-				{#if recipe.tradeable === false}
-				<div class="my-4"><p class="text-xs text-surface-200">Cost per bound item</p><p class="mt-1 text-3xl font-bold tabular-nums">{fmt(result.unitCost)}<span class="ml-1 text-sm font-normal text-surface-400">gold</span></p><p class="mt-1 text-xs text-surface-400">Bound output cannot be sold. Owned materials count at market value.</p></div>
-				{:else}
-				<div class="my-4"><p class="text-xs text-surface-200">Profit at market material value</p><p class={`mt-1 text-3xl font-bold tabular-nums ${tone(result.profit)}`}>{signed(result.profit)}<span class="ml-1 text-sm font-normal text-surface-400">gold</span></p><p class="mt-1 text-xs text-surface-400">Owned materials count at market value, not as free profit.</p></div>
-				{/if}
-				<dl class="space-y-2 text-sm">
-					{#if recipe.tradeable !== false}
-					<div class="result-row"><dt>Profit / craft</dt><dd class={tone(result.profit)}>{signed(result.profit === null ? null : result.profit / result.crafts)}</dd></div>
-					<div class="result-row"><dt>Return on cost</dt><dd class={tone(result.roi)}>{fmt(result.roi)}{result.roi !== null ? '%' : ''}</dd></div>
-					<div class="result-row"><dt>Cost / item</dt><dd>{fmt(result.unitCost)}</dd></div>
-					<div class="result-row"><dt>Break-even selling price</dt><dd class="text-amber-300">{fmt(result.breakEven, 0)}</dd></div>
-					{/if}
-					<div class="result-row"><dt>{recipe.tradeable === false ? 'Saving vs replacement value' : 'Saving vs buying'}</dt><dd class={tone(result.selfUseSaving)}>{signed(result.selfUseSaving)}</dd></div>
+		<aside class="min-w-0 space-y-4 lg:col-start-2 lg:row-start-2 lg:self-start" aria-label="Craft details">
+			<section class="craft-card" aria-labelledby="craft-summary">
+				<h2 id="craft-summary" class="mb-3 font-semibold">Craft summary</h2>
+				<dl class="grid grid-cols-2 gap-3">
+					<div><dt class="text-xs text-surface-300">Time · {result.batches} batch{result.batches === 1 ? '' : 'es'}</dt><dd class="mt-1 font-semibold tabular-nums">{fmt(result.minutes)} <span class="text-xs font-normal text-surface-400">min</span></dd></div>
+					<div><dt class="text-xs text-surface-300">Action energy</dt><dd class="mt-1 font-semibold tabular-nums">{fmt(Math.floor(recipe.energy * (100 - manor.energy) / 100) * result.crafts, 0)}</dd></div>
 				</dl>
-				<p class="mt-3 text-xs text-surface-400">Self-use savings exclude the selling fee.</p>
-				<hr class="my-4 border-surface-700" />
-				<dl class="space-y-2 text-sm">
-					<div class="result-row"><dt>Gold to spend now</dt><dd class="text-amber-300">{fmt(result.cashNeeded)}</dd></div>
-					<div class="result-row"><dt>Crafting fee</dt><dd>{fmt(result.craftingGold)} <span class="text-xs text-surface-400">({result.goldPerCraft} each)</span></dd></div>
-					<div class="result-row"><dt>Material purchases</dt><dd>{fmt(result.purchaseGold)}</dd></div>
-					{#if recipe.tradeable !== false}
-					<div class="result-row"><dt>Sale proceeds after fee</dt><dd>{fmt(result.revenue)}</dd></div>
-					<div class="result-row"><dt>Gold after sale</dt><dd class={tone(result.cashAfterSale)}>{signed(result.cashAfterSale)}</dd></div>
-					{/if}
-					<div class="result-row"><dt>Leftover bought material value</dt><dd>{fmt(result.leftoverValue)}</dd></div>
-					{#if recipe.tradeable !== false}<div class="result-row"><dt>Gain vs selling owned materials</dt><dd class={tone(result.vsSelling)}>{signed(result.vsSelling)}</dd></div>{/if}
+				<dl class="mt-3 space-y-2 text-xs">
+					{#if recipe.tradeable !== false}<div class="result-row"><dt>Profit / queue-hour</dt><dd class={tone(result.profitPerHour)}>{signed(result.profitPerHour)}{result.profitPerHour === null ? '' : ' gold'}</dd></div>{/if}
+					{#if recipe.silver}<div class="result-row"><dt>Silver fee</dt><dd>{fmt(recipe.silver * result.crafts, 0)}</dd></div>{/if}
 				</dl>
-				<p class="mt-3 text-xs text-surface-400">Purchases use the market bundle size shown. Leftovers are valued at market price.{#if recipe.tradeable !== false} Gain vs selling deducts the after-fee value of owned materials used.{/if}</p>
-			</section>
-			<section class="craft-card">
-				<h2 class="mb-3 font-semibold">Recipe breakdown</h2>
-				{#if recipe.batchSize}<p class="mb-3 text-xs text-surface-400">One workshop queue · up to {recipe.batchSize} crafts per timer.</p>{:else}<p class="mb-3 text-xs text-surface-400">Time assumes one craft per timer.</p>{/if}
-				<dl class="mb-3 space-y-1 text-xs text-surface-300"><div class="result-row"><dt>Crafting time · {result.batches} batch{result.batches === 1 ? '' : 'es'}</dt><dd>{fmt(result.minutes)} min</dd></div>{#if recipe.tradeable !== false}<div class="result-row"><dt>Profit / queue-hour</dt><dd class={tone(result.profitPerHour)}>{signed(result.profitPerHour)}</dd></div>{/if}<div class="result-row"><dt>Action energy</dt><dd>{fmt(Math.floor(recipe.energy * (100 - manor.energy) / 100) * result.crafts, 0)}</dd></div></dl>
-				{#if recipe.silver}<p class="mb-2 text-xs text-surface-400">Silver fee: {fmt(recipe.silver * result.crafts, 0)} · not converted to gold.</p>{/if}
-				{#if craft.settings.greatSuccess > 0}<p class="mb-3 text-xs text-amber-300">Expected output: {fmt(result.expectedOutput)} · Guaranteed: {fmt(result.output, 0)}</p>{/if}
-				{#each result.lines as line (line.material.id)}
-					<div class="border-t border-surface-700 py-2"><p class="text-sm">{line.material.name}</p><p class="mt-1 text-xs text-surface-300">Need {fmt(line.needed, 0)} · Use owned {fmt(line.used, 0)} · Buy {fmt(line.purchased, 0)}</p>{#if line.leftover}<p class="text-xs text-surface-400">{fmt(line.leftover, 0)} bought materials left over</p>{/if}</div>
-				{/each}
-				{#if recipe.tradeable !== false}<p class="mt-2 text-xs text-surface-400">Market fee: 5%, rounded up per selling unit. {market.prices[recipe.product.id] !== undefined ? `${saleFee(market.prices[recipe.product.id])} gold per item.` : ''} Refunded listing deposits are excluded.</p>{/if}
-				<a href={recipe.source} target="_blank" rel="noopener noreferrer" class="mt-3 inline-block text-xs text-surface-300 underline hover:text-surface-50">View recipe on Lost Ark Codex ↗</a>
+				<table class="mt-4 w-full text-xs tabular-nums">
+					<caption class="sr-only">Materials needed, used from owned stock, and bought in market bundles</caption>
+					<thead class="text-surface-300"><tr><th scope="col" class="pb-2 text-left font-normal">Material</th><th scope="col" class="pb-2 pl-2 text-right font-normal">Need</th><th scope="col" class="pb-2 pl-2 text-right font-normal">Owned</th><th scope="col" class="pb-2 pl-2 text-right font-normal">Buy</th></tr></thead>
+					<tbody>
+						{#each result.lines as line (line.material.id)}
+							<tr class="border-t border-surface-700"><th scope="row" class="py-2 text-left font-normal" style:color={itemGrade(line.material.grade).color}>{line.material.name}</th><td class="py-2 pl-2 text-right">{fmt(line.needed, 0)}</td><td class="py-2 pl-2 text-right">{fmt(line.used, 0)}</td><td class="py-2 pl-2 text-right">{fmt(line.purchased, 0)}</td></tr>
+						{/each}
+					</tbody>
+				</table>
+				<details class="mt-3 border-t border-surface-700 pt-3 text-xs text-surface-400">
+					<summary class="cursor-pointer text-surface-300">Details & source</summary>
+					<div class="mt-3 space-y-3">
+						<p>One workshop queue · {recipe.batchSize ? `up to ${recipe.batchSize} crafts per timer` : 'one craft per timer'}. Purchases round up to market bundles.</p>
+						{#if result.lines.some(line => line.leftover > 0)}
+							<div><p class="mb-2 font-medium text-surface-300">Bought materials left over</p><dl class="space-y-1">{#each result.lines as line (line.material.id)}{#if line.leftover}<div class="result-row"><dt>{line.material.name}</dt><dd>{fmt(line.leftover, 0)}</dd></div>{/if}{/each}</dl></div>
+						{/if}
+						{#if recipe.silver}<p>Silver is not converted to gold.</p>{/if}
+						{#if recipe.tradeable !== false}<p>Market fee: 5%, rounded up per selling unit. {market.prices[recipe.product.id] !== undefined ? `${saleFee(market.prices[recipe.product.id])} gold per item.` : ''} Refunded listing deposits are excluded.</p>{/if}
+						<a href={recipe.source} target="_blank" rel="noopener noreferrer" class="inline-block text-surface-300 underline hover:text-surface-50">Recipe on Lost Ark Codex ↗</a>
+					</div>
+				</details>
 			</section>
 		</aside>
 	</div>
+	{/if}
 </div>
+
+{#if inventoryOpen}<InventoryDialog bind:market={craft.markets.NA} onclose={() => inventoryOpen = false} />{/if}
 
 <style>
 	.craft-card { border: 1px solid var(--color-surface-800); border-radius: 2px; background: var(--color-surface-900); padding: 1rem; }
+	.stronghold-card { border-color: color-mix(in srgb, var(--color-sky-400) 35%, transparent); border-left: 3px solid var(--color-sky-400); }
 	.craft-input { display: block; width: 100%; min-width: 0; height: 2rem; border: 1px solid var(--color-surface-600); border-radius: 2px; background: var(--color-surface-950); padding: 0 .5rem; color: var(--color-surface-100); font-size: .875rem; font-variant-numeric: tabular-nums; }
 	.craft-input:focus { outline: 1px solid var(--color-accent-500); border-color: var(--color-accent-500); }
 	.craft-input::placeholder { color: var(--color-surface-500); }

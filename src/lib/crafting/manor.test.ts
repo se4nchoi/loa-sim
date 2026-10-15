@@ -1,9 +1,49 @@
 import { describe, expect, it } from 'vitest';
-import { defaultManor, manorTotals, suggestManor } from './manor';
+import { defaultManor, manorTotals, rankManorEquipment, suggestManor, withManorEquipment } from './manor';
 import { calculateCraft } from './calculate';
 import { FUSION_RECIPES, RECIPES, craftingScope } from './data';
 
 describe('manor effects', () => {
+	it('ranks a useful general discount above a capped category discount for the target slot', () => {
+		const setup = defaultManor();
+		setup.structures = ['acrobat', 'glass-sheep', 'card-flipping'];
+		setup.outfits = ['payla-vern', 'nia-basic', ''];
+		setup.extraEffects = [{ name: 'Other special effect', scope: 'Special', cost: 3 }];
+		const ranked = rankManorEquipment(setup, 'Special', 'outfits', 0, 'cost');
+		expect(ranked[0].item.id).toBe('thirain-heir');
+		expect(ranked[0].totals.cost).toBe(13);
+		expect(ranked.find(row => row.item.id === 'payla-vern')!.totals.cost).toBe(12);
+		expect(setup.outfits[0]).toBe('payla-vern');
+	});
+	it('keeps unrelated category effects below applicable choices and changes ranking with the goal', () => {
+		const setup = defaultManor();
+		const cost = rankManorEquipment(setup, 'Special', 'outfits', 0, 'cost');
+		const time = rankManorEquipment(setup, 'Special', 'outfits', 0, 'time');
+		expect(cost[0].item.id).toBe('payla-vern');
+		expect(time[0].totals.time).toBe(2);
+		expect(time[0].item.id).not.toBe('payla-vern');
+		expect(cost.findIndex(row => row.item.id === 'vivian-lady')).toBeGreaterThan(cost.findIndex(row => row.item.id === 'nia-basic'));
+	});
+	it('equips a searched outfit without stacking a second outfit from the same NPC', () => {
+		const setup = defaultManor();
+		setup.outfits = ['nineveh-cute', 'urr-summer', ''];
+		const changed = withManorEquipment(setup, 'outfits', 2, 'nineveh-sunshine');
+		expect(changed.outfits).toEqual(['', 'urr-summer', 'nineveh-sunshine']);
+		expect(setup.outfits[0]).toBe('nineveh-cute');
+		expect(withManorEquipment(setup, 'structures', 0, 'nineveh-cute')).toBe(setup);
+	});
+	it('applies extra pet and collectible effects only to matching crafting scopes', () => {
+		const setup = defaultManor();
+		setup.extraEffects = [
+			{ name: 'Dock pet', scope: 'Special', time: 2, success: 3 },
+			{ name: 'Collectible', scope: 'General', cost: 1, energy: 2 },
+			{ name: 'Farm-only crafting', scope: 'Farm (Bound)', time: 1 }
+		];
+		expect(manorTotals(setup, 'Special')).toMatchObject({ cost: 1, time: 2, energy: 2, successBonus: 3 });
+		expect(manorTotals(setup, 'Cooking')).toMatchObject({ cost: 1, time: 0, energy: 2, successBonus: 0 });
+		expect(manorTotals(setup, 'Farm (Bound)')).toMatchObject({ time: 3, successBonus: 3 });
+		expect(suggestManor(setup, 'Special', 'time', false).extraEffects).toEqual(setup.extraEffects);
+	});
 	it('reproduces the screenshot: 7% general + 10% special = 17%, 4310 gold for ten crafts', () => {
 		const setup = defaultManor();
 		setup.structures = ['card-flipping', 'acrobat', 'glass-sheep'];

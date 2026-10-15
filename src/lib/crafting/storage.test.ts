@@ -4,6 +4,18 @@ import { defaultCraftSave, loadCraftSave, saveCraftSave } from './storage';
 afterEach(() => vi.unstubAllGlobals());
 
 describe('crafting browser storage', () => {
+	it('starts with an empty displayed list and does not reopen an unstarred legacy selection', () => {
+		expect(defaultCraftSave().recipeId).toBe('');
+		vi.stubGlobal('localStorage', { getItem: () => JSON.stringify({ recipeId: '6861013:excavating' }) });
+		expect(loadCraftSave().recipeId).toBe('');
+		expect(loadCraftSave().favorites).toEqual([]);
+	});
+	it('preserves saved products and their selected route without duplicate product cards', () => {
+		vi.stubGlobal('localStorage', { getItem: () => JSON.stringify({ recipeId: '6861013:excavating', favorites: ['6861013:logging', '6861013:excavating', '6861012:logging'] }) });
+		const loaded = loadCraftSave();
+		expect(loaded.recipeId).toBe('6861013:excavating');
+		expect(loaded.favorites).toEqual(['6861013:excavating', '6861012:logging']);
+	});
 	it('keeps market prices, roster inventory, discounts and selected recipe across reloads', () => {
 		let saved: string | null = null;
 		vi.stubGlobal('localStorage', { getItem: () => saved, setItem: (_key: string, value: string) => { saved = value; } });
@@ -64,6 +76,19 @@ describe('crafting browser storage', () => {
 		expect(loaded.outfits).toEqual(['', '', '']);
 		expect(loaded.baseCost).toBe(0);
 		expect(loaded.baseEnergy).toBe(0);
+	});
+	it('persists scoped extra effects and an explicit expected chance', () => {
+		let saved: string | null = null;
+		vi.stubGlobal('localStorage', { getItem: () => saved, setItem: (_key: string, value: string) => { saved = value; } });
+		const craft = defaultCraftSave();
+		craft.settings.greatSuccess = 5.25;
+		craft.manor.extraEffects = [{ name: 'Dock pet', scope: 'Special', cost: 0, time: 2, energy: 0, success: 3 }];
+		saveCraftSave(craft);
+		expect(loadCraftSave()).toEqual(craft);
+	});
+	it('validates extra effect scopes and percentages from browser storage', () => {
+		vi.stubGlobal('localStorage', { getItem: () => JSON.stringify({ manor: { extraEffects: [null, { scope: 'Dispatch', time: 5 }, { name: 'Pet', scope: 'Special', time: -1, cost: '3', success: 900 }] } }) });
+		expect(loadCraftSave().manor.extraEffects).toEqual([{ name: 'Pet', scope: 'Special', time: 0, cost: 0, energy: 0, success: 30 }]);
 	});
 	it('reports a failed write and recovers when storage becomes available', () => {
 		let blocked = true;

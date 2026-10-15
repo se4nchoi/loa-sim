@@ -1,6 +1,8 @@
 export type CraftCategory = 'Special' | 'Battle Item' | 'Cooking' | 'Tools' | 'Structure' | 'Farm (Bound)';
 export type ManorScope = 'General' | CraftCategory | `Battle Item - ${'Potion' | 'Bomb' | 'Grenade' | 'Other'}`;
+export const MANOR_SCOPES: ManorScope[] = ['General', 'Special', 'Battle Item', 'Battle Item - Potion', 'Battle Item - Bomb', 'Battle Item - Grenade', 'Battle Item - Other', 'Cooking', 'Tools', 'Structure', 'Farm (Bound)'];
 export interface ManorEffect { scope: ManorScope; cost?: number; time?: number; success?: number; energy?: number }
+export interface ExtraCraftEffect extends ManorEffect { name: string }
 export interface ManorEquip { id: string; name: string; kind: 'structure' | 'outfit'; icon?: string; npc?: string; acquisition: string; effects: ManorEffect[]; source: string }
 export interface ManorSetup {
 	structures: string[];
@@ -10,8 +12,9 @@ export interface ManorSetup {
 	baseCost: number;
 	baseTime: number;
 	baseEnergy: number;
+	extraEffects: ExtraCraftEffect[];
 }
-export const defaultManor = (): ManorSetup => ({ structures: ['', '', ''], outfits: ['', '', ''], owned: [], slots: 3, baseCost: 0, baseTime: 0, baseEnergy: 0 });
+export const defaultManor = (): ManorSetup => ({ structures: ['', '', ''], outfits: ['', '', ''], owned: [], slots: 3, baseCost: 0, baseTime: 0, baseEnergy: 0, extraEffects: [] });
 
 // Structure effects below are visible in the user's in-game Manor screenshot.
 // Acquisition comes from the corresponding game item. Outfit effects are verified on Codex.
@@ -61,12 +64,10 @@ export function manorTotals(setup: ManorSetup, category: string) {
 	}
 	const general = { cost: setup.baseCost, time: setup.baseTime, energy: setup.baseEnergy, success: 0 };
 	const specific = { cost: 0, time: 0, energy: 0, success: 0 };
-	for (const item of equipped) {
-		for (const effect of item.effects) {
-			const target = effect.scope === 'General' ? general : matchesManorScope(effect.scope, category) ? specific : null;
-			if (!target) continue;
-			for (const key of ['cost', 'time', 'energy', 'success'] as const) target[key] += effect[key] ?? 0;
-		}
+	for (const effect of [...equipped.flatMap(item => item.effects), ...(setup.extraEffects ?? [])]) {
+		const target = effect.scope === 'General' ? general : matchesManorScope(effect.scope, category) ? specific : null;
+		if (!target) continue;
+		for (const key of ['cost', 'time', 'energy', 'success'] as const) target[key] += effect[key] ?? 0;
 	}
 	for (const key of ['cost', 'time', 'energy', 'success'] as const) {
 		general[key] = Math.max(0, Math.min(30, general[key]));
@@ -84,17 +85,45 @@ function combinations(items: ManorEquip[], slots: number): string[][] {
 	return result;
 }
 
+export function withManorEquipment(setup: ManorSetup, kind: 'structures' | 'outfits', slot: number, id: string): ManorSetup {
+	const selected = MANOR_EQUIPMENT.find(item => item.id === id && item.kind === (kind === 'structures' ? 'structure' : 'outfit'));
+	if (slot < 0 || slot >= setup.slots || (id && !selected)) return setup;
+	return { ...setup, [kind]: Array.from({ length: setup.slots }, (_, index) => index === slot ? id
+		: setup[kind][index] === id || (selected?.npc && MANOR_EQUIPMENT.find(item => item.id === setup[kind][index])?.npc === selected.npc) ? '' : setup[kind][index] ?? '') };
+}
+
+type ManorTotals = ReturnType<typeof manorTotals>;
+/** Fee first or time first; speculative great-success bonuses never override the chosen goal. */
+function compareTotals(a: ManorTotals, b: ManorTotals, goal: 'cost' | 'time') {
+	return b[goal] - a[goal] || b[goal === 'cost' ? 'time' : 'cost'] - a[goal === 'cost' ? 'time' : 'cost'] || b.energy - a.energy;
+}
+
+/** Rank the complete resulting setup, including caps and replacement of duplicate NPC outfits. */
+export function rankManorEquipment(setup: ManorSetup, category: string, kind: 'structures' | 'outfits', slot: number, goal: 'cost' | 'time') {
+	return MANOR_EQUIPMENT.filter(item => item.kind === (kind === 'structures' ? 'structure' : 'outfit'))
+		.map(item => ({ item, totals: manorTotals(withManorEquipment(setup, kind, slot, item.id), category), applies: item.effects.some(effect => matchesManorScope(effect.scope, category)) }))
+		.sort((a, b) => Number(b.applies) - Number(a.applies) || compareTotals(a.totals, b.totals, goal)
+			|| Number(b.item.id === setup[kind][slot]) - Number(a.item.id === setup[kind][slot])
+			|| Number(setup.owned.includes(b.item.id)) - Number(setup.owned.includes(a.item.id)) || equipLabel(a.item).localeCompare(equipLabel(b.item)));
+}
+
 /** Compare only verified effects, respecting available slots, ownership, category caps, and NPC uniqueness. */
 export function suggestManor(setup: ManorSetup, category: string, goal: 'cost' | 'time', ownedOnly: boolean) {
 	const options = MANOR_EQUIPMENT.filter((e) => (!ownedOnly || setup.owned.includes(e.id)) && e.effects.some((effect) => matchesManorScope(effect.scope, category)));
 	let best = { ...setup, structures: [] as string[], outfits: [] as string[] };
-	let bestScore = -1;
+	let bestTotals = manorTotals(best, category);
+	let bestCount = 0;
+	let bestOwned = 0;
 	for (const structures of combinations(options.filter((e) => e.kind === 'structure'), setup.slots)) {
 		for (const outfits of combinations(options.filter((e) => e.kind === 'outfit'), setup.slots)) {
 			const candidate = { ...setup, structures, outfits };
 			const totals = manorTotals(candidate, category);
-			const score = totals[goal] * 10000 + totals[goal === 'cost' ? 'time' : 'cost'] * 100 + totals.successBonus - (structures.length + outfits.length) / 100;
-			if (score > bestScore) { best = candidate; bestScore = score; }
+			const order = compareTotals(totals, bestTotals, goal);
+			const count = structures.length + outfits.length;
+			const owned = [...structures, ...outfits].filter(id => setup.owned.includes(id)).length;
+			if (order < 0 || (order === 0 && (count < bestCount || (count === bestCount && owned > bestOwned)))) {
+				best = candidate; bestTotals = totals; bestCount = count; bestOwned = owned;
+			}
 		}
 	}
 	return { ...best, structures: Array.from({ length: setup.slots }, (_, i) => best.structures[i] ?? ''), outfits: Array.from({ length: setup.slots }, (_, i) => best.outfits[i] ?? '') };

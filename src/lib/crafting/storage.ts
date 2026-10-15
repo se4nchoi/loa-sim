@@ -1,6 +1,6 @@
 import { RECIPES } from './data';
 import type { CraftSettings } from './calculate';
-import { defaultManor, MANOR_EQUIPMENT, type ManorSetup } from './manor';
+import { defaultManor, MANOR_EQUIPMENT, MANOR_SCOPES, type ManorSetup, type ManorScope } from './manor';
 
 export type CraftRegion = 'NA' | 'CE';
 export interface CraftMarket { owned: Record<string, number>; prices: Record<string, number> }
@@ -14,7 +14,7 @@ export interface CraftSave {
 	manor: ManorSetup;
 }
 const KEY = 'loa-sim:crafting:v1';
-export const defaultCraftSave = (): CraftSave => ({ region: 'NA', recipeId: '6861013:excavating',
+export const defaultCraftSave = (): CraftSave => ({ region: 'NA', recipeId: '',
 	settings: { crafts: 1, costReduction: 0, timeReduction: 0, greatSuccess: 0 },
 	markets: { NA: { owned: {}, prices: {} }, CE: { owned: {}, prices: {} } }, favorites: [], favoritesOnly: false, manor: defaultManor() });
 
@@ -40,6 +40,18 @@ export function loadCraftSave(): CraftSave {
 		state.markets.NA = state.markets[state.region];
 		state.region = 'NA';
 		state.favorites = Array.isArray(raw.favorites) ? [...new Set<string>(raw.favorites.filter((id: unknown) => typeof id === 'string' && RECIPES.some((r) => r.id === id)))] : [];
+		// A displayed product remembers its route, rather than taking a slot for every variant.
+		const products = new Set<string>();
+		state.favorites = state.favorites.filter(id => {
+			const product = RECIPES.find(r => r.id === id)!.product.id;
+			if (products.has(product)) return false;
+			products.add(product);
+			return true;
+		});
+		const selectedProduct = RECIPES.find(r => r.id === state.recipeId)?.product.id;
+		if (selectedProduct && state.favorites.some(id => RECIPES.find(r => r.id === id)?.product.id === selectedProduct)) {
+			state.favorites = state.favorites.map(id => RECIPES.find(r => r.id === id)?.product.id === selectedProduct ? state.recipeId : id);
+		} else state.recipeId = state.favorites[0] ?? '';
 		state.favoritesOnly = raw.favoritesOnly === true;
 		if (raw.manor && typeof raw.manor === 'object') {
 			const valid = (id: unknown) => typeof id === 'string' && MANOR_EQUIPMENT.some((e) => e.id === id);
@@ -59,6 +71,10 @@ export function loadCraftSave(): CraftSave {
 			}
 			state.manor.owned = Array.isArray(raw.manor.owned) ? [...new Set<string>(raw.manor.owned.filter(valid))] : [];
 			for (const key of ['baseCost', 'baseTime', 'baseEnergy'] as const) state.manor[key] = bounded(raw.manor[key], 30);
+			if (Array.isArray(raw.manor.extraEffects)) state.manor.extraEffects = raw.manor.extraEffects.slice(0, 20)
+				.filter((effect: unknown) => effect && typeof effect === 'object' && MANOR_SCOPES.includes((effect as { scope: ManorScope }).scope))
+				.map((effect: Record<string, unknown>) => ({ name: typeof effect.name === 'string' ? effect.name.slice(0, 80) : '', scope: effect.scope as ManorScope,
+					cost: bounded(effect.cost, 30), time: bounded(effect.time, 30), energy: bounded(effect.energy, 30), success: bounded(effect.success, 30) }));
 		} else {
 			state.manor.baseCost = Math.min(30, state.settings.costReduction);
 			state.manor.baseTime = Math.min(30, state.settings.timeReduction);

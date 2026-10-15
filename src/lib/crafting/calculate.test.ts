@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RECIPES, FUSION_RECIPES } from './data';
-import { calculateCraft, minimumSellPrice, saleFee, type CraftSettings } from './calculate';
+import { calculateCraft, calculateCraftScenarios, minimumSellPrice, saleFee, type CraftSettings } from './calculate';
 
 const recipe = RECIPES.find((r) => r.id === '6861013:excavating')!;
 const settings: CraftSettings = { crafts: 1, costReduction: 0, timeReduction: 0, greatSuccess: 0 };
@@ -84,6 +84,16 @@ describe('stronghold crafting', () => {
 		expect(r.expectedOutput).toBe(10.5);
 		expect(r.revenue).toBe(1491);
 		expect(r.minutes).toBe(60);
+	});
+	it('keeps baseline profit and purchase quantities unchanged when an expected chance is entered', () => {
+		const regular = calculateCraftScenarios(recipe, settings, prices, {});
+		const withSuccess = calculateCraftScenarios(recipe, { ...settings, greatSuccess: 5.25 }, prices, {});
+		expect(regular.expected).toBeNull();
+		expect(withSuccess.baseline).toEqual(regular.baseline);
+		expect(withSuccess.expected!.expectedOutput).toBeCloseTo(10.525);
+		expect(withSuccess.expected!.profit).toBeCloseTo(314.55);
+		expect(withSuccess.expected!.cashNeeded).toBe(regular.baseline.cashNeeded);
+		expect(withSuccess.expected!.lines).toEqual(regular.baseline.lines);
 	});
 	it('finds the smallest break-even listing even at fee boundaries', () => {
 		for (const cost of [0, 1, 1.1, 19, 20, 118, 119.2, 990]) {

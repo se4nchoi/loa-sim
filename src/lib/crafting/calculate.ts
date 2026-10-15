@@ -15,6 +15,14 @@ const validPrice = (n: number | undefined): n is number => n !== undefined && Nu
 /** The fee applies to each market listing unit; 1-gold listings are exempt. */
 export const saleFee = (price: number) => price <= 1 ? 0 : Math.ceil(price / 20);
 
+/** Keep regular-output estimates independent of an optional user-supplied proc chance. */
+export function calculateCraftScenarios(recipe: CraftRecipe, settings: CraftSettings, prices: Record<string, number>, owned: Record<string, number>) {
+	return {
+		baseline: calculateCraft(recipe, { ...settings, greatSuccess: 0 }, prices, owned),
+		expected: percent(settings.greatSuccess) > 0 ? calculateCraft(recipe, settings, prices, owned) : null
+	};
+}
+
 export function calculateCraft(recipe: CraftRecipe, settings: CraftSettings, prices: Record<string, number>, owned: Record<string, number>) {
 	const crafts = Math.max(1, quantity(settings.crafts));
 	// Round each craft's gold fee, before multiplying by the number of crafts.
