@@ -22,17 +22,35 @@ export const MANOR_EQUIPMENT: ManorEquip[] = [
 	{ id: 'payla-vern', name: 'Vern Ball', npc: 'Payla', kind: 'outfit', icon: 'fam_dress_01_25', acquisition: 'Wardrobe · Payla outfit', effects: [{ scope: 'Special', cost: 2, success: 4 }], source: 'https://lostarkcodex.com/us/townnpcsuit/38002/' },
 	{ id: 'thirain-heir', name: 'The Irresistible Heir', npc: 'Thirain', kind: 'outfit', icon: 'fam_dress_01_100', acquisition: 'Wardrobe · Thirain outfit', effects: [{ scope: 'General', cost: 1, time: 2 }], source: 'https://lostarkcodex.com/us/townnpcsuit/20001/' },
 	{ id: 'nia-basic', name: 'Basic Outfit', npc: 'Nia', kind: 'outfit', icon: 'fam_dress_01_114', acquisition: 'Rapport · Nia’s basic outfit', effects: [{ scope: 'Special', cost: 1 }], source: 'https://lostarkcodex.com/us/townnpcsuit/1061/' },
-	{ id: 'vivian-lady', name: 'The Fair Lady', npc: 'Vivian', kind: 'outfit', icon: 'fam_dress_01_140', acquisition: 'Wardrobe · Vivian outfit', effects: [{ scope: 'Cooking', cost: 4 }, { scope: 'Tools', cost: 2 }], source: 'https://lostarkcodex.com/us/townnpcsuit/15001/' }
+	{ id: 'vivian-lady', name: 'The Fair Lady', npc: 'Vivian', kind: 'outfit', icon: 'fam_dress_01_140', acquisition: 'Wardrobe · Vivian outfit', effects: [{ scope: 'Cooking', cost: 4 }, { scope: 'Tools', cost: 2 }], source: 'https://lostarkcodex.com/us/townnpcsuit/15001/' },
+	{ id: 'urr-summer', name: 'Summer Vacation', npc: 'Artisan Urr', kind: 'outfit', icon: 'fam_dress_01_106', acquisition: 'Wardrobe · Artisan Urr outfit', effects: [{ scope: 'General', time: 2, success: 1 }], source: 'https://lostarkcodex.com/us/townnpcsuit/14001/' },
+	{ id: 'neria-luterra', name: 'The Voice of Luterra', npc: 'Neria', kind: 'outfit', icon: 'fam_dress_01_4', acquisition: 'Wardrobe · Neria outfit', effects: [{ scope: 'Cooking', time: 4, cost: 2 }], source: 'https://lostarkcodex.com/us/townnpcsuit/19001/' },
+	{ id: 'sasha-marine', name: 'Stern Marine Girl', npc: 'Sasha', kind: 'outfit', icon: 'fam_dress_01_101', acquisition: 'Wardrobe · Sasha outfit', effects: [{ scope: 'General', energy: 1 }], source: 'https://lostarkcodex.com/us/townnpcsuit/33001/' },
+	{ id: 'kaysarr-miner', name: 'The Underground Miner', npc: 'Kaysarr', kind: 'outfit', icon: 'fam_dress_01_135', acquisition: 'Wardrobe · Kaysarr outfit', effects: [{ scope: 'Structure', time: 4, energy: 2 }], source: 'https://lostarkcodex.com/us/townnpcsuit/62001/' },
+	{ id: 'anke-basic', name: 'Basic Outfit', npc: 'Anke', kind: 'outfit', icon: 'fam_dress_01_177', acquisition: 'Wardrobe · Anke outfit', effects: [{ scope: 'Tools', cost: 1 }], source: 'https://lostarkcodex.com/us/townnpcsuit/1079/' },
+	{ id: 'nineveh-cute', name: 'Cute Maid', npc: 'Nineveh', kind: 'outfit', icon: 'fam_dress_01_125', acquisition: 'Wardrobe · Nineveh outfit', effects: [{ scope: 'General', success: 2, time: 1 }], source: 'https://lostarkcodex.com/us/townnpcsuit/70006/' },
+	{ id: 'nineveh-sunshine', name: 'Sunshine Maid', npc: 'Nineveh', kind: 'outfit', icon: 'fam_dress_01_128', acquisition: 'Wardrobe · Nineveh outfit', effects: [{ scope: 'General', success: 2, time: 1 }], source: 'https://lostarkcodex.com/us/townnpcsuit/70009/' }
 ];
 
 export const equipLabel = (item: ManorEquip) => item.npc ? `${item.npc} · ${item.name}` : item.name;
 export const effectLabel = (effect: ManorEffect) => [effect.cost ? `Cost −${effect.cost}%` : '', effect.time ? `Time −${effect.time}%` : '', effect.energy ? `Energy −${effect.energy}%` : '', effect.success ? `Great success +${effect.success}%` : ''].filter(Boolean).join(' · ');
 export function manorTotals(setup: ManorSetup, category: string) {
-	const equipped = [...setup.structures.slice(0, setup.slots), ...setup.outfits.slice(0, setup.slots)];
+	const equipped: ManorEquip[] = [];
+	const seen = new Set<string>();
+	const npcs = new Set<string>();
+	for (const kind of ['structures', 'outfits'] as const) {
+		for (const id of setup[kind].slice(0, setup.slots)) {
+			const item = MANOR_EQUIPMENT.find((e) => e.id === id && e.kind === (kind === 'structures' ? 'structure' : 'outfit'));
+			if (!item || seen.has(item.id) || (item.npc && npcs.has(item.npc))) continue;
+			seen.add(item.id);
+			if (item.npc) npcs.add(item.npc);
+			equipped.push(item);
+		}
+	}
 	const general = { cost: setup.baseCost, time: setup.baseTime, energy: setup.baseEnergy, success: 0 };
 	const specific = { cost: 0, time: 0, energy: 0, success: 0 };
-	for (const id of new Set(equipped)) {
-		for (const effect of MANOR_EQUIPMENT.find((e) => e.id === id)?.effects ?? []) {
+	for (const item of equipped) {
+		for (const effect of item.effects) {
 			const target = effect.scope === 'General' ? general : effect.scope === category || (category === 'Farm (Bound)' && effect.scope === 'Special') ? specific : null;
 			if (!target) continue;
 			for (const key of ['cost', 'time', 'energy', 'success'] as const) target[key] += effect[key] ?? 0;

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "urr-summer",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/14001/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 14001 Summer Vacation Estate NPC's dress NPC: Artisan Urr The best sight in Iron Lake is that of Urr biceps. Crafting Time -2% Crafting Great Success Chance +1%"
+  },
+  {
+    "id": "neria-luterra",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/19001/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 19001 The Voice of Luterra Estate NPC's dress NPC: Neria The senior designer of the castle made clothes for Neria after getting inspiration from her song. [Cooking] Crafting Time -4% [Cooking] Crafting Cost -2%"
+  },
+  {
+    "id": "sasha-marine",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/33001/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 33001 Stern Marine Girl Estate NPC's dress NPC: Sasha The outfit Sasha wore at Stern's masquerade has since become a legend. Research Action Energy Consumption -2% Crafting Action Energy Consumption -1%"
+  },
+  {
+    "id": "kaysarr-miner",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/62001/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 62001 The Underground Miner Estate NPC's dress NPC: Kaysarr Kaysarr sometimes wears a miner outfit and sneaks into the workshop to get people's opinions. [Structure] Crafting Time -4% [Structure] Crafting Action Energy Consumption -2%"
+  },
+  {
+    "id": "anke-basic",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/1079/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 1079 Basic Outfit Estate NPC's dress NPC: Anke Anke doesn't waste too much time choosing clothes. [Trade Skill Tool] Crafting Cost -1%"
+  },
+  {
+    "id": "nineveh-cute",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/70006/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 70006 Cute Maid Estate NPC's dress NPC: Nineveh A maid outfit with cute frills. Pleccia's designer poured her heart into this outfit for Nineveh. Crafting Great Success Chance +2% Crafting Time -1%"
+  },
+  {
+    "id": "nineveh-sunshine",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/70009/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 70009 Sunshine Maid Estate NPC's dress NPC: Nineveh Nineveh the maid became the most popular person in the stronghold with her warm smile and cheery attitude. Crafting Great Success Chance +2% Crafting Time -1%"
+  }
+]

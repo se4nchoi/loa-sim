@@ -31,3 +31,9 @@ The calculator deliberately starts without market prices or assumed stronghold d
 ## Browser persistence
 
 Recipe selection, favorites, prices, inventory and manor settings save automatically in this browser. A failed storage write shows a warning; inputs remain usable in the open tab. Saved manor equipment is validated by slot type, with duplicates and invalid records removed on load.
+
+## Manor catalog coverage
+
+The catalog contains 3 structures and 11 outfits. The seven outfits added on 2026-10-15 have source excerpts in `manor-sources.json`: Artisan Urr’s Summer Vacation, Neria’s The Voice of Luterra, Sasha’s Stern Marine Girl, Kaysarr’s The Underground Miner, Anke’s Basic Outfit, and Nineveh’s Cute Maid and Sunshine Maid. Each collection entry shows its modeled effects and links to its source. General crafting bonuses apply across categories; research-only bonuses (such as Sasha’s research energy reduction) are excluded. One outfit per NPC can be equipped or suggested.
+
+This is a verified subset, not the full game catalog. Potion/bomb/grenade-only bonuses and ambiguous `[4-4]` scopes are excluded until recipe subcategories are modeled. Codex’s estate-object index returned no structure records during this audit, so structure coverage retains the three screenshot-verified entries. Relative great-success bonuses remain separate from the manually entered actual probability.

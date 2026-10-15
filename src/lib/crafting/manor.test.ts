@@ -47,4 +47,36 @@ describe('manor effects', () => {
 		expect([...owned.structures, ...owned.outfits].filter(Boolean).every((id) => setup.owned.includes(id))).toBe(true);
 		expect(manorTotals(owned, 'Special').cost).toBe(7);
 	});
+	it('uses the expanded cooking and tool outfits only in their matching categories', () => {
+		const setup = defaultManor();
+		setup.outfits = ['neria-luterra', 'anke-basic', 'kaysarr-miner'];
+		expect(manorTotals(setup, 'Cooking')).toMatchObject({ cost: 2, time: 4, energy: 0 });
+		expect(manorTotals(setup, 'Tools')).toMatchObject({ cost: 1, time: 0, energy: 0 });
+		expect(manorTotals(setup, 'Structure')).toMatchObject({ cost: 0, time: 4, energy: 2 });
+		expect(manorTotals(setup, 'Special')).toMatchObject({ cost: 0, time: 0, energy: 0 });
+	});
+	it('keeps general success bonuses separate from actual great-success probability', () => {
+		const setup = defaultManor();
+		setup.outfits = ['urr-summer', 'nineveh-cute', 'sasha-marine'];
+		expect(manorTotals(setup, 'Special')).toMatchObject({ time: 3, energy: 1, successBonus: 3 });
+	});
+	it('cannot stack Nineveh outfits, including in externally supplied setups', () => {
+		const setup = defaultManor();
+		setup.outfits = ['nineveh-cute', 'nineveh-sunshine', 'urr-summer'];
+		expect(manorTotals(setup, 'Special')).toMatchObject({ time: 3, successBonus: 3 });
+		setup.owned = ['nineveh-cute', 'nineveh-sunshine', 'urr-summer'];
+		const suggestion = suggestManor(setup, 'Special', 'time', true);
+		expect(suggestion.outfits.filter((id) => id.startsWith('nineveh-'))).toHaveLength(1);
+		expect(manorTotals(suggestion, 'Special').time).toBe(3);
+	});
+	it('finds the improved fastest structure setup without losing ownership constraints', () => {
+		const setup = defaultManor();
+		const all = suggestManor(setup, 'Structure', 'time', false);
+		expect(manorTotals(all, 'Structure').time).toBe(8);
+		setup.owned = ['kaysarr-miner', 'sasha-marine'];
+		const owned = suggestManor(setup, 'Structure', 'time', true);
+		expect(manorTotals(owned, 'Structure').time).toBe(4);
+		expect([...owned.structures, ...owned.outfits].filter(Boolean).every((id) => setup.owned.includes(id))).toBe(true);
+	});
+
 });

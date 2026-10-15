@@ -50,6 +50,12 @@ describe('crafting browser storage', () => {
 		expect(loaded.outfits).toEqual(['', 'payla-vern', '']);
 		expect(loaded.owned).toEqual(['glass-sheep']);
 	});
+	it('restores at most one outfit for each NPC', () => {
+		const saved = defaultCraftSave();
+		saved.manor.outfits = ['nineveh-cute', 'nineveh-sunshine', 'urr-summer'];
+		vi.stubGlobal('localStorage', { getItem: () => JSON.stringify(saved) });
+		expect(loadCraftSave().manor.outfits).toEqual(['nineveh-cute', '', 'urr-summer']);
+	});
 	it('ignores malformed manor arrays and non-numeric bonuses', () => {
 		vi.stubGlobal('localStorage', { getItem: () => JSON.stringify({ manor: { slots: '4', structures: { length: 999999 }, outfits: null, baseCost: '20', baseEnergy: -5 } }) });
 		const loaded = loadCraftSave().manor;
