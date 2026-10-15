@@ -65,7 +65,7 @@ export interface SimState {
 	gear: Partial<Record<HoningSlot, SimGear>>;
 	quality: SimQuality;
 	accessories: Partial<Record<AccessorySlot, SimLine[]>>;
-	/** Each gem, in the order of the loadout's gem parts. Only `level` affects Combat Power. */
+	/** Each gem, in the order of the loadout's gem parts, then gems added in empty slots (up to MAX_GEMS). */
 	gems: SimGem[];
 	/** Optional damage share per skill id, in percent of total damage; enables the DPS estimate. */
 	skillShares: Record<number, number>;
@@ -101,9 +101,30 @@ export interface SimGem {
 	tier?: 'T3' | 'T4';
 	level: number;
 	kind: GemKind;
-	/** Skill the gem applies to, or null when unknown. */
+	/** Skill the gem applies to, or null when unknown (it still counts for Combat Power). */
 	skill: number | null;
 }
+
+/**
+ * Which gems take effect: per skill only one gem of each kind. The game deactivates a second damage
+ * (or cooldown) gem on a skill; the highest level stays on (the first one on a tie). Gems with no known skill count.
+ */
+export function gemsInEffect(gems: SimGem[]): boolean[] {
+	const best = new Map<string, number>();
+	gems.forEach((g, i) => {
+		if (g.skill === null) return;
+		const key = `${g.skill}:${g.kind}`;
+		const at = best.get(key);
+		if (at === undefined || g.level > gems[at].level) best.set(key, i);
+	});
+	return gems.map((g, i) => g.skill === null || best.get(`${g.skill}:${g.kind}`) === i);
+}
+
+/** Gem slots a character has. */
+export const MAX_GEMS = 11;
+
+/** Item id of a regular gem: 650[tier 3|2][1 damage|2 cooldown][level 2 digits]0. */
+export const gemItemId = (tier: 'T3' | 'T4', kind: GemKind, level: number) => 65000000 + (tier === 'T4' ? 3 : 2) * 10000 + (kind === 'damage' ? 1 : 2) * 1000 + level * 10;
 
 // Gem effects: 5 / 27 name a skill; 34 / 35 name a skill group (Guardian Knight skills, Brawl King Twelve Forms).
 // Support damage gems also carry buff / shield / heal / Atk. Power amplify effects: 58 / 60 / 62 / 64 on a skill,
@@ -536,12 +557,20 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	weaponPower *= (100 + pct1) / (100 + pct0);
 	// Ability stone: its two engraving lines reaching 16 nodes add Atk. Power, which follows the simulated stone levels.
 	let atkPct1 = atkPct + bracer1.attackPercent - bracer0.attackPercent;
-	gemParts(l).forEach((g, k) => {
+	// Gem base attack: only gems in effect give it, so removing or deactivating one takes its share away.
+	const loadedGems = gemParts(l);
+	const on = gemsInEffect(state.gems), onBase = gemsInEffect(base.gems);
+	loadedGems.forEach((g, k) => {
 		const from = base.gems[k]?.level ?? g.level;
 		const to = state.gems[k]?.level ?? from;
-		const fromBonus = (base.gems[k]?.tier ?? g.tier) === 'T4' ? (GEM_BASE_ATTACK[from - 1] ?? 0) : 0;
-		const toBonus = (state.gems[k]?.tier ?? g.tier) === 'T4' ? (GEM_BASE_ATTACK[to - 1] ?? 0) : 0;
-		atkPct1 += toBonus - fromBonus;
+		const fromBonus = (onBase[k] ?? true) && (base.gems[k]?.tier ?? g.tier) === 'T4' ? (GEM_BASE_ATTACK[from - 1] ?? 0) : 0;
+		const toBonus = (on[k] ?? true) && (state.gems[k]?.tier ?? g.tier) === 'T4' ? (GEM_BASE_ATTACK[to - 1] ?? 0) : 0;
+		// A snapshot gem bible already scored while inactive keeps bible's figure until an edit turns it on or off.
+		if ((on[k] ?? true) || (onBase[k] ?? true)) atkPct1 += toBonus - fromBonus;
+	});
+	// Gems added in empty slots: their base attack is new (the snapshot had none there).
+	state.gems.forEach((g, k) => {
+		if (k >= loadedGems.length && on[k] && (g.tier ?? 'T4') === 'T4') atkPct1 += GEM_BASE_ATTACK[g.level - 1] ?? 0;
 	});
 	const stoneLevels = (s: SimState) => Object.values(s.engravings).map((e) => e.stone);
 	if (stoneLevels(state).join() !== stoneLevels(base).join())
@@ -585,7 +614,16 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 		const level = state.gems[k]?.level;
 		const tier = state.gems[k]?.tier ?? g.tier;
 		const table = tier === 'T4' ? role.gemT4 : tier === 'T3' ? role.gemT3 : null;
-		if (g.table && table && level && (level !== g.level || tier !== g.tier)) parts[gemIndices[k]].value = table[level - 1];
+		const now = on[k] ?? true, before = onBase[k] ?? true;
+		if (!now) { if (before) parts[gemIndices[k]].value = 0; }
+		else if (g.table && table && level && (level !== g.level || tier !== g.tier || !before)) parts[gemIndices[k]].value = table[level - 1];
+	});
+	// Gems added in empty slots score like any other, while in effect.
+	state.gems.forEach((g, k) => {
+		if (k < gemIndices.length || !on[k]) return;
+		const tier = g.tier ?? 'T4';
+		const table = tier === 'T4' ? role.gemT4 : role.gemT3;
+		if (table[g.level - 1] !== undefined) parts.push({ type: PartType.Gem, id: gemItemId(tier, g.kind, g.level), value: table[g.level - 1] });
 	});
 
 	// --- Engravings
