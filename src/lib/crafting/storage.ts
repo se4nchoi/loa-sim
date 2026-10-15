@@ -43,10 +43,22 @@ export function loadCraftSave(): CraftSave {
 		state.favoritesOnly = raw.favoritesOnly === true;
 		if (raw.manor && typeof raw.manor === 'object') {
 			const valid = (id: unknown) => typeof id === 'string' && MANOR_EQUIPMENT.some((e) => e.id === id);
-			state.manor.slots = Math.max(1, Math.min(4, Math.floor(Number(raw.manor.slots) || 3)));
-			for (const kind of ['structures', 'outfits'] as const) state.manor[kind] = Array.from({ length: Math.max(state.manor.slots, Math.min(4, raw.manor[kind]?.length ?? 0)) }, (_, i) => valid(raw.manor[kind]?.[i]) ? raw.manor[kind][i] : '');
-			state.manor.owned = Array.isArray(raw.manor.owned) ? raw.manor.owned.filter(valid) : [];
-			for (const key of ['baseCost', 'baseTime', 'baseEnergy'] as const) state.manor[key] = Math.max(0, Math.min(30, Number(raw.manor[key]) || 0));
+			const bounded = (value: unknown, max: number, fallback = 0) => typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(max, value)) : fallback;
+			state.manor.slots = Math.max(1, Math.floor(bounded(raw.manor.slots, 4, 3)));
+			for (const kind of ['structures', 'outfits'] as const) {
+				const entries: unknown[] = Array.isArray(raw.manor[kind]) ? raw.manor[kind] : [];
+				const seen = new Set<string>();
+				const npcs = new Set<string>();
+				state.manor[kind] = Array.from({ length: Math.max(state.manor.slots, Math.min(4, entries.length)) }, (_, i) => {
+					const item = MANOR_EQUIPMENT.find((e) => e.id === entries[i] && e.kind === (kind === 'structures' ? 'structure' : 'outfit'));
+					if (!item || seen.has(item.id) || (item.npc && npcs.has(item.npc))) return '';
+					seen.add(item.id);
+					if (item.npc) npcs.add(item.npc);
+					return item.id;
+				});
+			}
+			state.manor.owned = Array.isArray(raw.manor.owned) ? [...new Set<string>(raw.manor.owned.filter(valid))] : [];
+			for (const key of ['baseCost', 'baseTime', 'baseEnergy'] as const) state.manor[key] = bounded(raw.manor[key], 30);
 		} else {
 			state.manor.baseCost = Math.min(30, state.settings.costReduction);
 			state.manor.baseTime = Math.min(30, state.settings.timeReduction);
@@ -55,6 +67,11 @@ export function loadCraftSave(): CraftSave {
 	return state;
 }
 
-export function saveCraftSave(state: CraftSave) {
-	try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* Keep working if browser storage is blocked. */ }
+export function saveCraftSave(state: CraftSave): boolean {
+	try {
+		localStorage.setItem(KEY, JSON.stringify(state));
+		return true;
+	} catch {
+		return false;
+	}
 }

@@ -12,7 +12,7 @@
 - Great success is off by default. The optional field is an actual probability of double output, not a structure/outfit's relative bonus. Expected output is not guaranteed output.
 - Time and profit per hour are for a single queue. The user's Workshop screenshot confirms Abidos batches of up to ten crafts share one timer; other catalog entries explicitly assume one craft per timer until their batch capacities are verified. Manor action-energy reductions are applied per craft.
 - Inventory is a planning input and is not consumed when changing recipes. Each alternative is an independent comparison. The region selector is removed; loading an older save carries over the previously selected inventory and prices.
-- Bound recipes show costs and optional replacement-value savings, never market-sale profit. Material exchanges and the contents of selection chests are not modeled.
+- Bound recipes show costs and optional replacement-value savings, never market-sale profit. Their route comparison ranks known cost per item from lowest to highest. Material exchanges and the contents of selection chests are not modeled.
 - Manor equipment applies the appropriate category effects, with separate general (30%) and category-specific (10%) caps. Research and other general bonuses are entered separately. Suggestions optimize gold fee or time among the verified equipment catalog, optionally restricted to owned effects; they do not claim maximum profit from speculative great-success rates.
 
 ## Data
@@ -27,3 +27,7 @@ Recipe source links are stored on each recipe. Examples:
 - [Superior Abidos, Mining](https://lostarkcodex.com/sp/recipe/106861213/)
 
 The calculator deliberately starts without market prices or assumed stronghold discounts. No market API is called. Manor structure bonuses for Card-Flipping Game, Acrobat's Waiting Room and Glass Sheep are directly visible in the user's in-game screenshot; outfit records link to their individual sources in `manor.ts`.
+
+## Browser persistence
+
+Recipe selection, favorites, prices, inventory and manor settings save automatically in this browser. A failed storage write shows a warning; inputs remain usable in the open tab. Saved manor equipment is validated by slot type, with duplicates and invalid records removed on load.

@@ -39,6 +39,33 @@ describe('crafting browser storage', () => {
 		expect(craft.markets.NA.prices).toEqual({ valid: 0 });
 		expect(craft.markets.NA.owned).toEqual({ valid: 12 });
 	});
+	it('normalizes manor slots and rejects equipment in the wrong slot type', () => {
+		const saved = defaultCraftSave();
+		saved.manor.structures = ['glass-sheep', 'glass-sheep', 'payla-vern'];
+		saved.manor.outfits = ['card-flipping', 'payla-vern', 'payla-vern'];
+		saved.manor.owned = ['glass-sheep', 'glass-sheep', 'unknown'];
+		vi.stubGlobal('localStorage', { getItem: () => JSON.stringify(saved) });
+		const loaded = loadCraftSave().manor;
+		expect(loaded.structures).toEqual(['glass-sheep', '', '']);
+		expect(loaded.outfits).toEqual(['', 'payla-vern', '']);
+		expect(loaded.owned).toEqual(['glass-sheep']);
+	});
+	it('ignores malformed manor arrays and non-numeric bonuses', () => {
+		vi.stubGlobal('localStorage', { getItem: () => JSON.stringify({ manor: { slots: '4', structures: { length: 999999 }, outfits: null, baseCost: '20', baseEnergy: -5 } }) });
+		const loaded = loadCraftSave().manor;
+		expect(loaded.slots).toBe(3);
+		expect(loaded.structures).toEqual(['', '', '']);
+		expect(loaded.outfits).toEqual(['', '', '']);
+		expect(loaded.baseCost).toBe(0);
+		expect(loaded.baseEnergy).toBe(0);
+	});
+	it('reports a failed write and recovers when storage becomes available', () => {
+		let blocked = true;
+		vi.stubGlobal('localStorage', { setItem: () => { if (blocked) throw new Error('quota'); } });
+		expect(saveCraftSave(defaultCraftSave())).toBe(false);
+		blocked = false;
+		expect(saveCraftSave(defaultCraftSave())).toBe(true);
+	});
 	it('works when localStorage is unavailable', () => {
 		vi.stubGlobal('localStorage', { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } });
 		expect(loadCraftSave()).toEqual(defaultCraftSave());
