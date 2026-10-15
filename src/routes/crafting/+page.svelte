@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { calculateCraft, saleFee } from '$lib/crafting/calculate';
-	import { CATEGORIES, RECIPES, type CraftMaterial } from '$lib/crafting/data';
+	import { RECIPES, craftingScope, type CraftMaterial } from '$lib/crafting/data';
+	import RecipeBrowser from '$lib/crafting/RecipeBrowser.svelte';
+	import { recipeVariantLabel } from '$lib/crafting/recipe-labels';
 	import Manor from '$lib/crafting/Manor.svelte';
 	import { manorTotals } from '$lib/crafting/manor';
 	import { defaultCraftSave, loadCraftSave, saveCraftSave, type CraftRegion } from '$lib/crafting/storage';
@@ -15,11 +17,11 @@
 	$effect(() => { if (ready) saveFailed = !saveCraftSave($state.snapshot(craft)); });
 	const recipe = $derived(RECIPES.find((r) => r.id === craft.recipeId) ?? RECIPES[0]);
 	const market = $derived(craft.markets.NA);
-	const manorCategory = $derived(recipe.manorCategory ?? recipe.category ?? 'Special');
+	const manorCategory = $derived(craftingScope(recipe));
 	const manor = $derived(manorTotals(craft.manor, manorCategory));
 	const settings = $derived({ ...craft.settings, costReduction: manor.cost, timeReduction: manor.time });
 	const result = $derived(calculateCraft(recipe, settings, market.prices, market.owned));
-	const comparisons = $derived(RECIPES.filter((r) => r.product.id === recipe.product.id).map((r) => ({ recipe: r, result: calculateCraft(r, settings, market.prices, market.owned) }))
+	const comparisons = $derived(RECIPES.filter((r) => r.product.id === recipe.product.id).map((r) => ({ recipe: r, result: calculateCraft(r, { ...craft.settings, costReduction: manorTotals(craft.manor, craftingScope(r)).cost, timeReduction: manorTotals(craft.manor, craftingScope(r)).time }, market.prices, market.owned) }))
 		.toSorted((a, b) => recipe.tradeable === false
 			? (a.result.unitCost ?? Infinity) - (b.result.unitCost ?? Infinity)
 			: (b.result.profit ?? -Infinity) - (a.result.profit ?? -Infinity)));
@@ -42,16 +44,6 @@
 		const n = num(text) ?? 0;
 		craft.settings[key] = key === 'crafts' ? Math.max(1, Math.min(100000, Math.floor(n))) : Math.min(key === 'timeReduction' ? 99 : 100, n);
 	}
-	let search = $state('');
-	let category = $state('All');
-	const recipeName = (r: typeof recipe) => {
-		const duplicates = RECIPES.filter((other) => other.product.id === r.product.id && other.path === r.path);
-		const variant = duplicates.length > 1 ? ` · ${r.ingredients.map((i) => `${i.material.name} ×${i.quantity}`).join(', ')}` : r.path !== r.category ? ` · ${r.path}` : '';
-		return `${r.product.name}${variant}`;
-	};
-	const filtered = $derived(RECIPES.filter((r) => (category === 'All' || r.category === category) && (!craft.favoritesOnly || craft.favorites.includes(r.id)) && recipeName(r).toLowerCase().includes(search.toLowerCase().trim())));
-	const variants = $derived(RECIPES.filter((r) => r.product.id === recipe.product.id));
-	function favorite() { craft.favorites = craft.favorites.includes(recipe.id) ? craft.favorites.filter((id) => id !== recipe.id) : [...craft.favorites, recipe.id]; }
 	let clearedOwned = $state<{ region: CraftRegion; values: Record<string, number> } | null>(null);
 	let clearedPrices = $state<{ region: CraftRegion; values: Record<string, number> } | null>(null);
 	function clear(column: 'owned' | 'prices') {
@@ -94,11 +86,7 @@
 	<div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
 		<div class="min-w-0 space-y-4">
 			<section class="craft-card" aria-label="Crafting recipe">
-				<div class="mb-3 flex flex-wrap items-center gap-2"><select class="craft-input" style:width="auto" bind:value={category} aria-label="Craft category"><option value="All">All craftables</option>{#each CATEGORIES as name}<option value={name}>{name}</option>{/each}</select><label class="flex items-center gap-1.5 text-xs text-surface-200"><input type="checkbox" bind:checked={craft.favoritesOnly} class="accent-amber-400" />Favorites only</label><span class="ml-auto text-xs text-surface-400">{filtered.length} recipes</span></div>
-				<input type="search" class="craft-input mb-2" placeholder="Search craftables…" bind:value={search} aria-label="Search craftables" />
-				<div class="flex min-w-0 items-center gap-2">{@render itemIcon(recipe.product, 'size-10')}<select class="craft-input min-w-0 flex-1" bind:value={craft.recipeId} aria-label="Crafting recipe">{#if !filtered.some((r) => r.id === recipe.id)}<option value={recipe.id}>{recipeName(recipe)} · selected</option>{/if}{#each CATEGORIES as name}{@const options = filtered.filter((r) => r.category === name)}{#if options.length}<optgroup label={name}>{#each options as option}<option value={option.id}>{craft.favorites.includes(option.id) ? '★ ' : ''}{recipeName(option)}</option>{/each}</optgroup>{/if}{/each}</select><button type="button" class={`${btn} h-9 text-lg ${craft.favorites.includes(recipe.id) ? 'text-amber-300' : 'text-surface-400'}`} aria-label={craft.favorites.includes(recipe.id) ? 'Remove recipe from favorites' : 'Favorite recipe'} aria-pressed={craft.favorites.includes(recipe.id)} onclick={favorite}>{craft.favorites.includes(recipe.id) ? '★' : '☆'}</button></div>
-				{#if !filtered.length}<p class="mt-2 text-xs text-surface-400">No recipes match the filters.</p>{/if}
-				{#if variants.length > 1 && variants.every((r) => r.path !== r.category)}<div class="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Trade skill recipe">{#each variants as variant}<button type="button" class={variant.id === recipe.id ? btnAccent : btn} aria-pressed={variant.id === recipe.id} onclick={() => craft.recipeId = variant.id}>{variant.path}</button>{/each}</div>{/if}
+				<RecipeBrowser bind:recipeId={craft.recipeId} bind:favorites={craft.favorites} />
 				<div class="mt-4 grid grid-cols-2 items-end gap-3 sm:grid-cols-3">
 					<label class="field-label">Crafts<input type="number" min="1" max="100000" step="1" class="craft-input" value={craft.settings.crafts} oninput={(e) => setting('crafts', e.currentTarget.value)} aria-label="Number of crafts" /></label>
 					<div class="text-sm"><span class="block text-xs text-surface-300">Guaranteed output</span><strong class="tabular-nums">{fmt(result.output, 0)}</strong><span class="ml-1 text-xs text-surface-400">({recipe.output} per craft)</span></div>
@@ -134,8 +122,8 @@
 				<h2 id="route-compare" class="font-semibold">Compare recipes</h2><p class="mt-1 mb-3 text-xs text-surface-400">Each route uses the same craft count and inventory independently.</p>
 				<div class="grid grid-cols-[minmax(0,1fr)_6rem_6rem] gap-2 border-b border-surface-700 pb-2 text-xs text-surface-300 sm:grid-cols-[minmax(0,1fr)_8rem_8rem]"><span>Trade skill</span><span class="text-right">{recipe.tradeable === false ? 'Cost / item' : 'Profit / craft'}</span><span class="text-right">Gold to spend</span></div>
 				{#each comparisons as row (row.recipe.id)}
-					<button type="button" aria-label={`Select ${row.recipe.path} recipe`} aria-pressed={row.recipe.id === recipe.id} onclick={() => craft.recipeId = row.recipe.id} class={`grid w-full grid-cols-[minmax(0,1fr)_6rem_6rem] items-center gap-2 border-b border-surface-800 py-3 text-left text-sm hover:bg-surface-800/50 sm:grid-cols-[minmax(0,1fr)_8rem_8rem] ${row.recipe.id === recipe.id ? 'bg-accent-500/10' : ''}`}>
-						<span>{row.recipe.path}{#if recipe.tradeable !== false && best?.recipe.id === row.recipe.id}<span class="ml-1 text-[10px] text-amber-300">Best priced</span>{/if}{#if row.result.missing.length}<span class="block text-[11px] text-amber-300/80">{row.result.missing.length} missing prices</span>{/if}</span>
+					<button type="button" aria-label={`Select ${recipeVariantLabel(row.recipe)} recipe`} aria-pressed={row.recipe.id === recipe.id} onclick={() => craft.recipeId = row.recipe.id} class={`grid w-full grid-cols-[minmax(0,1fr)_6rem_6rem] items-center gap-2 border-b border-surface-800 py-3 text-left text-sm hover:bg-surface-800/50 sm:grid-cols-[minmax(0,1fr)_8rem_8rem] ${row.recipe.id === recipe.id ? 'bg-accent-500/10' : ''}`}>
+						<span>{recipeVariantLabel(row.recipe)}{#if recipe.tradeable !== false && best?.recipe.id === row.recipe.id}<span class="ml-1 text-[10px] text-amber-300">Best priced</span>{/if}{#if row.result.missing.length}<span class="block text-[11px] text-amber-300/80">{row.result.missing.length} missing prices</span>{/if}</span>
 						<span class={`text-right font-semibold tabular-nums ${recipe.tradeable === false ? 'text-surface-100' : tone(row.result.profit)}`}>{recipe.tradeable === false ? fmt(row.result.unitCost) : signed(row.result.profit === null ? null : row.result.profit / row.result.crafts)}</span><span class="text-right tabular-nums">{fmt(row.result.cashNeeded)}</span>
 					</button>
 				{/each}

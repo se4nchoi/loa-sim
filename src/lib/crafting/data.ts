@@ -1,4 +1,5 @@
 import catalog from './catalog.json';
+import battleTypes from './battle-types.json';
 
 export interface CraftMaterial {
 	id: string;
@@ -61,3 +62,10 @@ export const FUSION_RECIPES: CraftRecipe[] = PRODUCTS.flatMap((product, tier) =>
 
 export const RECIPES: CraftRecipe[] = [...FUSION_RECIPES, ...catalog.filter((r) => !PRODUCTS.some((product) => product.id === r.product.id))];
 export const CATEGORIES = ['Battle Item', 'Cooking', 'Structure', 'Tools', 'Special', 'Farm (Bound)'];
+
+/** Item tooltip types audited from Codex; HP potions and selection chests retain the general scope. */
+export function craftingScope(recipe: CraftRecipe): string {
+	const category = recipe.manorCategory ?? recipe.category ?? 'Special';
+	const subtype = (battleTypes as Record<string, string>)[recipe.product.id];
+	return category === 'Battle Item' && subtype ? `Battle Item - ${subtype}` : category;
+}

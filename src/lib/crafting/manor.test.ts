@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultManor, manorTotals, suggestManor } from './manor';
 import { calculateCraft } from './calculate';
-import { FUSION_RECIPES } from './data';
+import { FUSION_RECIPES, RECIPES, craftingScope } from './data';
 
 describe('manor effects', () => {
 	it('reproduces the screenshot: 7% general + 10% special = 17%, 4310 gold for ten crafts', () => {
@@ -77,6 +77,24 @@ describe('manor effects', () => {
 		const owned = suggestManor(setup, 'Structure', 'time', true);
 		expect(manorTotals(owned, 'Structure').time).toBe(4);
 		expect([...owned.structures, ...owned.outfits].filter(Boolean).every((id) => setup.owned.includes(id))).toBe(true);
+	});
+
+	it('applies grenade, bomb and potion bonuses only to the audited item type', () => {
+		const setup = defaultManor();
+		setup.outfits = ['neria-battlefield', 'krissa-specialist', 'ezrebet-basic'];
+		for (const [id, scope, cost] of [['101221', 'Battle Item - Grenade', 4], ['101912', 'Battle Item - Bomb', 4], ['101181', 'Battle Item - Potion', 1]] as const) {
+			const recipe = RECIPES.find((r) => r.product.id === id)!;
+			expect(craftingScope(recipe)).toBe(scope);
+			expect(manorTotals(setup, scope).cost).toBe(cost);
+		}
+		expect(manorTotals(setup, 'Special').cost).toBe(0);
+		expect(craftingScope(RECIPES.find((r) => r.product.id === '101061')!)).toBe('Battle Item');
+	});
+	it('changes the lowest-cost suggestion with the selected crafting category', () => {
+		const setup = defaultManor();
+		for (const [scope, item] of [['Special', 'payla-vern'], ['Cooking', 'vivian-lady'], ['Battle Item - Grenade', 'neria-battlefield'], ['Battle Item - Bomb', 'krissa-specialist'], ['Battle Item - Other', 'poppy-engineer']] as const) {
+			expect(suggestManor(setup, scope, 'cost', false).outfits).toContain(item);
+		}
 	});
 
 });

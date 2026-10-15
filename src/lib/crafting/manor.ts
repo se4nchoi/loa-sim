@@ -1,5 +1,5 @@
 export type CraftCategory = 'Special' | 'Battle Item' | 'Cooking' | 'Tools' | 'Structure' | 'Farm (Bound)';
-export type ManorScope = 'General' | CraftCategory;
+export type ManorScope = 'General' | CraftCategory | `Battle Item - ${'Potion' | 'Bomb' | 'Grenade' | 'Other'}`;
 export interface ManorEffect { scope: ManorScope; cost?: number; time?: number; success?: number; energy?: number }
 export interface ManorEquip { id: string; name: string; kind: 'structure' | 'outfit'; icon?: string; npc?: string; acquisition: string; effects: ManorEffect[]; source: string }
 export interface ManorSetup {
@@ -29,11 +29,23 @@ export const MANOR_EQUIPMENT: ManorEquip[] = [
 	{ id: 'kaysarr-miner', name: 'The Underground Miner', npc: 'Kaysarr', kind: 'outfit', icon: 'fam_dress_01_135', acquisition: 'Wardrobe · Kaysarr outfit', effects: [{ scope: 'Structure', time: 4, energy: 2 }], source: 'https://lostarkcodex.com/us/townnpcsuit/62001/' },
 	{ id: 'anke-basic', name: 'Basic Outfit', npc: 'Anke', kind: 'outfit', icon: 'fam_dress_01_177', acquisition: 'Wardrobe · Anke outfit', effects: [{ scope: 'Tools', cost: 1 }], source: 'https://lostarkcodex.com/us/townnpcsuit/1079/' },
 	{ id: 'nineveh-cute', name: 'Cute Maid', npc: 'Nineveh', kind: 'outfit', icon: 'fam_dress_01_125', acquisition: 'Wardrobe · Nineveh outfit', effects: [{ scope: 'General', success: 2, time: 1 }], source: 'https://lostarkcodex.com/us/townnpcsuit/70006/' },
-	{ id: 'nineveh-sunshine', name: 'Sunshine Maid', npc: 'Nineveh', kind: 'outfit', icon: 'fam_dress_01_128', acquisition: 'Wardrobe · Nineveh outfit', effects: [{ scope: 'General', success: 2, time: 1 }], source: 'https://lostarkcodex.com/us/townnpcsuit/70009/' }
+	{ id: 'nineveh-sunshine', name: 'Sunshine Maid', npc: 'Nineveh', kind: 'outfit', icon: 'fam_dress_01_128', acquisition: 'Wardrobe · Nineveh outfit', effects: [{ scope: 'General', success: 2, time: 1 }], source: 'https://lostarkcodex.com/us/townnpcsuit/70009/' },
+	{ id: 'ezrebet-basic', name: 'Basic Outfit', npc: 'Ezrebet', kind: 'outfit', icon: 'fam_dress_01_83', acquisition: 'Wardrobe · Ezrebet outfit', effects: [{ scope: 'Battle Item - Potion', cost: 1 }], source: 'https://lostarkcodex.com/us/townnpcsuit/1044/' },
+	{ id: 'nagi-basic', name: 'Basic Outfit', npc: 'Nagi', kind: 'outfit', icon: 'fam_dress_01_116', acquisition: 'Wardrobe · Nagi outfit', effects: [{ scope: 'Battle Item - Potion', time: 1 }], source: 'https://lostarkcodex.com/us/townnpcsuit/1063/' },
+	{ id: 'poppy-engineer', name: 'The Machine Engineering Poppy', npc: 'Poppy', kind: 'outfit', icon: 'fam_dress_01_11', acquisition: 'Wardrobe · Poppy outfit', effects: [{ scope: 'Battle Item - Other', cost: 4, time: 2 }], source: 'https://lostarkcodex.com/us/townnpcsuit/26001/' },
+	{ id: 'krissa-specialist', name: 'The Busy Specialist', npc: 'Krissa', kind: 'outfit', icon: 'fam_dress_01_111', acquisition: 'Wardrobe · Krissa outfit', effects: [{ scope: 'Battle Item - Bomb', cost: 4, energy: 2 }], source: 'https://lostarkcodex.com/us/townnpcsuit/55001/' },
+	{ id: 'yuul-kind', name: 'The Kind Martial Artist', npc: 'Yuul', kind: 'outfit', icon: 'fam_dress_01_26', acquisition: 'Wardrobe · Yuul outfit', effects: [{ scope: 'Battle Item - Potion', time: 4, energy: 2 }], source: 'https://lostarkcodex.com/us/townnpcsuit/41001/' },
+	{ id: 'yuul-fancy', name: 'The Fancy Martial Artist', npc: 'Yuul', kind: 'outfit', icon: 'fam_dress_01_27', acquisition: 'Wardrobe · Yuul outfit', effects: [{ scope: 'Battle Item - Bomb', time: 4, energy: 2 }], source: 'https://lostarkcodex.com/us/townnpcsuit/41002/' },
+	{ id: 'yuul-calm', name: 'The Calm Martial Artist', npc: 'Yuul', kind: 'outfit', icon: 'fam_dress_01_28', acquisition: 'Wardrobe · Yuul outfit', effects: [{ scope: 'Battle Item - Grenade', time: 4, energy: 2 }], source: 'https://lostarkcodex.com/us/townnpcsuit/41003/' },
+	{ id: 'neria-battlefield', name: 'The Battlefield Flower', npc: 'Neria (Yorn)', kind: 'outfit', icon: 'fam_dress_01_112', acquisition: 'Wardrobe · Neria (Yorn) outfit', effects: [{ scope: 'Battle Item - Grenade', cost: 4, time: 2 }], source: 'https://lostarkcodex.com/us/townnpcsuit/63001/' }
 ];
 
 export const equipLabel = (item: ManorEquip) => item.npc ? `${item.npc} · ${item.name}` : item.name;
 export const effectLabel = (effect: ManorEffect) => [effect.cost ? `Cost −${effect.cost}%` : '', effect.time ? `Time −${effect.time}%` : '', effect.energy ? `Energy −${effect.energy}%` : '', effect.success ? `Great success +${effect.success}%` : ''].filter(Boolean).join(' · ');
+export function matchesManorScope(scope: ManorScope, category: string): boolean {
+	return scope === 'General' || scope === category || (scope === 'Battle Item' && category.startsWith('Battle Item - ')) || (category === 'Farm (Bound)' && scope === 'Special');
+}
+
 export function manorTotals(setup: ManorSetup, category: string) {
 	const equipped: ManorEquip[] = [];
 	const seen = new Set<string>();
@@ -51,7 +63,7 @@ export function manorTotals(setup: ManorSetup, category: string) {
 	const specific = { cost: 0, time: 0, energy: 0, success: 0 };
 	for (const item of equipped) {
 		for (const effect of item.effects) {
-			const target = effect.scope === 'General' ? general : effect.scope === category || (category === 'Farm (Bound)' && effect.scope === 'Special') ? specific : null;
+			const target = effect.scope === 'General' ? general : matchesManorScope(effect.scope, category) ? specific : null;
 			if (!target) continue;
 			for (const key of ['cost', 'time', 'energy', 'success'] as const) target[key] += effect[key] ?? 0;
 		}
@@ -74,7 +86,7 @@ function combinations(items: ManorEquip[], slots: number): string[][] {
 
 /** Compare only verified effects, respecting available slots, ownership, category caps, and NPC uniqueness. */
 export function suggestManor(setup: ManorSetup, category: string, goal: 'cost' | 'time', ownedOnly: boolean) {
-	const options = MANOR_EQUIPMENT.filter((e) => (!ownedOnly || setup.owned.includes(e.id)) && e.effects.some((effect) => effect.scope === 'General' || effect.scope === category || (category === 'Farm (Bound)' && effect.scope === 'Special')));
+	const options = MANOR_EQUIPMENT.filter((e) => (!ownedOnly || setup.owned.includes(e.id)) && e.effects.some((effect) => matchesManorScope(effect.scope, category)));
 	let best = { ...setup, structures: [] as string[], outfits: [] as string[] };
 	let bestScore = -1;
 	for (const structures of combinations(options.filter((e) => e.kind === 'structure'), setup.slots)) {

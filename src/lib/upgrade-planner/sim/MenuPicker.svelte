@@ -19,6 +19,7 @@
 		tone = 'default',
 		repick = false,
 		fitMenu = false,
+		alwaysSearch = false,
 		naming = $bindable(null),
 		preview,
 		align = 'left',
@@ -37,6 +38,8 @@
 		repick?: boolean;
 		/** Match the dropdown to the selector width. */
 		fitMenu?: boolean;
+		/** Keep search available even in a short filtered catalog. */
+		alwaysSearch?: boolean;
 		naming?: T | null;
 		preview?: (v: T) => number;
 		align?: 'left' | 'right';
@@ -73,7 +76,7 @@
 	const removable = $derived(options.some((o) => o.onremove || o.onsave || o.onrename || o.locked));
 	/** Multi-column pickers (core points, gem tiers) lay options out as compact cells. */
 	const cells = $derived(columns > 1);
-	const searchable = $derived(columns === 1 && !options.some((o) => o.row) && options.length >= 12);
+	const searchable = $derived(columns === 1 && !options.some((o) => o.row) && (alwaysSearch || options.length >= 12));
 	let query = $state('');
 	let search = $state<HTMLInputElement>();
 	const shown = $derived(

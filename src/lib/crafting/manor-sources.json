@@ -40,5 +40,53 @@
     "source": "https://lostarkcodex.com/us/townnpcsuit/70009/",
     "checkedOn": "2026-10-15",
     "excerpt": "ID: 70009 Sunshine Maid Estate NPC's dress NPC: Nineveh Nineveh the maid became the most popular person in the stronghold with her warm smile and cheery attitude. Crafting Great Success Chance +2% Crafting Time -1%"
+  },
+  {
+    "id": "ezrebet-basic",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/1044/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 1044 Basic Outfit Estate NPC's dress NPC: Ezrebet The hostess of the old castle is famous for her exquisite taste. So is this dress. [Battle Item - Potion] Crafting Cost -1%"
+  },
+  {
+    "id": "nagi-basic",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/1063/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 1063 Basic Outfit Estate NPC's dress NPC: Nagi Nagi once saw a healer dressed in white and thought she was the most beautiful person in the world. [Battle Item - Potion] Crafting Time -1%"
+  },
+  {
+    "id": "poppy-engineer",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/26001/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 26001 The Machine Engineering Poppy Estate NPC's dress NPC: Poppy Arthetinean technologies made Poppy faster. Now, he can find bones. [Battle Item - Other] Crafting Cost -4% [Battle Item - Other] Crafting Time -2%"
+  },
+  {
+    "id": "krissa-specialist",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/55001/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 55001 The Busy Specialist Estate NPC's dress NPC: Krissa There are a number of unimaginable devices hidden inside the Specialist's outfit. [Battle Item - Bomb] Crafting Cost -4% [Battle Item - Bomb] Crafting Action Energy Consumption -2%"
+  },
+  {
+    "id": "yuul-kind",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/41001/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 41001 The Kind Martial Artist Estate NPC's dress NPC: Yuul Yuul always wanted to be a kind martial artist. Martial arts are so awesome! [Battle Item - Potion] Crafting Time -4% [Battle Item - Potion] Crafting Action Energy Consumption -2%"
+  },
+  {
+    "id": "yuul-fancy",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/41002/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 41002 The Fancy Martial Artist Estate NPC's dress NPC: Yuul Yuul always wanted to be a fancy martial artist. Martial arts are so awesome! [Battle Item - Bomb] Crafting Time -4% [Battle Item - Bomb] Crafting Action Energy Consumption -2%"
+  },
+  {
+    "id": "yuul-calm",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/41003/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 41003 The Calm Martial Artist Estate NPC's dress NPC: Yuul Yuul always wanted to be a calm martial artist. Martial arts are so awesome! [Battle Item - Grenade] Crafting Time -4% [Battle Item - Grenade] Crafting Action Energy Consumption -2%"
+  },
+  {
+    "id": "neria-battlefield",
+    "source": "https://lostarkcodex.com/us/townnpcsuit/63001/",
+    "checkedOn": "2026-10-15",
+    "excerpt": "ID: 63001 The Battlefield Flower Estate NPC's dress NPC: Neria Before she was given her name, Neria was referred to as the single flower blossom that ruled the battlefield. [Battle Item - Grenade] Crafting Cost -4% [Battle Item - Grenade] Crafting Time -2%"
   }
 ]

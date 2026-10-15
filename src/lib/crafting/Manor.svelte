@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { MANOR_EQUIPMENT, effectLabel, equipLabel, manorTotals, suggestManor, type ManorSetup } from './manor';
+	import { MANOR_EQUIPMENT, matchesManorScope, effectLabel, equipLabel, manorTotals, suggestManor, type ManorSetup } from './manor';
 	import { iconUrl } from '$lib/upgrade-planner/icons';
 	import { btn, btnAccent } from '$lib/upgrade-planner/sim/ui';
 	let { setup = $bindable(), category }: { setup: ManorSetup; category: string } = $props();
@@ -29,7 +29,7 @@
 						{#if current?.icon}<img src={current.kind === 'outfit' ? `https://lostarkcodex.com/icons/${current.icon.toLowerCase()}.webp` : iconUrl(current.icon)} alt="" class="size-9 shrink-0 rounded-xs border border-white/20 bg-accent-700/20" />{:else}<span class="flex size-9 shrink-0 items-center justify-center rounded-full border border-surface-600 text-xs text-surface-400">{current ? '◆' : slot + 1}</span>{/if}
 						<select class="manor-select min-w-0 flex-1" value={current?.id ?? ''} onchange={(e) => equip(type, slot, e.currentTarget.value)} aria-label={`${type === 'structures' ? 'Structure' : 'Outfit'} slot ${slot + 1}`}><option value="">None</option>{#each MANOR_EQUIPMENT.filter((e) => e.kind === (type === 'structures' ? 'structure' : 'outfit')) as item}<option value={item.id}>{equipLabel(item)}</option>{/each}</select>
 					</div>
-					{#if current}<div class="mt-2 space-y-0.5 text-[11px] text-surface-300">{#each current.effects as effect}<p class={effect.scope === 'General' || effect.scope === category || (category === 'Farm (Bound)' && effect.scope === 'Special') ? 'text-amber-200' : 'text-surface-500'}>{effect.scope === 'General' ? '' : `[${effect.scope}] `}{effectLabel(effect)}</p>{/each}</div>{/if}
+					{#if current}<div class="mt-2 space-y-0.5 text-[11px] text-surface-300">{#each current.effects as effect}<p class={matchesManorScope(effect.scope, category) ? 'text-amber-200' : 'text-surface-500'}>{effect.scope === 'General' ? '' : `[${effect.scope}] `}{effectLabel(effect)}</p>{/each}</div>{/if}
 				</div>
 			{/each}
 		</div>
@@ -43,7 +43,7 @@
 </div>
 <details class="mt-3"><summary class="text-xs text-surface-200">Research & other bonuses</summary><div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">{#each [{ key: 'baseCost', name: 'General cost' }, { key: 'baseTime', name: 'General time' }, { key: 'baseEnergy', name: 'General energy' }] as field}<label class="text-xs text-surface-300">{field.name} (%)<input type="number" min="0" max="30" step="0.1" class="manor-select mt-1 w-full" value={setup[field.key as 'baseCost']} oninput={(e) => setBase(field.key as 'baseCost' | 'baseTime' | 'baseEnergy', e.currentTarget.value)} aria-label={`${field.name} reduction percent`} /></label>{/each}</div><p class="mt-2 text-xs text-surface-400">Research, pets, aura, and other general bonuses. Do not repeat effects already equipped above.</p></details>
 <div class="mt-4 border-t border-surface-700 pt-3">
-	<div class="flex flex-wrap items-center justify-between gap-2"><h3 class="text-sm font-semibold">Suggested setup</h3><label class="flex items-center gap-1.5 text-xs text-surface-300"><input type="checkbox" bind:checked={ownedOnly} class="accent-amber-400" />Owned only</label></div>
+	<div class="flex flex-wrap items-center justify-between gap-2"><h3 class="text-sm font-semibold">Suggested setup · {category}</h3><label class="flex items-center gap-1.5 text-xs text-surface-300"><input type="checkbox" bind:checked={ownedOnly} class="accent-amber-400" />Owned only</label></div>
 	<div class="mt-2 flex flex-wrap gap-1.5"><button type="button" class={goal === 'cost' ? btnAccent : btn} onclick={() => goal = 'cost'}>Lowest cost</button><button type="button" class={goal === 'time' ? btnAccent : btn} onclick={() => goal = 'time'}>Fastest</button></div>
 	{#if suggested.length}<div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">{#each ['structure', 'outfit'] as kind}<div class="space-y-1 text-xs">{#each suggested.filter((item) => item.kind === kind) as item}<p class={setup.owned.includes(item.id) ? 'text-surface-100' : 'text-surface-300'}>{equipLabel(item)}{#if !setup.owned.includes(item.id)} <span class="text-amber-300">· not owned</span>{/if}</p>{/each}</div>{/each}</div><div class="mt-3 flex items-center justify-between gap-2"><span class="text-xs text-amber-300">−{suggestedTotals.cost}% gold · −{suggestedTotals.time}% time</span><button type="button" class={btn} onclick={() => { setup.structures = [...suggestion.structures]; setup.outfits = [...suggestion.outfits]; }}>Use suggestion</button></div>{:else}<p class="mt-3 text-xs text-surface-400">Mark your owned effects below to find a setup.</p>{/if}
 </div>
