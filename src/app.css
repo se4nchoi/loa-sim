@@ -174,3 +174,18 @@ html {
 		transform: translateY(0);
 	}
 }
+
+/* Shared sheet chrome: no separators between the grab handle and title. */
+.sim-modal-card { background-color: var(--color-surface-900); }
+.sim-modal-header {
+ background-color: var(--color-surface-900);
+ color: var(--color-surface-100);
+ border-bottom: 1px solid var(--color-surface-700);
+ padding: 0.75rem 1rem;
+ font-size: 1rem;
+ font-weight: 600;
+}
+.sim-modal-header h2 { color: var(--color-surface-100); }
+@media (max-width: 639px) {
+ .sim-modal-card { border-top: 1px solid var(--color-surface-700); border-radius: 0.75rem 0.75rem 0 0; }
+}
