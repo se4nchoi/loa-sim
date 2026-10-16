@@ -41,6 +41,8 @@
 
 	let {
 		loadout,
+		initialState,
+		workspaceKey,
 		sim = $bindable(untrack(() => initSimState(loadout))),
 		sidebar,
 		characterName,
@@ -49,6 +51,8 @@
 		edited = $bindable(false)
 	}: {
 		loadout: Loadout;
+		initialState?: SimState;
+		workspaceKey?: string;
 		sim?: SimState;
 		sidebar?: Snippet;
 		characterName?: string;
@@ -150,9 +154,9 @@
 	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
-		const currentLoadout = loadout, key = characterKey ?? '';
+		const currentLoadout = loadout, key = workspaceKey ?? characterKey ?? '', initial = initialState;
 		untrack(() => {
-			sim = loadAutosave(key, currentLoadout) ?? initSimState(currentLoadout);
+			sim = loadAutosave(key, currentLoadout) ?? (initial ? structuredClone($state.snapshot(initial)) : initSimState(currentLoadout));
 			calculated = structuredClone($state.snapshot(sim));
 		});
 	});
@@ -161,7 +165,7 @@
 	let autosaveError = $state('');
 	$effect(() => {
 		const state = snapshot();
-		try { untrack(() => autosaveSimulation(characterKey ?? '', loadout, state)); autosaveError = ''; }
+		try { untrack(() => autosaveSimulation(workspaceKey ?? characterKey ?? '', loadout, state)); autosaveError = ''; }
 		catch (e) { autosaveError = (e as Error).message; }
 	});
 	$effect(() => {

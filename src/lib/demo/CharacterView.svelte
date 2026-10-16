@@ -11,6 +11,7 @@
 	import type { Loadout } from '$lib/upgrade-planner/types';
 
 	let {
+		initialBuild,
 		name,
 		region,
 		subtitle,
@@ -27,6 +28,7 @@
 		onerase,
 		onreload
 	}: {
+		initialBuild?: import('$lib/upgrade-planner/saved-simulations').SavedSimulation;
 		name: string;
 		region: string;
 		/** Lines under the name (guild, snapshot time). */
@@ -216,7 +218,7 @@
 	{/if}
 	{#if loadout && simulation}
 		<div class="mt-2 w-full max-w-[27.125rem]">
-			<SavedSimulations characterKey={`${region}/${name}`.toLowerCase()} {loadout} state={simulation} onrestore={(state) => simulation = state} />
+			<SavedSimulations workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} initialId={initialBuild?.id} characterKey={`${region}/${name}`.toLowerCase()} {loadout} state={simulation} onrestore={(state) => simulation = state} />
 		</div>
 	{/if}
 </div>
@@ -240,6 +242,6 @@
 				</div>
 			</div>
 		{/if}
-		{#if simulation}<Simulator bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
+		{#if simulation}<Simulator initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
 	</div>
 {/if}

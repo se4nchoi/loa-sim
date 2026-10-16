@@ -10,6 +10,7 @@ export interface SavedSimulation {
 	name: string;
 	characterKey: string;
 	savedAt: number;
+	pinned?: boolean;
 	loadout: Loadout;
 	state: SimState;
 }
@@ -57,7 +58,7 @@ export function parseSimulation(json: string): SavedSimulation {
 	try {
 		const s = JSON.parse(json) as SavedSimulation;
 		if (!finiteJson(s) || s.version !== 1 || typeof s.id !== 'string' || !s.id || typeof s.name !== 'string' ||
-			!s.name.trim() || s.name.length > 80 || typeof s.characterKey !== 'string' || !s.characterKey || typeof s.savedAt !== 'number' || !s.loadout || !validState(s.state)) throw new Error();
+			(s.pinned !== undefined && typeof s.pinned !== 'boolean') || !s.name.trim() || s.name.length > 80 || typeof s.characterKey !== 'string' || !s.characterKey || typeof s.savedAt !== 'number' || !s.loadout || !validState(s.state)) throw new Error();
 		const base = initSimState(s.loadout);
 		if (Object.keys(base).some((key) => !(key in s.state)) || Object.keys(s.state).some((key) => !(key in base))) throw new Error();
 		const result = simulate(s.loadout, s.state, base);
@@ -140,4 +141,19 @@ export function autosaveSimulation(characterKey: string, loadout: Loadout, state
 	const saved: SavedSimulation = {version:1,id:'autosave',name:'Autosave',characterKey:characterKey.toLowerCase(),savedAt:Date.now(),loadout,state};
 	try { localStorage.setItem(draftKey(characterKey), JSON.stringify([saved,...list.filter(s => !sameBaseline(s.loadout, loadout))].slice(0,8))); }
 	catch { throw new Error('Autosave unavailable: browser storage is full or blocked. Export a file to keep your changes.'); }
+}
+
+/** Pinning only changes the shortcut, never the saved baseline or edits. */
+export function pinSimulation(id: string, pinned: boolean) {
+ const list = savedSimulations();
+ const plan = list.find(s => s.id === id);
+ if (!plan) throw new Error('This saved simulation no longer exists.');
+ plan.pinned = pinned;
+ try { localStorage.setItem(KEY, JSON.stringify(list)); }
+ catch { throw new Error('Browser storage is blocked; the build shortcut could not be saved.'); }
+}
+export function simulationCP(s: SavedSimulation): number {
+ const base = initSimState(s.loadout);
+ const baseline = simulate(s.loadout, base, base).cp;
+ return (s.loadout.combatPower?.score ?? baseline) * simulate(s.loadout, s.state, base).cp / baseline;
 }

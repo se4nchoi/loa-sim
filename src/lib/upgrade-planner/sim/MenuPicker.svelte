@@ -232,7 +232,8 @@
 								else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); naming = null; }
 							}} />
 						{:else}{@render option()}{/if}
-						{#if o.onsave || o.onrename}
+						{#if o.onpin}<button type="button" class="flex h-8 shrink-0 items-center px-2 text-xs text-accent-300 hover:bg-surface-800" aria-label={`${o.pinned ? 'Unpin' : 'Pin'} ${o.label} ${o.pinned ? 'from' : 'to'} character list`} title={o.pinned ? 'Unpin from character list' : 'Pin to character list'} onclick={e => { e.stopPropagation(); o.onpin?.(); }}>{o.pinned ? 'Unpin' : 'Pin'}</button>{/if}
+ {#if o.onsave || o.onrename}
 							<button type="button" class="flex h-8 w-12 shrink-0 items-center justify-center rounded-xs text-xs text-surface-300 hover:bg-surface-800 hover:text-surface-100 disabled:opacity-40" disabled={naming !== o.value && o.loadDisabled} aria-label={`${o.onsave || naming === o.value ? 'Save' : 'Load'} ${o.label}`} onclick={(e) => { e.stopPropagation(); if (o.onsave || naming === o.value) finishName(o); else { o.onload?.(); open = false; } }}>{o.onsave || naming === o.value ? 'Save' : 'Load'}</button>
 							{#if o.onremove}<button type="button" class="flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-500 hover:bg-surface-800 hover:text-red-300" aria-label={o.removeLabel ?? `Remove ${o.label}`} onclick={(e) => { e.stopPropagation(); o.onremove?.(); }}>✕</button>{:else}<span class="w-7 shrink-0"></span>{/if}
 						{:else if o.onremove}

@@ -88,6 +88,8 @@ export interface MenuOption<V> {
 	onremove?: () => void;
 	onsave?: (name: string) => boolean;
 	onrename?: (name: string) => boolean;
+	onpin?: () => void;
+	pinned?: boolean;
 	onload?: () => void;
 	loadDisabled?: boolean;
 	removeLabel?: string;

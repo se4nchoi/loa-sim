@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { renameSimulation, autosaveSimulation, loadAutosave, deleteSimulation, latestSimulation, parseSimulation, savedSimulations, saveSimulation } from './saved-simulations';
+import { pinSimulation, renameSimulation, autosaveSimulation, loadAutosave, deleteSimulation, latestSimulation, parseSimulation, savedSimulations, saveSimulation } from './saved-simulations';
 import { initSimState, simulate } from './simulate';
 import type { Loadout } from './types';
 import soulshan from './fixtures/na-soulshan.json';
@@ -109,4 +109,38 @@ it('renames a saved simulation without changing its identity, timestamp or data'
  expect(()=>renameSimulation(original.id,'Other')).toThrow('storage');
  expect(savedSimulations()[0].name).toBe('New');
  expect(()=>renameSimulation(original.id,' ')).toThrow('name');
+});
+
+it('pins saved builds without changing their baseline or edits; rename and unpin preserve them', () => {
+ const a = saveSimulation('na/soulshan', 'DPS', loadout, initSimState(loadout));
+ const changed = structuredClone(loadout); changed.combatPower!.score += 100;
+ const b = saveSimulation('na/soulshan', 'Other snapshot', changed, initSimState(changed));
+ pinSimulation(a.id, true);
+ renameSimulation(a.id, 'Raid DPS');
+ const pinned = savedSimulations().find(s => s.id === a.id)!;
+ expect(pinned.pinned).toBe(true);
+ expect(pinned.loadout).toEqual(a.loadout);
+ expect(pinned.state).toEqual(a.state);
+ expect(savedSimulations().find(s => s.id === b.id)?.pinned).toBeUndefined();
+ pinSimulation(a.id, false);
+ expect(savedSimulations()).toHaveLength(2);
+ expect(savedSimulations().find(s => s.id === a.id)?.pinned).toBe(false);
+ deleteSimulation(a.id);
+ expect(savedSimulations().some(s => s.id === a.id)).toBe(false);
+});
+it('keeps each build working copy separate from the normal character and other builds', () => {
+ const normal = initSimState(loadout), first = structuredClone(normal), second = structuredClone(normal);
+ first.gear.weapon!.honing--; second.gear.weapon!.honing -= 2;
+ autosaveSimulation('na/soulshan', loadout, normal);
+ autosaveSimulation('na/soulshan:build:a', loadout, first);
+ autosaveSimulation('na/soulshan:build:b', loadout, second);
+ expect(loadAutosave('na/soulshan', loadout)).toEqual(normal);
+ expect(loadAutosave('na/soulshan:build:a', loadout)).toEqual(first);
+ expect(loadAutosave('na/soulshan:build:b', loadout)).toEqual(second);
+});
+it('reports pin failures without claiming the shortcut persisted', () => {
+ const s = saveSimulation('na/soulshan', 'DPS', loadout, initSimState(loadout));
+ blocked = true;
+ expect(() => pinSimulation(s.id, true)).toThrow('storage');
+ expect(savedSimulations()[0].pinned).toBeUndefined();
 });

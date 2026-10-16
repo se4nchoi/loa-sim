@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
-	import { renameSimulation, loadAutosave, deleteSimulation, parseSimulation, sameBaseline, savedSimulations, saveSimulation, type SavedSimulation } from './saved-simulations';
+	import { pinSimulation, renameSimulation, loadAutosave, deleteSimulation, parseSimulation, sameBaseline, savedSimulations, saveSimulation, type SavedSimulation } from './saved-simulations';
 	import { initSimState, simulate, type SimState } from './simulate';
 	import type { Loadout } from './types';
 	import { btn, type MenuOption } from './sim/ui';
 	import MenuPicker from './sim/MenuPicker.svelte';
-	let { characterKey = '', loadout, state: simState, onrestore }: { characterKey?: string; loadout: Loadout; state: SimState; onrestore: (state: SimState) => void } = $props();
+	let { characterKey = '', initialId = '', workspaceKey, loadout, state: simState, onrestore }: { characterKey?: string; initialId?: string; workspaceKey?: string; loadout: Loadout; state: SimState; onrestore: (state: SimState) => void } = $props();
 	let name = $state('');
 	let selected = $state('');
 	let naming = $state<string | null>(null);
@@ -15,13 +15,13 @@
 	let fileInput: HTMLInputElement;
 	let working = $state<SimState>();
 	$effect(() => {
-		const key = characterKey, baseline = loadout;
+		const key = workspaceKey ?? characterKey, baseline = loadout;
 		void $state.snapshot(simState);
 		let cancelled = false;
 		void tick().then(() => { if (!cancelled) working = loadAutosave(key, baseline); });
 		return () => { cancelled = true; };
 	});
-	$effect(() => { void characterKey; void loadout; untrack(() => { list = savedSimulations(characterKey); selected = ''; name = ''; note = ''; feedback = ''; }); });
+	$effect(() => { void characterKey; void loadout; untrack(() => { list = savedSimulations(characterKey); selected = initialId; name = list.find(s => s.id === initialId)?.name ?? ''; note = ''; feedback = ''; }); });
 	const shortDay = (at: number) => {
 		const d = new Date(at);
 		return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -38,7 +38,7 @@
 			return { value: s.id, label: s.name, note: shortDay(s.savedAt),
 				detail: { label: cp.toFixed(2), color: s.loadout.combatPower?.id === 2 ? 'var(--color-green-400)' : 'var(--color-red-400)' }, marker: '', loadDisabled: !compatible,
 				title: compatible ? s.name : 'Select this plan’s original character snapshot before loading it.',
-				onrename: (title: string) => rename(s.id, title), onload: () => restore(s), onremove: () => remove(s.id), removeLabel: `Delete ${s.name}` };
+				pinned: s.pinned === true, onpin: () => togglePin(s.id), onrename: (title: string) => rename(s.id, title), onload: () => restore(s), onremove: () => remove(s.id), removeLabel: `Delete ${s.name}` };
 		}),
 		...(list.length || working ? [] : [{ value: 'hint', label: 'No saved simulations yet', disabled: true, muted: true, marker: '' }])
 	]);
@@ -86,6 +86,11 @@
 		try { const id = sessionStorage.getItem('loa-sim:import-plan'); imported = list.find(s => s.id === id); if (imported) sessionStorage.removeItem('loa-sim:import-plan'); } catch { /* storage blocked */ }
 		if (imported) { await tick(); restore(imported); }
 	});
+function togglePin(id = selected) {
+ const plan = list.find(s => s.id === id); if (!plan) return;
+ try { pinSimulation(plan.id, !plan.pinned); list = savedSimulations(characterKey); note = ''; }
+ catch (e) { note = (e as Error).message; }
+}
 </script>
 
 <div class="min-w-0">
@@ -103,6 +108,11 @@
 		</button>
 		<input bind:this={fileInput} type="file" accept="application/json,.json" class="hidden" onchange={importFile} aria-label="Import simulation file" />
 	</div>
-	{#if feedback}<p class="mt-2 text-xs text-surface-400" role="status">{feedback}</p>{/if}
+	{#if list.some(s => s.id === selected)}
+ <button type="button" class="mt-2 text-xs text-accent-300 hover:text-accent-200" onclick={() => togglePin()}>
+ {list.find(s => s.id === selected)?.pinned ? 'Unpin from character list' : 'Pin build to character list'}
+ </button>
+ {/if}
+ {#if feedback}<p class="mt-2 text-xs text-surface-400" role="status">{feedback}</p>{/if}
 	{#if note}<p class="mt-2 text-xs text-red-300" role="alert">{note}</p>{/if}
 </div>

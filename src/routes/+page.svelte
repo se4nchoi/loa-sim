@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import ReorderRow from '$lib/ReorderRow.svelte';
+ import { ordered, readOrder, writeOrder, moveBefore, type CharacterSection } from '$lib/character-order';
+ import { savedSimulations, pinSimulation, simulationCP, type SavedSimulation } from '$lib/upgrade-planner/saved-simulations';
+ import { page } from '$app/state';
 	import { ROSTER_TTL_MS, bibleToken, cachedRoster, completeSignIn, fetchRoster, hiddenRosterKeys, saveHiddenRosterKeys, signOut, startSignIn, type RosterCharacter } from '$lib/bible-oauth';
 	import { REGIONS, bibleDataUrl, parseCharacterInput, parsePastedData, type Region } from '$lib/bible-data';
 	import { preferredRegion, saveRegion } from '$lib/region-preference';
@@ -12,7 +15,25 @@
 	import SiteNewsStrip from '$lib/SiteNewsStrip.svelte';
 	import ImportSimulation from '$lib/ImportSimulation.svelte';
 
-	let region = $state<Region>('NA');
+	let orders = $state<Record<CharacterSection, string[]>>({roster: [], characters: []});
+ let builds = $state<SavedSimulation[]>([]);
+ function changeOrder(section: CharacterSection, ids: string[]) {
+  try { writeOrder(section, ids); orders[section] = ids; } catch (e) { error = (e as Error).message; }
+ }
+ function reorder(section: CharacterSection, id: string, target: string) {
+  const rows = section === 'roster' ? ordered(roster ?? [], orders.roster) : typed;
+  changeOrder(section, moveBefore(rows.map(characterKey), id, target));
+ }
+ function step(section: CharacterSection, id: string, direction: number) {
+  const rows = section === 'roster' ? shownRoster : typed;
+  const ids = rows.map(characterKey), index = ids.indexOf(id), target = ids[index + direction];
+  if (target) reorder(section, id, target);
+ }
+ function unpin(id: string) {
+  try { pinSimulation(id, false); builds = savedSimulations().filter(s => s.pinned); }
+  catch (e) { error = (e as Error).message; }
+ }
+ let region = $state<Region>('NA');
 	let input = $state('');
 	let pasted = $state('');
 	let error = $state<string | null>(null);
@@ -58,6 +79,8 @@
 
 	onMount(async () => {
 		saved = listSavedCharacters();
+		orders = {roster: readOrder('roster'), characters: readOrder('characters')};
+		builds = savedSimulations().filter(s => s.pinned);
 		hidden = hiddenRosterKeys();
 		region = preferredRegion(page.url.searchParams.get('region'));
 		saveRegion(region);
@@ -94,9 +117,9 @@
 	const savedByKey = $derived(new Map(saved.map((c) => [characterKey(c), c])));
 	const rosterKeys = $derived(new Set((roster ?? []).map((c) => characterKey(c))));
 	/** Characters loaded by name (or pasted) that aren't on the synced roster. */
-	const typed = $derived(saved.filter((c) => !rosterKeys.has(characterKey(c))));
+	const typed = $derived(ordered(saved.filter((c) => !rosterKeys.has(characterKey(c))), orders.characters));
 	const hiddenSet = $derived(new Set(hidden));
-	const shownRoster = $derived((roster ?? []).filter((c) => showHidden || !hiddenSet.has(characterKey(c))));
+	const shownRoster = $derived(ordered(roster ?? [], orders.roster).filter((c) => showHidden || !hiddenSet.has(characterKey(c))));
 	const hiddenCount = $derived((roster ?? []).filter((c) => hiddenSet.has(characterKey(c))).length);
 	const rosterPending = $derived(booting || (signedIn && roster === null && !rosterError));
 	// Remember the roster's height (rows plus the "hidden · show" line) for next time's skeleton.
@@ -218,7 +241,9 @@
 {#snippet row(c: { region: string; name: string }, classId: string | undefined, ilvl: number | undefined, cp: { score: number; support: boolean } | undefined, note: string | undefined, dismiss: { label: string; icon: 'hide' | 'show' | 'remove'; run: () => void } | null, muted = false)}
 	{@const key = characterKey(c)}
 	{@const have = savedByKey.get(key)}
-	<div class="flex flex-row items-center gap-3 px-3 py-2 {muted ? 'bg-black/20 [&>:not(:last-child)]:opacity-40' : ''}">
+ {@const section = rosterKeys.has(key) ? 'roster' : 'characters'}
+ <ReorderRow id={key} group={section} label={c.name} onmove={(id, target) => reorder(section, id, target)} onstep={direction => step(section, key, direction)}>
+ <div class="flex flex-row items-center gap-3 px-3 py-2 {muted ? 'bg-black/20 [&>:not(:last-child)]:opacity-40' : ''}">
 		{#if classIconUrl(classId)}
 			<img src={classIconUrl(classId)} alt={className(classId!)} title={className(classId!)} class="size-9 shrink-0" />
 		{:else}
@@ -249,7 +274,19 @@
 				{/if}
 			</button>
 		{/if}
-	</div>
+ </div>
+ {#if !muted}
+  {#each builds.filter(s => s.characterKey === key) as build (build.id)}
+   {@const score = simulationCP(build)}
+   <div class="mb-2 ml-3 mr-3 flex min-w-0 items-center gap-2 border-l border-accent-400/30 pl-3 text-xs">
+    <a class="flex min-w-0 flex-1 items-center gap-2 py-1 hover:text-accent-200" href={`/sim?c=${encodeURIComponent(key)}&build=${encodeURIComponent(build.id)}`}>
+     <span class="truncate">{build.name}</span><span class="tabular-nums {build.loadout.combatPower?.id === 2 ? 'text-green-400' : 'text-red-400'}">{score.toFixed(2)}</span>
+    </a>
+    <button type="button" class="text-surface-500 hover:text-surface-100" aria-label={`Unpin ${build.name}`} title="Unpin build" onclick={() => unpin(build.id)}>×</button>
+   </div>
+  {/each}
+ {/if}
+ </ReorderRow>
 {/snippet}
 
 <!-- Desktop: the characters column with Updates as a side card (like the simulator's CP card); phones get a folded
@@ -300,6 +337,7 @@
 		<div class="flex min-h-11 flex-row items-center gap-2 bg-black/10 px-3 py-2">
 			<img src="/bible/artist_cry.webp" alt="" width="24" height="24" class="size-6" />
 			<span class="font-bold">Roster</span>
+ {#if orders.roster.length}<button type="button" class="text-xs text-surface-400 hover:text-surface-100" onclick={() => changeOrder('roster', [])}>Reset order</button>{/if}
 			<span class="text-xs text-surface-500">from lostark.bible</span>
 			{#if signedIn}
 				<button
@@ -353,7 +391,8 @@
 	<!-- Characters loaded by name (or pasted), not on the roster. -->
 	{#if !rosterPending && (typed.length || loadingNew)}
 		<section class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
-			<div class="bg-black/10 px-3 py-2 font-bold">Characters</div>
+			<div class="flex items-center gap-3 bg-black/10 px-3 py-2 font-bold">Characters
+ {#if orders.characters.length}<button type="button" class="text-xs font-normal text-surface-400 hover:text-surface-100" onclick={() => changeOrder('characters', [])}>Reset order</button>{/if}</div>
 			{#if loadingNew}{@render skeleton()}{/if}
 			{#each typed as c (characterKey(c))}
 				{@render row(
