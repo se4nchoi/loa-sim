@@ -163,8 +163,8 @@
 						{formatTop(now)}{#if formatTop(after) !== formatTop(now)}<span class="font-normal text-surface-400"> → </span><span class={after < now ? 'text-green-400' : 'text-red-400'}>{formatTop(after)}</span>{/if}
 					</span>
 				{:else}
-					<span class="ml-auto truncate text-xs text-surface-500">
-						{range ? `Item Level ${range.from}–${range.to}` : 'All item levels'} · {standing ? `${standing.count.toLocaleString()} ${className}s` : 'no data'}
+					<span class="ml-auto text-right text-xs whitespace-nowrap text-surface-500">
+						{standing ? `Among ${standing.count.toLocaleString()} ${className}s` : 'No standing data'}
 					</span>
 				{/if}
 				<FoldChip open={!folded.standing} />

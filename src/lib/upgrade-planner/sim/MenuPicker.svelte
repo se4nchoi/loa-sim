@@ -228,6 +228,7 @@
 						{#if o.iconUrl}<img src={o.iconUrl} alt="" class="size-6 shrink-0 rounded-xs" loading="lazy" />{/if}
 						{#if o.marker !== undefined}<span class="option-marker flex w-2.5 shrink-0 justify-center">{#if o.marker}<svg class="size-2.5" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5L9 8.5H1z" fill={o.marker} /></svg>{/if}</span>{/if}
 						<span class="option-label whitespace-nowrap {cells ? '' : 'min-w-0 flex-1 truncate'}">{o.label}{#if o.suffix}<span class="ml-1" style:color={o.suffix.color}>{o.suffix.label}</span>{/if}</span>
+						{#if o.chips?.length}<span class="flex shrink-0 gap-1 pl-2">{#each o.chips as chip (chip.label)}<span class="rounded-xs border px-1 text-[10px] font-semibold leading-4 {chip.class}">{chip.label}</span>{/each}</span>{/if}
 						{#if o.note !== undefined}<span class="option-note w-14 shrink-0 pl-2 whitespace-nowrap text-surface-400">{o.note}</span>{/if}
 						{#if o.detail}<span class="option-detail pl-3 text-right tabular-nums" style:color={o.detail.color}>{o.detail.label}</span>{/if}
 						{#if previews.has(o.value) && o.value !== value}

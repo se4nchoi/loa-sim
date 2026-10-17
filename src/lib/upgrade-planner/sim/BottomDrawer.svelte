@@ -18,6 +18,8 @@
 	import { setContext, type Snippet } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { sheetDrag } from './sheet-drag';
+	import DrawerHandle from './DrawerHandle.svelte';
+	import { sheetPosition } from './sheet-position';
 
 	let {
 		open = $bindable(false),
@@ -96,16 +98,14 @@
 {#if open}
 	<div
 		bind:this={sheet}
-		style:max-height={top > 0 ? `calc(100dvh - ${Math.round(top)}px)` : undefined}
-		class="fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-8.25rem)] flex-col rounded-t-xl border-t border-surface-700 bg-surface-900 shadow-2xl shadow-black lg:hidden"
+		use:sheetPosition={{phone:'(max-width: 1023px)', top: () => top}}
+		class="sim-modal-card fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-8.25rem)] flex-col rounded-t-xl border-t border-surface-700 bg-surface-900 shadow-2xl shadow-black lg:hidden"
 		role="dialog"
 		aria-modal="true"
 		aria-label={label}
 		transition:slide
 	>
-		<button type="button" class="flex shrink-0 flex-col items-center px-4 pt-3 pb-2" aria-label={`Close ${label}`} use:drawerDrag onclick={() => (open = false)}>
-			<span class="h-1.5 w-12 rounded-full bg-surface-500"></span>
-		</button>
+		<DrawerHandle sheet={() => sheet} close={() => open = false} {label} visibility="" phone="(max-width: 1023px)" />
 		{@render children()}
 	</div>
 {/if}

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ModalClose from './sim/ModalClose.svelte';
+	import DrawerHandle from './sim/DrawerHandle.svelte';
 	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
 	import { onMount, untrack } from 'svelte';
 	import { formatCp, formatPct } from './format';
@@ -53,24 +55,11 @@
 
 	let dialog: HTMLDialogElement;
 	let card = $state<HTMLDivElement>();
-	let viewportHeight = $state<number>();
-	let keyboardBottom = $state(0);
 	onMount(() => {
 		dialog.showModal();
 		dialog.focus(); // the dialog itself, not a control: no keyboard popping up, no focus ring on Close
 		if (focusKey) dialog.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.scrollIntoView({ block: 'center' });
 		track();
-		const viewport = window.visualViewport;
-		const resize = () => {
-			if (!matchMedia('(max-width: 639px)').matches) { viewportHeight = undefined; keyboardBottom = 0; return; }
-			viewportHeight = viewport?.height ?? innerHeight;
-			keyboardBottom = Math.max(0, innerHeight - (viewport?.offsetTop ?? 0) - viewportHeight);
-		};
-		resize();
-		viewport?.addEventListener('resize', resize);
-		viewport?.addEventListener('scroll', resize);
-		window.addEventListener('resize', resize);
-		return () => { viewport?.removeEventListener('resize', resize); viewport?.removeEventListener('scroll', resize); window.removeEventListener('resize', resize); };
 	});
 
 	// Groups in order of their best upgrade, each sorted by CP gain.
@@ -232,21 +221,19 @@
 <!-- Focusable itself (tabindex -1) so opening focuses the dialog, not its first input or Close. -->
 <dialog
 	bind:this={dialog} use:sheetDialog={() => card}
-	style:bottom={viewportHeight === undefined ? undefined : `${keyboardBottom}px`}
 	tabindex="-1"
 	{onclose}
 	onclick={(e) => e.target === dialog && dialog.close()}
 	aria-labelledby="upgrade-planner-title"
 	class="fixed top-[80px] m-0 max-h-none outline-none max-w-none bg-transparent p-0 text-inherit backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
 >
-	<div bind:this={card} style:max-height={viewportHeight === undefined ? undefined : `${viewportHeight - 16}px`} class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
+	<div bind:this={card} class="sim-modal-card sm:rounded-sm sm:shadow-xl sm:shadow-black/40 sm:ring-1 sm:ring-surface-700 flex flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
+		<DrawerHandle sheet={() => card} close={() => dialog.close()} label="upgrades" />
 		<!-- Phones: the header is the drag-to-close zone, with a grabber. -->
-		<div class="flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold max-sm:pt-2" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
-			<span class="flex basis-full justify-center pb-1 sm:hidden"><span class="h-1.5 w-12 rounded-full bg-surface-500"></span></span>
+		<div class="sim-modal-header sm:px-4 sm:py-3 sm:text-base sm:font-semibold sm:text-surface-100 flex flex-row flex-wrap items-center justify-between px-4 py-2.5 font-bold" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
+
 			<span id="upgrade-planner-title">Next upgrades</span>
-			<button type="button" class="text-surface-300 hover:text-surface-50" aria-label="Close" onclick={() => dialog.close()}>
-				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-			</button>
+			<ModalClose close={() => dialog.close()} label="Close" />
 		</div>
 		{#if mode === 'gold' && missingTotal}
 			<div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-200" role="status" aria-live="polite" aria-atomic="true">

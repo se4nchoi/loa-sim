@@ -15,6 +15,25 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-10-17',
+		kind: 'new',
+		title: 'Character list',
+		points: [
+			'Reorder characters by drag and drop.',
+			'Pin simulations to a quick-access list for each character. Pinned simulations preserve their original snapshot.'
+		]
+	},
+	{
+		date: '2026-10-17',
+		kind: 'new',
+		title: 'Shareable links',
+		points: [
+			'Character links now load the character even if it is not saved in your browser.',
+			'Share your current simulation as a link that preserves its snapshot and changes. Links expire after 30 days.',
+			'Sharing links replaces JSON export and import.'
+		]
+	},
+	{
 		date: '2026-10-13',
 		kind: 'new',
 		title: 'Saved simulations',

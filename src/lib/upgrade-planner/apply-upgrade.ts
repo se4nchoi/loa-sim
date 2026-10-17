@@ -6,7 +6,7 @@ import { roleOf } from './roles';
 import { nextBracer } from './bracer';
 import { setSkinPart, skinParts, skinCombinations } from './skins';
 import type { HoningSlot } from './honing-data';
-import { activeGems, gemParts, isOtherLine, type AccessorySlot, type SimState } from './simulate';
+import { activeGems, gemParts, gemsInEffect, isOtherLine, type AccessorySlot, type SimState } from './simulate';
 import { ENGRAVING_BOOK_STEPS, karmaRank } from './tables';
 import type { Loadout } from './types';
 import { coreStates, type Upgrade } from './upgrades';
@@ -56,7 +56,8 @@ export function applyUpgrade(l: Loadout, s: SimState, base: SimState, u: Upgrade
 		case 'gem': {
 			// gem:T4:7 → one gem of that tier still at Lv. 7 goes to Lv. 8.
 			const parts = gemParts(l);
-			const i = s.gems.findIndex((g, k) => (g.tier ?? parts[k]?.tier) === a && g.level === Number(b));
+			const on = gemsInEffect(s.gems);
+			const i = s.gems.findIndex((g, k) => (g.tier ?? parts[k]?.tier) === a && g.level === Number(b) && on[k]);
 			if (i < 0) return false;
 			s.gems[i].level++;
 			return true;

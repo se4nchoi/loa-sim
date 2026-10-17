@@ -49,6 +49,7 @@
 		max={hi}
 		step="1"
 		class="h-2 w-full min-w-16 cursor-pointer appearance-none rounded-full bg-surface-700 accent-accent-500 {compact ? 'flex-1' : ''}"
+		class:compact-slider={compact}
 		style:background="linear-gradient(to right, var(--color-accent-500) {fill}%, var(--color-surface-700) {fill}%)"
 		aria-label={`${label} slider`}
 		title={`${min.toLocaleString()} – ${max.toLocaleString()}`}
@@ -64,3 +65,9 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	@media (min-width: 1280px) and (max-width: 1400px) {
+		.compact-slider { display: none; }
+	}
+</style>
