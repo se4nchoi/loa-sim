@@ -1,6 +1,6 @@
 # Pinned builds and character order
 
-- Choose **Pin build** beside the saved-simulation selector. If the current edits are not saved, enter a name to save and pin them together. Saved simulations also have Pin/Unpin actions in their menu.
+- Open the saved-simulation selector, save the current simulation with a name, then choose **Pin** on that saved entry. Pin/Unpin lives inside this menu; Export and Import remain beside the selector.
 - The shortcut appears beneath its character. Character names, Open, and Load/refresh retain their existing behavior.
 - A build URL includes `c` and `build`. Opening it uses the saved simulation's complete baseline, without changing
   the character's selected snapshot. Build working copies have separate autosave keys, including the simulation ID.

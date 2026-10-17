@@ -9,8 +9,6 @@
 	let name = $state('');
 	let selected = $state('');
 	let naming = $state<string | null>(null);
-	let pinAfterSave = $state(false);
-	$effect(() => { if (naming === null) pinAfterSave = false; });
 	let list = $state<SavedSimulation[]>([]);
 	let note = $state('');
 	let feedback = $state('');
@@ -30,7 +28,7 @@
 	};
 	const options = $derived.by<MenuOption<string>[]>(() => [
 		...(working ? [
-			{ value: 'autosave', label: pinAfterSave ? 'Name this build' : 'Current simulation', marker: '', onsave: saveNamed, title: 'Your current working copy, saved automatically in this browser' }
+			{ value: 'autosave', label: 'Current simulation', marker: '', onsave: saveNamed, title: 'Your current working copy, saved automatically in this browser' }
 		] : []),
 		...list.map(s => {
 			const base = initSimState(s.loadout);
@@ -47,7 +45,7 @@
 	const active = $derived(list.find(s => s.id === selected && JSON.stringify(s.state) === JSON.stringify(simState)));
 	const menuValue = $derived(active?.id ?? (working ? 'autosave' : ''));
 	function saveNamed(title: string): boolean {
-		try { const prior = new Set(list.map(s => s.id)); const s = saveSimulation(characterKey, title, loadout, $state.snapshot(simState)); if (pinAfterSave) pinSimulation(s.id, true); list = savedSimulations(characterKey); selected = s.id; name = s.name; note = ''; feedback = pinAfterSave ? 'Build saved and pinned to your character list.' : prior.has(s.id) ? 'Already saved—no changes.' : ''; return true; }
+		try { const prior = new Set(list.map(s => s.id)); const s = saveSimulation(characterKey, title, loadout, $state.snapshot(simState)); list = savedSimulations(characterKey); selected = s.id; name = s.name; note = ''; feedback = prior.has(s.id) ? 'Already saved—no changes.' : ''; return true; }
 		catch (e) { note = (e as Error).message; return false; }
 	}
 	function rename(id: string, title: string): boolean {
@@ -88,12 +86,6 @@
 		try { const id = sessionStorage.getItem('loa-sim:import-plan'); imported = list.find(s => s.id === id); if (imported) sessionStorage.removeItem('loa-sim:import-plan'); } catch { /* storage blocked */ }
 		if (imported) { await tick(); restore(imported); }
 	});
-function pinCurrent() {
- if (active) { togglePin(active.id); return; }
- pinAfterSave = true;
- working = $state.snapshot(simState);
- naming = 'autosave';
-}
 function togglePin(id = selected) {
  const plan = list.find(s => s.id === id); if (!plan) return;
  try { pinSimulation(plan.id, !plan.pinned); list = savedSimulations(characterKey); note = ''; }
@@ -102,13 +94,12 @@ function togglePin(id = selected) {
 </script>
 
 <div class="min-w-0">
-	<div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_repeat(2,2rem)] items-center gap-1.5">
+	<div class="grid min-w-0 grid-cols-[minmax(0,1fr)_repeat(2,2rem)] items-center gap-1.5">
 		<div class="min-w-0 flex-1">
 			<MenuPicker value={menuValue} {options} onpick={pick} label="Saved simulation to load" tone="purple" repick full bind:naming>
 				{#snippet trigger()}<span class="min-w-0 truncate text-xs">{active?.name ?? (working ? 'Current simulation' : 'Saved simulations')}</span>{/snippet}
 			</MenuPicker>
 		</div>
- <button type="button" class={btn} style:height="2rem" disabled={!characterKey} title="Preserve this snapshot and simulation as a build in your character list" onclick={e => { e.stopPropagation(); pinCurrent(); }}>{active?.pinned ? 'Unpin build' : 'Pin build'}</button>
 		<button type="button" class={`${btn} shrink-0`} style:height="2rem" style:width="2rem" style:padding="0" onclick={exportFile} aria-label="Export" title="Export simulation JSON" disabled={!characterKey}>
 			<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" /></svg>
 		</button>
