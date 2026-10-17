@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import CharacterSwitcher from '$lib/CharacterSwitcher.svelte';
-	import CharacterView from '$lib/demo/CharacterView.svelte';
+	import CharacterView from '$lib/character/CharacterView.svelte';
 	import { parseCharacterInput, type LoadoutKind } from '$lib/bible-data';
 	import { characterKey, eraseSnapshot, loadSavedCharacter, rememberViewed, setLoadoutKind, setSnapshot } from '$lib/saved-character';
 	import { gearKey, gearOf, listSnapshots, recordSnapshots } from '$lib/snapshot-history';

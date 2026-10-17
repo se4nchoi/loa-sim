@@ -1,5 +1,5 @@
 <script lang="ts">
-	import CharacterView from '$lib/demo/CharacterView.svelte';
+	import CharacterView from '$lib/character/CharacterView.svelte';
 
 	let { data } = $props();
 	const subtitle = $derived(data.header?.guild?.name ?? '');

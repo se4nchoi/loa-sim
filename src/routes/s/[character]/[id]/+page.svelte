@@ -1,5 +1,5 @@
 <script lang="ts">
-	import CharacterView from '$lib/demo/CharacterView.svelte';
+	import CharacterView from '$lib/character/CharacterView.svelte';
 	import { normalizeName } from '$lib/bible-data';
 	let {data} = $props();
 	const plan = $derived(data.shared.plan);
