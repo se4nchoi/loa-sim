@@ -15,7 +15,7 @@
 
 	const tabs = [
 		{ href: '/', label: 'Characters', active: (p: string) => p === '/' },
-		{ href: '/sim', label: 'Simulator', active: (p: string) => p.startsWith('/sim') || p.startsWith('/character') }
+		{ href: '/sim', label: 'Simulator', active: (p: string) => p.startsWith('/sim') || p.startsWith('/character') || p.startsWith('/s/') }
 	];
 </script>
 

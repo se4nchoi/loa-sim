@@ -14,7 +14,6 @@
 	import { onMount } from 'svelte';
 	import SiteNews from '$lib/SiteNews.svelte';
 	import SiteNewsStrip from '$lib/SiteNewsStrip.svelte';
-	import ImportSimulation from '$lib/ImportSimulation.svelte';
 
 	let orders = $state<Record<CharacterSection, string[]>>({roster: [], characters: []});
  let builds = $state<SavedSimulation[]>([]);
@@ -274,10 +273,10 @@
   {#each builds.filter(s => s.characterKey === key) as build (build.id)}
    {@const score = simulationCP(build)}
    <div class="mb-2 ml-3 mr-3 flex min-w-0 items-center gap-2 border-l border-accent-400/30 pl-3 text-xs">
-    <a class="flex min-w-0 flex-1 items-center gap-2 py-1 hover:text-accent-200" href={`/sim?c=${encodeURIComponent(key)}&build=${encodeURIComponent(build.id)}`}>
+    <a class="flex min-w-0 items-center gap-2 py-1 hover:text-accent-200" href={`/sim?c=${encodeURIComponent(key)}&build=${encodeURIComponent(build.id)}`}>
      <span class="truncate">{build.name}</span><span class="tabular-nums {build.loadout.combatPower?.id === 2 ? 'text-green-400' : 'text-red-400'}">{score.toFixed(2)}</span>
     </a>
-    <button type="button" class="text-surface-500 hover:text-surface-100" aria-label={`Unpin ${build.name}`} title="Unpin build" onclick={() => unpin(build.id)}>×</button>
+    <button type="button" class="flex size-8 shrink-0 items-center justify-center rounded-xs text-lg text-surface-400 hover:bg-surface-800 hover:text-surface-100" aria-label={`Unpin ${build.name}`} title="Unpin build" onclick={() => unpin(build.id)}>×</button>
    </div>
   {/each}
  {/if}
@@ -294,7 +293,7 @@
 		<p class="text-sm text-surface-300">Load a character, change its gear, and see what each change does to Combat Power.</p>
 		<ul class="list-disc pl-5 text-xs text-surface-400">
 			<li>Uses only what lostark.bible already shows publicly for a character.</li>
-			<li>Nothing is saved anywhere except your browser: loaded characters, your roster and your edits stay on this device.</li>
+			<li>Characters, your roster and edits stay in your browser. Sharing creates a public build link that expires in 30 days.</li>
 		</ul>
 	</div>
 
@@ -314,7 +313,6 @@
 			{loading && target && loading === characterKey(target) ? 'Loading…' : 'Load'}
 		</button>
 	</form>
-	<ImportSimulation />
 	{#if input && !target}<span class="-mt-2 text-sm text-red-400">Enter a character name, or a lostark.bible/character/… link.</span>{/if}
 	{#if error}
 		<p class="-mt-2 text-sm text-red-400">{error}</p>

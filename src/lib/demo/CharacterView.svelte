@@ -12,6 +12,7 @@
 
 	let {
 		initialBuild,
+		sharedBuild = false,
 		name,
 		region,
 		subtitle,
@@ -29,6 +30,7 @@
 		onreload
 	}: {
 		initialBuild?: import('$lib/upgrade-planner/saved-simulations').SavedSimulation;
+		sharedBuild?: boolean;
 		name: string;
 		region: string;
 		/** Lines under the name (guild, snapshot time). */
@@ -187,12 +189,12 @@
 	</a>
 	<!-- Always shown, so players find saved snapshots before they have any. -->
 	{#if menu.length && onsnapshot && onloadout}
-		<div class="mt-1 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_repeat(2,2rem)] items-center gap-1.5">
-			<MenuPicker value={pending ?? menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate" full fitMenu>
+		<div class="mt-1 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_2rem] max-lg:grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-1.5">
+			<MenuPicker value={pending ?? menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate" full fitMenu mobileDetails>
 				{#snippet trigger()}
 					<!-- Same words for every choice ("Snapshot on 10-11 6620.18"), so picking one never resizes the button; the
 					     menu has the full names. -->
-					<span class="flex min-w-0 flex-row items-baseline gap-1.5 overflow-hidden text-xs" title={shownPick?.label}>
+					<span class="flex min-w-0 flex-row items-baseline gap-1.5 overflow-hidden text-xs max-sm:text-base" title={shownPick?.label}>
 						<span class="shrink-0">Snapshot{shownPick?.note ? ' on' : ''}</span>
 						{#if shownPick?.note}<span class="shrink-0 text-surface-300 tabular-nums">{shownPick.note}</span>{/if}
 						{#if shownPick}<span class="shrink-0 font-semibold tabular-nums" style:color={shownPick.detail.color}>{shownPick.detail.label}</span>{/if}
@@ -202,7 +204,7 @@
 			{#if onreload}
 				<button
 					type="button"
-					class="flex size-8 shrink-0 items-center justify-center rounded-xs border border-surface-600 bg-surface-800/80 text-surface-200 transition hover:border-accent-500 hover:bg-surface-700/80 hover:text-surface-50 disabled:opacity-50"
+					class="flex size-8 max-lg:size-11 shrink-0 items-center justify-center rounded-xs border border-surface-600 bg-surface-800/80 text-surface-200 transition hover:border-accent-500 hover:bg-surface-700/80 hover:text-surface-50 disabled:opacity-50"
 					onclick={reload}
 					disabled={reloading}
 					title="Reload from lostark.bible"
@@ -217,7 +219,7 @@
 		{/if}
 	{/if}
 	{#if loadout && simulation}
-		<div class="mt-2 w-full max-w-[27.125rem]">
+		<div class="mt-2 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_2rem] max-lg:grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-1.5">
 			<SavedSimulations workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} initialId={initialBuild?.id} characterKey={`${region}/${name}`.toLowerCase()} {loadout} state={simulation} onrestore={(state) => simulation = state} />
 		</div>
 	{/if}
@@ -242,6 +244,6 @@
 				</div>
 			</div>
 		{/if}
-		{#if simulation}<Simulator initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
+		{#if simulation}<Simulator restoreInitial={sharedBuild} initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
 	</div>
 {/if}

@@ -19,6 +19,7 @@
 		tone = 'default',
 		repick = false,
 		fitMenu = false,
+		mobileDetails = false,
 		naming = $bindable(null),
 		preview,
 		align = 'left',
@@ -37,6 +38,8 @@
 		repick?: boolean;
 		/** Match the dropdown to the selector width. */
 		fitMenu?: boolean;
+		/** Stack snapshot labels above their date and CP on phones. */
+		mobileDetails?: boolean;
 		naming?: T | null;
 		preview?: (v: T) => number;
 		align?: 'left' | 'right';
@@ -53,6 +56,7 @@
 
 	let open = $state(false);
 	let nameText = $state('');
+	let newName = $state('');
 	let nameInput = $state<HTMLInputElement>();
 	$effect(() => {
 		if (naming !== null) {
@@ -65,6 +69,10 @@
 		const title = naming === option.value ? nameText.trim() : option.label;
 		if (!title) return;
 		if ((option.onsave ?? option.onrename)?.(title)) { naming = null; open = false; }
+	}
+	function saveNew(option: MenuOption<T>) {
+		const title = newName.trim();
+		if (title && option.onsave?.(title)) { newName = ''; naming = null; open = false; }
 	}
 
 	// Long single-column lists (skills, engravings) get a search box.
@@ -120,6 +128,7 @@
 		aria-haspopup="listbox"
 		aria-expanded={open}
 		aria-label={label}
+		class:comfortable-trigger={saveActions || (full && fitMenu)}
 		onclick={toggle}
 	>
 		{@render trigger()}
@@ -203,6 +212,7 @@
 						title={o.title}
 						class:opacity-40={o.disabled}
 						class:cursor-not-allowed={o.disabled}
+						class:stacked-option={mobileDetails}
 						class="flex min-w-0 {removable ? 'flex-1' : ''} rounded-xs text-sm hover:bg-surface-800 {saveActions ? 'w-full flex-wrap' : ''} {cells ? 'min-w-12 flex-col items-center justify-center px-1.5 py-1 font-semibold leading-tight' : 'flex-row items-center gap-2 px-2.5 py-1.5 text-left'} {o.value === value ? 'bg-surface-800 ring-1 ring-accent-500/60' : ''} {o.muted ? 'text-surface-400' : ''}"
 						style:color={o.color}
 						onclick={(e) => { e.stopPropagation(); pick(o.value); }}
@@ -216,10 +226,10 @@
  {:else}
 						{#if o.glyph}<Glyph kind={o.glyph} dim={o.muted} />{/if}
 						{#if o.iconUrl}<img src={o.iconUrl} alt="" class="size-6 shrink-0 rounded-xs" loading="lazy" />{/if}
-						{#if o.marker !== undefined}<span class="flex w-2.5 shrink-0 justify-center">{#if o.marker}<svg class="size-2.5" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5L9 8.5H1z" fill={o.marker} /></svg>{/if}</span>{/if}
-						<span class="whitespace-nowrap {cells ? '' : 'min-w-0 flex-1 truncate'}">{o.label}{#if o.suffix}<span class="ml-1" style:color={o.suffix.color}>{o.suffix.label}</span>{/if}</span>
-						{#if o.note !== undefined}<span class="w-14 shrink-0 pl-2 whitespace-nowrap text-surface-400">{o.note}</span>{/if}
-						{#if o.detail}<span class="pl-3 text-right tabular-nums" style:color={o.detail.color}>{o.detail.label}</span>{/if}
+						{#if o.marker !== undefined}<span class="option-marker flex w-2.5 shrink-0 justify-center">{#if o.marker}<svg class="size-2.5" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5L9 8.5H1z" fill={o.marker} /></svg>{/if}</span>{/if}
+						<span class="option-label whitespace-nowrap {cells ? '' : 'min-w-0 flex-1 truncate'}">{o.label}{#if o.suffix}<span class="ml-1" style:color={o.suffix.color}>{o.suffix.label}</span>{/if}</span>
+						{#if o.note !== undefined}<span class="option-note w-14 shrink-0 pl-2 whitespace-nowrap text-surface-400">{o.note}</span>{/if}
+						{#if o.detail}<span class="option-detail pl-3 text-right tabular-nums" style:color={o.detail.color}>{o.detail.label}</span>{/if}
 						{#if previews.has(o.value) && o.value !== value}
 							{@const p = previews.get(o.value)!}
 							<!-- Cells (core points) stack % and raw CP under the label so they stay narrow. -->
@@ -233,25 +243,33 @@
 				{/snippet}
  {#if saveActions}
  <div class="saved-entry {o.onsave ? 'saved-current' : ''} {naming === o.value ? 'saved-naming' : ''} {o.value === value ? 'bg-surface-800/60' : ''}">
-  {#if naming === o.value}
+  {#if o.onsave}
+   <input bind:value={newName} aria-label="Name current simulation" placeholder="Name this simulation…" maxlength="80" class="saved-name-input h-8 min-w-0 rounded-xs border border-surface-600 bg-surface-800 px-2 text-base text-surface-100 focus:border-violet-400 focus:outline-none sm:text-sm" onkeydown={e => {
+    if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); saveNew(o); }
+   }} />
+  {:else if naming === o.value}
    <input bind:this={nameInput} bind:value={nameText} aria-label="Simulation name" placeholder="Simulation name" maxlength="80" class="saved-name-input h-8 min-w-0 rounded-xs border border-violet-400 bg-surface-800 px-2 text-base text-surface-100 sm:text-sm" onkeydown={e => {
     if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finishName(o); }
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); naming = null; }
    }} />
   {:else}
-   <div class="saved-main flex min-w-0 items-center justify-between gap-2">
+   <div class="saved-main flex min-w-0 items-center">
     <button type="button" role="option" aria-selected={o.value === value} disabled={o.disabled} title={o.onrename ? 'Click to rename' : o.title ?? o.label}
-     class="saved-name min-w-0 truncate py-1 text-left text-sm hover:text-surface-50 {o.onrename ? 'cursor-text' : ''}" onclick={e => { e.stopPropagation(); naming = o.value; }}>{o.label}</button>
-    <button type="button" class="h-6 shrink-0 rounded-xs border border-violet-400/50 bg-violet-500/30 px-2 text-xs font-semibold text-violet-100 hover:bg-violet-500/45 disabled:opacity-40" disabled={o.loadDisabled} aria-label={`${o.onsave ? 'Save' : 'Load'} ${o.label}`} onclick={e => { e.stopPropagation(); if (o.onsave) naming = o.value; else { o.onload?.(); open = false; } }}>{o.onsave ? 'Save' : 'Load'}</button>
+     class="saved-name h-8 w-full min-w-0 truncate rounded-xs px-2 text-left text-sm hover:bg-surface-800 hover:text-surface-50 {o.onrename ? 'cursor-text' : ''}" onclick={e => { e.stopPropagation(); naming = o.value; }}>{o.label}</button>
+
    </div>
-   <span class="saved-date whitespace-nowrap text-xs text-surface-400">{o.note ?? ''}</span>
-   <span class="saved-cp whitespace-nowrap text-right text-xs tabular-nums" style:color={o.detail?.color}>{o.detail?.label ?? ''}</span>
   {/if}
-  <div class="saved-actions flex items-center justify-end gap-0.5">
-   {#if naming === o.value}
-    <button type="button" class="h-8 px-2 text-xs text-surface-300 hover:bg-surface-800" onclick={e => { e.stopPropagation(); naming = null; }}>Cancel</button>
-    <button type="button" class="h-8 px-2 text-xs text-accent-200 hover:bg-surface-800" aria-label={`Save ${o.label}`} onclick={e => { e.stopPropagation(); finishName(o); }}>Save</button>
+  <span class:invisible={naming === o.value || !!o.onsave} class="saved-date whitespace-nowrap text-xs text-surface-400">{o.note ?? ''}</span>
+  <span class:invisible={naming === o.value || !!o.onsave} class="saved-cp whitespace-nowrap text-right text-xs tabular-nums" style:color={o.detail?.color}>{o.detail?.label ?? ''}</span>
+  <div class="saved-actions flex items-center justify-start gap-0.5">
+   {#if o.onsave}
+    <button type="button" class="h-8 w-12 rounded-xs border border-violet-400/50 bg-violet-500/30 text-xs font-semibold text-violet-100 hover:bg-violet-500/45 disabled:opacity-40" disabled={!newName.trim()} aria-label="Save current simulation" onclick={e => { e.stopPropagation(); saveNew(o); }}>Save</button>
+    <button type="button" class="h-8 w-14 rounded-xs border border-surface-600 bg-surface-800 text-xs text-surface-300 hover:bg-surface-700" onclick={e => { e.stopPropagation(); newName = ''; naming = null; open = false; }}>Cancel</button>
+   {:else if naming === o.value}
+    <button type="button" class="h-8 w-12 rounded-xs border border-violet-400/50 bg-violet-500/30 text-xs font-semibold text-violet-100 hover:bg-violet-500/45" aria-label={`Save ${o.label}`} onclick={e => { e.stopPropagation(); finishName(o); }}>Save</button>
+    <button type="button" class="h-8 w-14 rounded-xs border border-surface-600 bg-surface-800 text-xs text-surface-300 hover:bg-surface-700" onclick={e => { e.stopPropagation(); naming = null; }}>Cancel</button>
    {:else}
+    <button type="button" class="h-8 w-12 shrink-0 rounded-xs border border-violet-400/50 bg-violet-500/30 px-2 text-xs font-semibold text-violet-100 hover:bg-violet-500/45 disabled:opacity-40" disabled={o.loadDisabled} aria-label={`${o.onsave ? 'Save' : 'Load'} ${o.label}`} onclick={e => { e.stopPropagation(); if (o.onsave) naming = o.value; else { o.onload?.(); open = false; } }}>{o.onsave ? 'Save' : 'Load'}</button>
     {#if o.onpin}<button type="button" class="flex size-8 shrink-0 items-center justify-center rounded-xs hover:bg-surface-800 {o.pinned ? 'text-accent-300' : 'text-surface-400 hover:text-surface-100'}" aria-pressed={o.pinned === true} aria-label={`${o.pinned ? 'Unpin' : 'Pin'} ${o.label} ${o.pinned ? 'from' : 'to'} character list`} title={o.pinned ? 'Unpin from character list' : 'Pin to character list'} onclick={e => { e.stopPropagation(); o.onpin?.(); }}>
      <svg viewBox="0 0 24 24" class="size-4" fill={o.pinned ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 5 5-3 1-4 5v4l-2 2-3-5-5-3 2-2h4l5-4z"/><path d="m8 16-5 5"/></svg>
     </button>{/if}
@@ -299,21 +317,33 @@
 </div>
 
 <style>
- .saved-entry { display: grid; width: 32rem; max-width: 100%; grid-template-columns: minmax(6rem, 1fr) 3rem 5rem 4.25rem; align-items: center; column-gap: .5rem; padding: .125rem .5rem; border-bottom: 1px solid var(--color-surface-700); }
+ @media (max-width: 1023px) {
+  .comfortable-trigger { min-height: 2.75rem; padding: .625rem .75rem; }
+ }
+ .saved-entry { display: grid; width: 34rem; max-width: calc(100vw - 2rem); min-height: 2.5rem; grid-template-columns: minmax(0, 1fr) 3rem 5rem 7.25rem; align-items: center; column-gap: .5rem; padding: .125rem .5rem; border-bottom: 1px solid var(--color-surface-700); }
  .saved-entry:last-child { border-bottom: 0; }
- .saved-name-input { grid-column: 1 / 4; }
- .saved-actions { grid-column: 4; }
- .saved-naming { grid-template-columns: minmax(0, 1fr) auto; }
- .saved-naming .saved-name-input { grid-column: 1; }
- .saved-naming .saved-actions { grid-column: 2; }
+ .saved-main { grid-column: 1; grid-row: 1; }
+ .saved-name-input { grid-column: 1 / 4; grid-row: 1; width: 100%; }
+ .saved-date { grid-column: 2; grid-row: 1; }
+ .saved-cp { grid-column: 3; grid-row: 1; }
+ .saved-actions { grid-column: 4; grid-row: 1; }
  @media (max-width: 639px) {
-  .saved-entry { width: 24rem; grid-template-columns: minmax(0, 1fr) 5rem 4.25rem; column-gap: .5rem; padding: .25rem .5rem; }
-  .saved-main { grid-column: 1 / -1; grid-row: 1; }
-  .saved-cp { grid-column: 2; grid-row: 2; }
-  .saved-date { grid-column: 1; grid-row: 2; }
-  .saved-actions { grid-column: 3; grid-row: 2; }
-  .saved-current .saved-date, .saved-current .saved-cp, .saved-current .saved-actions { display: none; }
-  .saved-naming .saved-name-input { grid-column: 1 / -1; grid-row: 1; width: 100%; }
-  .saved-naming .saved-actions { display: flex; grid-column: 1 / -1; grid-row: 2; }
+  .comfortable-trigger { height: 2.5rem; }
+  .saved-entry { min-height: 5.75rem; grid-template-columns: minmax(0, 1fr) 8.5rem; grid-template-rows: 2.5rem 2.5rem; gap: .25rem .5rem; padding: .25rem .5rem; }
+  .saved-main, .saved-name-input { grid-column: 1 / -1; grid-row: 1; }
+  .saved-name, .saved-name-input { height: 2.5rem; font-size: 1rem; }
+  .saved-name { font-size: 1rem; }
+  .saved-date { display: none; }
+  .saved-cp { grid-column: 1; grid-row: 2; text-align: left; padding-left: .5rem; font-size: 1rem; font-weight: 600; }
+  .saved-actions { grid-column: 2; grid-row: 2; }
+  .saved-actions button { height: 2.5rem; flex-shrink: 0; font-size: .875rem; }
+  .saved-actions button:first-child { width: 3.25rem; }
+  .saved-actions button:nth-child(2):last-child { flex: 1; width: auto; }
+  .saved-actions button[aria-pressed], .saved-actions button:last-child:not(:nth-child(2)) { width: 2.5rem; }
+  .stacked-option { display: grid; grid-template-columns: .625rem minmax(0, 1fr) auto; gap: .25rem .5rem; }
+  .stacked-option .option-marker { grid-column: 1; grid-row: 1; }
+  .stacked-option .option-label { grid-column: 2 / -1; grid-row: 1; white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+  .stacked-option .option-note { grid-column: 2; grid-row: 2; width: auto; padding-left: 0; font-size: .75rem; }
+  .stacked-option .option-detail { grid-column: 3; grid-row: 2; padding-left: 0; font-size: .75rem; }
  }
 </style>

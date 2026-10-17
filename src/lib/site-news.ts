@@ -18,7 +18,7 @@ export const UPDATES: SiteUpdate[] = [
 		date: '2026-10-13',
 		kind: 'new',
 		title: 'Saved simulations',
-		points: ['Save named simulations (saved to your browser).', 'Import/export in JSON available, with option to load from a simulation.']
+		points: ['Save named simulations (saved to your browser).', 'Pin saved simulations to your character list for quick access.']
 	},
 	{
 		date: '2026-10-13',

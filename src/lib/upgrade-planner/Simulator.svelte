@@ -31,6 +31,7 @@
 	import SimSkins from './sim/SimSkins.svelte';
 	import MobileSummaryBar from './sim/MobileSummaryBar.svelte';
 	import SimSummary from './sim/SimSummary.svelte';
+	import ShareSimulation from './ShareSimulation.svelte';
 	import CpBreakdownDialog from './sim/CpBreakdownDialog.svelte';
 	import { cpBreakdown } from './cp-breakdown';
 	import { PartType } from './cp';
@@ -42,6 +43,7 @@
 	let {
 		loadout,
 		initialState,
+		restoreInitial = false,
 		workspaceKey,
 		sim = $bindable(untrack(() => initSimState(loadout))),
 		sidebar,
@@ -52,6 +54,7 @@
 	}: {
 		loadout: Loadout;
 		initialState?: SimState;
+		restoreInitial?: boolean;
 		workspaceKey?: string;
 		sim?: SimState;
 		sidebar?: Snippet;
@@ -154,9 +157,9 @@
 	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
-		const currentLoadout = loadout, key = workspaceKey ?? characterKey ?? '', initial = initialState;
+		const currentLoadout = loadout, key = workspaceKey ?? characterKey ?? '', initial = initialState, fresh = restoreInitial;
 		untrack(() => {
-			sim = loadAutosave(key, currentLoadout) ?? (initial ? structuredClone($state.snapshot(initial)) : initSimState(currentLoadout));
+			sim = (fresh && initial ? structuredClone($state.snapshot(initial)) : loadAutosave(key, currentLoadout)) ?? (initial ? structuredClone($state.snapshot(initial)) : initSimState(currentLoadout));
 			calculated = structuredClone($state.snapshot(sim));
 		});
 	});
@@ -352,7 +355,11 @@
 		canRedo={future.length > 0}
 		onbudget={() => budgetOpen = true}
 		onbreakdown={() => breakdownOpen = true}
-	/>
+	>
+		{#snippet share()}
+			{#if characterKey}<ShareSimulation {characterKey} {loadout} state={sim} />{/if}
+		{/snippet}
+	</SimSummary>
 {/snippet}
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->

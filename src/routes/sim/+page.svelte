@@ -4,13 +4,13 @@
 	import { page } from '$app/state';
 	import CharacterSwitcher from '$lib/CharacterSwitcher.svelte';
 	import CharacterView from '$lib/demo/CharacterView.svelte';
-	import type { LoadoutKind } from '$lib/bible-data';
+	import { parseCharacterInput, type LoadoutKind } from '$lib/bible-data';
 	import { characterKey, eraseSnapshot, loadSavedCharacter, rememberViewed, setLoadoutKind, setSnapshot } from '$lib/saved-character';
 	import { gearKey, gearOf, listSnapshots, recordSnapshots } from '$lib/snapshot-history';
 	import { loadCharacter } from '$lib/load-character';
-	import { onMount } from 'svelte';
+	import { untrack } from 'svelte';
 
-	// ?c=na/soulshan picks a saved character; without it (the Simulator tab), the one last viewed here.
+	// Shared links also load characters this browser hasn't saved yet.
 	let switched = $state<ReturnType<typeof loadSavedCharacter>>(null);
 	const wanted = $derived(page.url.searchParams.get('c'));
 	// After a loadout switch, show the updated save, but only for the character it was made on.
@@ -56,8 +56,37 @@
 		older = listSnapshots(key).filter((s) => !listed.has(gearOf(s)) || s.id === saved.snapshotId);
 	});
 
-	onMount(() => {
-		if (!saved) goto('/', { replaceState: true });
+	let loadingCharacter = $state(false);
+	let loadError = $state<string | null>(null);
+	let retry = $state(0);
+	$effect(() => {
+		const key = wanted;
+		void retry;
+		loadError = null;
+		loadingCharacter = false;
+		if (untrack(() => loadSavedCharacter(key))) return;
+		if (!key) {
+			void goto('/', { replaceState: true });
+			return;
+		}
+		const parts = key.split('/');
+		const target = parts.length === 2
+			? parseCharacterInput(`https://lostark.bible/character/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}`, 'NA')
+			: null;
+		if (!target) {
+			loadError = 'This character link is invalid.';
+			return;
+		}
+		let active = true;
+		loadingCharacter = true;
+		void loadCharacter(target.region, target.name).then(() => {
+			if (active) switched = loadSavedCharacter(key);
+		}).catch((e) => {
+			if (active) loadError = e instanceof Error ? e.message : String(e);
+		}).finally(() => {
+			if (active) loadingCharacter = false;
+		});
+		return () => { active = false; };
 	});
 
 	/** ↻ by the snapshot picker: loads bible's latest (one request, this click); true when it's gear not kept here yet. */
@@ -79,7 +108,15 @@
 	);
 </script>
 
-{#if saved}
+{#if loadingCharacter}
+	<p role="status" class="text-sm text-surface-300">Loading character from lostark.bible…</p>
+{:else if loadError}
+	<div class="space-y-3 text-sm">
+		<p role="alert" class="text-red-400">{loadError}</p>
+		<button type="button" class="text-surface-200 underline hover:text-surface-50" onclick={() => retry++}>Try again</button>
+		<a href="/" class="ml-4 text-surface-300 underline hover:text-surface-50">Choose a character</a>
+	</div>
+{:else if saved}
  {#if build}<div class="mb-3 flex flex-wrap items-center gap-3 text-sm"><span class="font-semibold text-accent-200">Build: {build.name}</span><a class="text-surface-300 underline" href={`/sim?c=${encodeURIComponent(characterKey(saved))}`}>Back to character</a></div>
  {:else if buildId}<p class="mb-3 text-sm text-surface-300">This saved build is no longer available. Showing your character.</p>{/if}
 	<CharacterSwitcher current={characterKey(saved)} />

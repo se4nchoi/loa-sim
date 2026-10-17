@@ -157,3 +157,95 @@ deltas are identical with either Bell equipped (slots are additive).
   assumed. Predicted without fitting: Whistle L88, Bell E95, Censer E20, Censer E66/E75 on the Relic-Bell
   baseline, Legendary-Bell start. Relic slope rests on one swap.
 - Ancient score and the level/Resonance part of K still need measuring (Ignishan/Brushann: Ancient only).
+
+### Kamehameshaan Ancient mask swaps (2026-10-15)
+
+User-reported total power, paired with item tooltip screenshots. All masks are Ancient, restoration +15,
+Diamond III C, Thunder Charge V (tooltip max 12,240,000, cooldown 8s).
+
+| Mask | Quality | Strength | Total Paradise power |
+|---|---|---|---|
+| Plain Ancient | 35 | 970,313 | 20,420,269 |
+| Plain Ancient | 52 | 1,113,750 | 20,541,622 |
+| Splendid Ancient | 100 | 1,518,750 | 21,019,265 |
+
+- Plain Q35 -> Q52: +121,353 power / 17 quality = approximately 7,138.412 power per quality point.
+  This is the local slope for this character/setup; whether it transfers across characters or restoration
+  levels is unverified. Both plain masks have the same inferred main-stat base roll (0.90).
+- Extrapolating that slope from plain Q52 to Q100 predicts +342,644 power. The observed increase is
+  +477,643, leaving approximately +134,999 (consistent with +135,000 after rounding).
+- The Splendid mask also has Thunder Charge Damage +10% and a different inferred main-stat base roll
+  (0.90 for the plain masks, 0.95 for Splendid). Therefore the residual suggests a Splendid contribution
+  but does not yet isolate it from base-roll effects or quality nonlinearity.
+- Next useful measurements: a plain Ancient Q100 (or another plain Ancient quality to check linearity),
+  and total power before/after a single restoration level while holding equipment and Resonance fixed.
+
+### Kamehameshaan Ancient liquor glass swaps (2026-10-15)
+
+Both +15, Diamond III B, Starlight Barrage V (tooltip max 11,232,000, cooldown 7.2s).
+Both have inferred main-stat base roll 1.00. Other equipment held unchanged per requested swap protocol.
+
+| Glass | Quality | Strength | Total Paradise power |
+|---|---|---|---|
+| Splendid Ancient | 100 | 1,687,500 | 21,019,265 |
+| Plain Ancient | 38 | 1,106,250 | 20,436,284 |
+
+- Observed Q38 plain -> Q100 Splendid gain: 582,981.
+- Using the mask's local plain quality slope (7,138.412), 62 quality predicts 442,582; residual is
+  approximately 140,399, not the mask's approximately 134,999 (difference approximately 5,400).
+- A universal Ancient quality slope plus a flat 135,000 Splendid bonus does not explain both pairs.
+  Slot, Resonance letter, item effects, or nonlinear scoring remain possible causes; no single cause isolated.
+- Most useful next swap: a second plain Ancient glass of a different quality, with the same setup. This
+  measures the glass's own quality slope without mixing in Splendid. A single restoration level before/after
+  remains useful for separating restoration contributions.
+
+### Kamehameshaan Bell restoration 12 -> 13 (2026-10-15)
+
+- Before: total Paradise power 21,019,265; slot levels 18/15/15/15/12/12.
+- After: total Paradise power 21,413,988; slot levels 18/15/15/15/13/12.
+- Restore result explicitly shows +394,723 power and the unlocked effect Vigor +600.
+- Bell before: plain Ancient Q35, Strength 1,024,219, Diamond III B; Bladesong V max 15,724,800 physical
+  damage, cooldown 8.8s. Level 12 effect Additional Damage +10%; level 13 Vigor +600; level 14 Weapon Power +150.
+- This measures one upgrade's total effect; it does not isolate Vigor scoring from a possible restoration-level
+  contribution or a concurrent Resonance change. No post-upgrade Resonance tooltip supplied yet.
+- Next useful observation: Bell 13 -> 14 (Weapon Power +150), with total power and Resonance before/after.
+  Another Vigor +600 upgrade on a different slot would test whether the same effect yields the same power gain.
+
+### Kamehameshaan Bell restoration 13 -> 14 (2026-10-15)
+
+- User confirms unlocked effect Weapon Power +150.
+- Screenshot total Paradise power: 21,821,453; slot levels 18/15/15/15/14/12.
+- Previous total 21,413,988 -> 21,821,453: +407,465, versus +394,723 for Bell 12 -> 13 (Vigor +600).
+- Different effects yielding similar gains do not establish effect-specific scoring. A shared restoration
+  progression or interaction with existing stats remains possible. Post-upgrade Resonance remains unverified.
+- Useful next measurement without further restoration spending: repeat the plain Ancient mask Q35/Q52
+  swap at this new baseline. Previous Q35 -> Q52 delta was +121,353; a changed delta would show that the
+  quality contribution depends on the upgraded character/setup, rather than being a fixed additive score.
+
+### Controlled mask/glass swaps after Bell +14 (2026-10-15)
+
+Baseline both Splendid Q100: 21,821,453. Other slots unchanged; replace one item at a time.
+
+| Mask | Glass | Total Paradise power |
+|---|---|---|
+| Plain Q100 | Splendid Q100 | 21,686,453 |
+| Plain Q52 | Splendid Q100 | 21,321,332 |
+| Plain Q35 | Splendid Q100 | 21,192,019 |
+| Splendid Q100 | Plain Q38 | 21,209,439 |
+| Splendid Q100 | Plain Q31 | 21,156,192 |
+
+- Mask Splendid vs plain at identical Q100, Strength 1,518,750, +15, Diamond III C: exactly +135,000.
+  This isolates the Splendid mask variant's contribution in this setup.
+- Plain mask Q35 -> Q52: +129,313 / 17 = 7,606.647 per quality; Q52 -> Q100: +365,121 / 48 =
+  7,606.688. The Q100 plain mask has a different main-stat roll than Q35/Q52, yet the quality slope agrees.
+- Plain glass Q31 -> Q38: +53,247 / 7 = 7,606.714 per quality. Same quality slope across these two slots,
+  within total-power rounding. A common approximate slope 7,606.67 fits the samples.
+- Glass Splendid Q100 vs plain Q38: +612,014; subtracting 62 quality at approximately 7,606.67 leaves
+  approximately +140,400. This is inferred by extrapolation, unlike the direct equal-quality mask swap.
+  Splendid contributions therefore appear effect/slot-specific; a universal +135,000 is not supported.
+- Ancient quality slope increased approximately 6.5594% from Bell +12 (7,138.412) to +14 (7,606.67).
+  This rules out a fixed additive per-item score independent of restoration/setup. Earlier Shanladin
+  grade/quality coefficients should be treated as local fits, not universal constants.
+- Next: repeat the Q35/Q52 mask readings after a single future upgrade, or obtain an equal-quality
+  plain/Splendid glass pair. To distinguish Vigor vs Weapon Power interactions, compare upgrades with
+  known individual effects while recording equipment and Resonance.
