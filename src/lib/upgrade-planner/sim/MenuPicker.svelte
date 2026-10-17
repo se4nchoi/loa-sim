@@ -239,8 +239,11 @@
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); naming = null; }
    }} />
   {:else}
-   <button type="button" role="option" aria-selected={o.value === value} disabled={o.disabled} title={o.title ?? o.label}
-    class="saved-name min-w-0 truncate py-1 text-left text-sm hover:text-surface-50" onclick={e => { e.stopPropagation(); naming = o.value; }}>{o.label}</button>
+   <div class="saved-main flex min-w-0 items-center gap-2">
+    <button type="button" role="option" aria-selected={o.value === value} disabled={o.disabled} title={o.onrename ? 'Click to rename' : o.title ?? o.label}
+     class="saved-name min-w-0 truncate py-1 text-left text-sm hover:text-surface-50 {o.onrename ? 'cursor-text' : ''}" onclick={e => { e.stopPropagation(); naming = o.value; }}>{o.label}</button>
+    <button type="button" class="h-6 shrink-0 rounded-xs border border-violet-400/50 bg-violet-500/30 px-2 text-xs font-semibold text-violet-100 hover:bg-violet-500/45 disabled:opacity-40" disabled={o.loadDisabled} aria-label={`${o.onsave ? 'Save' : 'Load'} ${o.label}`} onclick={e => { e.stopPropagation(); if (o.onsave) naming = o.value; else { o.onload?.(); open = false; } }}>{o.onsave ? 'Save' : 'Load'}</button>
+   </div>
    <span class="saved-date whitespace-nowrap text-xs text-surface-400">{o.note ?? ''}</span>
    <span class="saved-cp whitespace-nowrap text-right text-xs tabular-nums" style:color={o.detail?.color}>{o.detail?.label ?? ''}</span>
   {/if}
@@ -249,9 +252,9 @@
     <button type="button" class="h-8 px-2 text-xs text-surface-300 hover:bg-surface-800" onclick={e => { e.stopPropagation(); naming = null; }}>Cancel</button>
     <button type="button" class="h-8 px-2 text-xs text-accent-200 hover:bg-surface-800" aria-label={`Save ${o.label}`} onclick={e => { e.stopPropagation(); finishName(o); }}>Save</button>
    {:else}
-    {#if o.onpin}<button type="button" class="h-8 shrink-0 px-2 text-xs text-accent-300 hover:bg-surface-800" aria-label={`${o.pinned ? 'Unpin' : 'Pin'} ${o.label} ${o.pinned ? 'from' : 'to'} character list`} onclick={e => { e.stopPropagation(); o.onpin?.(); }}>{o.pinned ? 'Unpin' : 'Pin'}</button>{/if}
-    {#if o.onrename}<button type="button" class="h-8 shrink-0 px-2 text-xs text-surface-300 hover:bg-surface-800" aria-label={`Rename ${o.label}`} onclick={e => { e.stopPropagation(); naming = o.value; }}>Rename</button>{/if}
-    <button type="button" class="h-8 shrink-0 px-2 text-xs text-surface-300 hover:bg-surface-800 disabled:opacity-40" disabled={o.loadDisabled} aria-label={`${o.onsave ? 'Save' : 'Load'} ${o.label}`} onclick={e => { e.stopPropagation(); if (o.onsave) naming = o.value; else { o.onload?.(); open = false; } }}>{o.onsave ? 'Save' : 'Load'}</button>
+    {#if o.onpin}<button type="button" class="flex size-8 shrink-0 items-center justify-center rounded-xs hover:bg-surface-800 {o.pinned ? 'text-accent-300' : 'text-surface-400 hover:text-surface-100'}" aria-pressed={o.pinned === true} aria-label={`${o.pinned ? 'Unpin' : 'Pin'} ${o.label} ${o.pinned ? 'from' : 'to'} character list`} title={o.pinned ? 'Unpin from character list' : 'Pin to character list'} onclick={e => { e.stopPropagation(); o.onpin?.(); }}>
+     <svg viewBox="0 0 24 24" class="size-4" fill={o.pinned ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 5 5-3 1-4 5v4l-2 2-3-5-5-3 2-2h4l5-4z"/><path d="m8 16-5 5"/></svg>
+    </button>{/if}
     {#if o.onremove}<button type="button" class="flex size-8 shrink-0 items-center justify-center text-surface-500 hover:bg-surface-800 hover:text-red-300" aria-label={o.removeLabel ?? `Delete ${o.label}`} onclick={e => { e.stopPropagation(); o.onremove?.(); }}>✕</button>{/if}
    {/if}
   </div>
@@ -296,19 +299,21 @@
 </div>
 
 <style>
- .saved-entry { display: grid; width: 36rem; max-width: 100%; grid-template-columns: minmax(6rem, 1fr) 3rem 5rem 11.25rem; align-items: center; column-gap: .5rem; padding: .125rem .5rem; border-bottom: 1px solid var(--color-surface-700); }
+ .saved-entry { display: grid; width: 32rem; max-width: 100%; grid-template-columns: minmax(6rem, 1fr) 3rem 5rem 4.25rem; align-items: center; column-gap: .5rem; padding: .125rem .5rem; border-bottom: 1px solid var(--color-surface-700); }
  .saved-entry:last-child { border-bottom: 0; }
  .saved-name-input { grid-column: 1 / 4; }
  .saved-actions { grid-column: 4; }
+ .saved-naming { grid-template-columns: minmax(0, 1fr) auto; }
+ .saved-naming .saved-name-input { grid-column: 1; }
+ .saved-naming .saved-actions { grid-column: 2; }
  @media (max-width: 639px) {
-  .saved-entry { width: 24rem; grid-template-columns: minmax(0, 1fr) 5rem; column-gap: .75rem; padding: .25rem .5rem; }
-  .saved-name { grid-column: 1; grid-row: 1; }
-  .saved-cp { grid-column: 2; grid-row: 1; }
+  .saved-entry { width: 24rem; grid-template-columns: minmax(0, 1fr) 5rem 4.25rem; column-gap: .5rem; padding: .25rem .5rem; }
+  .saved-main { grid-column: 1 / -1; grid-row: 1; }
+  .saved-cp { grid-column: 2; grid-row: 2; }
   .saved-date { grid-column: 1; grid-row: 2; }
-  .saved-actions { grid-column: 1 / -1; grid-row: 2; }
-  .saved-current .saved-date, .saved-current .saved-cp { display: none; }
-  .saved-current .saved-actions { grid-column: 2; grid-row: 1; }
+  .saved-actions { grid-column: 3; grid-row: 2; }
+  .saved-current .saved-date, .saved-current .saved-cp, .saved-current .saved-actions { display: none; }
   .saved-naming .saved-name-input { grid-column: 1 / -1; grid-row: 1; width: 100%; }
-  .saved-naming .saved-actions { grid-column: 1 / -1; grid-row: 2; }
+  .saved-naming .saved-actions { display: flex; grid-column: 1 / -1; grid-row: 2; }
  }
 </style>
