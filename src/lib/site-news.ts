@@ -161,6 +161,11 @@ export interface SiteIssue {
 //   "Pick from saved snapshots" (planned): both resolved by Saved snapshots (snapshot-history.ts).
 export const ISSUES: SiteIssue[] = [
 	{
+		status: 'planned',
+		title: 'Market API',
+		points: ['Explore wiring in market prices from loa-buddy.']
+	},
+	{
 		status: 'investigating',
 		title: 'Pet ranch CP',
 		points: ['The collection counts as +0.77% CP; working out how its main stat, damage and HP bonuses add up to that']
