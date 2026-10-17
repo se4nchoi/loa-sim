@@ -203,10 +203,17 @@
 						title={o.title}
 						class:opacity-40={o.disabled}
 						class:cursor-not-allowed={o.disabled}
-						class="flex min-w-0 {removable ? 'flex-1' : ''} rounded-xs text-sm hover:bg-surface-800 {cells ? 'min-w-12 flex-col items-center justify-center px-1.5 py-1 font-semibold leading-tight' : 'flex-row items-center gap-2 px-2.5 py-1.5 text-left'} {o.value === value ? 'bg-surface-800 ring-1 ring-accent-500/60' : ''} {o.muted ? 'text-surface-400' : ''}"
+						class="flex min-w-0 {removable ? 'flex-1' : ''} rounded-xs text-sm hover:bg-surface-800 {saveActions ? 'w-full flex-wrap' : ''} {cells ? 'min-w-12 flex-col items-center justify-center px-1.5 py-1 font-semibold leading-tight' : 'flex-row items-center gap-2 px-2.5 py-1.5 text-left'} {o.value === value ? 'bg-surface-800 ring-1 ring-accent-500/60' : ''} {o.muted ? 'text-surface-400' : ''}"
 						style:color={o.color}
 						onclick={(e) => { e.stopPropagation(); pick(o.value); }}
 					>
+						{#if saveActions}
+ <span class="w-full min-w-0 truncate font-semibold">{o.label}</span>
+ {#if o.note || o.detail}<span class="flex w-full min-w-0 items-center justify-between gap-3 text-xs">
+  <span class="shrink-0 text-surface-400">{o.note ?? ''}</span>
+  {#if o.detail}<span class="shrink-0 whitespace-nowrap tabular-nums" style:color={o.detail.color}>{o.detail.label}</span>{/if}
+ </span>{/if}
+ {:else}
 						{#if o.glyph}<Glyph kind={o.glyph} dim={o.muted} />{/if}
 						{#if o.iconUrl}<img src={o.iconUrl} alt="" class="size-6 shrink-0 rounded-xs" loading="lazy" />{/if}
 						{#if o.marker !== undefined}<span class="flex w-2.5 shrink-0 justify-center">{#if o.marker}<svg class="size-2.5" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5L9 8.5H1z" fill={o.marker} /></svg>{/if}</span>{/if}
@@ -221,9 +228,30 @@
 								{#if raw(p)}<span class="text-surface-400 tabular-nums {cells ? 'text-[10px]' : 'w-12 text-right text-xs'}">{raw(p)}</span>{/if}
 							</span>
 						{/if}
+ {/if}
 					</button>
 				{/snippet}
-				{#if removable}
+ {#if saveActions}
+ <div class="w-80 max-w-full min-w-0 rounded-xs border border-surface-700/60 p-1">
+  {#if naming === o.value}
+   <input bind:this={nameInput} bind:value={nameText} aria-label="Simulation name" placeholder="Simulation name" maxlength="80" class="h-9 w-full min-w-0 rounded-xs border border-violet-400 bg-surface-800 px-2 text-base text-surface-100 sm:text-sm" onkeydown={e => {
+    if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finishName(o); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); naming = null; }
+   }} />
+  {:else}{@render option()}{/if}
+  <div class="flex flex-wrap items-center justify-end gap-1 border-t border-surface-700/50 pt-1">
+   {#if naming === o.value}
+    <button type="button" class="h-8 px-2 text-xs text-surface-300 hover:bg-surface-800" onclick={e => { e.stopPropagation(); naming = null; }}>Cancel</button>
+    <button type="button" class="h-8 px-2 text-xs text-accent-200 hover:bg-surface-800" aria-label={`Save ${o.label}`} onclick={e => { e.stopPropagation(); finishName(o); }}>Save</button>
+   {:else}
+    {#if o.onpin}<button type="button" class="h-8 shrink-0 px-2 text-xs text-accent-300 hover:bg-surface-800" aria-label={`${o.pinned ? 'Unpin' : 'Pin'} ${o.label} ${o.pinned ? 'from' : 'to'} character list`} onclick={e => { e.stopPropagation(); o.onpin?.(); }}>{o.pinned ? 'Unpin' : 'Pin'}</button>{/if}
+    {#if o.onrename}<button type="button" class="h-8 shrink-0 px-2 text-xs text-surface-300 hover:bg-surface-800" aria-label={`Rename ${o.label}`} onclick={e => { e.stopPropagation(); naming = o.value; }}>Rename</button>{/if}
+    <button type="button" class="h-8 shrink-0 px-2 text-xs text-surface-300 hover:bg-surface-800 disabled:opacity-40" disabled={o.loadDisabled} aria-label={`${o.onsave ? 'Save' : 'Load'} ${o.label}`} onclick={e => { e.stopPropagation(); if (o.onsave) naming = o.value; else { o.onload?.(); open = false; } }}>{o.onsave ? 'Save' : 'Load'}</button>
+    {#if o.onremove}<button type="button" class="flex size-8 shrink-0 items-center justify-center text-surface-500 hover:bg-surface-800 hover:text-red-300" aria-label={o.removeLabel ?? `Delete ${o.label}`} onclick={e => { e.stopPropagation(); o.onremove?.(); }}>✕</button>{/if}
+   {/if}
+  </div>
+ </div>
+ {:else if removable}
 					<!-- Removable rows (kept snapshots): an × beside the option; the others keep its space so columns line up. -->
 					<div class="flex min-w-0 flex-row items-center {saveActions ? 'gap-1' : ''}">
 						{#if naming === o.value}
