@@ -239,7 +239,7 @@
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); naming = null; }
    }} />
   {:else}
-   <div class="saved-main flex min-w-0 items-center gap-2">
+   <div class="saved-main flex min-w-0 items-center justify-between gap-2">
     <button type="button" role="option" aria-selected={o.value === value} disabled={o.disabled} title={o.onrename ? 'Click to rename' : o.title ?? o.label}
      class="saved-name min-w-0 truncate py-1 text-left text-sm hover:text-surface-50 {o.onrename ? 'cursor-text' : ''}" onclick={e => { e.stopPropagation(); naming = o.value; }}>{o.label}</button>
     <button type="button" class="h-6 shrink-0 rounded-xs border border-violet-400/50 bg-violet-500/30 px-2 text-xs font-semibold text-violet-100 hover:bg-violet-500/45 disabled:opacity-40" disabled={o.loadDisabled} aria-label={`${o.onsave ? 'Save' : 'Load'} ${o.label}`} onclick={e => { e.stopPropagation(); if (o.onsave) naming = o.value; else { o.onload?.(); open = false; } }}>{o.onsave ? 'Save' : 'Load'}</button>
