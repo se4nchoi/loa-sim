@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { moveBefore, ordered, readOrder, writeOrder } from './character-order';
+import { mergeVisibleOrder, moveBefore, ordered, readOrder, writeOrder } from './character-order';
 const storage = new Map<string, string>();
 beforeEach(() => {
 	storage.clear();
@@ -23,4 +23,9 @@ it('ignores damaged preferences and reports blocked writes', () => {
 	expect(readOrder('roster')).toEqual([]);
 	vi.stubGlobal('localStorage', {setItem() {throw new Error('blocked');}});
 	expect(() => writeOrder('roster', ['a'])).toThrow('could not be saved');
+});
+
+it('merges a multi-position drop without moving hidden rows or accepting foreign ids', () => {
+ expect(mergeVisibleOrder(['a','hidden','b','c','d'], ['d','a','c','b'])).toEqual(['d','hidden','a','c','b']);
+ expect(mergeVisibleOrder(['a','b','c'], ['c','foreign','c','a','b'])).toEqual(['c','a','b']);
 });

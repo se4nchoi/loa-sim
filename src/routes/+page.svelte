@@ -1,6 +1,7 @@
 <script lang="ts">
+	import SortableCharacters from '$lib/SortableCharacters.svelte';
 	import ReorderRow from '$lib/ReorderRow.svelte';
- import { ordered, readOrder, writeOrder, moveBefore, type CharacterSection } from '$lib/character-order';
+ import { ordered, readOrder, writeOrder, mergeVisibleOrder, type CharacterSection } from '$lib/character-order';
  import { savedSimulations, pinSimulation, simulationCP, type SavedSimulation } from '$lib/upgrade-planner/saved-simulations';
  import { page } from '$app/state';
 	import { ROSTER_TTL_MS, bibleToken, cachedRoster, completeSignIn, fetchRoster, hiddenRosterKeys, saveHiddenRosterKeys, signOut, startSignIn, type RosterCharacter } from '$lib/bible-oauth';
@@ -20,14 +21,9 @@
  function changeOrder(section: CharacterSection, ids: string[]) {
   try { writeOrder(section, ids); orders[section] = ids; } catch (e) { error = (e as Error).message; }
  }
- function reorder(section: CharacterSection, id: string, target: string) {
-  const rows = section === 'roster' ? ordered(roster ?? [], orders.roster) : typed;
-  changeOrder(section, moveBefore(rows.map(characterKey), id, target));
- }
- function step(section: CharacterSection, id: string, direction: number) {
-  const rows = section === 'roster' ? shownRoster : typed;
-  const ids = rows.map(characterKey), index = ids.indexOf(id), target = ids[index + direction];
-  if (target) reorder(section, id, target);
+ function reorder(section: CharacterSection, ids: string[]) {
+  const all = section === 'roster' ? ordered(roster ?? [], orders.roster) : ordered(saved.filter(c => !rosterKeys.has(characterKey(c))), orders.characters);
+  changeOrder(section, mergeVisibleOrder(all.map(characterKey), ids));
  }
  function unpin(id: string) {
   try { pinSimulation(id, false); builds = savedSimulations().filter(s => s.pinned); }
@@ -241,8 +237,7 @@
 {#snippet row(c: { region: string; name: string }, classId: string | undefined, ilvl: number | undefined, cp: { score: number; support: boolean } | undefined, note: string | undefined, dismiss: { label: string; icon: 'hide' | 'show' | 'remove'; run: () => void } | null, muted = false)}
 	{@const key = characterKey(c)}
 	{@const have = savedByKey.get(key)}
- {@const section = rosterKeys.has(key) ? 'roster' : 'characters'}
- <ReorderRow id={key} group={section} label={c.name} onmove={(id, target) => reorder(section, id, target)} onstep={direction => step(section, key, direction)}>
+ <ReorderRow label={c.name}>
  <div class="flex flex-row items-center gap-3 px-3 py-2 {muted ? 'bg-black/20 [&>:not(:last-child)]:opacity-40' : ''}">
 		{#if classIconUrl(classId)}
 			<img src={classIconUrl(classId)} alt={className(classId!)} title={className(classId!)} class="size-9 shrink-0" />
@@ -337,7 +332,6 @@
 		<div class="flex min-h-11 flex-row items-center gap-2 bg-black/10 px-3 py-2">
 			<img src="/bible/artist_cry.webp" alt="" width="24" height="24" class="size-6" />
 			<span class="font-bold">Roster</span>
- {#if orders.roster.length}<button type="button" class="text-xs text-surface-400 hover:text-surface-100" onclick={() => changeOrder('roster', [])}>Reset order</button>{/if}
 			<span class="text-xs text-surface-500">from lostark.bible</span>
 			{#if signedIn}
 				<button
@@ -364,7 +358,8 @@
 		{:else if roster?.length === 0}
 			<p class="px-3 py-3 text-sm text-surface-400">No characters on your linked rosters yet.</p>
 		{:else if roster}
-			{#each shownRoster as c (characterKey(c))}
+			<SortableCharacters characters={shownRoster} group="roster" onorder={ids => reorder('roster', ids)}>
+ {#snippet children(c)}
 				{@const have = savedByKey.get(characterKey(c))}
 				{@const isHidden = hiddenSet.has(characterKey(c))}
 				{@render row(
@@ -378,12 +373,16 @@
 						: { label: 'Hide', icon: 'hide', run: () => setHidden(characterKey(c), true) },
 					isHidden
 				)}
-			{/each}
+			{/snippet}
+ </SortableCharacters>
+ <div class="flex min-h-10 items-center justify-between gap-3 px-3 py-2">
 			{#if hiddenCount}
-				<button type="button" class="px-3 py-2 text-left text-xs {showHidden ? 'font-semibold text-accent-300 hover:text-accent-200' : 'text-surface-400 hover:text-surface-100'}" onclick={() => (showHidden = !showHidden)}>
+				<button type="button" class="text-left text-xs {showHidden ? 'font-semibold text-accent-300 hover:text-accent-200' : 'text-surface-400 hover:text-surface-100'}" onclick={() => (showHidden = !showHidden)}>
 					{showHidden ? '✓ Confirm' : `${hiddenCount} hidden · show`}
 				</button>
 			{/if}
+ {#if orders.roster.length}<button type="button" class="ml-auto text-xs text-surface-300 underline decoration-surface-600 underline-offset-4 hover:text-surface-100" onclick={() => changeOrder('roster', [])}>Reset order</button>{/if}
+ </div>
 		{/if}
 		{#if rosterError}<p class="px-3 py-3 text-sm text-red-400">{rosterError}</p>{/if}
 	</section>
@@ -391,10 +390,10 @@
 	<!-- Characters loaded by name (or pasted), not on the roster. -->
 	{#if !rosterPending && (typed.length || loadingNew)}
 		<section class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
-			<div class="flex items-center gap-3 bg-black/10 px-3 py-2 font-bold">Characters
- {#if orders.characters.length}<button type="button" class="text-xs font-normal text-surface-400 hover:text-surface-100" onclick={() => changeOrder('characters', [])}>Reset order</button>{/if}</div>
+			<div class="bg-black/10 px-3 py-2 font-bold">Characters</div>
 			{#if loadingNew}{@render skeleton()}{/if}
-			{#each typed as c (characterKey(c))}
+			<SortableCharacters characters={typed} group="characters" onorder={ids => reorder('characters', ids)}>
+ {#snippet children(c)}
 				{@render row(
 					c,
 					c.loadout?.classId,
@@ -403,7 +402,9 @@
 					`loaded ${ago(c.savedAt)}`,
 					{ label: 'Remove', icon: 'remove', run: () => remove(c) }
 				)}
-			{/each}
+ {/snippet}
+ </SortableCharacters>
+ {#if orders.characters.length}<div class="flex justify-end px-3 py-2"><button type="button" class="text-xs text-surface-300 underline decoration-surface-600 underline-offset-4 hover:text-surface-100" onclick={() => changeOrder('characters', [])}>Reset order</button></div>{/if}
 		</section>
 	{/if}
 

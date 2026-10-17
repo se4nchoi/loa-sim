@@ -25,6 +25,7 @@
 	},
 	"dependencies": {
 		"@vercel/analytics": "^2.0.1",
+		"svelte-dnd-action": "^0.9.80",
 		"wa-sqlite": "^1.0.0"
 	}
 }

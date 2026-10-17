@@ -23,3 +23,12 @@ export function moveBefore(order: string[], id: string, target: string): string[
 	next.splice(order.indexOf(target), 0, id);
 	return next;
 }
+
+/** Reorder visible characters without moving hidden characters out of their saved slots. */
+export function mergeVisibleOrder(all: string[], visible: string[]): string[] {
+	const allowed = new Set(all);
+	const next = [...new Set(visible)].filter(id => allowed.has(id));
+	const moved = new Set(next);
+	let index = 0;
+	return all.map(id => moved.has(id) ? next[index++] : id);
+}
