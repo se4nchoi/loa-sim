@@ -232,14 +232,19 @@
 					</button>
 				{/snippet}
  {#if saveActions}
- <div class="w-80 max-w-full min-w-0 rounded-xs border border-surface-700/60 p-1">
+ <div class="saved-entry {o.onsave ? 'saved-current' : ''} {naming === o.value ? 'saved-naming' : ''} {o.value === value ? 'bg-surface-800/60' : ''}">
   {#if naming === o.value}
-   <input bind:this={nameInput} bind:value={nameText} aria-label="Simulation name" placeholder="Simulation name" maxlength="80" class="h-9 w-full min-w-0 rounded-xs border border-violet-400 bg-surface-800 px-2 text-base text-surface-100 sm:text-sm" onkeydown={e => {
+   <input bind:this={nameInput} bind:value={nameText} aria-label="Simulation name" placeholder="Simulation name" maxlength="80" class="saved-name-input h-8 min-w-0 rounded-xs border border-violet-400 bg-surface-800 px-2 text-base text-surface-100 sm:text-sm" onkeydown={e => {
     if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finishName(o); }
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); naming = null; }
    }} />
-  {:else}{@render option()}{/if}
-  <div class="flex flex-wrap items-center justify-end gap-1 border-t border-surface-700/50 pt-1">
+  {:else}
+   <button type="button" role="option" aria-selected={o.value === value} disabled={o.disabled} title={o.title ?? o.label}
+    class="saved-name min-w-0 truncate py-1 text-left text-sm hover:text-surface-50" onclick={e => { e.stopPropagation(); naming = o.value; }}>{o.label}</button>
+   <span class="saved-date whitespace-nowrap text-xs text-surface-400">{o.note ?? ''}</span>
+   <span class="saved-cp whitespace-nowrap text-right text-xs tabular-nums" style:color={o.detail?.color}>{o.detail?.label ?? ''}</span>
+  {/if}
+  <div class="saved-actions flex items-center justify-end gap-0.5">
    {#if naming === o.value}
     <button type="button" class="h-8 px-2 text-xs text-surface-300 hover:bg-surface-800" onclick={e => { e.stopPropagation(); naming = null; }}>Cancel</button>
     <button type="button" class="h-8 px-2 text-xs text-accent-200 hover:bg-surface-800" aria-label={`Save ${o.label}`} onclick={e => { e.stopPropagation(); finishName(o); }}>Save</button>
@@ -289,3 +294,21 @@
 		{/if}
 	{/if}
 </div>
+
+<style>
+ .saved-entry { display: grid; width: 36rem; max-width: 100%; grid-template-columns: minmax(6rem, 1fr) 3rem 5rem 11.25rem; align-items: center; column-gap: .5rem; padding: .125rem .5rem; border-bottom: 1px solid var(--color-surface-700); }
+ .saved-entry:last-child { border-bottom: 0; }
+ .saved-name-input { grid-column: 1 / 4; }
+ .saved-actions { grid-column: 4; }
+ @media (max-width: 639px) {
+  .saved-entry { width: 24rem; grid-template-columns: minmax(0, 1fr) 5rem; column-gap: .75rem; padding: .25rem .5rem; }
+  .saved-name { grid-column: 1; grid-row: 1; }
+  .saved-cp { grid-column: 2; grid-row: 1; }
+  .saved-date { grid-column: 1; grid-row: 2; }
+  .saved-actions { grid-column: 1 / -1; grid-row: 2; }
+  .saved-current .saved-date, .saved-current .saved-cp { display: none; }
+  .saved-current .saved-actions { grid-column: 2; grid-row: 1; }
+  .saved-naming .saved-name-input { grid-column: 1 / -1; grid-row: 1; width: 100%; }
+  .saved-naming .saved-actions { grid-column: 1 / -1; grid-row: 2; }
+ }
+</style>
