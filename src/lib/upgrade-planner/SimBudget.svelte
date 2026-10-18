@@ -4,7 +4,7 @@
 	import { onMount, tick } from 'svelte';
 	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
 	import { formatCp } from './format';
-	import { costsForCharacter, formatGold, gold, loadGold, parsePrice, setBookPrice, setGoldCost } from './gold-costs.svelte';
+	import { materialPricesFor, costsForCharacter, formatGold, gold, loadGold, parsePrice, setBookPrice, setGoldCost } from './gold-costs.svelte';
 	import { GOLD_ICON, iconUrl } from './icons';
 	import { PLENTY, materialIcon, materialName } from './honing-cost';
 	import { accessoryPriceKey } from './accessory-sets';
@@ -24,7 +24,8 @@
 	let priceInput = $state<HTMLInputElement>();
 	onMount(() => { loadGold(); dialog.showModal(); dialog.focus(); });
 	const characterCosts = $derived(costsForCharacter(characterKey));
-	const lines = $derived(priceBudget(changes, gold.prices, gold.bound[characterKey] ?? {}, characterCosts, gold.bookPrices));
+	const materialPrices = $derived(materialPricesFor(characterKey));
+	const lines = $derived(priceBudget(changes, materialPrices, gold.bound[characterKey] ?? {}, characterCosts, gold.bookPrices));
 	const average = $derived(lines.reduce((sum, row) => sum + (row.average ?? 0), 0));
 	/** Nothing in the plan has a price yet: show a dash, not a 0 that reads as free. */
 	const nonePriced = $derived(lines.length > 0 && !lines.some((row) => !row.status && row.average !== undefined));

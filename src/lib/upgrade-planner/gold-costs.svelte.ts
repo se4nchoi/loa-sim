@@ -1,9 +1,10 @@
-// Gold costs players enter for Next Upgrades rows (NA has no market API). Kept per upgrade key in this browser and
+// Gold costs players enter for Next Upgrades rows. Kept per upgrade key in this browser and
 // shared by every character except skin quotes, which belong to a character. Ranking uses gold per 1% Combat Power.
 
 import { PLENTY, type MaterialOwned, type MaterialPrices } from './honing-cost';
 import type { Upgrade, UpgradeCategory } from './upgrades';
 import { accessoryPriceKey } from './accessory-sets';
+import { marketForCharacter, type MarketRegion, type MarketSnapshot } from '$lib/market-prices';
 
 const KEY = 'loa-sim:gold-costs';
 const PRICES_KEY = 'loa-sim:material-prices';
@@ -25,6 +26,8 @@ function read(): Record<string, number> {
 export const gold = $state<{
 	costs: Record<string, number>;
 	prices: MaterialPrices;
+	europePrices: MaterialPrices;
+	marketSources: Partial<Record<MarketRegion, MarketSnapshot>>;
 	/** Bound honing mats per character key. */
 	bound: Record<string, MaterialOwned>;
 	pricesAt: number | null;
@@ -35,6 +38,8 @@ export const gold = $state<{
 }>({
 	costs: {},
 	prices: {},
+	europePrices: {},
+	marketSources: {},
 	bound: {},
 	pricesAt: null,
 	bookPrices: {},
@@ -47,7 +52,14 @@ export function loadGold() {
 	gold.costs = read();
 	try {
 		const p = JSON.parse(localStorage.getItem(PRICES_KEY) ?? 'null');
-		if (p && typeof p.prices === 'object') ((gold.prices = p.prices), (gold.bound = p.bound ?? {}), (gold.pricesAt = p.at ?? null));
+		if (p && typeof p.prices === 'object') {
+			gold.prices = p.prices;
+			// Older versions shared one price list across regions. Seed both once, then keep edits separate.
+			gold.europePrices = p.europePrices ?? { ...p.prices };
+			gold.marketSources = p.marketSources ?? {};
+			gold.bound = p.bound ?? {};
+			gold.pricesAt = p.at ?? null;
+		}
 	} catch {
 		/* none yet */
 	}
@@ -140,30 +152,67 @@ export function restoreUpgradePrices(cleared: ClearedPrices) {
 function saveMaterials() {
 	gold.pricesAt = Date.now();
 	try {
-		localStorage.setItem(PRICES_KEY, JSON.stringify({ prices: gold.prices, bound: gold.bound, at: gold.pricesAt }));
+		localStorage.setItem(PRICES_KEY, JSON.stringify({ prices: gold.prices, europePrices: gold.europePrices, marketSources: gold.marketSources, bound: gold.bound, at: gold.pricesAt }));
 	} catch {
 		/* storage blocked: lasts for this visit */
 	}
 }
 
 /** Gold per unit for a honing material (null clears it). */
-export function setMaterialPrice(id: string, price: number | null) {
-	if (price === null) delete gold.prices[id];
-	else gold.prices[id] = price;
+export const materialPricesFor = (characterKey = '') => marketForCharacter(characterKey) === 'euc' ? gold.europePrices : gold.prices;
+
+export function setMaterialPrice(id: string, price: number | null, characterKey = '') {
+	const prices = materialPricesFor(characterKey);
+	if (price === null) delete prices[id];
+	else prices[id] = price;
 	saveMaterials();
 }
 
-export function clearMaterialPrices(): MaterialPrices {
-	const cleared = { ...gold.prices };
-	gold.prices = {};
+export function clearMaterialPrices(characterKey = ''): MaterialPrices {
+	const cleared = { ...materialPricesFor(characterKey) };
+	if (marketForCharacter(characterKey) === 'euc') gold.europePrices = {};
+	else gold.prices = {};
 	saveMaterials();
 	return cleared;
 }
 
-export function restoreMaterialPrices(cleared: MaterialPrices) {
+export function restoreMaterialPrices(cleared: MaterialPrices, characterKey = '') {
+	const prices = materialPricesFor(characterKey);
 	for (const [id, price] of Object.entries(cleared)) {
-		if (gold.prices[id] === undefined) gold.prices[id] = price;
+		if (prices[id] === undefined) prices[id] = price;
 	}
+	saveMaterials();
+}
+
+export interface MarketImportUndo {
+	characterKey: string;
+	before: MaterialPrices;
+	imported: MaterialPrices;
+	source?: MarketSnapshot;
+}
+
+/** Import only returned items; unavailable or unsupported materials keep the player's existing price. */
+export function applyMarketPrices(snapshot: MarketSnapshot, characterKey: string): MarketImportUndo {
+	const region = marketForCharacter(characterKey);
+	if (snapshot.region !== region) throw new Error('The market region does not match this character.');
+	const prices = materialPricesFor(characterKey);
+	const imported = Object.fromEntries(Object.entries(snapshot.quotes).map(([id, quote]) => [id, quote.price]));
+	const undo = { characterKey, before: { ...prices }, imported, source: gold.marketSources[region] };
+	Object.assign(prices, imported);
+	gold.marketSources[region] = snapshot;
+	saveMaterials();
+	return undo;
+}
+
+/** Keep manual edits made after the import, including explicit free prices. */
+export function undoMarketPrices(undo: MarketImportUndo) {
+	const prices = materialPricesFor(undo.characterKey);
+	for (const [id, imported] of Object.entries(undo.imported)) {
+		if (prices[id] !== imported) continue;
+		if (undo.before[id] === undefined) delete prices[id];
+		else prices[id] = undo.before[id];
+	}
+	gold.marketSources[marketForCharacter(undo.characterKey)] = undo.source;
 	saveMaterials();
 }
 

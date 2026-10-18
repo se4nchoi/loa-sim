@@ -167,9 +167,9 @@ export interface SiteIssue {
 //   "Pick from saved snapshots" (planned): both resolved by Saved snapshots (snapshot-history.ts).
 export const ISSUES: SiteIssue[] = [
 	{
-		status: 'planned',
+		status: 'in progress',
 		title: 'Market API',
-		points: ['Explore wiring in market prices from loa-buddy.']
+		points: ['Testing honing material prices from loa-buddy.']
 	},
 	{
 		status: 'investigating',
