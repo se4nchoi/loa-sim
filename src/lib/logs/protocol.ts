@@ -105,6 +105,10 @@ export interface RunSummary extends EncounterRow {
 	itemLevel: number | null;
 	spec: string | null;
 	engravings: string[];
+	/** Order core choices recorded by LOA Logs, not core points or astrogem stats. */
+	arkGridOrder?: Partial<Record<'sun' | 'moon' | 'star', number>>;
+	arkPassives?: Record<string, { id: number; lv: number }[]>;
+	loadoutHash?: string;
 	/** Sum of the player's skill damage. */
 	damage: number;
 	skills: RunSkill[];

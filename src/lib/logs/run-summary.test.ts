@@ -26,4 +26,13 @@ describe('run summary', () => {
 		expect(r.statValues).toBeNull();
 		expect(runSummary(row, { skills: {} }, null, {})).toBeNull();
 	});
+	it('preserves Order choices and passive nodes without confusing core choices with points', () => {
+		const r = runSummary(row, { skills: { a: { id: 1, totalDamage: 5 } }, loadoutHash: 'build-1',
+			arkPassiveData: JSON.stringify({ evolution: [{ id: 40, lv: 2 }, { id: 50, lv: -1 }], arkGridOrder: { sun: 3, moon: 2, star: 1, extra: 17 } }) }, null, {})!;
+		expect(r.arkGridOrder).toEqual({ sun: 3, moon: 2, star: 1 });
+		expect(r.arkPassives).toEqual({ evolution: [{ id: 40, lv: 2 }] });
+		expect(r.loadoutHash).toBe('build-1');
+		const old = runSummary(row, { skills: { a: { id: 1, totalDamage: 5 } }, arkPassiveData: '{broken' }, null, {})!;
+		expect(old.arkGridOrder).toBeUndefined();
+	});
 });

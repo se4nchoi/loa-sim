@@ -253,13 +253,14 @@ async function runSummaries(player: string, ids: number[]) {
 	const names: Record<number, [string, string]> = {};
 	const runs = [];
 	for (const row of encounters) {
-		const [entity] = await query(`SELECT skills, ${pick('combat_power')}, ${pick('gear_score')}, ${pick('spec')}, ${pick('engravings')} FROM entity WHERE encounter_id = ? AND name = ?`, [row.id, player]);
+		const [entity] = await query(`SELECT skills, ${pick('combat_power')}, ${pick('gear_score')}, ${pick('spec')}, ${pick('engravings')}, ${pick('ark_passive_data')}, ${pick('loadout_hash')} FROM entity WHERE encounter_id = ? AND name = ?`, [row.id, player]);
 		if (!entity) continue;
 		let misc: unknown = null;
 		if (hasMisc) try { misc = await decodeSkills((await query(`SELECT misc FROM encounter WHERE id = ?`, [row.id]))[0]?.misc); } catch { /* old/unreadable misc */ }
 		const run = runSummary({ ...row, player }, {
 			skills: await decodeSkills(entity.skills) as Record<string, LoggedRunSkill>,
-			combatPower: entity.combat_power, itemLevel: entity.gear_score, spec: entity.spec, engravings: entity.engravings
+			combatPower: entity.combat_power, itemLevel: entity.gear_score, spec: entity.spec, engravings: entity.engravings,
+			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash
 		}, misc, names);
 		if (run) runs.push(run);
 	}

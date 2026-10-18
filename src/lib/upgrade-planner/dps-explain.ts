@@ -11,6 +11,7 @@ import { GEM_BASE_ATTACK, GEM_EFFECTS, GEM_SKILL_GROUPS, GEM_SKILLS } from './ga
 import { liveUpgrades } from './live-upgrades';
 import { gemParts, simulate, type SimState } from './simulate';
 import type { Loadout } from './types';
+import type { Upgrade } from './upgrades';
 
 const NO_STATS: StatDeltas = { mainStat: 0, weaponPower: 0, additionalDamage: 0, critRate: 0, critDamage: 0, attackPowerPct: 0, attackPower: 0 };
 const cpGain = (loadout: Loadout, state: SimState, after: SimState, base: SimState) => {
@@ -131,9 +132,9 @@ export interface StatExplanation {
 }
 
 /** Next Upgrades' candidates that only move stats the model covers, each valued on the current plan. */
-export function statExplanations(loadout: Loadout, state: SimState, base: SimState, model: ModelInput): StatExplanation[] {
+export function statExplanations(loadout: Loadout, state: SimState, base: SimState, model: ModelInput, upgrades?: Upgrade[]): StatExplanation[] {
 	const seen = new Set<string>();
-	return liveUpgrades(loadout, state, base, undefined, true).flatMap(u => {
+	return (upgrades ?? liveUpgrades(loadout, state, base, undefined, true)).flatMap(u => {
 		if (u.category === 'gem') return [];
 		const after = structuredClone(state);
 		if (!applyUpgrade(loadout, after, base, u)) return [];

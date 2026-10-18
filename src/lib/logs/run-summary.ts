@@ -17,6 +17,8 @@ export interface LoggedEntity {
 	itemLevel?: unknown;
 	spec?: unknown;
 	engravings?: unknown;
+	arkPassiveData?: unknown;
+	loadoutHash?: unknown;
 }
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -39,6 +41,24 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 	if (!skills.length) return null;
 	let engravings: unknown = entity.engravings;
 	try { if (typeof engravings === 'string') engravings = JSON.parse(engravings); } catch { engravings = null; }
+	let passiveData: unknown = entity.arkPassiveData;
+	try { if (typeof passiveData === 'string') passiveData = JSON.parse(passiveData); } catch { passiveData = null; }
+	const arkPassives: Record<string, { id: number; lv: number }[]> = {};
+	const arkGridOrder: NonNullable<RunSummary['arkGridOrder']> = {};
+	if (passiveData && typeof passiveData === 'object') {
+		const data = passiveData as Record<string, unknown>;
+		for (const tree of ['evolution', 'enlightenment', 'leap']) {
+			const nodes = data[tree];
+			if (Array.isArray(nodes)) arkPassives[tree] = nodes.filter(n => n && Number.isSafeInteger(n.id) && Number.isInteger(n.lv) && n.lv > 0).map(n => ({ id: n.id, lv: n.lv }));
+		}
+		if (data.arkGridOrder && typeof data.arkGridOrder === 'object') {
+			const order = data.arkGridOrder as Record<string, unknown>;
+			for (const shape of ['sun', 'moon', 'star'] as const) {
+				const value = order[shape];
+				if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) arkGridOrder[shape] = value;
+			}
+		}
+	}
 	const split = splitOf(misc, row.player);
 	const thorn = (split as { bluntThornEfficiency?: { damageDoneByStat?: number } } | null)?.bluntThornEfficiency?.damageDoneByStat ?? 0;
 	const version = (misc as { version?: unknown } | null)?.version;
@@ -48,6 +68,9 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 		itemLevel: num(entity.itemLevel),
 		spec: typeof entity.spec === 'string' && entity.spec ? entity.spec : null,
 		engravings: Array.isArray(engravings) ? engravings.filter((e): e is string => typeof e === 'string') : [],
+		...(Object.keys(arkPassives).length ? { arkPassives } : {}),
+		...(Object.keys(arkGridOrder).length ? { arkGridOrder } : {}),
+		...(typeof entity.loadoutHash === 'string' && entity.loadoutHash ? { loadoutHash: entity.loadoutHash } : {}),
 		damage: skills.reduce((sum, s) => sum + s.damage, 0),
 		skills: skills.sort((a, b) => b.damage - a.damage),
 		statValues: averageStatValues([split]),
