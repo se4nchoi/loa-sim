@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyMarketPrices, clearMaterialPrices, restoreMaterialPrices, gold, loadGold, materialPricesFor, setMaterialPrice, undoMarketPrices } from './gold-costs.svelte';
+import { applyMarketPrices, bookCost, bookPricesFor, clearUpgradePrices, restoreUpgradePrices, setBookPrice, clearMaterialPrices, restoreMaterialPrices, gold, loadGold, materialPricesFor, setMaterialPrice, undoMarketPrices } from './gold-costs.svelte';
+import type { Upgrade } from './upgrades';
 import type { MarketSnapshot } from '$lib/market-prices';
 
 let storage: Map<string, string>;
@@ -11,9 +12,44 @@ beforeEach(() => {
 	storage = new Map();
 	vi.stubGlobal('localStorage', { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) });
 	gold.prices = {}; gold.europePrices = {}; gold.marketSources = {}; gold.bound = {}; gold.loaded = false;
+	gold.bookPrices = {}; gold.europeBookPrices = {};
 });
 afterEach(() => vi.unstubAllGlobals());
 describe('market imports and manual prices', () => {
+	it('imports per-book prices separately by region, prices remaining books, and restores them after reload', () => {
+		const nae = snapshot('nae'); nae.quotes['book:1118'] = { price: 55000, updatedAt: Date.now(), slug: 'grudge' };
+		const euc = snapshot('euc'); euc.quotes['book:1118'] = { price: 45000, updatedAt: Date.now(), slug: 'grudge' };
+		setBookPrice(1299, 65000, 'na/soulshan');
+		applyMarketPrices(nae, 'na/soulshan'); applyMarketPrices(euc, 'ce/example');
+		expect(bookPricesFor('na/soulshan')).toEqual({ 1118: 55000, 1299: 65000 });
+		expect(bookPricesFor('ce/example')).toEqual({ 1118: 45000 });
+		expect(materialPricesFor('na/soulshan')['book:1118']).toBeUndefined();
+		const upgrade = { books: { engraving: 1118, count: 3 } } as Upgrade;
+		expect(bookCost(upgrade, bookPricesFor('na/soulshan'))).toBe(165000);
+		expect(bookCost(upgrade, bookPricesFor('ce/example'))).toBe(135000);
+		gold.bookPrices = {}; gold.europeBookPrices = {}; loadGold();
+		expect(bookPricesFor('na/soulshan')[1118]).toBe(55000);
+		expect(bookPricesFor('ce/example')[1118]).toBe(45000);
+	});
+	it('undoes imported book prices while preserving later manual edits and the other region', () => {
+		setBookPrice(1118, 50000, 'na/soulshan'); setBookPrice(1118, 40000, 'ce/example');
+		const imported = snapshot('nae');
+		imported.quotes['book:1118'] = { price: 55000, updatedAt: Date.now(), slug: 'grudge' };
+		imported.quotes['book:1299'] = { price: 65000, updatedAt: Date.now(), slug: 'adrenaline' };
+		const undo = applyMarketPrices(imported, 'na/soulshan');
+		setBookPrice(1299, 0, 'na/soulshan'); undoMarketPrices(undo);
+		expect(bookPricesFor('na/soulshan')).toEqual({ 1118: 50000, 1299: 0 });
+		expect(bookPricesFor('ce/example')).toEqual({ 1118: 40000 });
+	});
+	it('migrates legacy book prices and clears or restores only the selected region', () => {
+		storage.set('loa-sim:book-prices', JSON.stringify({ 1118: 50000 })); loadGold();
+		setBookPrice(1118, 40000, 'ce/example');
+		const cleared = clearUpgradePrices('engraving', undefined, 'ce/example');
+		expect(bookPricesFor('ce/example')).toEqual({});
+		expect(bookPricesFor('na/soulshan')).toEqual({ 1118: 50000 });
+		restoreUpgradePrices(cleared);
+		expect(bookPricesFor('ce/example')).toEqual({ 1118: 40000 });
+	});
 	it('keeps NA and EU prices separate, preserves unsupported items and bound inventory, and persists both', () => {
 		gold.prices = { '66112555': 2000, '66110226': 99 };
 		gold.bound = { 'na/soulshan': { '66110226': 3000 } };

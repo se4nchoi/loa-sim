@@ -9,7 +9,7 @@
 	import GoldCost from './GoldCost.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
 	import { autoHoningCosts, inventoryMaterials, materialsFor } from './honing-cost';
-	import { bookCost, materialPricesFor, costsForCharacter, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, missingPriceCount, setRankMode, supportsGoldCost } from './gold-costs.svelte';
+	import { bookCost, bookPricesFor, materialPricesFor, costsForCharacter, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, missingPriceCount, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { onMount } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
@@ -58,6 +58,7 @@
 	const goldUpgrades = $derived(upgrades.filter(supportsGoldCost));
 	const characterCosts = $derived(costsForCharacter(characterKey));
 	const materialPrices = $derived(materialPricesFor(characterKey));
+	const bookPrices = $derived(bookPricesFor(characterKey));
 	/** This character's bound honing mats. */
 	const bound = $derived(gold.bound[characterKey] ?? {});
 	// Equipment honing always uses material prices, ignoring previously entered totals.
@@ -70,7 +71,7 @@
 			return cost === undefined ? [] : [[u.key, cost]];
 		})),
 		// Book rows: price per book × books, over any total typed on the row before book prices existed.
-		...Object.fromEntries(upgrades.flatMap((u) => (bookCost(u, gold.bookPrices) === undefined ? [] : [[u.key, bookCost(u, gold.bookPrices)!]])))
+		...Object.fromEntries(upgrades.flatMap((u) => (bookCost(u, bookPrices) === undefined ? [] : [[u.key, bookCost(u, bookPrices)!]])))
 	});
 	const materials = $derived(materialsFor(upgrades.map((u) => u.key), simNow.gear));
 	/** Nothing priced yet: every material counts as 0 (bound). */

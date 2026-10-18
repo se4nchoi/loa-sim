@@ -1,3 +1,10 @@
+import { ENGRAVING_ICONS } from './upgrade-planner/game-data';
+
+/** Relic recipe slugs published in loa-buddy's catalog. */
+export const MARKET_BOOKS = Object.entries(ENGRAVING_ICONS)
+	.filter(([id]) => Number(id) < 1800)
+	.map(([id, [, name]]) => ({ id: `book:${id}`, slug: name.toLowerCase().replaceAll("'", '').replaceAll(/[^a-z0-9]+/g, '-'), units: 1 }));
+
 /** loa-buddy lists stones per 100 and shard pouches per pouch. Calculations use gold per unit. */
 export const MARKET_ITEMS = [
 	{ id: '66110225', slug: 'destiny-leapstone', units: 1 },
@@ -19,7 +26,8 @@ export const MARKET_ITEMS = [
 	{ id: '66112551', slug: 'metallurgy-hellfire-15-18', units: 1 },
 	{ id: '66112552', slug: 'tailoring-hellfire-15-18', units: 1 },
 	{ id: '66112553', slug: 'metallurgy-hellfire-19-20', units: 1 },
-	{ id: '66112554', slug: 'tailoring-hellfire-19-20', units: 1 }
+	{ id: '66112554', slug: 'tailoring-hellfire-19-20', units: 1 },
+	...MARKET_BOOKS
 ] as const;
 
 export type MarketRegion = 'nae' | 'euc';

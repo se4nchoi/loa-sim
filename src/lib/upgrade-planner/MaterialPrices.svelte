@@ -9,7 +9,7 @@
 	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
 	import { aboveKeyboard, enterToNext, numberField } from './sim/field';
 	import { onMount, tick } from 'svelte';
-	import { applyMarketPrices, undoMarketPrices, materialPricesFor, clearMaterialInventory, restoreMaterialInventory, clearMaterialPrices, restoreMaterialPrices, gold, parseOwned, parsePrice, setMaterialBound, setMaterialPrice, type ClearedMaterialInventory, type MarketImportUndo } from './gold-costs.svelte';
+	import { applyMarketPrices, undoMarketPrices, bookPricesFor, materialPricesFor, clearMaterialInventory, restoreMaterialInventory, clearMaterialPrices, restoreMaterialPrices, gold, parseOwned, parsePrice, setMaterialBound, setMaterialPrice, type ClearedMaterialInventory, type MarketImportUndo } from './gold-costs.svelte';
 	import { MARKET_NAMES, MARKET_STALE_MS, marketForCharacter } from '$lib/market-prices';
 	import { marketLoader } from '$lib/market-client';
 	import { btn, btnAccent } from './sim/ui';
@@ -34,7 +34,8 @@
 	const prices = $derived(materialPricesFor(characterKey));
 	const market = $derived(marketForCharacter(characterKey));
 	const source = $derived(gold.marketSources[market]);
-	const usedQuotes = $derived(Object.entries(source?.quotes ?? {}).filter(([id, quote]) => prices[id] === quote.price));
+	const books = $derived(bookPricesFor(characterKey));
+	const usedQuotes = $derived(Object.entries(source?.quotes ?? {}).filter(([id, quote]) => (id.startsWith('book:') ? books[id.slice(5)] : prices[id]) === quote.price));
 	const observedAt = $derived(usedQuotes.length ? Math.min(...usedQuotes.map(([, quote]) => quote.updatedAt)) : null);
 	let now = $state(Date.now());
 	const stale = $derived(observedAt !== null && now - observedAt > MARKET_STALE_MS);
@@ -58,7 +59,9 @@
 			flashedIds = new Set();
 			await tick();
 			marketUndo = applyMarketPrices(body, key);
-			marketNote = `Loaded ${Object.keys(body.quotes).length} prices`;
+			const keys = Object.keys(body.quotes);
+			const bookCount = keys.filter(id => id.startsWith('book:')).length;
+			marketNote = `Loaded ${keys.length - bookCount} material prices and ${bookCount} relic book prices`;
 			flashedIds = new Set(Object.keys(body.quotes));
 			clearTimeout(flashTimer);
 			flashTimer = setTimeout(() => { flashedIds = new Set(); }, 2000);
@@ -175,7 +178,7 @@
 						{#if marketUndo}<button type="button" class={btn} onclick={undoImport}>Undo import</button>{/if}
 					</div>
 				</div>
-				<p class="text-xs text-surface-400">※ Current recorded market prices will be replaced with import.</p>
+				<p class="text-xs text-surface-400">Loads honing materials and relic engraving books. Replaces returned prices for this region.</p>
 				{#if marketNote}<p role="status" class="text-xs text-green-400">{marketNote}</p>{/if}
 				{#if marketError}<p role="alert" class="text-xs text-red-300">{marketError}</p>{/if}
 				{#if observedAt}

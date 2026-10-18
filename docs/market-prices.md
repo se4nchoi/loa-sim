@@ -1,6 +1,6 @@
 # Market prices
 
-The material-price dialog imports T4 honing materials and regular Hellfire books from
+The material-price dialog imports T4 honing materials, regular Hellfire books and relic engraving recipes from
 [loa-buddy](https://loa-buddy.pages.dev/market). This is an unofficial community price feed,
 not a live AGS market API. Requests go through `/api/market?region=nae|euc` to avoid browser CORS restrictions.
 
@@ -23,5 +23,8 @@ Source endpoint: `https://marketdata-api.yrzhao1068589.workers.dev/v1/prices/lat
 (`POST {region_slug, item_slugs}`). Source catalog and bundle sizes were checked against
 loa-buddy's published application on 2026-10-17.
 
-This first integration covers honing prices used by Next Upgrades and Budget. Relic engraving
-recipes, crafting materials and auction-house listings (gems, skins, accessories) are not imported.
+Relic engraving recipes are imported as gold per book and used by Next Upgrades and Budget for
+the remaining books in a step. Book prices are kept separately for NA East and EU Central, including
+manual edits, clear/restore and import undo. Existing shared manual book prices seed both regions once.
+Missing book quotes keep existing values. Crafting materials and auction-house listings
+(gems, skins, accessories) are not imported.

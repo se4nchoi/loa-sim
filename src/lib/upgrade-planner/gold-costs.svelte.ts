@@ -31,8 +31,9 @@ export const gold = $state<{
 	/** Bound honing mats per character key. */
 	bound: Record<string, MaterialOwned>;
 	pricesAt: number | null;
-	/** Gold per relic engraving book, by engraving id; shared by every character. */
+	/** Gold per relic engraving book, by engraving id; shared within each region. */
 	bookPrices: Record<string, number>;
+	europeBookPrices: Record<string, number>;
 	mode: RankMode;
 	loaded: boolean;
 }>({
@@ -43,6 +44,7 @@ export const gold = $state<{
 	bound: {},
 	pricesAt: null,
 	bookPrices: {},
+	europeBookPrices: {},
 	mode: 'cp',
 	loaded: false
 });
@@ -65,7 +67,10 @@ export function loadGold() {
 	}
 	try {
 		const b = JSON.parse(localStorage.getItem(BOOKS_KEY) ?? '{}');
-		if (b && typeof b === 'object') gold.bookPrices = b;
+		if (b && typeof b === 'object') {
+			gold.bookPrices = b.prices ?? b;
+			gold.europeBookPrices = b.europePrices ?? { ...gold.bookPrices };
+		}
 	} catch {
 		/* none yet */
 	}
@@ -106,11 +111,11 @@ export function setGoldCost(key: string, cost: number | null, characterKey = '')
 	}
 }
 
-export type ClearedPrices = { costs: Record<string, number>; bookPrices: Record<string, number> };
+export type ClearedPrices = { costs: Record<string, number>; bookPrices: Record<string, number>; characterKey?: string };
 
 /** Clear saved quotes for a section, keeping the removed entries for Undo. */
 export function clearUpgradePrices(category: UpgradeCategory, accessoryFamily?: 'neck' | 'ear' | 'finger', characterKey = '') {
-	const cleared: ClearedPrices = { costs: {}, bookPrices: {} };
+	const cleared: ClearedPrices = { costs: {}, bookPrices: {}, characterKey };
 	const prefixes: Partial<Record<UpgradeCategory, string[]>> = {
 		accessory: ['accset:', 'accessory:'], skin: [skinPricePrefix(characterKey)], engraving: ['engraving:'], gem: ['gem:'], karma: ['karma:']
 	};
@@ -121,12 +126,13 @@ export function clearUpgradePrices(category: UpgradeCategory, accessoryFamily?: 
 		delete gold.costs[key];
 	}
 	if (category === 'engraving') {
-		cleared.bookPrices = { ...gold.bookPrices };
-		gold.bookPrices = {};
+		const books = bookPricesFor(characterKey);
+		cleared.bookPrices = { ...books };
+		for (const id of Object.keys(books)) delete books[id];
 	}
 	try {
 		localStorage.setItem(KEY, JSON.stringify(gold.costs));
-		if (category === 'engraving') localStorage.setItem(BOOKS_KEY, JSON.stringify(gold.bookPrices));
+		if (category === 'engraving') saveBookPrices();
 	} catch {
 		/* storage blocked: lasts for this visit */
 	}
@@ -138,12 +144,13 @@ export function restoreUpgradePrices(cleared: ClearedPrices) {
 	for (const [key, value] of Object.entries(cleared.costs)) {
 		if (gold.costs[key] === undefined) gold.costs[key] = value;
 	}
+	const books = bookPricesFor(cleared.characterKey);
 	for (const [key, value] of Object.entries(cleared.bookPrices)) {
-		if (gold.bookPrices[key] === undefined) gold.bookPrices[key] = value;
+		if (books[key] === undefined) books[key] = value;
 	}
 	try {
 		localStorage.setItem(KEY, JSON.stringify(gold.costs));
-		if (Object.keys(cleared.bookPrices).length) localStorage.setItem(BOOKS_KEY, JSON.stringify(gold.bookPrices));
+		if (Object.keys(cleared.bookPrices).length) saveBookPrices();
 	} catch {
 		/* storage blocked: lasts for this visit */
 	}
@@ -188,19 +195,26 @@ export interface MarketImportUndo {
 	characterKey: string;
 	before: MaterialPrices;
 	imported: MaterialPrices;
+	booksBefore: Record<string, number>;
+	booksImported: Record<string, number>;
 	source?: MarketSnapshot;
 }
 
-/** Import only returned items; unavailable or unsupported materials keep the player's existing price. */
+/** Import only returned materials and books; unavailable items keep the player's existing price. */
 export function applyMarketPrices(snapshot: MarketSnapshot, characterKey: string): MarketImportUndo {
 	const region = marketForCharacter(characterKey);
 	if (snapshot.region !== region) throw new Error('The market region does not match this character.');
 	const prices = materialPricesFor(characterKey);
-	const imported = Object.fromEntries(Object.entries(snapshot.quotes).map(([id, quote]) => [id, quote.price]));
-	const undo = { characterKey, before: { ...prices }, imported, source: gold.marketSources[region] };
+	const books = bookPricesFor(characterKey);
+	const entries = Object.entries(snapshot.quotes);
+	const imported = Object.fromEntries(entries.filter(([id]) => !id.startsWith('book:')).map(([id, quote]) => [id, quote.price]));
+	const booksImported = Object.fromEntries(entries.filter(([id]) => id.startsWith('book:')).map(([id, quote]) => [id.slice(5), quote.price]));
+	const undo = { characterKey, before: { ...prices }, imported, booksBefore: { ...books }, booksImported, source: gold.marketSources[region] };
 	Object.assign(prices, imported);
+	Object.assign(books, booksImported);
 	gold.marketSources[region] = snapshot;
 	saveMaterials();
+	saveBookPrices();
 	return undo;
 }
 
@@ -212,8 +226,15 @@ export function undoMarketPrices(undo: MarketImportUndo) {
 		if (undo.before[id] === undefined) delete prices[id];
 		else prices[id] = undo.before[id];
 	}
+	const books = bookPricesFor(undo.characterKey);
+	for (const [id, imported] of Object.entries(undo.booksImported)) {
+		if (books[id] !== imported) continue;
+		if (undo.booksBefore[id] === undefined) delete books[id];
+		else books[id] = undo.booksBefore[id];
+	}
 	gold.marketSources[marketForCharacter(undo.characterKey)] = undo.source;
 	saveMaterials();
+	saveBookPrices();
 }
 
 /** A character's bound units of a honing material, used before buying; PLENTY for "plenty". */
@@ -251,14 +272,21 @@ export function parseOwned(text: string): number | null {
 }
 
 /** Gold per relic book of an engraving (null clears it). */
-export function setBookPrice(engraving: number, price: number | null) {
-	if (price === null) delete gold.bookPrices[engraving];
-	else gold.bookPrices[engraving] = price;
+export const bookPricesFor = (characterKey = '') => marketForCharacter(characterKey) === 'euc' ? gold.europeBookPrices : gold.bookPrices;
+
+function saveBookPrices() {
 	try {
-		localStorage.setItem(BOOKS_KEY, JSON.stringify(gold.bookPrices));
+		localStorage.setItem(BOOKS_KEY, JSON.stringify({ prices: gold.bookPrices, europePrices: gold.europeBookPrices }));
 	} catch {
 		/* storage blocked: lasts for this visit */
 	}
+}
+
+export function setBookPrice(engraving: number, price: number | null, characterKey = '') {
+	const prices = bookPricesFor(characterKey);
+	if (price === null) delete prices[engraving];
+	else prices[engraving] = price;
+	saveBookPrices();
 }
 
 /** Book rows cost price per book × books read, once that engraving's book price is set. */
