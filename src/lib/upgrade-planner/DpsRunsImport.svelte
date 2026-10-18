@@ -37,6 +37,9 @@
 			fileName = file.name;
 			const own = players.find(([name]) => name.toLowerCase() === characterName.toLowerCase());
 			player = own?.[0] ?? players[0]?.[0] ?? '';
+			busy = null;
+			// The file has this character: import its recent clears right away. Otherwise the player picks who and how far back.
+			if (own && clears.length) await importRuns();
 		} catch (err) {
 			error = err instanceof Error ? err.message : String(err);
 		} finally {

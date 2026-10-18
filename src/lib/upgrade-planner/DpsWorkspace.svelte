@@ -89,7 +89,10 @@
 	});
 	const selected = $derived.by(() => {
 		const found = raids.filter(r => selectedRaids.includes(r.key));
-		return found.length ? found : raids.slice(0, 1);
+		// Nothing chosen yet: the newest raid, not a one-off fight (Guardian raid, solo, Deskaluda) that happens to be newer.
+		if (found.length) return found;
+		const newest = raids.find(r => r.kind === 'raid') ?? raids[0];
+		return newest ? [newest] : [];
 	});
 	function chooseRaid(raidKey: string) {
 		const current = selected.map(r => r.key);
