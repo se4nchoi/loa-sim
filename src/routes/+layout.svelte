@@ -21,6 +21,13 @@
 
 <svelte:head>
 	<link rel="preload" href={geistLatin} as="font" type="font/woff2" crossorigin="anonymous" />
+	{#if !dev}
+		<script
+			type="module"
+			src="https://static.cloudflareinsights.com/beacon.min.js"
+			data-cf-beacon={JSON.stringify({ token: 'ccfe8bf703714dd887f885a93e1dfe0d' })}
+		></script>
+	{/if}
 </svelte:head>
 
 <div class="flex min-h-screen flex-col">
