@@ -1,6 +1,7 @@
 import { initSimState, simulate, type SimState } from './simulate';
 import type { Loadout } from './types';
 import { BRACER_LIMITS } from './bracer';
+import { simulationBaseline } from './roles';
 
 const KEY = 'loa-sim:simulations:v1';
 const LIMIT = 24;
@@ -155,5 +156,5 @@ export function pinSimulation(id: string, pinned: boolean) {
 export function simulationCP(s: SavedSimulation): number {
  const base = initSimState(s.loadout);
  const baseline = simulate(s.loadout, base, base).cp;
- return (s.loadout.combatPower?.score ?? baseline) * simulate(s.loadout, s.state, base).cp / baseline;
+ return simulationBaseline(s.loadout, baseline).cp * simulate(s.loadout, s.state, base).cp / baseline;
 }

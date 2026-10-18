@@ -15,6 +15,12 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-10-18',
+		kind: 'fix',
+		title: 'Simulator fix',
+		points: ['Fixed simulator showing wrong engraving for saved snapshots in certain scenarios.']
+	},
+	{
 		date: '2026-10-17',
 		kind: 'new',
 		title: 'Character list',
