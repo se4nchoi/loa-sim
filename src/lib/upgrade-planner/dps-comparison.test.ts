@@ -59,7 +59,7 @@ describe('combined DPS gain', () => {
 		expect(list.filter(c => c.gem?.rough).every(c => c.gainPct === null)).toBe(true);
 		expect(list.filter(c => c.upgrade.category === 'core').every(c => c.gainPct === null)).toBe(true);
 	});
-	it('a missing stat value in one clear blocks only candidates requiring that value', () => {
+	it('a clear without stat values takes Crit Rate from the clears that have it, and says so', () => {
 		const current = structuredClone(state);
 		current.accessories.finger1 = [{ key: 'crit_rate', tier: 'low' }, { key: 'crit_dmg', tier: 'low' }, { key: 'atk_flat', tier: 'low' }];
 		const upgrades = liveUpgrades(loadout, current, state, undefined, true);
@@ -67,12 +67,31 @@ describe('combined DPS gain', () => {
 		const list = compareDpsUpgrades(loadout, current, state, [a, b], [a, b], upgrades);
 		const crit = list.find(c => c.stat?.delta.critRate);
 		expect(crit).toBeDefined();
-		expect(crit!.covered).toBe(1);
-		expect(crit!.gainPct).toBeNull();
-		expect(list.find(c => c.upgrade.key.startsWith('honing:weapon:'))?.gainPct).toBeGreaterThan(0);
+		expect(crit!.covered).toBe(2);
+		expect(crit!.clears[1].gainPct).toBeCloseTo(crit!.clears[0].gainPct!);
+		expect(crit!.gainPct).not.toBeNull();
+		expect(crit!.notes.join(' ')).toMatch(/1 of 2 clears/);
+		const weapon = list.find(c => c.upgrade.key.startsWith('honing:weapon:'))!;
+		expect(weapon.gainPct).toBeGreaterThan(0);
+		expect(weapon.notes).toEqual([]);
+		// No clear has Crit Rate at all: still unranked.
+		const none = compareDpsUpgrades(loadout, current, state, [a, b], [{ ...a, statValues: null }, b], upgrades).find(c => c.id === crit!.id)!;
+		expect(none.gainPct).toBeNull();
 		const large = { ...b, damage: 900, statValues: { ...meter, critRate: .45 } };
 		const complete = compareDpsUpgrades(loadout, current, state, [a, large], [a, large], upgrades).find(c => c.id === crit!.id)!;
 		expect(complete.stat!.parts.find(p => p.key === 'critRate')!.gainPct).toBeCloseTo(complete.stat!.delta.critRate * (.15 * .1 + .45 * .9));
+	});
+});
+
+describe('gems without the meter\'s stat values', () => {
+	it('rank on the skill share and note that the base-attack bonus is left out', () => {
+		const upgrades = liveUpgrades(loadout, state, state, undefined, true);
+		const damage = upgrades.find(u => u.category === 'gem' && u.title.startsWith('Damage'))!;
+		const skill = state.gems[Number(damage.key.split(':')[3])].skill!;
+		const bare = { ...run(1), statValues: null, skills: [{ ...run(1).skills[0], id: gemMembers(skill)[0], damage: 50 }] };
+		const gem = compareDpsUpgrades(loadout, state, state, [bare], [bare], upgrades).find(c => c.id === damage.key)!;
+		expect(gem.gainPct).toBeCloseTo(gem.gem!.effectPct / 2);
+		if (gem.gem!.baseAttack) expect(gem.notes.join(' ')).toMatch(/Base Atk\. Power bonus not included/);
 	});
 });
 

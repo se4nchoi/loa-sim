@@ -49,12 +49,28 @@
 		if (character) loadRuns(characterKey(character), true);
 	}
 	$effect(() => { void wanted; untrack(() => { selectedPlan = 'working'; refresh(); }); });
+	/** What this page reads from storage, as stored. Returning to the tab re-reads (and recomputes) only when it changed,
+	 *  e.g. after editing the plan in Simulator; a plain alt-tab or a closing file dialog leaves the page as it is. */
+	function stored() {
+		const k = character ? characterKey(character) : (wanted ?? '').toLowerCase();
+		try {
+			return ['loa-sim:characters', 'loa-sim:simulations:v1', `loa-sim:autosave:v1:${k}`, `loa-sim:dps-runs:v1:${k}`].map(key => localStorage.getItem(key) ?? '').join('\u0000');
+		} catch { return ''; }
+	}
+	let seen = '';
+	function refreshIfChanged() {
+		const now = stored();
+		if (now === seen) return;
+		seen = now;
+		refresh();
+	}
 	onMount(() => {
 		loadGold();
-		const storageChanged = (e: StorageEvent) => { if (!e.key || e.key.startsWith('loa-sim:')) refresh(); };
+		seen = stored();
+		const storageChanged = (e: StorageEvent) => { if (!e.key || e.key.startsWith('loa-sim:')) refreshIfChanged(); };
 		window.addEventListener('storage', storageChanged);
-		window.addEventListener('focus', refresh);
-		return () => { window.removeEventListener('storage', storageChanged); window.removeEventListener('focus', refresh); };
+		window.addEventListener('focus', refreshIfChanged);
+		return () => { window.removeEventListener('storage', storageChanged); window.removeEventListener('focus', refreshIfChanged); };
 	});
 	const key = $derived(character ? characterKey(character) : '');
 	const loadout = $derived(character?.loadout ?? null);
@@ -252,6 +268,7 @@
 							<div class="mt-4 flex flex-wrap items-end justify-between gap-2" aria-live="polite"><div><p class="text-xs text-surface-400">DPS gain</p><p class="text-3xl font-semibold text-green-400">{fmt(shown.gainPct)}</p></div><div class="text-right"><p class="text-xs text-surface-400">CP gain</p><p class="text-sm text-red-400">{formatPct(shown.cpPct)}% (+{((cp ?? 0) * shown.cpPct / 100).toFixed(2)})</p></div></div>
 							{#if shown.reason}<p class="mt-3 text-sm text-amber-300">{shown.reason}</p>
 							{:else if shown.gainPct === null}<p class="mt-3 text-sm text-amber-300">DPS not estimated · {shown.covered}/{runs.length} clears covered.</p>{/if}
+							{#each shown.notes as note}<p class="mt-2 text-xs text-amber-300/90">※ {note}</p>{/each}
 							{#if shown.gem && !shown.gem.rough}<div class="mt-4 space-y-2 border-t border-surface-800 pt-3">{#each shown.gem.parts as part}<div class="flex items-center justify-between gap-3 text-sm"><span class="min-w-0 break-words">{book.skills[part.skill]?.[0] ?? part.name}</span><span class="shrink-0 text-surface-200">{(sample.skillShares[part.skill] ?? 0).toFixed(1)}% of damage</span></div>{/each}<p class="text-xs text-surface-400">Skill damage {formatPct(shown.gem.effectPct)}%{shown.gem.baseAttack ? ` · Base Atk. Power +${shown.gem.baseAttack.toFixed(2)}%` : ''}</p></div>{/if}
 							<div class="mt-4 border-t border-surface-800 pt-3"><h3 class="mb-2 text-sm font-semibold">By raid</h3><div class="space-y-3">{#each perRaid as result}<div><div class="mb-1 flex flex-wrap justify-between gap-2 text-xs"><span>{result.raid.name} · {result.raid.difficulty}</span><span>{fmt(result.gain)}</span></div><div class="h-1.5 rounded-xs bg-surface-800"><div class="h-full rounded-xs bg-accent-500" style:width={`${Math.abs(result.gain ?? 0) / raidScale * 100}%`}></div></div></div>{/each}</div></div>
 							<div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-surface-800 pt-3 text-sm"><span class="flex items-center gap-1.5 text-amber-300"><img src={GOLD_ICON} alt="" class="size-4" />{costs[shown.id] === undefined ? 'Price needed' : `${formatGold(costs[shown.id])} gold`}</span><button class={btn} onclick={() => pricesOpen = true}>Edit prices</button></div>

@@ -62,6 +62,8 @@ export interface DpsCandidate {
 	gem?: GemExplanation;
 	stat?: StatExplanation;
 	reason?: string;
+	/** What the estimate leaves out or approximates (shown with it, never instead of it). */
+	notes: string[];
 }
 
 const noStats = { mainStat: 0, weaponPower: 0, additionalDamage: 0, critRate: 0, critDamage: 0, attackPowerPct: 0, attackPower: 0 };
@@ -71,11 +73,19 @@ export function compareDpsUpgrades(loadout: Loadout, state: SimState, base: SimS
 	if (!runs.length) return [];
 	const sample = comparisonSample(runs);
 	const model = planModel(loadout, state, base, allRuns, runs).input;
-	// Build buckets are shared; only the recorded Crit Rate value varies per clear.
-	const perRun = runs.map(run => {
+	// Build buckets are shared; only the recorded Crit Rate value varies per clear. A clear recorded without the meter's
+	// values (low performance mode) uses the damage-weighted value of the selected clears that have one.
+	const own = runs.map(run => {
 		const values = combineStatValues([run.statValues]);
-		return { run, model: { ...model, critRate: values?.statSamples?.critRate ? values.critRate : null } };
+		return values?.statSamples?.critRate ? values.critRate : null;
 	});
+	const withCrit = runs.filter((_, i) => own[i] !== null);
+	const critDamage = withCrit.reduce((sum, run) => sum + run.damage, 0);
+	const pooledCrit = critDamage > 0 ? runs.reduce((sum, run, i) => sum + (own[i] === null ? 0 : run.damage * own[i]!), 0) / critDamage : null;
+	const perRun = runs.map((run, i) => ({ run, model: { ...model, critRate: own[i] ?? pooledCrit } }));
+	const critNote = withCrit.length && withCrit.length < runs.length
+		? `Crit Rate valued from ${withCrit.length} of ${runs.length} clears; the others were recorded without the meter's stat values.` : null;
+	const baseAttackNote = !model.buckets ? "Base Atk. Power bonus not included: no recent clear has the meter's stat values." : null;
 	const choices = gemChoices(loadout, state);
 	const totalDamage = runs.reduce((sum, run) => sum + run.damage, 0);
 	const breakdownModel = { ...model, critRate: perRun.every(r => r.model.critRate !== null)
@@ -93,11 +103,16 @@ export function compareDpsUpgrades(loadout: Loadout, state: SimState, base: SimS
 			if (!gem) return { run, gainPct: null };
 			const members = new Set([...gemMembers(gem.choice.skill), gem.choice.skill]);
 			const share = run.skills.filter(s => members.has(s.id)).reduce((sum, s) => sum + s.damage, 0) / run.damage;
-			const attack = gem.baseAttack ? modelGain({ ...noStats, baseAttackPct: gem.baseAttack }, model).gainPct : 0;
-			return { run, gainPct: attack === null ? null : ((1 + share * gem.effectPct / 100) * (1 + attack / 100) - 1) * 100 };
+			// Without the gear's buckets the base-attack part is unknown; the skill part is still measured (see notes).
+			const attack = gem.baseAttack ? modelGain({ ...noStats, baseAttackPct: gem.baseAttack }, model).gainPct ?? 0 : 0;
+			return { run, gainPct: ((1 + share * gem.effectPct / 100) * (1 + attack / 100) - 1) * 100 };
 		});
+		const notes = reason ? [] : [
+			...(stat?.delta.critRate && critNote ? [critNote] : []),
+			...(gem?.baseAttack && baseAttackNote ? [baseAttackNote] : [])
+		];
 		return { id: upgrade.key, upgrade, cpPct: upgrade.gainPct, gainPct: combinedGain(clears), clears,
-			covered: clears.filter(c => c.gainPct !== null).length, gem, stat, reason };
+			covered: clears.filter(c => c.gainPct !== null).length, gem, stat, reason, notes };
 	});
 }
 
