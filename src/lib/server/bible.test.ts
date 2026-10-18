@@ -32,4 +32,19 @@ describe('server character loader', () => {
 		const ok = vi.fn(async () => new Response(JSON.stringify(body(1))));
 		await expect(loadCharacter('NA', 'Garbage', ok as never)).resolves.toBeTruthy();
 	});
+	it('fetches a newer snapshot after a minute instead of extending the cache on repeated loads', async () => {
+		vi.useFakeTimers();
+		try {
+			const fetchFn = vi.fn()
+				.mockImplementationOnce(async () => new Response(JSON.stringify(body(4000))))
+				.mockImplementationOnce(async () => new Response(JSON.stringify(body(4100))));
+			await loadCharacter('NA', 'Updated', fetchFn as never);
+			vi.advanceTimersByTime(59_000);
+			expect((await loadCharacter('NA', 'Updated', fetchFn as never)).loadout?.combatPower?.score).toBe(4000);
+			expect(fetchFn).toHaveBeenCalledTimes(1);
+			vi.advanceTimersByTime(1_000);
+			expect((await loadCharacter('NA', 'Updated', fetchFn as never)).loadout?.combatPower?.score).toBe(4100);
+			expect(fetchFn).toHaveBeenCalledTimes(2);
+		} finally { vi.useRealTimers(); }
+	});
 });

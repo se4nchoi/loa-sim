@@ -6,7 +6,9 @@
 import { env } from '$env/dynamic/private';
 import { decodeCharacterData, bibleDataUrl, type CharacterData } from '$lib/bible-data';
 
-const TTL_MS = 5 * 60 * 1000;
+// The CDN can cache this result for another minute: keep the combined window under two minutes.
+export const CHARACTER_CACHE_SECONDS = 60;
+const TTL_MS = CHARACTER_CACHE_SECONDS * 1000;
 const TIMEOUT_MS = 15_000;
 const cache = new Map<string, { at: number; data: CharacterData }>();
 const inFlight = new Map<string, Promise<CharacterData>>();
