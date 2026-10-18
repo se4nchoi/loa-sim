@@ -3,6 +3,8 @@ import { pinSimulation, renameSimulation, autosaveSimulation, loadAutosave, dele
 import { initSimState, simulate } from './simulate';
 import type { Loadout } from './types';
 import soulshan from './fixtures/na-soulshan.json';
+import inconsistent from './fixtures/na-soulshan-merged-inconsistent.json';
+import { simulationCP } from './saved-simulations';
 
 const loadout = soulshan as unknown as Loadout;
 const store = new Map<string, string>();
@@ -14,6 +16,63 @@ Object.assign(globalThis, { localStorage: {
 beforeEach(() => { store.clear(); blocked = false; });
 
 describe('saved simulator plans', () => {
+ it('repairs old plans and autosaves that omitted baseline rows without losing other edits', () => {
+  const l = inconsistent as unknown as Loadout;
+  const state = initSimState(l);
+  delete state.engravings[1109];
+  delete state.quality.head;
+  delete state.gear.head;
+  state.arkGrid.shift();
+  state.gear.weapon!.honing++;
+  const saved = saveSimulation('na/soulshan', 'Old plan', l, state);
+  expect(saved.state.engravings[1109]).toEqual(initSimState(l).engravings[1109]);
+  expect(saved.state.gear.head).toEqual(initSimState(l).gear.head);
+  expect(saved.state.quality.head).toBe(initSimState(l).quality.head);
+  expect(saved.state.arkGrid).toHaveLength(initSimState(l).arkGrid.length);
+  expect(saved.state.gear.weapon!.honing).toBe(state.gear.weapon!.honing);
+  store.set('loa-sim:autosave:v1:na/soulshan', JSON.stringify([{ ...saved, state }]));
+  expect(loadAutosave('na/soulshan', l)?.engravings[1109]).toBeDefined();
+ });
+ it('migrates an old extra engraving into the formerly hidden fifth slot', () => {
+  const l = inconsistent as unknown as Loadout;
+  const state = initSimState(l);
+  delete state.engravings[1109];
+  state.engravings[1118] = { books: 4, stone: 0, added: true };
+  const saved = saveSimulation('na/soulshan', 'Old fifth slot', l, state);
+  expect(Object.keys(saved.state.engravings)).toHaveLength(5);
+  expect(saved.state.engravings[1109]).toEqual({ books: 4, stone: 0, as: 1118 });
+  expect(saved.state.engravings[1118]).toBeUndefined();
+  expect(simulationCP(saved)).toBeCloseTo(6620.18, 2);
+ });
+ it('defaults missing optional feature fields from an old v1 plan to its own snapshot', () => {
+  const saved = saveSimulation('na/soulshan', 'Before new fields', loadout, initSimState(loadout));
+  const older = structuredClone(saved);
+  for (const key of ['quality', 'paradise', 'skillCooldownUse', 'skins']) delete (older.state as unknown as Record<string, unknown>)[key];
+  const restored = parseSimulation(JSON.stringify(older));
+  expect(restored.state).toEqual(saved.state);
+  expect(simulationCP(restored)).toBe(simulationCP(saved));
+ });
+ it('rejects malformed swap IDs, duplicate or excess slots and out-of-range saved inputs', () => {
+  const saved = saveSimulation('na/soulshan', 'Valid', loadout, initSimState(loadout));
+  for (const mutate of [
+   (s: typeof saved) => { s.state.engravings[1118].as = 'bad' as unknown as number; },
+   (s: typeof saved) => { s.state.engravings[1118].as = 999999; },
+   (s: typeof saved) => { s.state.engravings[1118].as = 1299; },
+   (s: typeof saved) => { s.state.engravings[1109] = { books: 0, stone: 0, added: true }; },
+   (s: typeof saved) => { s.state.quality.head = 101; },
+   (s: typeof saved) => { s.state.gems[0].tier = 'invalid' as 'T4'; },
+   (s: typeof saved) => { s.state.arkGrid[0].grade = 'invalid' as 'ancient'; },
+   (s: typeof saved) => { s.state.sidereal = { infusion: 9999, evolution: 0, advanced: 0 }; },
+   (s: typeof saved) => { s.state.gems = Array.from({length: 12}, () => structuredClone(s.state.gems[0])); },
+   (s: typeof saved) => { s.state.karma.evolution = 31; },
+   (s: typeof saved) => { s.state.skins.bonus = 99; },
+   (s: typeof saved) => { s.state.accessories.neck = Array.from({length: 4}, () => ({key: 'other', label: 'Bad'})); },
+   (s: typeof saved) => { s.state.arkGrid.push(structuredClone(s.state.arkGrid[0])); }
+  ]) {
+   const bad = structuredClone(saved); mutate(bad);
+   expect(() => parseSimulation(JSON.stringify(bad))).toThrow('supported');
+  }
+ });
 	it('saving the same title, baseline and edits again is a no-op, while a new title or edits creates a plan', () => {
 		const state = initSimState(loadout);
 		state.gear.weapon!.honing++;

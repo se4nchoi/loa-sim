@@ -35,8 +35,7 @@
 	/** Scored and utility engravings for this role, excluding duplicates. */
 	const swapOptions = (id: number): MenuOption<number>[] => {
 		const taken = new Set(ids.filter((x) => x !== id).map(shown));
-		return role()
-			.engravingIds()
+  return [...new Set([...role().engravingIds(), shown(id)])]
 			.filter((e) => !taken.has(e))
 			.map((e) => ({ value: e, label: engravingName(e), iconUrl: engravingIcon(e) }))
 			.sort((a, b) => a.label.localeCompare(b.label));

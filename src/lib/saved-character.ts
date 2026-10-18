@@ -3,6 +3,7 @@
 
 import type { CharacterData, LoadoutKind } from '$lib/bible-data';
 import { findSnapshot, forgetSnapshots, recordSnapshots, removeSnapshot } from '$lib/snapshot-history';
+import { isStoredLoadout, storedRecord } from '$lib/stored-loadout';
 
 const KEY = 'loa-sim:characters';
 const LEGACY_KEY = 'loa-eff:character';
@@ -23,14 +24,37 @@ export interface SavedCharacter extends CharacterData {
 
 export const characterKey = (c: { region: string; name: string }) => `${c.region}/${c.name}`.toLowerCase();
 
+function storedCharacters(value: unknown): SavedCharacter[] {
+ if (!Array.isArray(value)) return [];
+ return value.flatMap((v) => {
+  if (!storedRecord(v) || typeof v.name !== 'string' || !v.name || typeof v.region !== 'string' || !v.region) return [];
+  const loadouts = storedRecord(v.loadouts) ? Object.fromEntries(Object.entries(v.loadouts)
+   .filter(([kind, l]) => ['current', 'estimated'].includes(kind) && isStoredLoadout(l))) : undefined;
+  const selectedValid = isStoredLoadout(v.loadout);
+  const preferred = v.loadoutKind === 'estimated' ? 'estimated' : 'current';
+  const fallbackKind = loadouts?.[preferred] ? preferred : loadouts?.current ? 'current' : loadouts?.estimated ? 'estimated' : undefined;
+  const loadout = selectedValid ? v.loadout : fallbackKind ? loadouts![fallbackKind] : null;
+  const entry = { ...v, loadout, ...(v.loadouts !== undefined ? { loadouts } : {}),
+   savedAt: typeof v.savedAt === 'number' && Number.isFinite(v.savedAt) ? v.savedAt : 0 } as SavedCharacter;
+  if (!selectedValid) {
+   delete entry.snapshotId;
+   if (fallbackKind) entry.loadoutKind = fallbackKind;
+  }
+  return [entry];
+ });
+}
+
 function read(): SavedCharacter[] {
 	for (const store of [() => localStorage, () => sessionStorage]) {
 		try {
 			const raw = store().getItem(KEY);
-			if (raw) return JSON.parse(raw) as SavedCharacter[];
+   if (raw) {
+    const value = JSON.parse(raw);
+    if (Array.isArray(value)) return storedCharacters(value);
+   }
 			// One-time migration from the single-character format.
 			const legacy = store().getItem(LEGACY_KEY);
-			if (legacy) return [JSON.parse(legacy) as SavedCharacter];
+   if (legacy) return storedCharacters([JSON.parse(legacy)]);
 		} catch {
 			/* try the next store */
 		}
