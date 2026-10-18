@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import CharacterSwitcher from '$lib/CharacterSwitcher.svelte';
 	import { characterKey, loadSavedCharacter, type SavedCharacter } from '$lib/saved-character';
@@ -58,11 +58,22 @@
 		} catch { return ''; }
 	}
 	let seen = '';
-	function refreshIfChanged() {
+	/** Re-reading and recomputing takes about a second on a full log import: a spinner goes up first. */
+	let refreshing = $state(false);
+	async function refreshIfChanged() {
 		const now = stored();
-		if (now === seen) return;
+		if (now === seen || refreshing) return;
 		seen = now;
-		refresh();
+		refreshing = true;
+		// Let the spinner paint before the work blocks the page (a background tab paints no frames: don't wait for one).
+		await tick();
+		await new Promise(r => { requestAnimationFrame(() => setTimeout(r)); setTimeout(r, 100); });
+		try {
+			refresh();
+			await tick();
+		} finally {
+			refreshing = false;
+		}
 	}
 	onMount(() => {
 		loadGold();
@@ -183,7 +194,20 @@
 
 {#if character && loadout && sourceState && base}
 	<CharacterSwitcher current={key} simulatorPath="/dps" />
-	<div class="dps-workspace">
+	<div class="dps-workspace relative" aria-busy={refreshing}>
+		{#if refreshing}
+			<div class="absolute inset-0 z-30 bg-surface-950/60" role="status" aria-live="polite">
+				<div class="sticky top-[40vh] flex justify-center">
+					<span class="flex items-center gap-2 rounded-xs border border-surface-600 bg-surface-900 px-3 py-2 text-sm text-surface-100 shadow-lg shadow-black/50">
+						<svg class="size-4 animate-spin text-accent-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+							<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" stroke-width="3" />
+							<path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+						</svg>
+						Updating…
+					</span>
+				</div>
+			</div>
+		{/if}
 		<header class="flex flex-wrap items-end justify-between gap-3">
 			<div class="min-w-0 max-w-full"><h1 class="text-2xl font-semibold">{character.name} <span class="text-sm font-normal text-surface-400">{className(loadout.classId)}</span></h1>
 				<label class="mt-2 flex flex-wrap items-center gap-2 text-sm text-surface-300">Build
