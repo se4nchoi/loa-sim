@@ -36,6 +36,17 @@
 	let plans = $state.raw<SavedSimulation[]>([]);
 	let selectedPlan = $state('working');
 	let showImport = $state(false);
+	/** LOA Logs runs on PC and imported logs stay in the browser that read them: phones get a pointer to the PC instead
+	 *  of a file picker (which a player can still ask for). The page doesn't render on the server, so this is safe. */
+	const phone = matchMedia('(pointer: coarse) and (max-width: 767px)').matches;
+	let pickerAnyway = $state(false);
+	/** "How this is evaluated": open until the player closes it once (remembered in this browser). */
+	let aboutOpen = $state(true);
+	try { aboutOpen = localStorage.getItem('loa-sim:dps-about-closed') !== '1'; } catch { /* stays open */ }
+	function aboutToggled(open: boolean) {
+		aboutOpen = open;
+		try { localStorage.setItem('loa-sim:dps-about-closed', open ? '0' : '1'); } catch { /* this visit only */ }
+	}
 	let pricesOpen = $state(false);
 	let inventoryOpen = $state(false);
 	const wanted = $derived(page.url.searchParams.get('c'));
@@ -241,7 +252,7 @@
 			</div>
 		{/if}
 		<header class="flex flex-wrap items-end justify-between gap-3">
-			<div class="min-w-0 max-w-full"><h1 class="text-2xl font-semibold">{character.name} <span class="text-sm font-normal text-surface-400">{className(loadout.classId)}</span></h1>
+			<div class="min-w-0 max-w-full"><h1 class="text-2xl font-semibold">{character.name} <span class="text-sm font-normal text-surface-400">{className(loadout.classId)}</span> <span class="rounded-xs bg-amber-500/15 px-1.5 align-middle text-xs font-semibold text-amber-300">DPS Beta</span></h1>
 				<p class="mt-1 text-sm text-surface-400">Upgrades ranked by how much they'd raise your DPS in the raids you pick, from your own LOA Logs.</p>
 				<label class="mt-2 flex flex-wrap items-center gap-2 text-sm text-surface-300">Build
 					<select class={selectClass(false)} bind:value={selectedPlan}><option value="working">Current simulation</option>{#each plans as plan}<option value={plan.id}>{plan.name}</option>{/each}</select>
@@ -249,10 +260,41 @@
 			</div>
 			<div class="flex flex-wrap items-center gap-3"><span class="text-sm text-surface-400">CP <strong class={support ? 'text-green-400' : 'text-red-400'}>{cp?.toFixed(2)}</strong></span><a href={simulatorUrl} class={btnAccent}>Simulator</a></div>
 		</header>
+		<details class="dps-panel p-3 text-sm text-surface-300 sm:p-4" open={aboutOpen} ontoggle={e => aboutToggled(e.currentTarget.open)}>
+			<summary class="cursor-pointer font-semibold text-surface-100">How this is evaluated <span class="font-normal text-amber-300">· Beta</span></summary>
+			<div class="dps-about mt-3">
+				<section><h3>What it does</h3><ul>
+					<li>Takes each upgrade Next Upgrades offers and estimates how much DPS it would add in the clears you pick, from your own LOA Logs.</li>
+					<li>Each clear is scored on its own. The total compares estimated damage with recorded damage over the same fight time.</li>
+				</ul></section>
+				<section><h3>How</h3><ul>
+					<li>Stat upgrades (honing, accessories, bracelet rolls, quality): damage grows with attack, Additional Damage, Evolution Damage and crit, each in its own bucket. Your gear's bucket totals are read back from the meter's stat values in your newest clears.</li>
+					<li>Crit Rate is valued per clear from that clear's own meter value, because what it's worth swings by fight (crit buffs, Blunt Thorn's cap).</li>
+					<li>Gems: the share of your damage that skill dealt in the selected clears, times the gem's damage bonus.</li>
+				</ul></section>
+				<section><h3>Assumes</h3><ul>
+					<li>The same rotation, fight length and party buffs as the recorded clears.</li>
+					<li>One upgrade at a time. Very large jumps are approximate.</li>
+					<li>Your plan's gear is close to the gear in your logs (you're warned when CP differs by 2% or more).</li>
+				</ul></section>
+				<section><h3>Not covered yet</h3><ul>
+					<li>Engravings, Ark Grid, karma, bracelet effects and cooldown gems: listed under "Not estimated yet".</li>
+					<li>Outgoing Damage isn't valued; upgrades that add it show a floor ("≥").</li>
+					<li>Clears logged in LOA Logs' low performance mode have no stat values, and Crit Rate needs them.</li>
+					<li>Damage dealers only.</li>
+					<li>Beta: checked against a small number of characters' logs so far, so numbers may change.</li>
+				</ul></section>
+			</div>
+		</details>
 		{#if !book || showImport}
 			<section class="dps-panel p-4" aria-label="Import logs">
 				{#if !book}<h2 class="mb-3 font-semibold">Import LOA Logs</h2>{/if}
-				{#key key}<DpsRunsImport characterKey={key} characterName={character.name} ondone={() => { showImport = false; }} />{/key}
+				{#if phone && !pickerAnyway}
+					<p class="text-sm text-surface-300">LOA Logs runs on PC, and imported logs stay in the browser that read them. Open this page on the PC where LOA Logs is installed to import your encounters.db.</p>
+					<button class="mt-2 text-xs text-accent-300 hover:underline" onclick={() => pickerAnyway = true}>Use a file on this device anyway</button>
+				{:else}
+					{#key key}<DpsRunsImport characterKey={key} characterName={character.name} ondone={() => { showImport = false; }} />{/key}
+				{/if}
 				{#if book}<button class="{btn} mt-3" onclick={() => showImport = false}>Close</button>{/if}
 			</section>
 		{/if}
@@ -367,6 +409,9 @@
 	.dps-workspace > * { min-width: 0; }
 	.dps-workspace header select { min-width: 0; max-width: 100%; }
 	.dps-panel { border-radius: 2px; background: var(--color-surface-900); box-shadow: 0 1px 2px var(--color-neutral-800); }
+	.dps-about { display: grid; gap: .9rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+	.dps-about h3 { margin-bottom: .3rem; font-size: .75rem; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--color-surface-400); }
+	.dps-about ul { display: grid; gap: .3rem; padding-left: 1rem; list-style: disc; font-size: .8rem; line-height: 1.45; }
 	.dps-raids { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .6rem; }
 	.dps-raid { position: relative; overflow: hidden; border: 1px solid var(--color-surface-700); border-radius: 2px; padding: .7rem; text-align: left; }
 	.dps-raid:has(> button:focus-visible) { outline: 2px solid var(--color-accent-300); outline-offset: 1px; }

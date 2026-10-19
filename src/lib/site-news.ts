@@ -15,6 +15,25 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-10-19',
+		kind: 'new',
+		title: 'DPS tab',
+		points: [
+			"A new DPS tab ranks upgrades by how much DPS they'd add, using your own LOA Logs.",
+			'Import encounters.db on the PC where LOA Logs runs; nothing is uploaded.',
+			'Pick a raid to see which upgrades matter most there.'
+		]
+	},
+	{
+		date: '2026-10-19',
+		kind: 'fix',
+		title: 'Simulator fixes',
+		points: [
+			'Ark Grid "+1 level" previews now show real values on finished grids.',
+			'Next Upgrades shows gains in green and gold per 1% CP.'
+		]
+	},
+	{
 		date: '2026-10-18',
 		kind: 'fix',
 		title: 'Simulator fix',

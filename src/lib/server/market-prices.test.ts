@@ -22,7 +22,15 @@ describe('market price proxy', () => {
 		await expect(marketPrices('nae', fetchFn)).rejects.toThrow();
 		expect((await marketPrices('nae', fetchFn)).quotes['66110225'].price).toBe(13);
 	});
+	it('is off unless PUBLIC_MARKET_PRICES=1, without any upstream call', async () => {
+		vi.doMock('$env/dynamic/public', () => ({ env: {} }));
+		const { GET } = await import('../../routes/api/market/+server');
+		const fetchFn = vi.fn();
+		await expect(GET({ url: new URL('https://example.com/api/market?region=nae'), fetch: fetchFn } as never)).rejects.toMatchObject({ status: 404 });
+		expect(fetchFn).not.toHaveBeenCalled();
+	});
 	it('rejects unsupported regions before any upstream call and marks failures as non-cacheable', async () => {
+		vi.doMock('$env/dynamic/public', () => ({ env: { PUBLIC_MARKET_PRICES: '1' } }));
 		const { GET } = await import('../../routes/api/market/+server');
 		const fetchFn = vi.fn();
 		await expect(GET({ url: new URL('https://example.com/api/market?region=naw'), fetch: fetchFn } as never)).rejects.toMatchObject({ status: 400 });
