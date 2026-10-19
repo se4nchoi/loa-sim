@@ -1,7 +1,7 @@
 // Which skill group each class skill belongs to, for Ark Grid core effects like "Stygian Skill Damage +0.6%".
 // LOA Logs, the Maxroll feed and the game's skill data used here don't carry these groups, so they're listed per class.
 // Source: each skill's tag on lostarkcodex.com ("[Deathlord Skill]"), collected 10-19-26. Skill ids match LOA Logs'.
-// Status: Souleater drafted, waiting for a player's check.
+// Status: Souleater confirmed by a Souleater player (10-19-26). Other classes follow once the Souleater model checks out.
 
 export type SkillGroup = string;
 
