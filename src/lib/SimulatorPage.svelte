@@ -10,8 +10,17 @@
 	import { loadCharacter } from '$lib/load-character';
 	import { untrack } from 'svelte';
 	import { formatDateTime } from '$lib/upgrade-planner/format';
+	import Segmented from '$lib/upgrade-planner/sim/Segmented.svelte';
 
 	let { dpsMode = false }: { dpsMode?: boolean } = $props();
+	/** CP or DPS: the same simulator, DPS adds a clear from the player's logs and its meter. Kept in the address. */
+	const mode = $derived(dpsMode || page.url.searchParams.get('mode') === 'dps' ? 'dps' : 'cp');
+	function setMode(next: 'cp' | 'dps') {
+		const url = new URL(page.url);
+		if (next === 'dps') url.searchParams.set('mode', 'dps');
+		else url.searchParams.delete('mode');
+		void goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+	}
 
 	// Shared links also load characters this browser hasn't saved yet.
 	let switched = $state<ReturnType<typeof loadSavedCharacter>>(null);
@@ -123,8 +132,14 @@
  {#if build}<div class="mb-3 flex flex-wrap items-center gap-3 text-sm"><span class="font-semibold text-accent-200">Build: {build.name}</span><a class="text-surface-300 underline" href={`/sim?c=${encodeURIComponent(characterKey(saved))}`}>Back to character</a></div>
  {:else if buildId}<p class="mb-3 text-sm text-surface-300">This saved build is no longer available. Showing your character.</p>{/if}
 	<CharacterSwitcher current={characterKey(saved)} simulatorPath={dpsMode ? '/dps' : '/sim'} />
+	{#if !dpsMode}
+		<div class="mb-3 flex items-center gap-2">
+			<Segmented label="Simulate" value={mode} options={[{ value: 'cp', label: 'CP' }, { value: 'dps', label: 'DPS', title: 'Replay one of your own clears from LOA Logs with your edits' }]} onselect={setMode} size="h-8 min-w-14 px-3 text-sm font-semibold" />
+			<span class="text-xs text-surface-400">{mode === 'dps' ? 'Your edits on one of your own clears' : 'Combat Power'}</span>
+		</div>
+	{/if}
 	{#key `${saved.region}/${saved.name}:${build?.id ?? "character"}`}
-		<CharacterView {dpsMode} initialBuild={build} name={saved.name} region={saved.region} {subtitle} itemLevel={build ? build.loadout.itemLevel : saved.header?.ilvl} loadout={saved.loadout}
+		<CharacterView dpsMode={mode === 'dps'} initialBuild={build} name={saved.name} region={saved.region} {subtitle} itemLevel={build ? build.loadout.itemLevel : saved.header?.ilvl} loadout={saved.loadout}
 			cpDistribution={build ? null : saved.cpDistribution}
 			loadouts={saved.loadouts}
 			loadoutKind={saved.loadoutKind}

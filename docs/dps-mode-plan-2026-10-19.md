@@ -1,6 +1,7 @@
 # DPS mode on the Simulator (plan, 10-19-26)
 
-Status: agreed with the player 10-19, step 1 next. Replaces the answer-first plan
+Status: step 1 built 10-19 (`/sim?mode=dps`: `DpsModePanel.svelte`, `sim/DpsMeter.svelte`, `dps-meter.ts`), checked on Soulshan's
+live logs (Serca NM 10-17: weapon +1 → +0.95%, Gluttony damage gem 9 → 10 → Gluttony +4.14%). Step 2 next. Replaces the answer-first plan
 (`dps-answer-first-plan-2026-10-19.md`): the DPS view becomes a simulator you play with, not a static recommender. Its
 "top pick" can live in the right pane.
 
@@ -52,3 +53,13 @@ Status: agreed with the player 10-19, step 1 next. Replaces the answer-first pla
 2. Right pane ranked by DPS in DPS mode (reuse `compareDpsUpgrades` / `rankDpsCandidates`).
 3. Boss damage; Ark Grid cores for Souleater (per-point/flat → identity-mode → procs); then other effects and classes.
 4. Retire `/dps`.
+
+## Notes from step 1 (10-19)
+
+- LOA Logs' `combat_power` for Soulshan's 10-17 Serca clear is 6523.07 while the current bible snapshot is 6797.64
+  (+4.2%): either gear changed since, or the two CP numbers differ in what they include. Worth checking on a clear
+  played right after a bible snapshot before trusting the 0.5% match.
+- The live database has `combat_power`, `gear_score` and `ark_passive_data`, but `loadout_hash` was empty, so
+  same-gear grouping falls back to CP. `cache/dps-real-soulshan.db` (10-13) lacks those columns; use
+  `cache/dps-live-soulshan.db` (87 clears, 6.9 MB, made from the live DB read-only) for testing.
+- The old `/dps` tab still exists; the Simulator's link now points to DPS mode.

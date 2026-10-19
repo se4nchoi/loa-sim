@@ -1,0 +1,134 @@
+// DPS mode's meter: a recorded clear (or same-gear clears of one gate) replayed with the Simulator's current edits.
+// Every skill keeps its recorded damage and the fight its recorded length; the edits scale that damage:
+//   - stat edits (honing, quality, bracer, accessories, bracelet stats, skins): one multiplier for every skill, from
+//     the stat model (dps-model.ts) with that clear's Crit Rate value;
+//   - damage gems: their skills only (and a T4 gem's base attack, for every skill);
+//   - anything else (Ark Grid, karma, engravings, Paradise, cooldown gems) isn't valued yet: listed, not counted.
+import type { RunSummary } from '$lib/logs/protocol';
+import { critRates } from './dps-comparison';
+import { baseAttackOf, gemMembers, planModel, skillEffect } from './dps-explain';
+import { modelGain } from './dps-model';
+import { statDeltasAtLeast } from './dps-stats';
+import type { SimState } from './simulate';
+import type { Loadout } from './types';
+
+export interface MeterSkill {
+	id: number;
+	/** Recorded damage, and with the edits (summed over the clears). */
+	before: number;
+	after: number;
+}
+
+export interface Meter {
+	/** Recorded total damage, and with the edits. */
+	before: number;
+	after: number;
+	/** Recorded fight time, ms (summed over the clears). */
+	durationMs: number;
+	skills: MeterSkill[];
+	/** The stat edits' gain (damage-weighted over the clears), null when the stat values to value them are missing. */
+	statPct: number | null;
+	/** Edits the meter doesn't count yet, by card ("Ark Grid", "Karma", …). */
+	notInMeter: string[];
+	notes: string[];
+}
+
+/** Edited parts of the state the stat model covers (see dps-stats COVERED) or that are only log data. */
+const STAT_KEYS = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet', 'skillShares', 'skillCooldownUse']);
+const LABELS: Partial<Record<keyof SimState, string>> = { arkGrid: 'Ark Grid', karma: 'Karma', engravings: 'Engravings', paradise: 'Paradise' };
+const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buildRuns: RunSummary[], runs: RunSummary[]): Meter | null {
+	if (!runs.length) return null;
+	const notes: string[] = [];
+	const notInMeter: string[] = [];
+
+	// Stat part: the edits on the cards the stat model covers; everything else put back to the snapshot.
+	const statState = structuredClone(state);
+	for (const key of Object.keys(state) as (keyof SimState)[]) {
+		if (STAT_KEYS.has(key)) continue;
+		if (!same(state[key], base[key])) {
+			if (key !== 'gems') notInMeter.push(LABELS[key] ?? key);
+			(statState as unknown as Record<string, unknown>)[key] = structuredClone(base[key]);
+		}
+	}
+	const change = statDeltasAtLeast(loadout, base, statState, base);
+	if (!change && !same(statState, base)) notes.push("Some gear edits remove a damage line the model can't value, so they're left out.");
+	if (change?.unvalued.length) notes.push(`${change.unvalued.join(', ')} isn't valued yet: the real gain is a little higher.`);
+
+	// Gems: damage gems scale their skills; a T4 gem's base attack joins the stat part. Cooldown gems aren't counted.
+	const gemEffects: { skills: Set<number>; pct: number }[] = [];
+	let cooldownGems = 0;
+	state.gems.forEach((gem, index) => {
+		const was = base.gems[index];
+		if (!was || same(gem, was)) return;
+		if (gem.skill === null || gem.skill !== was.skill || gem.kind !== was.kind || gem.tier !== was.tier) {
+			notInMeter.push('Gem swaps');
+			return;
+		}
+		if (gem.kind === 'cooldown') { cooldownGems++; return; }
+		const { effectPct } = skillEffect(loadout, state, { index, skill: gem.skill, name: '', kind: 'damage', from: was.level, to: gem.level, label: '' }, {});
+		gemEffects.push({ skills: new Set([...gemMembers(gem.skill), gem.skill]), pct: effectPct });
+	});
+	if (cooldownGems) notInMeter.push(`Cooldown gems (${cooldownGems})`);
+	const gemBaseAttack = baseAttackOf(loadout, state) - baseAttackOf(loadout, base);
+	const delta = change ? { ...change.delta } : { mainStat: 0, weaponPower: 0, additionalDamage: 0, critRate: 0, critDamage: 0, attackPowerPct: 0, attackPower: 0 };
+	if (gemBaseAttack) delta.baseAttackPct = (delta.baseAttackPct ?? 0) + gemBaseAttack;
+	const hasStats = Object.values(delta).some((v) => v);
+
+	// Each clear on its own: the gear's buckets from the build's clears, Crit Rate from this clear (or the pooled one).
+	const model = planModel(loadout, base, base, buildRuns, runs).input;
+	const crit = critRates(runs);
+	const bySkill = new Map<number, MeterSkill>();
+	let before = 0, after = 0, durationMs = 0, statWeighted = 0, statKnown = true;
+	runs.forEach((run, i) => {
+		const gain = hasStats ? modelGain(delta, { ...model, critRate: crit.perRun[i] }).gainPct : 0;
+		if (gain === null) statKnown = false;
+		const stat = 1 + (gain ?? 0) / 100;
+		statWeighted += run.damage * (gain ?? 0);
+		durationMs += run.duration;
+		for (const skill of run.skills) {
+			const gems = gemEffects.reduce((m, g) => (g.skills.has(skill.id) ? m * (1 + g.pct / 100) : m), 1);
+			const row = bySkill.get(skill.id) ?? { id: skill.id, before: 0, after: 0 };
+			row.before += skill.damage;
+			row.after += skill.damage * stat * gems;
+			bySkill.set(skill.id, row);
+		}
+		before += run.damage;
+	});
+	for (const row of bySkill.values()) after += row.after;
+	// Damage outside the per-skill list (if any) is scaled by the stat part alone.
+	const listed = [...bySkill.values()].reduce((sum, r) => sum + r.before, 0);
+	if (before > listed) after += (before - listed) * (1 + statWeighted / Math.max(1, before) / 100);
+	if (hasStats && !statKnown) notes.push("Stat edits need a clear recorded with LOA Logs' stat values (low performance mode off); they're left out.");
+	return {
+		before, after, durationMs,
+		skills: [...bySkill.values()].sort((a, b) => b.after - a.after),
+		statPct: hasStats && statKnown ? statWeighted / Math.max(1, before) : hasStats ? null : 0,
+		notInMeter: [...new Set(notInMeter)], notes
+	};
+}
+
+/** A snapshot the Simulator can switch to, for matching a clear's gear. */
+export interface SnapshotOption {
+	id: string;
+	label: string;
+	cp: number | null;
+	/** The snapshot being simulated now. */
+	current: boolean;
+	select: () => void;
+}
+
+/** The kept snapshot that matches a clear: its CP within `tolerance` (0.5%) of the clear's recorded CP, closest first. */
+export function matchSnapshot<T extends { cp: number | null }>(clearCp: number | null, snapshots: T[], tolerance = 0.005): T | null {
+	if (!clearCp) return null;
+	const close = snapshots.filter((s) => s.cp && Math.abs(s.cp / clearCp - 1) <= tolerance);
+	return close.sort((a, b) => Math.abs(a.cp! - clearCp) - Math.abs(b.cp! - clearCp))[0] ?? null;
+}
+
+/** Same-gear clears of one gate: same LOA Logs loadout hash, or CP within 0.5% when no hash was recorded. */
+export function sameGear(run: RunSummary, other: RunSummary): boolean {
+	if (run.boss !== other.boss || run.difficulty !== other.difficulty) return false;
+	if (run.loadoutHash && other.loadoutHash) return run.loadoutHash === other.loadoutHash;
+	return !!run.combatPower && !!other.combatPower && Math.abs(other.combatPower / run.combatPower - 1) <= 0.005;
+}

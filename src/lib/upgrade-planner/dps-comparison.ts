@@ -78,7 +78,7 @@ export function runCooldownUse(run: RunSummary): Record<number, number> {
 }
 
 /** Crit Rate per clear (its own meter value, or the damage-weighted value of the selected clears that have one). */
-function critRates(runs: RunSummary[]) {
+export function critRates(runs: RunSummary[]) {
 	const own = runs.map(run => {
 		const values = combineStatValues([run.statValues]);
 		return values?.statSamples?.critRate ? values.critRate : null;

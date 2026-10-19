@@ -376,7 +376,7 @@
 	</SimSummary>
 {/snippet}
 
-{#if autosaveNote}<p class="mb-3 text-sm text-amber-300" role="status">{autosaveNote}</p>{:else}<p class="mb-3 text-xs text-surface-400">Changes saved in this browser · <a class="text-sky-300 hover:underline" href={`/dps?c=${encodeURIComponent(characterKey ?? '')}`}>See DPS gains →</a></p>{/if}
+{#if autosaveNote}<p class="mb-3 text-sm text-amber-300" role="status">{autosaveNote}</p>{:else}<p class="mb-3 text-xs text-surface-400">Changes saved in this browser{#if !dpsMode} · <a class="text-sky-300 hover:underline" href={`/sim?c=${encodeURIComponent(characterKey ?? '')}&mode=dps`}>See it on your DPS →</a>{/if}</p>{/if}
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
 {#if startingScore.mismatch}

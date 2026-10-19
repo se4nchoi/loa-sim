@@ -9,6 +9,9 @@
 	import type { Snapshot } from '$lib/snapshot-history';
 	import MenuPicker from '$lib/upgrade-planner/sim/MenuPicker.svelte';
 	import type { Loadout } from '$lib/upgrade-planner/types';
+	import DpsModePanel from '$lib/upgrade-planner/DpsModePanel.svelte';
+	import type { SnapshotOption } from '$lib/upgrade-planner/dps-meter';
+	import { formatDate } from '$lib/upgrade-planner/format';
 
 	let {
 		dpsMode = false,
@@ -100,6 +103,18 @@
 				};
 			})
 	);
+
+	/** DPS mode: the snapshots it can switch to when a clear's gear (by CP) matches one of them. */
+	const snapshotOptions = $derived<SnapshotOption[]>([
+		...(['current', 'estimated'] as const).filter((k) => loadouts?.[k]).map((k) => ({
+			id: k, label: k === 'current' ? 'your latest bible snapshot' : "bible's best gear seen", cp: loadouts![k]!.combatPower?.score ?? null,
+			current: !snapshotId && loadoutKind === k, select: () => onloadout?.(k)
+		})),
+		...older.map((s) => ({
+			id: `snap:${s.id}`, label: `your snapshot from ${formatDate(s.takenAt)}`, cp: s.loadout.combatPower?.score ?? null,
+			current: snapshotId === s.id, select: () => onsnapshot?.(s.id)
+		}))
+	]);
 
 	// With earlier snapshots kept, one menu lists bible's two loadouts and those, so the player can go back to the one
 	// that has their gear (bible only keeps the latest). Each row: what it is, its date, and its CP in a column.
@@ -248,6 +263,7 @@
 				</div>
 			</div>
 		{/if}
+		{#if dpsMode && simulation && !sharedBuild}<DpsModePanel {loadout} simState={simulation} characterKey={`${region}/${name}`.toLowerCase()} characterName={name} snapshots={snapshotOptions} />{/if}
 		{#if simulation}<Simulator {dpsMode} restoreInitial={sharedBuild} initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
 	</div>
 {/if}
