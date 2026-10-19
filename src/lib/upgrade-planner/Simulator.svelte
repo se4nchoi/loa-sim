@@ -49,7 +49,7 @@
 		initialState,
 		restoreInitial = false,
 		workspaceKey,
-		sim = $bindable(untrack(() => initSimState(loadout))),
+  sim = $bindable(untrack(() => initialState ? structuredClone($state.snapshot(initialState)) : initSimState(loadout))),
 		sidebar,
 		characterName,
 		characterKey,
@@ -160,7 +160,7 @@
 	});
 	let autosaveNote = $state('');
 	// Controls edit sim immediately; expensive score and recommendation work uses this settled snapshot.
-	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
+ let calculated = $state.raw<SimState>(untrack(() => structuredClone($state.snapshot(sim))));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
 		const currentLoadout = loadout, key = workspaceKey ?? characterKey ?? '', initial = initialState, fresh = restoreInitial;

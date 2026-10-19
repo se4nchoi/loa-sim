@@ -3,6 +3,8 @@ import fixture from '$lib/upgrade-planner/fixtures/na-soulshan.json';
 import {initSimState} from '$lib/upgrade-planner/simulate';
 import {simulationCP} from '$lib/upgrade-planner/saved-simulations';
 import type {Loadout} from '$lib/upgrade-planner/types';
+import {randomBytes} from 'node:crypto';
+import {deflateSync, inflateSync} from 'node:zlib';
 
 const env: Record<string,string> = {};
 vi.mock('$env/dynamic/private', () => ({env}));
@@ -29,6 +31,44 @@ function fakeRedis() {
 beforeEach(() => { for (const key of Object.keys(env)) delete env[key]; env.STORAGE_KV_REST_API_URL='https://redis.example'; env.STORAGE_KV_REST_API_TOKEN='secret'; });
 
 describe('shared simulations', () => {
+ it('recalculates old links without changing the CP recorded when they were shared', async () => {
+  const db = fakeRedis(), now = 1000;
+  const shared = await createSharedSimulation(plan(), db.fetchFn, now);
+  const id = shared.path.split('/').at(-1)!;
+  const key = `loa-sim:share:${id}`;
+  const entry = JSON.parse(inflateSync(Buffer.from(db.values.get(key)!, 'base64url')).toString());
+  entry.originalCp = 1;
+  db.values.set(key, deflateSync(JSON.stringify(entry)).toString('base64url'));
+  const restored = await getSharedSimulation(id, 'Soulshan', db.fetchFn, now);
+  expect(restored?.originalCp).toBe(1);
+  expect(restored?.calculatedCp).toBe(simulationCP(restored!.plan));
+ });
+ it('round-trips near-limit snapshots even when encoded storage exceeds the raw request limit', async () => {
+  const db = fakeRedis(), input = plan();
+  input.loadout = {classId: loadout.classId, itemLevel: loadout.itemLevel,
+   battlePoint: {isSupport: false, parts: loadout.battlePoint.parts.filter((p) => p.type === 1)}} as Loadout;
+  input.state = initSimState(input.loadout);
+  // Snapshot metadata can be poorly compressible even when the request fits the raw JSON limit.
+  const value = input.loadout as Loadout & { auditMetadata: string };
+  value.auditMetadata = '';
+  const remaining = MAX_SHARE_BYTES - Buffer.byteLength(JSON.stringify(input)) - 128;
+  const alphabet = Array.from({length: 94}, (_, i) => String.fromCharCode(i + 33)).filter((c) => c !== '"' && c !== '\\');
+  value.auditMetadata = Array.from(randomBytes(remaining), (n) => alphabet[n % alphabet.length]).join('');
+  const accepted = sharedPlan(JSON.stringify(input));
+  const shared = await createSharedSimulation(accepted, db.fetchFn, 1000);
+  const id = shared.path.split('/').at(-1)!;
+  expect(db.values.get(`loa-sim:share:${id}`)!.length).toBeGreaterThan(MAX_SHARE_BYTES);
+  const restored = await getSharedSimulation(id, 'Soulshan', db.fetchFn, 1000);
+  expect(restored?.plan.loadout).toEqual(accepted.loadout);
+ });
+ it('rejects corrupt or oversized compressed records instead of rendering them', async () => {
+  const db = fakeRedis(), key = 'loa-sim:share:abcdefgh';
+  for (const value of ['not compressed', deflateSync('null').toString('base64url'),
+   deflateSync('x'.repeat(MAX_SHARE_BYTES * 3)).toString('base64url')]) {
+   db.values.set(key, value);
+   await expect(getSharedSimulation('abcdefgh', 'Soulshan', db.fetchFn)).rejects.toThrow();
+  }
+ });
 	it('supports integration and direct REST variable names without exposing credentials in paths', () => {
 		expect(redisConfig()).toEqual({url:'https://redis.example',token:'secret'});
 		delete env.STORAGE_KV_REST_API_URL; delete env.STORAGE_KV_REST_API_TOKEN;

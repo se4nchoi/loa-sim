@@ -4,6 +4,7 @@
 
 import type { CharacterData, LoadoutKind } from '$lib/bible-data';
 import type { Loadout } from '$lib/upgrade-planner/types';
+import { isStoredLoadout, storedRecord } from '$lib/stored-loadout';
 
 const KEY = 'loa-sim:snapshots';
 /** Per character, newest kept. A loadout is roughly 15–40 KB, so this stays well inside browser storage. */
@@ -22,7 +23,7 @@ export interface Snapshot {
 
 type Store = Record<string, Snapshot[]>;
 
-export const snapshotId = (kind: LoadoutKind, l: Loadout) => `${kind}:${l.lastUpdated ?? 0}:${l.combatPower?.score ?? 0}`;
+export const snapshotId = (kind: LoadoutKind, l: Loadout) => `${kind}:${l.lastUpdated ?? 0}:${l.combatPower?.score ?? 0}:${gearKey(l)}`;
 
 /**
  * What makes two snapshots the same: the same gear (items, gems, ark grid, engravings, karma) at the same CP, not when
@@ -31,19 +32,24 @@ export const snapshotId = (kind: LoadoutKind, l: Loadout) => `${kind}:${l.lastUp
  * ark passive), and such a change is a different snapshot. A short FNV-1a hash, so entries stay small.
  */
 export function gearKey(l: Loadout): string {
-	const text = JSON.stringify([l.classId, l.combatPower?.score ?? null, l.items ?? [], l.gems ?? [], l.arkGridCores ?? [], l.engravings ?? [], l.karma ?? null]);
+	const text = JSON.stringify([l.classId, l.combatPower?.score ?? null, l.items ?? [], l.gems ?? [], l.arkGridCores ?? [], l.engravings ?? [], l.karma ?? null, l.battlePoint, l.stats ?? []]);
 	let h = 0x811c9dc5;
 	for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
 	return `${GEAR_VERSION}${h.toString(36)}:${text.length}`;
 }
 /** Bumped when gearKey changes, so kept fingerprints from before are worked out again. */
-const GEAR_VERSION = 'g2:';
+const GEAR_VERSION = 'g3:';
 export const gearOf = (s: Snapshot) => (s.gear?.startsWith(GEAR_VERSION) ? s.gear : gearKey(s.loadout));
 
 function read(): Store {
 	try {
 		const v = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-		return v && typeof v === 'object' && !Array.isArray(v) ? (v as Store) : {};
+  if (!storedRecord(v)) return {};
+  return Object.fromEntries(Object.entries(v).flatMap(([key, list]) => !Array.isArray(list) ? [] : [[key,
+   list.filter((s) => storedRecord(s) && typeof s.id === 'string' && ['current', 'estimated'].includes(String(s.kind)) &&
+    typeof s.takenAt === 'number' && Number.isFinite(s.takenAt) && (s.gear === undefined || typeof s.gear === 'string') &&
+    isStoredLoadout(s.loadout))
+  ]])) as Store;
 	} catch {
 		return {};
 	}
@@ -78,7 +84,7 @@ export function recordSnapshots(key: string, data: Pick<CharacterData, 'loadouts
 	let changed = list.length !== (store[key]?.length ?? 0);
 	for (const kind of ['current', 'estimated'] as const) {
 		const loadout = data.loadouts?.[kind];
-		if (!loadout) continue;
+  if (!isStoredLoadout(loadout)) continue;
 		const gear = gearKey(loadout);
 		const takenAt = loadout.lastUpdated ?? now;
 		const same = list.find((s) => gearOf(s) === gear);

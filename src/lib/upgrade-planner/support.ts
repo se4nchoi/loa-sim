@@ -6,6 +6,7 @@
 // edits on the real score, as it does for dealers.
 
 import { PartType, partHigh } from './cp';
+import { COMBAT_ENGRAVING_IDS, ZERO_ENGRAVING_TABLE } from './engraving-catalog';
 import { CORE_NAMES } from './game-data';
 import { SUPPORT_BP, SUPPORT_BRACELET_EFFECTS } from './support-data';
 import { CORE_BREAKPOINTS, CORE_GRADE_CAP, decodeCore, type AccessoryLine } from './tables';
@@ -45,13 +46,13 @@ export const SUPPORT_GEM_T3: number[] = SUPPORT_BP.gems.T3;
 
 // --- Engravings: [stone][relic book step], like the dealer table. Defense engravings score Shield & Heal Power.
 // Utility choices are valid support engravings but have no entry in the game's CP table.
-export const SUPPORT_UTILITY_ENGRAVINGS = [1109, 1140, 1142, 1167, 1168, 1240, 1241];
-const UTILITY_TABLE = Array.from({ length: 5 }, () => Array(5).fill(0) as number[]);
+export const SUPPORT_UTILITY_ENGRAVINGS = COMBAT_ENGRAVING_IDS.filter((id) =>
+ !Object.hasOwn(SUPPORT_BP.engravings, id) && !Object.hasOwn(SUPPORT_BP.engravingsDefense, id));
 export const supportEngravingTable = (id: number): { table: number[][]; defense: boolean } | undefined => {
 	const atk = (SUPPORT_BP.engravings as Record<string, number[][]>)[id];
 	if (atk) return { table: atk, defense: false };
 	const def = (SUPPORT_BP.engravingsDefense as Record<string, number[][]>)[id];
-	return def ? { table: def, defense: true } : SUPPORT_UTILITY_ENGRAVINGS.includes(id) ? { table: UTILITY_TABLE, defense: false } : undefined;
+ return def ? { table: def, defense: true } : SUPPORT_UTILITY_ENGRAVINGS.includes(id) ? { table: ZERO_ENGRAVING_TABLE, defense: false } : undefined;
 };
 export const supportEngravingIds = () =>
 	[...new Set([...Object.keys(SUPPORT_BP.engravings), ...Object.keys(SUPPORT_BP.engravingsDefense)].map(Number).concat(SUPPORT_UTILITY_ENGRAVINGS))];

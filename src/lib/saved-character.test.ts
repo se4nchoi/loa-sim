@@ -9,10 +9,26 @@ Object.assign(globalThis, {
 	sessionStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} }
 });
 
-const lo = (score: number) => ({ type: 'ark_passive', classId: 'blade', itemLevel: 1805, battlePoint: { isSupport: false, parts: [] }, combatPower: { id: 1, score } }) as unknown as Loadout;
+const lo = (score: number) => ({ type: 'ark_passive', classId: 'blade', itemLevel: 1805, battlePoint: { isSupport: false, parts: [{ type: 1, value: 10000 }] }, combatPower: { id: 1, score } }) as unknown as Loadout;
 
 describe('setLoadoutKind', () => {
 	beforeEach(() => store.clear());
+ it('ignores malformed storage roots and repairs a broken selected loadout from a valid saved baseline', () => {
+  for (const value of [{}, null, [null, {}, 'bad']]) {
+   store.set('loa-sim:characters', JSON.stringify(value));
+   expect(() => listSavedCharacters()).not.toThrow();
+   expect(listSavedCharacters()).toEqual([]);
+  }
+  store.set('loa-sim:characters', JSON.stringify([{
+   name: 'Old', region: 'NA', savedAt: 1, header: null,
+   snapshotId: 'broken-selection', loadoutKind: 'estimated',
+   loadout: { battlePoint: { parts: null } }, loadouts: { current: lo(1234), estimated: {} }
+  }]));
+  expect(listSavedCharacters()[0].loadout?.combatPower?.score).toBe(1234);
+  expect(listSavedCharacters()[0].loadouts?.estimated).toBeUndefined();
+  expect(listSavedCharacters()[0].snapshotId).toBeUndefined();
+  expect(listSavedCharacters()[0].loadoutKind).toBe('current');
+ });
 
 	it('switches a saved character between its loadouts and keeps when it was loaded', () => {
 		const current = lo(3967.86);
