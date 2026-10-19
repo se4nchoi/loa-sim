@@ -23,6 +23,7 @@
 	import { initSimState, simulate, type SimState } from './simulate';
 	import { clearState } from './clear-state';
 	import { btn } from './sim/ui';
+	import Segmented from './sim/Segmented.svelte';
 	import type { Loadout } from './types';
 
 	let { loadout, simState, characterKey, characterName, snapshots = [] }: {
@@ -134,7 +135,7 @@
 			{#each mainRaids as r (r.key)}
 				{@const art = raidArt(r.name)}
 				{@const on = r === raid}
-				<button type="button" class="relative h-14 w-40 shrink-0 overflow-hidden rounded-xs border text-left transition {raidTone(r.name)} {on ? 'ring-2 ring-accent-400' : 'opacity-70 hover:opacity-100'}" aria-pressed={on} onclick={() => remember({ raid: r.key, clear: null })}>
+				<button type="button" class="relative h-14 w-40 shrink-0 overflow-hidden rounded-xs border text-left transition {raidTone(r.name)} {on ? 'ring-2 ring-accent-300 ring-offset-2 ring-offset-surface-900' : 'opacity-40 saturate-50 hover:opacity-90 hover:saturate-100'}" aria-pressed={on} onclick={() => remember({ raid: r.key, clear: null })}>
 					{#if art}<span class="absolute inset-0" style={art}></span>{/if}
 					<span class="absolute inset-0 bg-gradient-to-r from-black/85 via-black/40 to-transparent"></span>
 					<span class="absolute top-1 right-1 rounded-xs px-1 text-[10px] font-semibold {difficultyTone(r.difficulty)}">{r.difficulty || 'Normal'}</span>
@@ -142,7 +143,7 @@
 				</button>
 			{/each}
 			{#if otherRaids.length}
-				<select class="{select} shrink-0 self-center" aria-label="Other fights" value={raid.kind === 'other' ? raid.key : ''} onchange={(e) => e.currentTarget.value && remember({ raid: e.currentTarget.value, clear: null })}>
+				<select class="{select} shrink-0 self-center {raid.kind === 'other' ? 'border-accent-400 ring-2 ring-accent-300 ring-offset-2 ring-offset-surface-900' : ''}" aria-label="Other fights" value={raid.kind === 'other' ? raid.key : ''} onchange={(e) => e.currentTarget.value && remember({ raid: e.currentTarget.value, clear: null })}>
 					<option value="">Other fights ({otherRaids.length})…</option>
 					{#each otherRaids as r (r.key)}<option value={r.key}>{r.name} · {r.difficulty}</option>{/each}
 				</select>
@@ -156,7 +157,7 @@
 				{#each clears as r (r.id)}<option value={r.id}>{clearLabel(r)}</option>{/each}
 			</select>
 			{#if sameGearClears.length > 1}
-				<label class="flex items-center gap-1.5 text-surface-300"><input type="checkbox" checked={pick.average} onchange={(e) => remember({ average: e.currentTarget.checked })} /> Average the {sameGearClears.length} clears of {gate(clear) ? `G${gate(clear)}` : 'this fight'} with the same gear</label>
+				<Segmented label="Clears" value={pick.average ? 'average' : 'one'} options={[{ value: 'one', label: 'This clear' }, { value: 'average', label: `Average of ${sameGearClears.length}`, title: `The ${sameGearClears.length} clears of ${gate(clear) ? `G${gate(clear)}` : 'this fight'} played with the same gear` }]} onselect={(v) => remember({ average: v === 'average' })} size="h-7 px-2.5 text-xs" />
 			{/if}
 		</div>
 

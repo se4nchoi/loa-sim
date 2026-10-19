@@ -25,6 +25,8 @@
 	const after = $derived(dps(meter.after));
 	const pct = $derived((meter.after / meter.before - 1) * 100);
 	const changed = $derived(Math.abs(pct) > 0.0005);
+	/** 1.316b: a decimal more than the meter rows. */
+	const headline = (n: number) => n >= 1e9 ? `${(n / 1e9).toFixed(3)}b` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}m` : formatDamage(n);
 
 	// The headline number glides to each new value, like the Simulator's CP; it starts at the clear's own value.
 	const shown = new Tween(untrack(() => after), { duration: 450, easing: cubicOut });
@@ -39,19 +41,20 @@
 </script>
 
 <div class="flex flex-col gap-3">
-	<div class="flex flex-wrap items-end gap-x-4 gap-y-1">
+	<div class="flex flex-wrap items-end gap-x-3 gap-y-1">
+		<!-- Recorded and simulated side by side, both large and one decimal finer than the bars, so a small change reads. -->
 		<div>
-			<p class="text-xs text-surface-400">DPS in this clear</p>
-			<p class="text-4xl font-bold tabular-nums text-surface-50">{formatDamage(shown.current)}</p>
+			<p class="text-xs text-surface-400">Recorded DPS</p>
+			<p class="text-3xl font-semibold tabular-nums text-surface-300">{headline(before)}</p>
 		</div>
-		{#if changed}
-			<div class="pb-1">
-				<p class="text-lg font-semibold tabular-nums {pct > 0 ? 'text-green-400' : 'text-red-400'}">{formatPct(pct)}% <span class="text-sm font-normal">({after >= before ? '+' : ''}{formatDamage(after - before)})</span></p>
-				<p class="text-xs text-surface-400 tabular-nums">recorded {formatDamage(before)}</p>
-			</div>
-		{:else}
-			<p class="pb-1 text-xs text-surface-400">as recorded · edit the cards below to see it move</p>
-		{/if}
+		<p class="pb-1 text-2xl text-surface-500" aria-hidden="true">→</p>
+		<div>
+			<p class="text-xs text-surface-400">With your edits</p>
+			<p class="text-4xl font-bold tabular-nums text-surface-50">{headline(shown.current)}</p>
+		</div>
+		<p class="pb-1.5 text-lg font-semibold tabular-nums {!changed ? 'text-surface-400' : pct > 0 ? 'text-green-400' : 'text-red-400'}">
+			{#if changed}{formatPct(pct)}% <span class="text-sm font-normal">({after >= before ? '+' : ''}{formatDamage(after - before)})</span>{:else}±0%{/if}
+		</p>
 	</div>
 
 	<ul class="flex flex-col gap-1" aria-label="Skills">
