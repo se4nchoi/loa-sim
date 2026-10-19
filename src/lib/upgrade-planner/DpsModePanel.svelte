@@ -7,6 +7,9 @@
 	import { loadRuns, runsBooks } from '$lib/logs/runs-store.svelte';
 	import { raidGateOf } from '$lib/logs/raids';
 	import type { RunSummary } from '$lib/logs/protocol';
+	import { bibleSnapshotPage, isSnapshotHash, type ClearSnapshot } from '$lib/bible-data';
+	import { clearSnapshot } from './clear-snapshots';
+	import { setupDiff, sameGear as sameSetupGear } from './setup-diff';
 	import DpsRunsImport from './DpsRunsImport.svelte';
 	import DpsMeter from './sim/DpsMeter.svelte';
 	import { classColor } from './class-colors';
@@ -80,6 +83,23 @@
 	const matches = $derived(gap !== null && Math.abs(gap) <= 0.5);
 	const better = $derived(matches ? null : matchSnapshot(clearCp, snapshots.filter((s) => !s.current)));
 
+	// The clear's own setup: LOA Logs links each clear to a lostark.bible snapshot of the gear it was played with.
+	let setup = $state<{ hash: string; snap: ClearSnapshot | null; error: string | null } | null>(null);
+	$effect(() => {
+		const hash = clear?.loadoutHash;
+		if (!hash || !isSnapshotHash(hash)) {
+			setup = null;
+			return;
+		}
+		let live = true;
+		setup = { hash, snap: null, error: null };
+		clearSnapshot(hash)
+			.then((snap) => { if (live) setup = { hash, snap, error: null }; })
+			.catch((e) => { if (live) setup = { hash, snap: null, error: e instanceof Error ? e.message : String(e) }; });
+		return () => { live = false; };
+	});
+	const diff = $derived(setup?.snap ? setupDiff(loadout, setup.snap) : null);
+
 	const gate = (r: RunSummary) => raidGateOf(r.boss)?.gate;
 	const time = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 	const clearLabel = (r: RunSummary) => `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${time(r.duration)} · ${formatDamage(r.damage / (r.duration / 1000))}`;
@@ -127,8 +147,41 @@
 			{/if}
 		</div>
 
-		<!-- Baseline: the gear being simulated should be the gear of the clear. -->
-		{#if gap !== null}
+		<!-- Baseline: the clear's own setup (its snapshot) against what's being simulated; without one, its recorded CP. -->
+		{#if setup}
+			<div class="mb-3 rounded-xs border border-surface-700 bg-surface-950/50 px-3 py-2 text-xs">
+				<p class="flex flex-wrap items-center gap-x-2 text-surface-300">
+					<span class="font-semibold text-surface-100">This clear's setup</span>
+					{#if setup.snap?.combatPower}<span class="tabular-nums">CP {setup.snap.combatPower.score.toFixed(2)}</span>{/if}
+					<a class="text-sky-300 hover:underline" href={bibleSnapshotPage(setup.hash)} target="_blank" rel="noopener">View on lostark.bible ↗</a>
+				</p>
+				{#if setup.error}
+					<p class="mt-1 text-amber-300">{setup.error}</p>
+				{:else if !diff}
+					<p class="mt-1 text-surface-400">Loading it from lostark.bible…</p>
+				{:else}
+					{#if sameSetupGear(diff) && !diff.cores && !diff.passives.length && !diff.other.length}
+						<p class="mt-1 text-green-400">● Same setup as you're simulating.</p>
+					{:else}
+						{#if !diff.gear.length && !diff.gems}
+							<p class="mt-1 text-green-400">● Same honing, gems and accessories: your gear edits are valued on the gear you raided in.</p>
+						{:else}
+							<p class="mt-1 text-amber-300">● Different gear{diff.gear.length ? `: ${diff.gear.join(', ')}` : ''}{diff.gems ? `${diff.gear.length ? ' and' : ':'} gems` : ''}. The meter applies your edits to the gear you're simulating, not to this clear's.</p>
+						{/if}
+						{#if diff.cores || diff.passives.length || diff.other.length}
+							<ul class="mt-1.5 space-y-0.5 text-surface-300">
+								{#each diff.passives as t (t.tree)}
+									<li><span class="text-surface-400">{t.tree}:</span> {t.clear.join(', ') || 'other levels'} <span class="text-surface-500">in this clear · now</span> {t.now.join(', ') || 'other levels'}</li>
+								{/each}
+								{#if diff.cores}<li><span class="text-surface-400">Ark Grid cores:</span> {diff.cores.clear.join(', ')} <span class="text-surface-500">in this clear · now</span> {diff.cores.now.join(', ')}</li>{/if}
+								{#if diff.other.length}<li><span class="text-surface-400">Also different:</span> {diff.other.join(', ')}</li>{/if}
+							</ul>
+							<p class="mt-1 text-surface-500">These are already in the clear's recorded damage. Simulating them isn't possible yet.</p>
+						{/if}
+					{/if}
+				{/if}
+			</div>
+		{:else if gap !== null}
 			{#if matches}
 				<p class="mb-3 text-xs text-surface-400"><span class="text-green-400">●</span> Gear matches this clear (CP {currentCp!.toFixed(2)} · clear {clearCp!.toFixed(2)})</p>
 			{:else}

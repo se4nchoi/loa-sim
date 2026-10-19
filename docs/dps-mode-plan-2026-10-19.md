@@ -63,3 +63,23 @@ live logs (Serca NM 10-17: weapon +1 → +0.95%, Gluttony damage gem 9 → 10 �
   same-gear grouping falls back to CP. `cache/dps-real-soulshan.db` (10-13) lacks those columns; use
   `cache/dps-live-soulshan.db` (87 clears, 6.9 MB, made from the live DB read-only) for testing.
 - The old `/dps` tab still exists; the Simulator's link now points to DPS mode.
+
+## The clear's own setup (10-19)
+
+- LOA Logs stores each clear's `loadout_hash` ("v3/<64 hex>", 85 of Soulshan's 87 recent clears), which is a lostark.bible
+  snapshot of the gear it was played with: `https://lostark.bible/character/snapshot/<hash>/__data.json` (~13 KB:
+  items, gems, Ark Grid cores, Ark Passive, engravings, karma, cards, elixirs, CP; **no battle point parts or stats**,
+  so it can't be scored on its own).
+- `/api/snapshot/<v>/<hash>` fetches it through our server (one per clear the player picks; cached forever, since a
+  hash's content never changes); `clear-snapshots.ts` keeps it in the browser; `setup-diff.ts` compares it with the
+  loadout being simulated and DPS mode shows the differences (gear slots, gems, Ark Grid cores and Ark Passive nodes by
+  name from `ark-passive-names.ts`, baked by `scripts/bake-ark-passives.mjs`).
+- **Ask lostark.bible's developer before shipping:** the server-fetch OK was for character pages ("one character per
+  player action"); snapshot fetches are the same scale but a different endpoint.
+- Soulshan, Serca NM 10-17: the bible character page is a CP setup (6797.64) while the clear's snapshot is 6523.07:
+  same honing, accessories and gems; different Ability Stone, Bracelet, engravings, all three Ark Passive trees
+  (Full Moon Harvester in the clear) and Ark Grid cores.
+- Next: simulate the clear's setup itself (switch the character page's data to the clear's items, gems and cores, as
+  Apply does), which would also check the engine (CP mode should land near 6523).
+- Same CP can carry different hashes (two 6620.18 clears), so averaging "same gear" clears should compare snapshots'
+  gear rather than hashes.

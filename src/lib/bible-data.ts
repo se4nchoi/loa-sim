@@ -27,6 +27,21 @@ export interface CharacterData {
 export const bibleDataUrl = (region: string, name: string) =>
 	`https://lostark.bible/character/${encodeURIComponent(region)}/${encodeURIComponent(name)}/__data.json?x-sveltekit-invalidated=011`;
 
+/** A loadout snapshot LOA Logs links each clear to ("v3/<64 hex>", its `loadout_hash`). */
+export const isSnapshotHash = (hash: string) => /^v\d{1,2}\/[0-9a-f]{64}$/.test(hash);
+export const bibleSnapshotUrl = (hash: string) => `https://lostark.bible/character/snapshot/${hash}/__data.json`;
+export const bibleSnapshotPage = (hash: string) => `https://lostark.bible/character/snapshot/${hash}`;
+
+/** The gear a clear was played with: lostark.bible's snapshot of it. It has no battle point parts or stats, so it isn't a
+ *  full Loadout (the Simulator can't score it on its own); it's compared with the loadout being simulated. */
+export type ClearSnapshot = Pick<Loadout, 'classId' | 'items' | 'gems' | 'arkGridCores' | 'engravings' | 'karma'> & {
+	combatPower?: { id: number; score: number } | null;
+	arkPassive?: Record<string, { id: number; level: number }[]> | null;
+	cards?: unknown;
+	elixirs?: unknown;
+	transcendences?: unknown;
+};
+
 export const bibleCharacterUrl = (region: string, name: string) =>
 	`https://lostark.bible/character/${encodeURIComponent(region)}/${encodeURIComponent(name)}`;
 
@@ -78,6 +93,18 @@ function unflatten(values: unknown[]): unknown {
 }
 
 type DataNode = { type: string; data?: unknown[] };
+
+/** Turns a parsed snapshot `__data.json` body into the clear's snapshot. */
+export function decodeSnapshot(body: unknown): ClearSnapshot {
+	const b = body as { type?: string; nodes?: (DataNode | null)[] } | null;
+	if (!b || b.type !== 'data' || !Array.isArray(b.nodes)) throw new Error('lostark.bible sent something unexpected');
+	for (const n of b.nodes) {
+		if (n?.type !== 'data' || !Array.isArray(n.data)) continue;
+		const page = unflatten(n.data) as { snapshot?: ClearSnapshot } | null;
+		if (page?.snapshot && typeof page.snapshot === 'object') return page.snapshot;
+	}
+	throw new Error('That snapshot has no gear on lostark.bible');
+}
 
 /** Turns a parsed `__data.json` body into character data. Throws a player-readable message on bad input. */
 export function decodeCharacterData(body: unknown, name: string, region: string): CharacterData {
