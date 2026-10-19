@@ -33,6 +33,7 @@
 	import UpgradeDialog from './UpgradeDialog.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
 	import DpsRunsImport from './DpsRunsImport.svelte';
+	import ModalClose from './sim/ModalClose.svelte';
 
 	let character = $state<SavedCharacter | null>(null);
 	let working = $state.raw<SimState | null>(null);
@@ -200,6 +201,7 @@
 	const cooldownGems = $derived(filtered.filter(c => asPlayedGain(c) !== null).toSorted((a, b) => asPlayedGain(b)! - asPlayedGain(a)!));
 	const unestimated = $derived(filtered.filter(c => c.gainPct === null && asPlayedGain(c) === null));
 	const worth = $derived(loadout && sourceState && base && !support ? statWorth(loadout, sourceState, base, eligibleBuildRuns, runs) : null);
+	const worthTop = $derived(Math.max(0.01, ...(worth?.rows ?? []).map(r => r.gainPct ?? 0)));
 	const worthSentence = $derived.by(() => {
 		const r = worth?.critVsDamage ?? null;
 		if (r === null) return "Crit Rate isn't measured in these clears (no stat values), so it can't be compared with Crit Damage here.";
@@ -255,9 +257,12 @@
 	const duration = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 	const gateName = (boss: string) => raidGateOf(boss)?.label.replace(/ \(.*\)$/, '') ?? boss;
 	const partNames: Record<string, string> = { attack: 'Atk. Power', additionalDamage: 'Additional Damage', evoDamage: 'Evolution Damage', critRate: 'Crit Rate', critDamage: 'Crit Damage' };
-	function choose(c: DpsCandidate) {
+	/** An upgrade's details open in a dialog; the page itself stays on the insights. */
+	let detail = $state<HTMLDialogElement>();
+	async function choose(c: DpsCandidate) {
 		pick = c.id;
-		if (!matchMedia('(min-width: 1100px)').matches) document.getElementById('dps-breakdown')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+		await tick();
+		if (!detail?.open) detail?.showModal();
 	}
 	function look(c: DpsCandidate) {
 		if (c.gem) return { icon: iconUrl(book?.skills[c.gem.choice.skill]?.[1] || GEM_SKILLS[c.gem.choice.skill]?.[1]), grade: undefined };
@@ -379,18 +384,43 @@
 			{#if support}<p class="dps-panel p-4 text-sm text-surface-300">DPS estimates are available for damage dealers.</p>
 			{:else if !runs.length}<p class="dps-panel p-4 text-sm text-amber-300">No clears match these filters. Check Order cores, gates and excluded clears.</p>
 			{:else}
-				{#if baseDps !== null}<p class="dps-panel p-3 text-sm text-surface-300 sm:p-4">Your recorded DPS in {selected.length === 1 ? selected[0].name : `${selected.length} raids`}: <strong class="text-lg text-surface-50">{formatDamage(baseDps)}</strong> average over {runs.length} {runs.length === 1 ? 'clear' : 'clears'}.</p>{/if}
+				<div class="dps-layout">
+					<div class="dps-main">
+				{#if skills.length}
+					<section class="dps-panel min-w-0" aria-label="DPS breakdown" style:--class-color={classColor(loadout.classId) ?? 'var(--color-accent-500)'}>
+						<div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-surface-800 p-3"><div><h2 class="font-semibold">DPS breakdown</h2>{#if baseDps !== null}<p class="mt-1 text-sm text-surface-300">Your recorded DPS in {selected.length === 1 ? selected[0].name : `${selected.length} raids`}: <strong class="text-lg text-surface-50">{formatDamage(baseDps)}</strong> average over {runs.length} {runs.length === 1 ? 'clear' : 'clears'}.</p>{/if}</div><span class="text-xs text-surface-400">Same measures as LOA Logs, over {runs.length} {runs.length === 1 ? 'clear' : 'clears'}; ranges are lowest–highest in one clear.</span></div>
+						<div class="dps-skill dps-skill-head text-xs text-surface-400"><span>Skill</span><span class="text-right" title="Share of your damage">D%</span><span class="text-right" title="Share of the fight the skill was on cooldown">CDR%</span><span class="dps-skill-extra text-right">Casts</span><span class="dps-skill-extra text-right" title="Casts per minute">CPM</span><span class="dps-skill-extra text-right">Crit</span><span>Gems · next level</span></div>
+						{#each skillRows as row (row.id)}
+							{@const info = book.skills[row.id]}{@const gems = gemsOf(row.id)}{@const cooldownGem = gems.find(g => g.kind !== 'damage')}
+							<div class="dps-skill dps-skill-row" style:--share={`${row.share / topShare * 100}%`}>
+								<span class="flex min-w-0 items-center gap-2">{#if info?.[1]}<img src={iconUrl(info[1])} alt="" class="size-7 shrink-0 rounded-xs" />{/if}<span class="min-w-0"><span class="block truncate text-sm text-surface-100">{info?.[0] ?? `Skill ${row.id}`}</span>{#if cooldownGem && row.cooldown !== null && row.cooldown < 60}<span class="block text-[11px] text-amber-300/90">Sat ready {(100 - row.cooldown).toFixed(0)}% of the fight: pressing it on cooldown, where the fight allows, would add more than a cooldown gem.</span>{/if}</span></span>
+								<span class="text-right tabular-nums"><span class="block text-sm">{row.share.toFixed(1)}</span>{#if spanText(row.shareRange)}<span class="block text-[10px] text-surface-400">{spanText(row.shareRange)}</span>{/if}</span>
+								<span class="text-right tabular-nums"><span class="block text-sm">{row.cooldown === null ? '—' : row.cooldown.toFixed(1)}</span>{#if spanText(row.cooldownRange, 0)}<span class="block text-[10px] text-surface-400">{spanText(row.cooldownRange, 0)}</span>{/if}</span>
+								<span class="dps-skill-extra text-right text-sm tabular-nums">{row.casts}</span>
+								<span class="dps-skill-extra text-right text-sm tabular-nums">{row.cpm.toFixed(1)}</span>
+								<span class="dps-skill-extra text-right text-sm tabular-nums">{!row.crit ? '—' : `${row.crit.toFixed(1)}%`}</span>
+								<span class="flex flex-wrap gap-1">{#each gems as g (g.index)}
+									{@const c = gemCandidate(g.index)}{@const gain = c ? (c.gainPct ?? asPlayedGain(c)) : null}
+									{#if c}<button class="dps-gem" onclick={() => openGem(c)} title={`${g.kind === 'damage' ? 'Damage' : 'Cooldown'} gem ${g.level} → ${g.level + 1}`}>{g.kind === 'damage' ? 'DMG' : 'CD'} {g.level}→{g.level + 1}{#if gain !== null}<span class="text-green-400">{c.gainPct === null ? ' up to ' : ' '}{fmt(gain)}</span>{/if}</button>
+									{:else}<span class="dps-gem text-surface-400">{g.kind === 'damage' ? 'DMG' : 'CD'} {g.level}{g.level >= 10 ? ' max' : ''}</span>{/if}
+								{/each}</span>
+							</div>
+						{/each}
+						{#if skills.length > skillRows.length || allSkills}<button class="w-full border-t border-surface-800 p-3 text-left text-xs text-accent-300 hover:underline" onclick={() => allSkills = !allSkills}>{allSkills ? 'Show main skills' : `Show all ${skills.length} skills`}</button>{/if}
+					</section>
+				{/if}
 				{#if worth}
 					<section class="dps-panel p-3 sm:p-4" aria-label="What your stats are worth">
 						<h2 class="font-semibold">What your stats are worth <span class="text-xs font-normal text-surface-400">in these clears</span></h2>
 						<p class="mt-1 text-sm text-surface-300">{worthSentence}</p>
-						<dl class="dps-worth mt-3">{#each worth.rows as r (r.key)}<div><dt>{r.label}</dt><dd class={r.gainPct === null ? 'text-surface-500' : 'text-green-400'}>{r.gainPct === null ? 'not measured' : `≈+${r.gainPct.toFixed(2)}% DPS`}</dd></div>{/each}</dl>
+						<table class="dps-worth mt-3"><thead><tr><th scope="col">One more of</th><th scope="col" class="text-right">DPS gain</th><th scope="col"><span class="sr-only">Compared</span></th></tr></thead><tbody>{#each worth.rows as r (r.key)}<tr><th scope="row">{r.label}</th><td class="text-right tabular-nums {r.gainPct === null ? 'text-surface-500' : 'text-green-400'}">{r.gainPct === null ? 'not measured' : `≈+${r.gainPct.toFixed(2)}%`}</td><td class="w-2/5"><div class="h-1.5 rounded-xs bg-surface-800"><div class="h-full rounded-xs" style:width={`${(r.gainPct ?? 0) / worthTop * 100}%`} style:background={classColor(loadout.classId) ?? 'var(--color-accent-500)'}></div></div></td></tr>{/each}</tbody></table>
 						<p class="mt-2 text-xs text-surface-400">Crit Rate from {worth.critClears} of {runs.length} clears with stat values; the others from your gear's totals in {worth.buildClears} recent {worth.buildClears === 1 ? 'clear' : 'clears'}. For small changes: crit has caps, so a big crit change can't be read off these.</p>
 					</section>
 				{/if}
-				<div class="flex flex-wrap items-center justify-between gap-3"><h2 class="font-semibold">Next Upgrades</h2><div class="flex flex-wrap gap-2"><button class={btn} onclick={() => inventoryOpen = true}>Material prices / inventory</button><button class={btn} onclick={() => pricesOpen = true}>{missingPrices ? `${missingPrices} missing prices` : 'Prices'}</button></div></div>
-				<div class="dps-columns">
+					</div>
+					<div class="dps-side">
 					<section class="dps-panel min-w-0" aria-label="Next Upgrades">
+							<div class="flex flex-wrap items-center justify-between gap-2 border-b border-surface-800 p-3"><h2 class="font-semibold">Next Upgrades</h2><div class="flex flex-wrap gap-1.5"><button class={btn} onclick={() => inventoryOpen = true}>Material prices</button><button class={btn} onclick={() => pricesOpen = true}>{missingPrices ? `${missingPrices} missing prices` : 'Prices'}</button></div></div>
 						<div class="flex flex-wrap items-center justify-between gap-3 border-b border-surface-800 p-3">
 							<Segmented value={sort} options={[{ value: 'dps', label: 'Most DPS' }, { value: 'cp', label: 'Most CP' }, { value: 'gold', label: 'Per gold' }]} onselect={v => sort = v} label="Upgrade ranking" size="h-8 px-2 text-xs" />
 							<label class="flex items-center gap-2 text-xs text-surface-300">Budget<input class="h-8 w-24 rounded-xs border border-surface-700 bg-surface-950 px-2 text-sm text-surface-100" inputmode="decimal" placeholder="Any" aria-label="Gold budget" bind:value={budgetText} /><span class="text-amber-300">gold</span></label>
@@ -399,26 +429,30 @@
 						{#if budget !== null && missingPrices}<p class="px-3 pt-2 text-xs text-amber-300">Unpriced upgrades remain visible.</p>{/if}
 						{#if missingPrices}<p class="px-3 pt-2 text-xs text-surface-400">{missingPrices} upgrades have no price yet. <button class="text-accent-300 hover:underline" onclick={() => pricesOpen = true}>Add prices</button> to rank by gold.</p>{/if}
 						<div class="flex flex-wrap gap-1.5 border-b border-surface-800 p-3" role="group" aria-label="Upgrade type">{#each tabs as tab}<button class={category === tab ? btnAccent : btn} aria-pressed={category === tab} onclick={() => { category = tab; showAll = false; }}>{tab}</button>{/each}</div>
-						<div class="dps-row dps-row-head text-xs text-surface-400"><span>Upgrade</span><span class="text-right">DPS / CP</span><span class="text-right">Cost</span></div>
-						{#snippet row(c: DpsCandidate)}
+												{#snippet row(c: DpsCandidate)}
 							{@const image = look(c)}{@const cost = costs[c.id]}{@const badge = rankBadge(c)}{@const amount = dpsGain(c)}{@const spread = c.gainPct !== null ? clearSpread(c.clears) : null}
-							<button class="dps-row dps-upgrade {c === shown ? 'dps-current' : ''}" onclick={() => choose(c)} aria-pressed={c === shown}>
-								<span class="flex min-w-0 items-center gap-3">{#if image.icon}<ItemIcon src={image.icon} grade={image.grade} size="size-9" />{/if}<span class="min-w-0"><UpgradeTitle u={c.upgrade} /><span class="mt-1 block text-xs text-surface-400">{#if asPlayedGain(c) !== null}<span title="If you keep using the skill on cooldown as in these clears">If you keep playing like this</span>{:else if c.gainPct === null}DPS not estimated{:else}<span title={sourceTag(c).hint}>{sourceTag(c).label}</span>{/if}{#if raidSpecific(c)}{' · '}<span class="text-sky-300" title="This gain changes with the raids you pick.">Raid-specific</span>{/if}{#if badge}{' · '}<span class="dps-badge">{badge}</span>{/if}{#if c.upgrade.detail === 'KR preview'}{' · '}<span class="text-amber-300">KR preview</span>{/if}</span></span></span>
+							<button class="dps-row dps-upgrade {c.id === pick ? 'dps-current' : ''}" onclick={() => choose(c)} aria-haspopup="dialog">
+								<span class="flex min-w-0 items-center gap-3">{#if image.icon}<ItemIcon src={image.icon} grade={image.grade} size="size-9" />{/if}<span class="min-w-0"><UpgradeTitle u={c.upgrade} /><span class="mt-1 block text-xs text-surface-400">{#if asPlayedGain(c) !== null}<span title="If you keep using the skill on cooldown as in these clears">With the same playstyle and performance</span>{:else if c.gainPct === null}DPS not estimated{:else}<span title={sourceTag(c).hint}>{sourceTag(c).label}</span>{/if}{#if raidSpecific(c)}{' · '}<span class="text-sky-300" title="This gain changes with the raids you pick.">Raid-specific</span>{/if}{#if badge}{' · '}<span class="dps-badge">{badge}</span>{/if}{#if c.upgrade.detail === 'KR preview'}{' · '}<span class="text-amber-300">KR preview</span>{/if}</span></span></span>
 								<span class="dps-gain text-right">{#if asPlayedGain(c) !== null}<span class="block text-[10px] text-surface-400">up to</span><strong class="block text-base font-semibold text-green-400/80">{fmt(asPlayedGain(c))}</strong>{:else}<strong class="block text-base font-semibold text-green-400">{gainText(c)}</strong>{/if}{#if amount !== null}<span class="block text-xs text-green-400/80">{amountText(c, amount)}</span>{/if}{#if spread && spread.count > 1 && spread.high - spread.low >= 0.02}<span class="block text-[10px] text-surface-400" title="Lowest to highest over your clears">{formatPct(spread.low)}–{spread.high.toFixed(2)}% by clear</span>{/if}<span class="mt-0.5 block text-xs text-surface-400">CP {formatPct(c.cpPct)}%</span></span>
 								<span class="dps-cost text-right text-sm"><span class={cost === undefined ? 'text-surface-500' : 'text-amber-300'}>{cost === undefined ? '—' : `${formatGold(cost)} gold`}</span><span class="mt-0.5 block text-xs text-surface-400">{cost !== undefined && c.gainPct !== null && c.gainPct > 0 ? `${formatGold(cost / c.gainPct)} / 1% DPS` : '—'}</span></span>
 							</button>
 						{/snippet}
 						{#each listed as c (c.id)}{@render row(c)}{/each}
 						{#if !filtered.length}<p class="p-4 text-sm text-surface-300">No upgrades match these filters.</p>{/if}
-						{#if cooldownGems.length}<p class="border-t border-surface-800 px-3 pt-3 pb-1 text-[11px] font-semibold tracking-wide text-surface-400 uppercase" title="Not ranked with the estimates above: an upper bound that depends on how you use the skill">Cooldown gems · if you keep playing like this</p>{#each cooldownGems as c (c.id)}{@render row(c)}{/each}{/if}
+						{#if cooldownGems.length}<p class="border-t border-surface-800 px-3 pt-3 pb-1 text-[11px] font-semibold tracking-wide text-surface-400 uppercase" title="Not ranked with the estimates above: an upper bound that depends on how you use the skill">Cooldown gems · same playstyle and performance</p>{#each cooldownGems as c (c.id)}{@render row(c)}{/each}{/if}
 						{#if unestimated.length}<details class="border-t border-surface-800"><summary class="cursor-pointer p-3 text-xs text-surface-400">Not estimated yet · {unestimated.length}</summary>{#each unestimated as c (c.id)}{@render row(c)}{/each}</details>{/if}
 						<div class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-800 p-3 text-xs text-surface-400">{#if estimated.length > 10}<button class="text-accent-300 hover:underline" onclick={() => showAll = !showAll}>{showAll ? 'Show top 10' : `Show all ${estimated.length}`}</button>{/if}<label class="flex items-center gap-2"><input type="checkbox" bind:checked={allOptions} />All options per slot</label><span>{filtered.length} upgrades</span></div>
 					</section>
+					</div>
+				</div>
+				<dialog bind:this={detail} class="dps-dialog" aria-labelledby="dps-detail-title" onclick={e => e.target === detail && detail.close()}>
+					<div class="dps-dialog-card">
+						<div class="sim-modal-header flex items-center justify-between gap-2 border-b border-surface-800 px-4 py-2.5 font-semibold"><span id="dps-detail-title">Upgrade details</span><ModalClose close={() => detail?.close()} label="Close" /></div>
 					{#if shown}
-						<aside id="dps-breakdown" class="dps-panel dps-inspector p-4" aria-label="Breakdown">
-							<h2 class="mb-3 font-semibold">Breakdown</h2><UpgradeTitle u={shown.upgrade} />
+						<div class="dps-detail p-4">
+							<UpgradeTitle u={shown.upgrade} />
 							{#if shown.upgrade.detail === 'KR preview'}<p class="mt-2 text-xs text-amber-300">KR preview</p>{/if}
-							<div class="mt-4 flex flex-wrap items-end justify-between gap-2" aria-live="polite"><div>{#if asPlayedGain(shown) !== null}<p class="text-xs text-surface-400">If you keep playing like this</p><p class="text-3xl font-semibold text-green-400/80"><span class="text-base font-normal">up to </span>{fmt(asPlayedGain(shown))}</p>{:else}<p class="text-xs text-surface-400">DPS gain</p><p class="text-3xl font-semibold text-green-400">{gainText(shown)}</p>{/if}{#if dpsGain(shown) !== null}<p class="text-sm text-green-400/80">{amountText(shown, dpsGain(shown)!)} DPS</p>{/if}{#if rankBadge(shown)}<p class="mt-1 text-xs"><span class="dps-badge">{rankBadge(shown)}</span></p>{/if}</div><div class="text-right"><p class="text-xs text-surface-400">CP gain</p><p class="text-sm text-surface-300">{formatPct(shown.cpPct)}% (+{((cp ?? 0) * shown.cpPct / 100).toFixed(2)})</p></div></div>
+							<div class="mt-4 flex flex-wrap items-end justify-between gap-2" aria-live="polite"><div>{#if asPlayedGain(shown) !== null}<p class="text-xs text-surface-400">With the same playstyle and performance</p><p class="text-3xl font-semibold text-green-400/80"><span class="text-base font-normal">up to </span>{fmt(asPlayedGain(shown))}</p>{:else}<p class="text-xs text-surface-400">DPS gain</p><p class="text-3xl font-semibold text-green-400">{gainText(shown)}</p>{/if}{#if dpsGain(shown) !== null}<p class="text-sm text-green-400/80">{amountText(shown, dpsGain(shown)!)} DPS</p>{/if}{#if rankBadge(shown)}<p class="mt-1 text-xs"><span class="dps-badge">{rankBadge(shown)}</span></p>{/if}</div><div class="text-right"><p class="text-xs text-surface-400">CP gain</p><p class="text-sm text-surface-300">{formatPct(shown.cpPct)}% (+{((cp ?? 0) * shown.cpPct / 100).toFixed(2)})</p></div></div>
 							{#if asPlayedGain(shown) !== null && shown.gem}
 								{@const use = shown.gem.parts.map(p => sample.skillCooldownUse[p.skill]).find(u => u !== undefined) ?? sample.skillCooldownUse[shown.gem.choice.skill]}
 								<div class="mt-3 space-y-1.5 text-xs text-surface-300">
@@ -453,32 +487,10 @@
 								{#if sameInAll(shown) !== null}<p class="flex flex-wrap justify-between gap-2"><span>By clear: same in all {shown.clears.length} clears</span><span>{fmt(sameInAll(shown))}</span></p>
 								{:else}<details><summary>By clear · {shown.covered}/{runs.length} covered</summary><div class="mt-2 space-y-2">{#each shown.clears as clear}<p class="flex flex-wrap justify-between gap-2"><span>{formatDate(clear.run.start)} · {gateName(clear.run.boss)} · <span title="LOA Logs encounter number">#{clear.run.id}</span></span><span>{fmt(clear.gainPct)}</span></p>{/each}</div></details>{/if}
 							</div></details>
-						</aside>
+						</div>
 					{/if}
-				</div>
-				{#if skills.length}
-					<section class="dps-panel min-w-0" aria-label="Your skills in these clears" style:--class-color={classColor(loadout.classId) ?? 'var(--color-accent-500)'}>
-						<div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-surface-800 p-3"><h2 class="font-semibold">Your skills in these clears</h2><span class="text-xs text-surface-400">Same measures as LOA Logs, over {runs.length} {runs.length === 1 ? 'clear' : 'clears'}; ranges are lowest–highest in one clear.</span></div>
-						<div class="dps-skill dps-skill-head text-xs text-surface-400"><span>Skill</span><span class="text-right" title="Share of your damage">D%</span><span class="text-right" title="Share of the fight the skill was on cooldown">CDR%</span><span class="dps-skill-extra text-right">Casts</span><span class="dps-skill-extra text-right" title="Casts per minute">CPM</span><span class="dps-skill-extra text-right">Crit</span><span>Gems · next level</span></div>
-						{#each skillRows as row (row.id)}
-							{@const info = book.skills[row.id]}{@const gems = gemsOf(row.id)}{@const cooldownGem = gems.find(g => g.kind !== 'damage')}
-							<div class="dps-skill dps-skill-row" style:--share={`${row.share / topShare * 100}%`}>
-								<span class="flex min-w-0 items-center gap-2">{#if info?.[1]}<img src={iconUrl(info[1])} alt="" class="size-7 shrink-0 rounded-xs" />{/if}<span class="min-w-0"><span class="block truncate text-sm text-surface-100">{info?.[0] ?? `Skill ${row.id}`}</span>{#if cooldownGem && row.cooldown !== null && row.cooldown < 60}<span class="block text-[11px] text-amber-300/90">Sat ready {(100 - row.cooldown).toFixed(0)}% of the fight: pressing it on cooldown, where the fight allows, would add more than a cooldown gem.</span>{/if}</span></span>
-								<span class="text-right tabular-nums"><span class="block text-sm">{row.share.toFixed(1)}</span>{#if spanText(row.shareRange)}<span class="block text-[10px] text-surface-400">{spanText(row.shareRange)}</span>{/if}</span>
-								<span class="text-right tabular-nums"><span class="block text-sm">{row.cooldown === null ? '—' : row.cooldown.toFixed(1)}</span>{#if spanText(row.cooldownRange, 0)}<span class="block text-[10px] text-surface-400">{spanText(row.cooldownRange, 0)}</span>{/if}</span>
-								<span class="dps-skill-extra text-right text-sm tabular-nums">{row.casts}</span>
-								<span class="dps-skill-extra text-right text-sm tabular-nums">{row.cpm.toFixed(1)}</span>
-								<span class="dps-skill-extra text-right text-sm tabular-nums">{!row.crit ? '—' : `${row.crit.toFixed(1)}%`}</span>
-								<span class="flex flex-wrap gap-1">{#each gems as g (g.index)}
-									{@const c = gemCandidate(g.index)}{@const gain = c ? (c.gainPct ?? asPlayedGain(c)) : null}
-									{#if c}<button class="dps-gem" onclick={() => openGem(c)} title={`${g.kind === 'damage' ? 'Damage' : 'Cooldown'} gem ${g.level} → ${g.level + 1}`}>{g.kind === 'damage' ? 'DMG' : 'CD'} {g.level}→{g.level + 1}{#if gain !== null}<span class="text-green-400">{c.gainPct === null ? ' up to ' : ' '}{fmt(gain)}</span>{/if}</button>
-									{:else}<span class="dps-gem text-surface-400">{g.kind === 'damage' ? 'DMG' : 'CD'} {g.level}{g.level >= 10 ? ' max' : ''}</span>{/if}
-								{/each}</span>
-							</div>
-						{/each}
-						{#if skills.length > skillRows.length || allSkills}<button class="w-full border-t border-surface-800 p-3 text-left text-xs text-accent-300 hover:underline" onclick={() => allSkills = !allSkills}>{allSkills ? 'Show main skills' : `Show all ${skills.length} skills`}</button>{/if}
-					</section>
-				{/if}
+					</div>
+				</dialog>
 			{/if}
 		{/if}
 	</div>
@@ -496,10 +508,6 @@
 	.dps-about { display: grid; gap: .9rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
 	.dps-about h3 { margin-bottom: .3rem; font-size: .75rem; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--color-surface-400); }
 	.dps-about ul { display: grid; gap: .3rem; padding-left: 1rem; list-style: disc; font-size: .8rem; line-height: 1.45; }
-	.dps-worth { display: grid; gap: .4rem .9rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
-	.dps-worth > div { display: flex; justify-content: space-between; gap: .5rem; border-bottom: 1px solid var(--color-surface-800); padding-bottom: .3rem; font-size: .85rem; }
-	.dps-worth dt { color: var(--color-surface-300); }
-	.dps-worth dd { font-variant-numeric: tabular-nums; white-space: nowrap; }
 	.dps-skill { display: grid; grid-template-columns: minmax(0, 1fr) 4rem 4rem 3.5rem 3.5rem 4rem minmax(9rem, 13rem); gap: .6rem; align-items: center; padding: .45rem .8rem; }
 	.dps-skill-head { padding-block: .5rem; }
 	.dps-skill-row { border-top: 1px solid var(--color-surface-800); background: linear-gradient(90deg, color-mix(in oklab, var(--class-color) 30%, transparent) var(--share), transparent var(--share)); }
@@ -514,14 +522,27 @@
 	.dps-selected { border-color: var(--color-accent-400); box-shadow: inset 0 -3px var(--color-accent-400); }
 	.dps-field { display: flex; align-items: center; gap: .5rem; min-width: 0; max-width: 100%; }
 	.dps-field select { min-width: 0; max-width: 18rem; }
-	.dps-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; align-items: start; }
+	.dps-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; align-items: start; }
+	.dps-main { display: grid; gap: 1rem; min-width: 0; }
+	.dps-side { min-width: 0; }
+	/* The side list: title and cost on the left, gain on the right. */
+	.dps-side .dps-row { grid-template-columns: minmax(0, 1fr) 6.5rem; gap: .5rem; padding: .65rem .8rem; }
+	.dps-side .dps-upgrade > span:first-child { grid-row: span 2; }
+	.dps-side .dps-gain, .dps-side .dps-cost { grid-column: 2; }
+	.dps-dialog { margin: auto; max-width: min(36rem, calc(100vw - 2rem)); max-height: calc(100vh - 4rem); padding: 0; border: 0; background: transparent; color: inherit; }
+	.dps-dialog::backdrop { background: rgb(0 0 0 / .6); }
+	.dps-dialog-card { overflow: auto; max-height: calc(100vh - 4rem); border-radius: 2px; background: var(--color-surface-900); box-shadow: 0 10px 30px rgb(0 0 0 / .5); outline: 1px solid var(--color-surface-700); overflow-wrap: anywhere; }
+	@media (max-width: 639px) { .dps-dialog { margin: auto 0 0; max-width: 100vw; width: 100vw; } .dps-dialog-card { border-radius: .75rem .75rem 0 0; } }
+	.dps-worth { width: 100%; border-collapse: collapse; font-size: .85rem; }
+	.dps-worth th, .dps-worth td { padding: .4rem .5rem; border-top: 1px solid var(--color-surface-800); text-align: left; font-weight: 400; }
+	.dps-worth thead th { border-top: 0; padding-top: 0; font-size: .75rem; color: var(--color-surface-400); }
+	.dps-worth tbody th { color: var(--color-surface-200); }
 	.dps-row { display: grid; grid-template-columns: minmax(0, 1fr) 6.5rem 7.5rem; gap: .8rem; align-items: center; padding: .8rem; }
 	.dps-row-head { padding-block: .5rem; }
 	.dps-upgrade { width: 100%; text-align: left; border-top: 1px solid var(--color-surface-800); }
 	.dps-upgrade:hover { background: var(--color-surface-800); }
 	.dps-current { background: color-mix(in oklab, var(--color-accent-700) 13%, transparent); box-shadow: inset 3px 0 var(--color-accent-500); }
-	.dps-inspector { min-width: 0; scroll-margin-top: 4rem; overflow-wrap: anywhere; }
-	@media (min-width: 1100px) { .dps-columns { grid-template-columns: minmax(0, 1fr) 20rem; } .dps-inspector { position: sticky; top: 4rem; } }
+	@media (min-width: 1100px) { .dps-layout { grid-template-columns: minmax(0, 1fr) 25rem; } .dps-side { position: sticky; top: 4rem; max-height: calc(100vh - 5rem); overflow-y: auto; } }
 		@media (max-width: 760px) { .dps-skill { grid-template-columns: minmax(0, 1fr) 3.5rem 3.5rem; } .dps-skill-extra { display: none; } .dps-skill > :last-child { grid-column: 1 / -1; } }
 	@media (max-width: 600px) {
 		.dps-raids { grid-template-columns: repeat(2, minmax(0, 1fr)); }
