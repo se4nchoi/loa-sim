@@ -29,7 +29,8 @@
 		split = null,
 		onbudget,
 		onbreakdown,
-		share
+		share,
+		mode
 	}: {
 		current: number;
 		simulated: number;
@@ -53,6 +54,8 @@
 		/** Opens the Combat Power breakdown. */
 		onbreakdown?: () => void;
 		share?: Snippet;
+		/** CP / DPS switch, under the title (wide screens; phones have it on the page). */
+		mode?: Snippet;
 	} = $props();
 
 	const LABELS: Record<SimSection, string> = {
@@ -106,6 +109,7 @@
 			>?</button>
 		{/if}
 	</div>
+	{#if mode}<div class="px-2 pt-1.5 pb-2 max-lg:hidden">{@render mode()}</div>{/if}
 	<div class="flex flex-row gap-1.5 px-2 py-2">
 		<button type="button" class="{btn} flex-1 disabled:opacity-40" disabled={!canUndo} onclick={onundo} title="Undo (Ctrl+Z)">↶ Undo</button>
 		<button type="button" class="{btn} flex-1 disabled:opacity-40" disabled={!canRedo} onclick={onredo} title="Redo (Ctrl+Y)">↷ Redo</button>

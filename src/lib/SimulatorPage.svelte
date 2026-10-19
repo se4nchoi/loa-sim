@@ -10,7 +10,7 @@
 	import { loadCharacter } from '$lib/load-character';
 	import { untrack } from 'svelte';
 	import { formatDateTime } from '$lib/upgrade-planner/format';
-	import Segmented from '$lib/upgrade-planner/sim/Segmented.svelte';
+	import ModeSwitch from '$lib/upgrade-planner/sim/ModeSwitch.svelte';
 
 	let { dpsMode = false }: { dpsMode?: boolean } = $props();
 	/** CP or DPS: the same simulator, DPS adds a clear from the player's logs and its meter. Kept in the address. */
@@ -133,10 +133,7 @@
  {:else if buildId}<p class="mb-3 text-sm text-surface-300">This saved build is no longer available. Showing your character.</p>{/if}
 	<CharacterSwitcher current={characterKey(saved)} simulatorPath={dpsMode ? '/dps' : '/sim'} />
 	{#if !dpsMode}
-		<div class="mb-3 flex items-center gap-2 lg:hidden">
-			<Segmented label="Simulate" value={mode} options={[{ value: 'cp', label: 'CP' }, { value: 'dps', label: 'DPS', title: 'Replay one of your own clears from LOA Logs with your edits' }]} onselect={setMode} size="h-8 min-w-14 px-3 text-sm font-semibold" />
-			<span class="text-xs text-surface-400">{mode === 'dps' ? 'Your edits on one of your own clears' : 'Combat Power'}</span>
-		</div>
+		<div class="mb-3 w-56 lg:hidden"><ModeSwitch dpsMode={mode === 'dps'} onmode={setMode} /></div>
 	{/if}
 	{#key `${saved.region}/${saved.name}:${build?.id ?? "character"}`}
 		<CharacterView dpsMode={mode === 'dps'} onmode={dpsMode ? undefined : setMode} initialBuild={build} name={saved.name} region={saved.region} {subtitle} itemLevel={build ? build.loadout.itemLevel : saved.header?.ilvl} loadout={saved.loadout}

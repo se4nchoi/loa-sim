@@ -38,7 +38,7 @@
 	import CpBreakdownDialog from './sim/CpBreakdownDialog.svelte';
 	import { cpBreakdown } from './cp-breakdown';
 	import { PartType } from './cp';
-	import Segmented from './sim/Segmented.svelte';
+	import ModeSwitch from './sim/ModeSwitch.svelte';
 	import { SECTIONS, type PreviewEdit, type SectionDelta, type SimSection } from './sim/ui';
 	import { gemParts, initSimState, itemLevel, mainStatIndex, simulate, type SimState } from './simulate';
 	import type { Loadout } from './types';
@@ -353,8 +353,13 @@
 	</div>
 {/snippet}
 
+{#snippet modeSwitch()}
+	<ModeSwitch {dpsMode} onmode={onmode!} />
+{/snippet}
+
 {#snippet summary()}
 	<SimSummary
+		mode={onmode ? modeSwitch : undefined}
 		{current}
 		{simulated}
 		ilvlBefore={itemLevel(base)}
@@ -380,7 +385,7 @@
 	</SimSummary>
 {/snippet}
 
-{#if autosaveNote}<p class="mb-3 text-sm text-amber-300" role="status">{autosaveNote}</p>{:else}<p class="mb-3 text-xs text-surface-400">Changes saved in this browser{#if !dpsMode} · <a class="text-sky-300 hover:underline" href={`/sim?c=${encodeURIComponent(characterKey ?? '')}&mode=dps`}>See it on your DPS →</a>{/if}</p>{/if}
+{#if autosaveNote}<p class="mb-3 text-sm text-amber-300" role="status">{autosaveNote}</p>{/if}
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
 {#if startingScore.mismatch}
@@ -411,11 +416,6 @@
 	</div>
 	<!-- Keep CP visible while the lower sidebar can scroll on shorter screens. -->
 	<div class="flex flex-col gap-2 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start">
-		{#if onmode}
-			<div class="shrink-0 max-lg:hidden">
-				<Segmented label="Simulate" value={dpsMode ? 'dps' : 'cp'} options={[{ value: 'cp', label: 'CP' }, { value: 'dps', label: 'DPS', title: 'Replay one of your own clears from LOA Logs with your edits' }]} onselect={onmode} full size="h-8 px-3 text-sm" />
-			</div>
-		{/if}
 		<div class="shrink-0 max-lg:hidden">{@render summary()}</div>
 		<div class="flex min-h-0 flex-1 flex-col gap-2 lg:overflow-y-auto">
 		<!-- Same card shape as Next Upgrades: a fixed header strip, the links fold away beneath it. -->
