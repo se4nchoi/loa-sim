@@ -64,6 +64,8 @@ export interface DpsCandidate {
 	reason?: string;
 	/** What the estimate leaves out or approximates (shown with it, never instead of it). */
 	notes: string[];
+	/** The gain leaves out part of the upgrade (an Outgoing Damage line), so the real gain is at least gainPct. */
+	atLeast: boolean;
 }
 
 const noStats = { mainStat: 0, weaponPower: 0, additionalDamage: 0, critRate: 0, critDamage: 0, attackPowerPct: 0, attackPower: 0 };
@@ -108,11 +110,12 @@ export function compareDpsUpgrades(loadout: Loadout, state: SimState, base: SimS
 			return { run, gainPct: ((1 + share * gem.effectPct / 100) * (1 + attack / 100) - 1) * 100 };
 		});
 		const notes = reason ? [] : [
+			...(stat?.unvalued.length ? [`${stat.unvalued.join(' and ')} isn't valued yet, so the real gain is higher than shown.`] : []),
 			...(stat?.delta.critRate && critNote ? [critNote] : []),
 			...(gem?.baseAttack && baseAttackNote ? [baseAttackNote] : [])
 		];
 		return { id: upgrade.key, upgrade, cpPct: upgrade.gainPct, gainPct: combinedGain(clears), clears,
-			covered: clears.filter(c => c.gainPct !== null).length, gem, stat, reason, notes };
+			covered: clears.filter(c => c.gainPct !== null).length, gem, stat, reason, notes, atLeast: !reason && !!stat?.unvalued.length };
 	});
 }
 

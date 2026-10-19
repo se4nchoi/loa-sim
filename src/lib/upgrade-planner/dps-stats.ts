@@ -81,21 +81,21 @@ function braceletTotals(s: SimState) {
 	return { stats, signature: signature.sort(), unknownStats };
 }
 
-/**
- * Raw stat change from `from` to `to`, or null when something changed that the stat values don't describe (an
- * engraving, a gem, an Outgoing Damage line, …).
- */
-export function statDeltas(l: Loadout, from: SimState, to: SimState, base: SimState): StatDeltas | null {
-	for (const key of Object.keys(to) as (keyof SimState)[]) {
-		if (IGNORED.has(key) || !changed(from[key], to[key])) continue;
-		if (!COVERED.has(key)) return null;
-	}
-	// Outgoing Damage and other lines aren't in the stat values.
-	const uncoveredLines = (s: SimState) =>
-		ACCESSORY_SLOTS.map((slot) => (s.accessories[slot] ?? []).filter((ln) => isOtherLine(ln) || !LINE_STAT[ln.key] && !ln.key.startsWith('weapon_')));
-	if (changed(uncoveredLines(from), uncoveredLines(to))) return null;
+/** Damage lines the stat values don't describe (Outgoing Damage), as total line value per line name. */
+function unvaluedLines(s: SimState): Record<string, number> {
+	const out: Record<string, number> = {};
+	for (const slot of ACCESSORY_SLOTS)
+		for (const ln of s.accessories[slot] ?? []) {
+			if (isOtherLine(ln) || LINE_STAT[ln.key] || ln.key.startsWith('weapon_')) continue;
+			const line = ACCESSORY_LINES.find((l) => l.key === ln.key);
+			if (line) out[line.name] = (out[line.name] ?? 0) + line.values[ln.tier];
+		}
+	return out;
+}
+
+/** The stat change, assuming only covered fields moved and the bracelet's effects match (checked by the callers). */
+function rawDeltas(l: Loadout, from: SimState, to: SimState, base: SimState): StatDeltas {
 	const ba = braceletTotals(from), bb = braceletTotals(to);
-	if (changed(ba.signature, bb.signature) || changed(ba.unknownStats, bb.unknownStats)) return null;
 	const a = simulate(l, from, base), b = simulate(l, to, base);
 	const la = lineTotals(from), lb = lineTotals(to);
 	const line = (k: keyof StatDeltas) => (lb[k] ?? 0) - (la[k] ?? 0) + (bb.stats[k] ?? 0) - (ba.stats[k] ?? 0);
@@ -110,6 +110,45 @@ export function statDeltas(l: Loadout, from: SimState, to: SimState, base: SimSt
 		attackPower: line('attackPower') + bracerStats(to.bracer).attackFlat - bracerStats(from.bracer).attackFlat,
 		...(bracerStats(to.bracer).attackPercent !== bracerStats(from.bracer).attackPercent ? { baseAttackPct: bracerStats(to.bracer).attackPercent - bracerStats(from.bracer).attackPercent } : {})
 	};
+}
+
+/** Whether every changed field and bracelet effect is one the stat values describe (accessory lines aside). */
+function coveredChange(from: SimState, to: SimState) {
+	for (const key of Object.keys(to) as (keyof SimState)[]) {
+		if (IGNORED.has(key) || !changed(from[key], to[key])) continue;
+		if (!COVERED.has(key)) return false;
+	}
+	const ba = braceletTotals(from), bb = braceletTotals(to);
+	return !changed(ba.signature, bb.signature) && !changed(ba.unknownStats, bb.unknownStats);
+}
+
+/**
+ * Raw stat change from `from` to `to`, or null when something changed that the stat values don't describe (an
+ * engraving, a gem, an Outgoing Damage line, …).
+ */
+export function statDeltas(l: Loadout, from: SimState, to: SimState, base: SimState): StatDeltas | null {
+	if (!coveredChange(from, to)) return null;
+	// Outgoing Damage and other lines aren't in the stat values.
+	const uncoveredLines = (s: SimState) =>
+		ACCESSORY_SLOTS.map((slot) => (s.accessories[slot] ?? []).filter((ln) => isOtherLine(ln) || !LINE_STAT[ln.key] && !ln.key.startsWith('weapon_')));
+	if (changed(uncoveredLines(from), uncoveredLines(to))) return null;
+	return rawDeltas(l, from, to, base);
+}
+
+/**
+ * Like statDeltas, but an upgrade that also adds or raises a damage line the values don't describe (Outgoing Damage)
+ * still gets its covered part, with that line named in `unvalued`: the real gain is at least what the covered part
+ * gives. Losing such a line makes the covered part an overestimate, so that stays null. Lines with no damage value
+ * ("other" lines) don't matter here.
+ */
+export function statDeltasAtLeast(l: Loadout, from: SimState, to: SimState, base: SimState): { delta: StatDeltas; unvalued: string[] } | null {
+	const exact = statDeltas(l, from, to, base);
+	if (exact) return { delta: exact, unvalued: [] };
+	if (!coveredChange(from, to)) return null;
+	const before = unvaluedLines(from), after = unvaluedLines(to);
+	const names = [...new Set([...Object.keys(before), ...Object.keys(after)])];
+	if (names.some((n) => (after[n] ?? 0) < (before[n] ?? 0))) return null;
+	return { delta: rawDeltas(l, from, to, base), unvalued: names.filter((n) => (after[n] ?? 0) > (before[n] ?? 0)) };
 }
 
 /** DPS change in percent: each stat delta times its value (per point, or per 1,000 for flat stats). */

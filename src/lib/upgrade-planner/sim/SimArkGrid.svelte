@@ -168,9 +168,13 @@
 
 
 	// What one more core point / option level is worth from the current state. A probe astrogem carries only
-	// the points or levels, so the preview isolates them.
-	const probe = (core: SimState['arkGrid'][number], corePoints: number, opts: { id: number; level: number }[] = []) =>
-		core.gems.push({ itemId: core.gems[0]?.itemId ?? 0, corePoints, costReduc: 0, opts });
+	// the points or levels, so the preview isolates them. It costs no Willpower: on a finished core (all Willpower
+	// used) a full-cost probe wouldn't be powered, and every preview read +0.00%.
+	const probe = (core: SimState['arkGrid'][number], corePoints: number, opts: { id: number; level: number }[] = []) => {
+		const gem: SimAstrogem = { itemId: core.gems[0]?.itemId ?? 0, corePoints, costReduc: 0, opts };
+		gem.costReduc = astrogemWillpower(gem);
+		core.gems.push(gem);
+	};
 	const GRADE_CAP: Record<CoreGrade, number> = { heroic: 10, legendary: 14, relic: 20, ancient: 20 };
 	function pointValue(ci: number, points: number, grade: CoreGrade) {
 		const next = CORE_BREAKPOINTS.find((bp) => bp > points && bp <= GRADE_CAP[grade]);

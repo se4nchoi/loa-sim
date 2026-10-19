@@ -9,6 +9,7 @@
 	import { gearKey, gearOf, listSnapshots, recordSnapshots } from '$lib/snapshot-history';
 	import { loadCharacter } from '$lib/load-character';
 	import { untrack } from 'svelte';
+	import { formatDateTime } from '$lib/upgrade-planner/format';
 
 	let { dpsMode = false }: { dpsMode?: boolean } = $props();
 
@@ -106,7 +107,7 @@
 	}
 
 	const subtitle = $derived(
-		saved ? [saved.header?.guild?.name ?? '', `Snapshot loaded ${new Date(build?.savedAt ?? saved.savedAt).toLocaleString()}`] : []
+		saved ? [saved.header?.guild?.name ?? '', `Snapshot loaded ${formatDateTime(build?.savedAt ?? saved.savedAt)}`] : []
 	);
 </script>
 

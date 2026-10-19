@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import ModalClose from './sim/ModalClose.svelte';
+	import { formatDateTime } from './format';
 	import DrawerHandle from './sim/DrawerHandle.svelte';
 	import { HONING_BOOKS } from './honing-books-data';
 	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
@@ -78,7 +79,7 @@
 	function priceSource(id: string) {
 		const quote = source?.quotes[id];
 		if (!quote || prices[id] !== quote.price) return 'Manually entered price';
-		return `loa-buddy · ${quote.slug} · ${new Date(quote.updatedAt).toLocaleString()}`;
+		return `loa-buddy · ${quote.slug} · ${formatDateTime(quote.updatedAt)}`;
 	}
 	let clearedInventory = $state<ClearedMaterialInventory | null>(null);
 	let clearedPrices = $state<MaterialPrices | null>(null);
@@ -136,9 +137,7 @@
 		if (v !== null) setMaterialPrice(id, v / unit(id), characterKey);
 	}
 	const changed = $derived(
-		gold.pricesAt
-			? new Date(gold.pricesAt).toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-			: '—'
+		gold.pricesAt ? formatDateTime(gold.pricesAt) : '—'
 	);
 </script>
 

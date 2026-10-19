@@ -6,3 +6,8 @@ export const formatDate = (at: number) => {
 	const d = new Date(at);
 	return [d.getMonth() + 1, d.getDate(), d.getFullYear() % 100].map(n => String(n).padStart(2, '0')).join('-');
 };
+/** 10-12-26 14:05, in the player's own time zone but the same format in every language. */
+export const formatDateTime = (at: number) => {
+	const d = new Date(at);
+	return `${formatDate(at)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};

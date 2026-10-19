@@ -135,6 +135,8 @@
 	const orderOptions = $derived([...new Set(gateRuns.map(orderSetup).filter((v): v is string => v !== null))].sort());
 	const scope = $derived(loadout && character ? comparisonScope(loadout, pickedRuns, character.name, orderFilter) : { included: [], excluded: [], unchecked: 0 });
 	const runs = $derived(scope.included);
+	/** Clears recorded with the meter's stat values (LOA Logs leaves them out in low performance mode). */
+	const valued = $derived(runs.filter(r => r.statValues).length);
 	const eligibleBuildRuns = $derived(loadout && character && book ? comparisonScope(loadout, book.runs, character.name, orderFilter).included : []);
 	const sample = $derived(comparisonSample(runs));
 	const upgrades = $derived(loadout && sourceState && base ? liveUpgrades(loadout, sourceState, base, rollsFor(key), true) : []);
@@ -181,7 +183,7 @@
 	const baseDps = $derived(recordedDps(runs));
 	const ranks = $derived(dpsCpRanks(candidates));
 	/** "DPS #3 · CP #9" when the two rankings disagree by 3 places or more: the disagreement this tab exists to show. */
-	const rankBadge = (c: DpsCandidate) => { const r = ranks.get(c.id); return r && Math.abs(r.dps - r.cp) >= 3 ? `DPS #${r.dps} · CP #${r.cp}` : null; };
+	const rankBadge = (c: DpsCandidate) => { const r = ranks.get(c.id); return r && !c.atLeast && Math.abs(r.dps - r.cp) >= 3 ? `DPS #${r.dps} · CP #${r.cp}` : null; };
 	const dpsGain = (c: DpsCandidate) => c.gainPct !== null && baseDps !== null ? baseDps * c.gainPct / 100 : null;
 	/** Only gems (skill shares) and Crit Rate (recorded per fight) differ by raid; every other gain is the same everywhere. */
 	const raidSpecific = (c: DpsCandidate) => c.gainPct !== null && (!!c.gem || !!c.stat?.delta.critRate);
@@ -198,6 +200,9 @@
 	const perRaid = $derived(shown ? selected.map(raid => ({ raid, gain: combinedGain(shown.clears.filter(c => raid.runs.some(r => r.id === c.run.id))) })) : []);
 	const raidScale = $derived(Math.max(.01, ...perRaid.map(r => Math.abs(r.gain ?? 0))));
 	const fmt = (n: number | null) => n === null ? '—' : `≈${formatPct(n)}%`;
+	/** "≥" when part of the upgrade isn't valued (the real gain is higher), "≈" otherwise. */
+	const gainText = (c: DpsCandidate) => c.atLeast && c.gainPct !== null ? `≥${formatPct(c.gainPct)}%` : fmt(c.gainPct);
+	const amountText = (c: DpsCandidate, amount: number) => `${c.atLeast ? '≥' : '≈'} +${formatDamage(amount)}`;
 	const duration = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 	const gateName = (boss: string) => raidGateOf(boss)?.label.replace(/ \(.*\)$/, '') ?? boss;
 	const partNames: Record<string, string> = { attack: 'Atk. Power', additionalDamage: 'Additional Damage', evoDamage: 'Evolution Damage', critRate: 'Crit Rate', critDamage: 'Crit Damage' };
@@ -273,6 +278,7 @@
 					<p class="font-semibold text-surface-100">{#if orderFilter}Order cores {orderFilter.replaceAll('/', '')} only · {/if}{runs.length} {runs.length === 1 ? 'clear' : 'clears'}{selected.length > 1 ? ' · Mixed raids' : ''}</p>
 					<span class="text-xs text-surface-400">{selected.map(r => `${r.name} · ${r.difficulty || 'Normal'}`).join(' / ')}</span>
 				</div>
+				{#if runs.length}<p class="mt-2 text-xs {valued ? 'text-surface-400' : 'text-amber-300'}">Stat values in {valued} of {runs.length} {runs.length === 1 ? 'clear' : 'clears'}{valued < runs.length ? `. ${valued ? 'Crit Rate is valued from these' : "Crit Rate can't be valued for these raids"}; turn off low performance mode in LOA Logs to record stat values in every clear.` : '.'}</p>{/if}
 				{#if !orderOptions.length}<p class="mt-2 text-xs text-amber-300">Order cores not recorded in this import. Re-import logs to check.</p>
 				{:else if !orderFilter && (orderOptions.length > 1 || gateRuns.some(r => !orderSetup(r)))}<p class="mt-2 text-xs text-amber-300">Order core setups are not filtered.</p>{/if}
 				{#if orderFilter}<p class="mt-2 text-xs text-amber-300">Core choices only. Core points and astrogems are not checked.</p>{/if}
@@ -306,7 +312,7 @@
 							{@const image = look(c)}{@const cost = costs[c.id]}{@const badge = rankBadge(c)}{@const amount = dpsGain(c)}
 							<button class="dps-row dps-upgrade {c === shown ? 'dps-current' : ''}" onclick={() => choose(c)} aria-pressed={c === shown}>
 								<span class="flex min-w-0 items-center gap-3">{#if image.icon}<ItemIcon src={image.icon} grade={image.grade} size="size-9" />{/if}<span class="min-w-0"><UpgradeTitle u={c.upgrade} /><span class="mt-1 block text-xs text-surface-400">{#if c.gainPct === null}DPS not estimated{:else}<span title={sourceTag(c).hint}>{sourceTag(c).label}</span>{/if}{#if raidSpecific(c)}{' · '}<span class="text-sky-300" title="This gain changes with the raids you pick.">Raid-specific</span>{/if}{#if badge}{' · '}<span class="dps-badge">{badge}</span>{/if}{#if c.upgrade.detail === 'KR preview'}{' · '}<span class="text-amber-300">KR preview</span>{/if}</span></span></span>
-								<span class="dps-gain text-right"><strong class="block text-base font-semibold text-green-400">{fmt(c.gainPct)}</strong>{#if amount !== null}<span class="block text-xs text-green-400/80">≈ +{formatDamage(amount)}</span>{/if}<span class="mt-0.5 block text-xs text-surface-400">CP {formatPct(c.cpPct)}%</span></span>
+								<span class="dps-gain text-right"><strong class="block text-base font-semibold text-green-400">{gainText(c)}</strong>{#if amount !== null}<span class="block text-xs text-green-400/80">{amountText(c, amount)}</span>{/if}<span class="mt-0.5 block text-xs text-surface-400">CP {formatPct(c.cpPct)}%</span></span>
 								<span class="dps-cost text-right text-sm"><span class={cost === undefined ? 'text-surface-500' : 'text-amber-300'}>{cost === undefined ? '—' : `${formatGold(cost)} gold`}</span><span class="mt-0.5 block text-xs text-surface-400">{cost !== undefined && c.gainPct !== null && c.gainPct > 0 ? `${formatGold(cost / c.gainPct)} / 1% DPS` : '—'}</span></span>
 							</button>
 						{/snippet}
@@ -319,12 +325,12 @@
 						<aside id="dps-breakdown" class="dps-panel dps-inspector p-4" aria-label="Breakdown">
 							<h2 class="mb-3 font-semibold">Breakdown</h2><UpgradeTitle u={shown.upgrade} />
 							{#if shown.upgrade.detail === 'KR preview'}<p class="mt-2 text-xs text-amber-300">KR preview</p>{/if}
-							<div class="mt-4 flex flex-wrap items-end justify-between gap-2" aria-live="polite"><div><p class="text-xs text-surface-400">DPS gain</p><p class="text-3xl font-semibold text-green-400">{fmt(shown.gainPct)}</p>{#if dpsGain(shown) !== null}<p class="text-sm text-green-400/80">≈ +{formatDamage(dpsGain(shown)!)} DPS</p>{/if}{#if rankBadge(shown)}<p class="mt-1 text-xs"><span class="dps-badge">{rankBadge(shown)}</span></p>{/if}</div><div class="text-right"><p class="text-xs text-surface-400">CP gain</p><p class="text-sm text-surface-300">{formatPct(shown.cpPct)}% (+{((cp ?? 0) * shown.cpPct / 100).toFixed(2)})</p></div></div>
+							<div class="mt-4 flex flex-wrap items-end justify-between gap-2" aria-live="polite"><div><p class="text-xs text-surface-400">DPS gain</p><p class="text-3xl font-semibold text-green-400">{gainText(shown)}</p>{#if dpsGain(shown) !== null}<p class="text-sm text-green-400/80">{amountText(shown, dpsGain(shown)!)} DPS</p>{/if}{#if rankBadge(shown)}<p class="mt-1 text-xs"><span class="dps-badge">{rankBadge(shown)}</span></p>{/if}</div><div class="text-right"><p class="text-xs text-surface-400">CP gain</p><p class="text-sm text-surface-300">{formatPct(shown.cpPct)}% (+{((cp ?? 0) * shown.cpPct / 100).toFixed(2)})</p></div></div>
 							{#if shown.reason}<p class="mt-3 text-sm text-amber-300">{shown.reason}</p>
 							{:else if shown.gainPct === null}<p class="mt-3 text-sm text-amber-300">DPS not estimated · {shown.covered}/{runs.length} clears covered.</p>{/if}
 							{#each shown.notes as note}<p class="mt-2 text-xs text-amber-300/90">※ {note}</p>{/each}
 							{#if shown.gem && !shown.gem.rough}<div class="mt-4 space-y-2 border-t border-surface-800 pt-3">{#each shown.gem.parts as part}<div class="flex items-center justify-between gap-3 text-sm"><span class="min-w-0 break-words">{book.skills[part.skill]?.[0] ?? part.name}</span><span class="shrink-0 text-surface-200">{(sample.skillShares[part.skill] ?? 0).toFixed(1)}% of damage</span></div>{/each}<p class="text-xs text-surface-400">Skill damage {formatPct(shown.gem.effectPct)}%{shown.gem.baseAttack ? ` · Base Atk. Power +${shown.gem.baseAttack.toFixed(2)}%` : ''}</p></div>{/if}
-							<div class="mt-4 border-t border-surface-800 pt-3"><h3 class="mb-2 text-sm font-semibold">By raid</h3><div class="space-y-3">{#each perRaid as result}<div><div class="mb-1 flex flex-wrap justify-between gap-2 text-xs"><span>{result.raid.name} · {result.raid.difficulty}</span><span>{fmt(result.gain)}</span></div><div class="h-1.5 rounded-xs bg-surface-800"><div class="h-full rounded-xs bg-accent-500" style:width={`${Math.abs(result.gain ?? 0) / raidScale * 100}%`}></div></div></div>{/each}</div></div>
+							<div class="mt-4 border-t border-surface-800 pt-3"><h3 class="mb-2 text-sm font-semibold">By raid</h3><div class="space-y-3">{#each perRaid as result}<div><div class="mb-1 flex flex-wrap justify-between gap-2 text-xs"><span>{result.raid.name} · {result.raid.difficulty}</span><span>{shown.atLeast && result.gain !== null ? `≥${formatPct(result.gain)}%` : fmt(result.gain)}</span></div><div class="h-1.5 rounded-xs bg-surface-800"><div class="h-full rounded-xs bg-accent-500" style:width={`${Math.abs(result.gain ?? 0) / raidScale * 100}%`}></div></div></div>{/each}</div></div>
 							<div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-surface-800 pt-3 text-sm"><span class="flex items-center gap-1.5 text-amber-300"><img src={GOLD_ICON} alt="" class="size-4" />{costs[shown.id] === undefined ? 'Price needed' : `${formatGold(costs[shown.id])} gold`}</span><button class={btn} onclick={() => pricesOpen = true}>Edit prices</button></div>
 							<details class="mt-4 border-t border-surface-800 pt-3 text-xs text-surface-400"><summary>Calculation details</summary><div class="mt-3 space-y-3">
 								<p>Each clear is calculated separately. Combined gain compares total estimated damage with total recorded damage over the same fight time.</p>

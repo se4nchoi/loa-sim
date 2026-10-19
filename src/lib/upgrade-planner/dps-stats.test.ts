@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import soulshan from './fixtures/na-soulshan.json';
-import { dpsGainPct, statDeltas } from './dps-stats';
+import { dpsGainPct, statDeltas, statDeltasAtLeast } from './dps-stats';
 import { initSimState, simulate, type DpsLine } from './simulate';
 import type { StatValues } from '$lib/logs/protocol';
 import type { Loadout } from './types';
@@ -49,6 +49,31 @@ describe('DPS from the meter stat values', () => {
 		const swap = statDeltas(loadout, base, to, base)!;
 		expect(swap.additionalDamage).toBeCloseTo(-step[before] / 100, 9);
 		expect(swap.critDamage).toBeCloseTo(2.4, 9);
+	});
+
+	it('values the covered part of an upgrade that also raises Outgoing Damage, as a lower bound', () => {
+		const base = initSimState(loadout);
+		const neck = base.accessories.neck!;
+		const add = neck.findIndex((ln) => ln.key === 'add_dmg'), out = neck.findIndex((ln) => ln.key === 'outgoing_dmg');
+		expect(add).toBeGreaterThanOrEqual(0);
+		expect(out).toBeGreaterThanOrEqual(0);
+		const low = structuredClone(base);
+		low.accessories.neck![out] = { key: 'outgoing_dmg', tier: 'low' };
+		low.accessories.neck![add] = { key: 'add_dmg', tier: 'low' };
+		const high = structuredClone(low);
+		high.accessories.neck![out] = { key: 'outgoing_dmg', tier: 'high' };
+		high.accessories.neck![add] = { key: 'add_dmg', tier: 'high' };
+		// The exact version gives up on any Outgoing Damage change.
+		expect(statDeltas(loadout, low, high, base)).toBeNull();
+		const up = statDeltasAtLeast(loadout, low, high, base)!;
+		expect(up.unvalued).toEqual(['Outgoing Damage']);
+		expect(up.delta.additionalDamage).toBeCloseTo((260 - 70) / 100, 9);
+		// Losing Outgoing Damage would make the covered part an overestimate: no figure.
+		expect(statDeltasAtLeast(loadout, high, low, base)).toBeNull();
+		// Without an Outgoing Damage change it's the exact figure.
+		const plain = structuredClone(low);
+		plain.accessories.neck![add] = { key: 'add_dmg', tier: 'high' };
+		expect(statDeltasAtLeast(loadout, low, plain, base)).toEqual({ delta: statDeltas(loadout, low, plain, base), unvalued: [] });
 	});
 
 	it('weapon quality is additional damage', () => {

@@ -6,7 +6,7 @@ import type { RunSummary } from '$lib/logs/protocol';
 import { applyUpgrade } from './apply-upgrade';
 import { bracerStats } from './bracer';
 import { modelGain, modelInput, type GainPart, type ModelInput } from './dps-model';
-import { statDeltas, type StatDeltas } from './dps-stats';
+import { statDeltasAtLeast, type StatDeltas } from './dps-stats';
 import { GEM_BASE_ATTACK, GEM_EFFECTS, GEM_SKILL_GROUPS, GEM_SKILLS } from './game-data';
 import { liveUpgrades } from './live-upgrades';
 import { gemParts, simulate, type SimState } from './simulate';
@@ -129,6 +129,8 @@ export interface StatExplanation {
 	delta: StatDeltas;
 	parts: GainPart[];
 	missing: string[];
+	/** Damage lines the upgrade adds that the model can't value (Outgoing Damage): gainPct is then a lower bound. */
+	unvalued: string[];
 }
 
 /** Next Upgrades' candidates that only move stats the model covers, each valued on the current plan. */
@@ -138,13 +140,14 @@ export function statExplanations(loadout: Loadout, state: SimState, base: SimSta
 		if (u.category === 'gem') return [];
 		const after = structuredClone(state);
 		if (!applyUpgrade(loadout, after, base, u)) return [];
-		const delta = statDeltas(loadout, state, after, base);
-		if (!delta || Object.values(delta).every(v => !v)) return [];
+		const change = statDeltasAtLeast(loadout, state, after, base);
+		if (!change || Object.values(change.delta).every(v => !v)) return [];
+		const { delta, unvalued } = change;
 		const label = [u.subject, u.lines?.map(l => `${l.name} ${l.tier}`).join(', ') || u.title].filter(Boolean).join(' · ');
 		if (seen.has(label)) return [];
 		seen.add(label);
 		const gain = modelGain(delta, model);
-		return [{ key: u.key, label, category: u.category, group: u.group ?? u.key, gainPct: gain.gainPct, cpPct: cpGain(loadout, state, after, base), delta, parts: gain.parts, missing: gain.missing }];
+		return [{ key: u.key, label, category: u.category, group: u.group ?? u.key, gainPct: gain.gainPct, cpPct: cpGain(loadout, state, after, base), delta, parts: gain.parts, missing: gain.missing, unvalued }];
 	});
 }
 
