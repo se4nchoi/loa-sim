@@ -129,7 +129,7 @@ export const gemItemId = (tier: 'T3' | 'T4', kind: GemKind, level: number) => 65
 // Gem effects: 5 / 27 name a skill; 34 / 35 name a skill group (Guardian Knight skills, Brawl King Twelve Forms).
 // Support damage gems also carry buff / shield / heal / Atk. Power amplify effects: 58 / 60 / 62 / 64 on a skill,
 // 59 / 61 / 63 / 65 on a skill group (e.g. "Yin Yang Skill").
-const GEM_EFFECT_TYPE: Record<number, GemKind> = {
+export const GEM_EFFECT_TYPE: Record<number, GemKind> = {
 	5: 'damage', 27: 'cooldown', 34: 'damage', 35: 'cooldown',
 	58: 'damage', 59: 'damage', 60: 'damage', 61: 'damage', 62: 'damage', 63: 'damage', 64: 'damage', 65: 'damage'
 };

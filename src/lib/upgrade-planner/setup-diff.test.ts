@@ -28,10 +28,20 @@ describe('setup diff', () => {
 		expect(d).toEqual({ gear: [], gems: false, cores: null, passives: [], other: [] });
 		expect(sameGear(d)).toBe(true);
 	});
+	it('ignores key order and the reroll counts only the character page has', () => {
+		const snap = asSnapshot(loadout);
+		const bracelet = snap.items!.find((i) => i.slot === 'bracelet')!;
+		const { stats } = bracelet.data as unknown as { stats: unknown };
+		bracelet.data = { stats, type: 'bracelet' } as never;
+		const now = structuredClone(loadout);
+		(now.items!.find((i) => i.slot === 'bracelet')!.data as unknown as Record<string, unknown>).numRerolls = 4;
+		snap.engravings = snap.engravings!.map(({ id, grade, progress }) => ({ progress, id, grade }));
+		expect(setupDiff(now, snap)).toEqual({ gear: [], gems: false, cores: null, passives: [], other: [] });
+	});
 	it('names differing gear slots and notices gem changes', () => {
 		const snap = asSnapshot(loadout);
 		const weapon = snap.items!.find((i) => i.slot === 'weapon')!;
-		(weapon.data as { honing: number }).honing -= 1;
+		(weapon.data as unknown as { honing: number }).honing -= 1;
 		snap.gems![0] = { ...snap.gems![0], id: snap.gems![0].id - 1 };
 		const d = setupDiff(loadout, snap);
 		expect(d.gear).toEqual(['Weapon']);

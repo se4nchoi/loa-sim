@@ -16,11 +16,12 @@
 	import { comparisonScope, formatDamage } from './dps-comparison';
 	import { raidsOf } from './dps-gates';
 	import { dpsMeter, matchSnapshot, sameGear, type SnapshotOption } from './dps-meter';
-	import { formatDate } from './format';
+	import { formatDate, formatPct } from './format';
 	import { GEM_SKILLS } from './game-data';
 	import { iconUrl } from './icons';
 	import { difficultyTone, raidArt, raidTone } from './raid-art';
-	import { initSimState, type SimState } from './simulate';
+	import { initSimState, simulate, type SimState } from './simulate';
+	import { clearState } from './clear-state';
 	import { btn } from './sim/ui';
 	import type { Loadout } from './types';
 
@@ -73,7 +74,6 @@
 	const runs = $derived<RunSummary[]>(clear ? (pick.average && sameGearClears.length > 1 ? sameGearClears : [clear]) : []);
 	// The Simulator's state is reactive (a proxy); the meter works on a plain copy of it.
 	const plain = $derived($state.snapshot(simState) as SimState);
-	const meter = $derived(runs.length ? dpsMeter(loadout, base, plain, buildRuns, runs) : null);
 
 	// Is the gear being simulated the gear of this clear? Its recorded CP against the snapshots' CP.
 	const clearCp = $derived(clear?.combatPower ?? null);
@@ -99,6 +99,10 @@
 		return () => { live = false; };
 	});
 	const diff = $derived(setup?.snap ? setupDiff(loadout, setup.snap) : null);
+	// The clear's setup as a Simulator state: the meter's baseline, so gear changed since the clear counts with the edits.
+	const clearSetup = $derived(setup?.snap && setup.hash === clear?.loadoutHash ? clearState(loadout, setup.snap) : null);
+	const clearSetupCp = $derived(clearSetup ? simulate(loadout, clearSetup.state, base).cp : null);
+	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, plain, buildRuns, runs) : null);
 
 	const gate = (r: RunSummary) => raidGateOf(r.boss)?.gate;
 	const time = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
@@ -153,6 +157,9 @@
 				<p class="flex flex-wrap items-center gap-x-2 text-surface-300">
 					<span class="font-semibold text-surface-100">This clear's setup</span>
 					{#if setup.snap?.combatPower}<span class="tabular-nums">CP {setup.snap.combatPower.score.toFixed(2)}</span>{/if}
+					{#if clearSetupCp !== null && setup.snap?.combatPower && Math.abs(clearSetupCp / setup.snap.combatPower.score - 1) > 0.002}
+						<span class="text-surface-500 tabular-nums" title="This clear's setup scored by the Simulator from your character page. The snapshot doesn't say which Paradise orb (or power) the clear had, so yours is used.">· {clearSetupCp.toFixed(2)} in the Simulator ({formatPct((clearSetupCp / setup.snap.combatPower.score - 1) * 100)}%)</span>
+					{/if}
 					<a class="text-sky-300 hover:underline" href={bibleSnapshotPage(setup.hash)} target="_blank" rel="noopener">View on lostark.bible ↗</a>
 				</p>
 				{#if setup.error}
@@ -166,7 +173,7 @@
 						{#if !diff.gear.length && !diff.gems}
 							<p class="mt-1 text-green-400">● Same honing, gems and accessories: your gear edits are valued on the gear you raided in.</p>
 						{:else}
-							<p class="mt-1 text-amber-300">● Different gear{diff.gear.length ? `: ${diff.gear.join(', ')}` : ''}{diff.gems ? `${diff.gear.length ? ' and' : ':'} gems` : ''}. The meter applies your edits to the gear you're simulating, not to this clear's.</p>
+							<p class="mt-1 text-amber-300">● Gear changed since this clear{diff.gear.length ? `: ${diff.gear.join(', ')}` : ''}{diff.gems ? `${diff.gear.length ? ' and' : ':'} gems` : ''}. The meter starts from the clear's gear, so those changes count along with your edits.</p>
 						{/if}
 						{#if diff.cores || diff.passives.length || diff.other.length}
 							<ul class="mt-1.5 space-y-0.5 text-surface-300">
@@ -176,7 +183,8 @@
 								{#if diff.cores}<li><span class="text-surface-400">Ark Grid cores:</span> {diff.cores.clear.join(', ')} <span class="text-surface-500">in this clear · now</span> {diff.cores.now.join(', ')}</li>{/if}
 								{#if diff.other.length}<li><span class="text-surface-400">Also different:</span> {diff.other.join(', ')}</li>{/if}
 							</ul>
-							<p class="mt-1 text-surface-500">These are already in the clear's recorded damage. Simulating them isn't possible yet.</p>
+							<p class="mt-1 text-surface-500">The clear's recorded damage already has these. The meter can't value the change yet.</p>
+							{#each clearSetup?.notes ?? [] as note (note)}<p class="mt-0.5 text-surface-500">{note}</p>{/each}
 						{/if}
 					{/if}
 				{/if}

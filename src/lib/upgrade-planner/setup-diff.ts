@@ -24,7 +24,13 @@ const SLOTS: Record<string, string> = {
 	neck: 'Necklace', ear1: 'Earring 1', ear2: 'Earring 2', finger1: 'Ring 1', finger2: 'Ring 2', ability_stone: 'Ability Stone', bracelet: 'Bracelet'
 };
 const TREES: Record<string, string> = { evolution: 'Evolution', enlightenment: 'Enlightenment', leap: 'Leap' };
-const json = (v: unknown) => JSON.stringify(v ?? null);
+/** Key-order-free JSON: bible's character page and its snapshots list the same object's keys in different orders. */
+const json = (v: unknown): string =>
+	Array.isArray(v) ? `[${v.map(json).join()}]`
+	: v && typeof v === 'object' ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${json((v as Record<string, unknown>)[k])}`).join()}}`
+	: JSON.stringify(v ?? null);
+/** The character page's item data, on the snapshot's keys only (the page adds reroll counts a snapshot doesn't keep). */
+const onKeys = (data: Record<string, unknown>, keys: Record<string, unknown>) => Object.fromEntries(Object.keys(keys).map((k) => [k, data[k]]));
 /** Order-free comparison of two lists. */
 const sameList = (a: unknown[] | undefined | null, b: unknown[] | undefined | null) => json((a ?? []).map(json).sort()) === json((b ?? []).map(json).sort());
 
@@ -36,7 +42,7 @@ export function setupDiff(loadout: Loadout, clear: ClearSnapshot): SetupDiff {
 	const gear = (clear.items ?? []).flatMap((item) => {
 		const mine = now.get(item.slot);
 		if (!mine || !SLOTS[item.slot]) return [];
-		return json({ id: item.id, data: item.data }) === json({ id: mine.id, data: mine.data }) ? [] : [SLOTS[item.slot]];
+		return json({ id: item.id, data: item.data }) === json({ id: mine.id, data: onKeys(mine.data as Record<string, unknown>, item.data as Record<string, unknown>) }) ? [] : [SLOTS[item.slot]];
 	});
 
 	const gems = !sameList((clear.gems ?? []).map((g) => ({ id: g.id, effects: g.effects })), (loadout.gems ?? []).map((g) => ({ id: g.id, effects: g.effects })));
