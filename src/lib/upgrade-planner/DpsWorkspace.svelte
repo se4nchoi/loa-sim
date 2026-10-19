@@ -11,6 +11,8 @@
 	import { buildRuns } from './dps-model';
 	import { comparisonScope, comparisonSample, compareDpsUpgrades, combinedGain, rankDpsCandidates, orderSetup, recordedDps, formatDamage, slotGroup, dpsCpRanks, clearSpread, statWorth, type DpsSort, type DpsCandidate } from './dps-comparison';
 	import { liveUpgrades } from './live-upgrades';
+	import { skillTable, type Range } from './dps-skills';
+	import { gemMembers } from './dps-explain';
 	import { costsForCharacter, bookCost, bookPricesFor, materialPricesFor, manualGoldCost, gold, loadGold, formatGold, parsePrice, supportsGoldCost, missingPriceCount } from './gold-costs.svelte';
 	import { autoHoningCosts, inventoryMaterials } from './honing-cost';
 	import { rollsFor } from './acc-rolls.svelte';
@@ -206,6 +208,18 @@
 	});
 	/** The per-clear what-ifs behind the shown figure: the estimate's, or a cooldown gem's "as you played". */
 	const replayOf = (c: DpsCandidate) => clearSpread(asPlayedGain(c) !== null ? c.asPlayed!.clears : c.gainPct !== null ? c.clears : []);
+	// Skills table: the meter's columns over the selected clears, with this plan's gems and their next step.
+	const skills = $derived(skillTable(runs));
+	let allSkills = $state(false);
+	const gemsOf = (id: number) => (sourceState?.gems ?? []).flatMap((g, index) => g.skill !== null && (g.skill === id || gemMembers(g.skill).includes(id)) ? [{ ...g, index }] : []);
+	const gemCandidate = (index: number) => candidates.find(c => c.gem?.choice.index === index);
+	const skillRows = $derived(skills.filter(r => allSkills || r.share >= 0.5 || gemsOf(r.id).length));
+	const topShare = $derived(Math.max(1, ...skills.map(r => r.share)));
+	const spanText = (r: Range | null, digits = 1) => r && r.high - r.low >= 1 ? `${r.low.toFixed(digits)}–${r.high.toFixed(digits)}` : '';
+	function openGem(c: DpsCandidate) {
+		category = 'All';
+		choose(c);
+	}
 	const pctRange = (low: number, high: number) => `${formatPct(low)} to ${formatPct(high)}%`;
 	const listed = $derived(showAll ? estimated : estimated.slice(0, 10));
 	const shown = $derived(filtered.find(c => c.id === pick) ?? estimated[0] ?? filtered[0]);
@@ -418,7 +432,7 @@
 								{@const replay = replayOf(shown)!}
 								{@const sign = asPlayedGain(shown) !== null ? 'up to ≈' : shown.atLeast ? '≥' : '≈'}
 								<div class="mt-4 space-y-1 border-t border-surface-800 pt-3"><h3 class="text-sm font-semibold">Replaying your clears</h3>
-									<p class="text-sm text-surface-300">Your {formatDate(replay.latest.run.start)} {gateName(replay.latest.run.boss)} again, same rotation and buffs, with this upgrade: <strong class="text-green-400">{sign}{formatPct(replay.latest.gainPct)}%</strong></p>
+									<p class="text-sm text-surface-300">Your {formatDate(replay.latest.run.start)} {gateName(replay.latest.run.boss)} <span class="text-surface-400" title="LOA Logs encounter number">(#{replay.latest.run.id})</span> again, same rotation and buffs, with this upgrade: <strong class="text-green-400">{sign}{formatPct(replay.latest.gainPct)}%</strong></p>
 									{#if replay.count > 1}<p class="text-xs text-surface-400">{replay.high - replay.low < 0.005 ? `The same in all ${replay.count} clears.` : `Across ${replay.count} clears: ${pctRange(replay.low, replay.high)}, typically ${formatPct(replay.median)}%.`}</p>{/if}
 								</div>
 							{/if}
@@ -436,11 +450,34 @@
 								{#if shown.upgrade.category === 'accessory'}<p>Accessory prices exclude Pheon costs.</p>{/if}
 								{#if budget !== null}<p>Upgrades without prices remain visible; they are not confirmed within budget.</p>{/if}
 								{#if sameInAll(shown) !== null}<p class="flex flex-wrap justify-between gap-2"><span>By clear: same in all {shown.clears.length} clears</span><span>{fmt(sameInAll(shown))}</span></p>
-								{:else}<details><summary>By clear · {shown.covered}/{runs.length} covered</summary><div class="mt-2 space-y-2">{#each shown.clears as clear}<p class="flex flex-wrap justify-between gap-2"><span>{formatDate(clear.run.start)} · {gateName(clear.run.boss)}</span><span>{fmt(clear.gainPct)}</span></p>{/each}</div></details>{/if}
+								{:else}<details><summary>By clear · {shown.covered}/{runs.length} covered</summary><div class="mt-2 space-y-2">{#each shown.clears as clear}<p class="flex flex-wrap justify-between gap-2"><span>{formatDate(clear.run.start)} · {gateName(clear.run.boss)} · <span title="LOA Logs encounter number">#{clear.run.id}</span></span><span>{fmt(clear.gainPct)}</span></p>{/each}</div></details>{/if}
 							</div></details>
 						</aside>
 					{/if}
 				</div>
+				{#if skills.length}
+					<section class="dps-panel min-w-0" aria-label="Your skills in these clears">
+						<div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-surface-800 p-3"><h2 class="font-semibold">Your skills in these clears</h2><span class="text-xs text-surface-400">Same measures as LOA Logs, over {runs.length} {runs.length === 1 ? 'clear' : 'clears'}; ranges are lowest–highest in one clear.</span></div>
+						<div class="dps-skill dps-skill-head text-xs text-surface-400"><span>Skill</span><span class="text-right" title="Share of your damage">D%</span><span class="text-right" title="Share of the fight the skill was on cooldown">CDR%</span><span class="dps-skill-extra text-right">Casts</span><span class="dps-skill-extra text-right" title="Casts per minute">CPM</span><span class="dps-skill-extra text-right">Crit</span><span>Gems · next level</span></div>
+						{#each skillRows as row (row.id)}
+							{@const info = book.skills[row.id]}{@const gems = gemsOf(row.id)}{@const cooldownGem = gems.find(g => g.kind !== 'damage')}
+							<div class="dps-skill dps-skill-row" style:--share={`${row.share / topShare * 100}%`}>
+								<span class="flex min-w-0 items-center gap-2">{#if info?.[1]}<img src={iconUrl(info[1])} alt="" class="size-7 shrink-0 rounded-xs" />{/if}<span class="min-w-0"><span class="block truncate text-sm text-surface-100">{info?.[0] ?? `Skill ${row.id}`}</span>{#if cooldownGem && row.cooldown !== null && row.cooldown < 60}<span class="block text-[11px] text-amber-300/90">Sat ready {(100 - row.cooldown).toFixed(0)}% of the fight: pressing it on cooldown, where the fight allows, would add more than a cooldown gem.</span>{/if}</span></span>
+								<span class="text-right tabular-nums"><span class="block text-sm">{row.share.toFixed(1)}</span>{#if spanText(row.shareRange)}<span class="block text-[10px] text-surface-400">{spanText(row.shareRange)}</span>{/if}</span>
+								<span class="text-right tabular-nums"><span class="block text-sm">{row.cooldown === null ? '—' : row.cooldown.toFixed(1)}</span>{#if spanText(row.cooldownRange, 0)}<span class="block text-[10px] text-surface-400">{spanText(row.cooldownRange, 0)}</span>{/if}</span>
+								<span class="dps-skill-extra text-right text-sm tabular-nums">{row.casts}</span>
+								<span class="dps-skill-extra text-right text-sm tabular-nums">{row.cpm.toFixed(1)}</span>
+								<span class="dps-skill-extra text-right text-sm tabular-nums">{!row.crit ? '—' : `${row.crit.toFixed(1)}%`}</span>
+								<span class="flex flex-wrap gap-1">{#each gems as g (g.index)}
+									{@const c = gemCandidate(g.index)}{@const gain = c ? (c.gainPct ?? asPlayedGain(c)) : null}
+									{#if c}<button class="dps-gem" onclick={() => openGem(c)} title={`${g.kind === 'damage' ? 'Damage' : 'Cooldown'} gem ${g.level} → ${g.level + 1}`}>{g.kind === 'damage' ? 'DMG' : 'CD'} {g.level}→{g.level + 1}{#if gain !== null}<span class="text-green-400">{c.gainPct === null ? ' up to ' : ' '}{fmt(gain)}</span>{/if}</button>
+									{:else}<span class="dps-gem text-surface-400">{g.kind === 'damage' ? 'DMG' : 'CD'} {g.level}{g.level >= 10 ? ' max' : ''}</span>{/if}
+								{/each}</span>
+							</div>
+						{/each}
+						{#if skills.length > skillRows.length || allSkills}<button class="w-full border-t border-surface-800 p-3 text-left text-xs text-accent-300 hover:underline" onclick={() => allSkills = !allSkills}>{allSkills ? 'Show main skills' : `Show all ${skills.length} skills`}</button>{/if}
+					</section>
+				{/if}
 			{/if}
 		{/if}
 	</div>
@@ -462,6 +499,11 @@
 	.dps-worth > div { display: flex; justify-content: space-between; gap: .5rem; border-bottom: 1px solid var(--color-surface-800); padding-bottom: .3rem; font-size: .85rem; }
 	.dps-worth dt { color: var(--color-surface-300); }
 	.dps-worth dd { font-variant-numeric: tabular-nums; white-space: nowrap; }
+	.dps-skill { display: grid; grid-template-columns: minmax(0, 1fr) 4rem 4rem 3.5rem 3.5rem 4rem minmax(9rem, 13rem); gap: .6rem; align-items: center; padding: .45rem .8rem; }
+	.dps-skill-head { padding-block: .5rem; }
+	.dps-skill-row { border-top: 1px solid var(--color-surface-800); background: linear-gradient(90deg, color-mix(in oklab, var(--color-accent-700) 22%, transparent) var(--share), transparent var(--share)); }
+	.dps-gem { display: inline-flex; gap: .2rem; border: 1px solid var(--color-surface-700); border-radius: 2px; padding: 0 .35rem; font-size: .72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+	button.dps-gem:hover { border-color: var(--color-accent-400); }
 	.dps-raids { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .6rem; }
 	.dps-raid { position: relative; overflow: hidden; border: 1px solid var(--color-surface-700); border-radius: 2px; padding: .7rem; text-align: left; }
 	.dps-raid:has(> button:focus-visible) { outline: 2px solid var(--color-accent-300); outline-offset: 1px; }
@@ -479,6 +521,7 @@
 	.dps-current { background: color-mix(in oklab, var(--color-accent-700) 13%, transparent); box-shadow: inset 3px 0 var(--color-accent-500); }
 	.dps-inspector { min-width: 0; scroll-margin-top: 4rem; overflow-wrap: anywhere; }
 	@media (min-width: 1100px) { .dps-columns { grid-template-columns: minmax(0, 1fr) 20rem; } .dps-inspector { position: sticky; top: 4rem; } }
+		@media (max-width: 760px) { .dps-skill { grid-template-columns: minmax(0, 1fr) 3.5rem 3.5rem; } .dps-skill-extra { display: none; } .dps-skill > :last-child { grid-column: 1 / -1; } }
 	@media (max-width: 600px) {
 		.dps-raids { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 		.dps-field { flex: 1 1 100%; justify-content: space-between; }
