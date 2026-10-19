@@ -121,9 +121,9 @@
 
 <div class="flex min-h-0 flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
 	<!-- In the phone drawer this row is also a drag-to-close zone (its toggle buttons still tap). -->
-	<div class="sim-modal-header flex shrink-0 flex-row items-center gap-2 bg-surface-900 px-3 py-2 font-semibold" use:drawerDrag>
-		<div class="flex flex-row items-start">Next Upgrades</div>
-		<div class="ml-auto">
+	<div class="sim-modal-header flex shrink-0 flex-col gap-1.5 bg-surface-900 px-3 py-2 font-semibold" use:drawerDrag>
+		<div>Next Upgrades</div>
+		<div>
 			<Segmented
 				value={dpsRank ? 'dps' : gold.mode}
 				options={[
@@ -133,7 +133,8 @@
 				]}
 				onselect={(mode) => { dpsRank = mode === 'dps'; if (mode === 'cp' || mode === 'gold') setRankMode(mode); }}
 				label="Rank upgrades by"
-				size="h-6 px-2 text-xs"
+				full
+				size="h-7 px-2 text-xs"
 			/>
 		</div>
 	</div>

@@ -15,6 +15,7 @@
 
 	let {
 		dpsMode = false,
+		onmode,
 		initialBuild,
 		sharedBuild = false,
 		name,
@@ -34,6 +35,7 @@
 		onreload
 	}: {
 		dpsMode?: boolean;
+		onmode?: (mode: 'cp' | 'dps') => void;
 		initialBuild?: import('$lib/upgrade-planner/saved-simulations').SavedSimulation;
 		sharedBuild?: boolean;
 		name: string;
@@ -206,8 +208,7 @@
 	</a>
 	<!-- Always shown, so players find saved snapshots before they have any. -->
 	{#if menu.length && onsnapshot && onloadout}
-		<span class="mt-2 text-xs text-surface-400">Starting gear</span>
-		<div class="grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_2rem] max-lg:grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-1.5">
+		<div class="mt-2 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_2rem] max-lg:grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-1.5">
 			<MenuPicker value={pending ?? menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate" full fitMenu mobileDetails>
 				{#snippet trigger()}
 					<!-- Same words for every choice ("Snapshot on 10-11 6620.18"), so picking one never resizes the button; the
@@ -237,8 +238,7 @@
 		{/if}
 	{/if}
 	{#if loadout && simulation}
-		<span class="mt-2 text-xs text-surface-400">Plan</span>
-		<div class="grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_2rem] max-lg:grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-1.5">
+		<div class="mt-2 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_2rem] max-lg:grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-1.5">
 			<SavedSimulations workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} initialId={initialBuild?.id} characterKey={`${region}/${name}`.toLowerCase()} {loadout} state={simulation} onrestore={(state) => simulation = state} />
 		</div>
 	{/if}
@@ -264,6 +264,6 @@
 			</div>
 		{/if}
 		{#if dpsMode && simulation && !sharedBuild}<DpsModePanel {loadout} simState={simulation} characterKey={`${region}/${name}`.toLowerCase()} characterName={name} snapshots={snapshotOptions} />{/if}
-		{#if simulation}<Simulator {dpsMode} restoreInitial={sharedBuild} initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
+		{#if simulation}<Simulator {dpsMode} {onmode} restoreInitial={sharedBuild} initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
 	</div>
 {/if}

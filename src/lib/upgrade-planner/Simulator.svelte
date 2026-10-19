@@ -38,6 +38,7 @@
 	import CpBreakdownDialog from './sim/CpBreakdownDialog.svelte';
 	import { cpBreakdown } from './cp-breakdown';
 	import { PartType } from './cp';
+	import Segmented from './sim/Segmented.svelte';
 	import { SECTIONS, type PreviewEdit, type SectionDelta, type SimSection } from './sim/ui';
 	import { gemParts, initSimState, itemLevel, mainStatIndex, simulate, type SimState } from './simulate';
 	import type { Loadout } from './types';
@@ -45,6 +46,7 @@
 
 	let {
 		dpsMode = false,
+		onmode,
 		loadout,
 		initialState,
 		restoreInitial = false,
@@ -57,6 +59,8 @@
 		edited = $bindable(false)
 	}: {
 		dpsMode?: boolean;
+		/** Switches CP / DPS (the switch shows when given). */
+		onmode?: (mode: 'cp' | 'dps') => void;
 		loadout: Loadout;
 		initialState?: SimState;
 		restoreInitial?: boolean;
@@ -407,6 +411,11 @@
 	</div>
 	<!-- Keep CP visible while the lower sidebar can scroll on shorter screens. -->
 	<div class="flex flex-col gap-2 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start">
+		{#if onmode}
+			<div class="shrink-0 max-lg:hidden">
+				<Segmented label="Simulate" value={dpsMode ? 'dps' : 'cp'} options={[{ value: 'cp', label: 'CP' }, { value: 'dps', label: 'DPS', title: 'Replay one of your own clears from LOA Logs with your edits' }]} onselect={onmode} full size="h-8 px-3 text-sm" />
+			</div>
+		{/if}
 		<div class="shrink-0 max-lg:hidden">{@render summary()}</div>
 		<div class="flex min-h-0 flex-1 flex-col gap-2 lg:overflow-y-auto">
 		<!-- Same card shape as Next Upgrades: a fixed header strip, the links fold away beneath it. -->

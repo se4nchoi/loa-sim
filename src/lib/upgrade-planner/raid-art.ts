@@ -59,8 +59,10 @@ export function raidTone(name: string): string {
 
 /** Difficulty badge colors, like lostark.bible's. */
 export function difficultyTone(difficulty: string): string {
-	if (/nightmare/i.test(difficulty)) return 'bg-fuchsia-500/20 text-fuchsia-300';
-	if (/hard|extreme/i.test(difficulty)) return 'bg-amber-500/20 text-amber-300';
-	if (/level 3/i.test(difficulty)) return 'bg-red-500/20 text-red-300';
-	return 'bg-surface-700 text-surface-200';
+	// A solid dark chip, so the label reads on any raid art.
+	const chip = 'bg-black/80 ring-1';
+	if (/nightmare/i.test(difficulty)) return `${chip} text-fuchsia-300 ring-fuchsia-400/50`;
+	if (/hard|extreme/i.test(difficulty)) return `${chip} text-amber-300 ring-amber-400/50`;
+	if (/level 3/i.test(difficulty)) return `${chip} text-red-300 ring-red-400/50`;
+	return `${chip} text-surface-200 ring-surface-400/40`;
 }

@@ -6,6 +6,7 @@
 		onselect,
 		label,
 		disabled = false,
+		full = false,
 		size = 'h-8 min-w-11 px-2 text-sm'
 	}: {
 		value: T | null;
@@ -13,11 +14,13 @@
 		onselect: (v: T) => void;
 		label: string;
 		disabled?: boolean;
+		/** Fill the row, options sharing it equally. */
+		full?: boolean;
 		size?: string;
 	} = $props();
 </script>
 
-<div class="inline-flex overflow-hidden rounded-xs border border-surface-700 bg-surface-950" role="radiogroup" aria-label={label}>
+<div class="{full ? 'flex w-full' : 'inline-flex'} overflow-hidden rounded-xs border border-surface-700 bg-surface-950" role="radiogroup" aria-label={label}>
 	{#each options as o, i (o.value)}
 		{@const selected = o.value === value}
 		<button
@@ -26,7 +29,7 @@
 			aria-checked={selected}
 			title={o.title}
 			{disabled}
-			class="{size} font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 {i > 0 ? 'border-l border-surface-800' : ''} {selected
+			class="{size} {full ? 'flex-1' : ''} font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 {i > 0 ? 'border-l border-surface-800' : ''} {selected
 				? 'text-white'
 				: 'text-surface-400 hover:bg-surface-800 hover:text-surface-100'}"
 			style:background-color={selected ? (o.color ?? 'var(--color-accent-700)') : undefined}

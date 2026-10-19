@@ -121,7 +121,7 @@
 		<p class="text-sm text-surface-300">No clears of {characterName} in the imported logs. <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
 	{:else}
 		<!-- Raid: one card per raid and difficulty; Guardian raids and other fights in a menu. -->
-		<div class="-mx-1 flex items-end gap-2 overflow-x-auto px-1 pb-2" aria-label="Raids">
+		<div class="-mx-1 flex items-end gap-2 overflow-x-auto px-1 pt-1 pb-2.5" aria-label="Raids">
 			{#each mainRaids as r (r.key)}
 				{@const art = raidArt(r.name)}
 				{@const on = r === raid}
@@ -142,7 +142,7 @@
 		</div>
 
 		<!-- Clear: one by default; the same-gear clears of its gate averaged on request. -->
-		<div class="mb-3 flex flex-wrap items-center gap-2 text-xs">
+		<div class="mt-1.5 mb-3 flex flex-wrap items-center gap-2 text-xs">
 			<select class={select} aria-label="Clear" value={clear.id} onchange={(e) => remember({ clear: Number(e.currentTarget.value) })}>
 				{#each clears as r (r.id)}<option value={r.id}>{clearLabel(r)}</option>{/each}
 			</select>
@@ -151,41 +151,38 @@
 			{/if}
 		</div>
 
-		<!-- Baseline: the clear's own setup (its snapshot) against what's being simulated; without one, its recorded CP. -->
+		<!-- Baseline: the clear's own setup (its snapshot). One status line; what else differs folds away. -->
 		{#if setup}
+			{@const recorded = setup.snap?.combatPower?.score ?? null}
+			{@const build = diff ? [...(diff.cores ? ['Ark Grid cores'] : []), ...diff.passives.map((t) => t.tree), ...diff.other] : []}
 			<div class="mb-3 rounded-xs border border-surface-700 bg-surface-950/50 px-3 py-2 text-xs">
 				<p class="flex flex-wrap items-center gap-x-2 text-surface-300">
 					<span class="font-semibold text-surface-100">This clear's setup</span>
-					{#if setup.snap?.combatPower}<span class="tabular-nums">CP {setup.snap.combatPower.score.toFixed(2)}</span>{/if}
-					{#if clearSetupCp !== null && setup.snap?.combatPower && Math.abs(clearSetupCp / setup.snap.combatPower.score - 1) > 0.002}
-						<span class="text-surface-500 tabular-nums" title="This clear's setup scored by the Simulator from your character page. The snapshot doesn't say which Paradise orb (or power) the clear had, so yours is used.">· {clearSetupCp.toFixed(2)} in the Simulator ({formatPct((clearSetupCp / setup.snap.combatPower.score - 1) * 100)}%)</span>
-					{/if}
-					<a class="text-sky-300 hover:underline" href={bibleSnapshotPage(setup.hash)} target="_blank" rel="noopener">View on lostark.bible ↗</a>
+					{#if recorded}<span class="tabular-nums">CP {recorded.toFixed(2)}</span>{/if}
+					<a class="ml-auto text-sky-300 hover:underline" href={bibleSnapshotPage(setup.hash)} target="_blank" rel="noopener">lostark.bible ↗</a>
 				</p>
 				{#if setup.error}
 					<p class="mt-1 text-amber-300">{setup.error}</p>
 				{:else if !diff}
-					<p class="mt-1 text-surface-400">Loading it from lostark.bible…</p>
+					<p class="mt-1 text-surface-400">Loading…</p>
 				{:else}
-					{#if sameSetupGear(diff) && !diff.cores && !diff.passives.length && !diff.other.length}
-						<p class="mt-1 text-green-400">● Same setup as you're simulating.</p>
+					{#if sameSetupGear(diff)}
+						<p class="mt-1 text-green-400">● Same gear as now</p>
 					{:else}
-						{#if !diff.gear.length && !diff.gems}
-							<p class="mt-1 text-green-400">● Same honing, gems and accessories: your gear edits are valued on the gear you raided in.</p>
-						{:else}
-							<p class="mt-1 text-amber-300">● Gear changed since this clear{diff.gear.length ? `: ${diff.gear.join(', ')}` : ''}{diff.gems ? `${diff.gear.length ? ' and' : ':'} gems` : ''}. The meter starts from the clear's gear, so those changes count along with your edits.</p>
-						{/if}
-						{#if diff.cores || diff.passives.length || diff.other.length}
-							<ul class="mt-1.5 space-y-0.5 text-surface-300">
+						<p class="mt-1 text-amber-300">● Gear changed since: {[...diff.gear, ...(diff.gems ? ['Gems'] : [])].join(', ')} <span class="text-surface-400">(counted in the meter)</span></p>
+					{/if}
+					{#if build.length}
+						<details class="mt-0.5 text-surface-400">
+							<summary class="cursor-pointer select-none hover:text-surface-200">Different build: {build.join(', ')} <span class="text-surface-500">(not valued yet)</span></summary>
+							<ul class="mt-1 space-y-0.5 pl-3 text-surface-300">
 								{#each diff.passives as t (t.tree)}
-									<li><span class="text-surface-400">{t.tree}:</span> {t.clear.join(', ') || 'other levels'} <span class="text-surface-500">in this clear · now</span> {t.now.join(', ') || 'other levels'}</li>
+									<li><span class="text-surface-400">{t.tree}:</span> {t.clear.join(', ') || 'other levels'} <span class="text-surface-500">→ now</span> {t.now.join(', ') || 'other levels'}</li>
 								{/each}
-								{#if diff.cores}<li><span class="text-surface-400">Ark Grid cores:</span> {diff.cores.clear.join(', ')} <span class="text-surface-500">in this clear · now</span> {diff.cores.now.join(', ')}</li>{/if}
-								{#if diff.other.length}<li><span class="text-surface-400">Also different:</span> {diff.other.join(', ')}</li>{/if}
+								{#if diff.cores}<li><span class="text-surface-400">Ark Grid:</span> {diff.cores.clear.join(', ')} <span class="text-surface-500">→ now</span> {diff.cores.now.join(', ')}</li>{/if}
+								{#each clearSetup?.notes ?? [] as note (note)}<li class="text-surface-400">{note}</li>{/each}
+								{#if clearSetupCp !== null && recorded}<li class="text-surface-500 tabular-nums">Simulator CP for this setup: {clearSetupCp.toFixed(2)} ({formatPct((clearSetupCp / recorded - 1) * 100)}%)</li>{/if}
 							</ul>
-							<p class="mt-1 text-surface-500">The clear's recorded damage already has these. The meter can't value the change yet.</p>
-							{#each clearSetup?.notes ?? [] as note (note)}<p class="mt-0.5 text-surface-500">{note}</p>{/each}
-						{/if}
+						</details>
 					{/if}
 				{/if}
 			</div>

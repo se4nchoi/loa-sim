@@ -53,3 +53,11 @@ logs. Ordered by how much each item helps a player understand the page. Suggeste
   "Updating…" spinner for that reload. See `docs/dps-workspace-flow.md` for how the page works.
 - Also pushed and unmerged: `codex/snapshot-engraving-audit` (storage validation, shared engraving catalog) and
   `codex/market-api` (market price imports).
+
+## To do: UX-centric audit of DPS mode (asked 10-19)
+
+The user wants a pass on DPS mode's wording and layout as a whole, later: refine the text throughout, and audit
+placement (buttons, the raid row, the clear select, the setup card, the "not in the meter" line, Re-import logs).
+Done on 10-19 already: no "Starting gear" / "Plan" labels, CP/DPS switch on top of the right column (phones keep it
+above the page), Next Upgrades ranking on its own row, the setup card down to a status line plus a folded
+"Different build" line, solid difficulty chips on the raid art, the raid row no longer clipping the clear select.

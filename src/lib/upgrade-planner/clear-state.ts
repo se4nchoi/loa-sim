@@ -5,7 +5,8 @@
 // spent, not which nodes, so a different build (Full Moon Harvester vs Night's Edge) doesn't move CP here.
 import type { ClearSnapshot } from '$lib/bible-data';
 import { GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
-import { coreVariant, GEM_EFFECT_TYPE, initSimState, type SimCore, type SimState } from './simulate';
+import { orbChoices, orbName } from './paradise';
+import { coreVariant, GEM_EFFECT_TYPE, initSimState, simulate, type SimCore, type SimState } from './simulate';
 import { decodeCore } from './tables';
 import { STONE_LEVEL_NODES } from './stones';
 import type { Loadout } from './types';
@@ -14,6 +15,8 @@ export interface ClearState {
 	state: SimState;
 	/** What couldn't be carried over ("Paradise orb isn't in the snapshot"). */
 	notes: string[];
+	/** The Paradise orb read from the clear's recorded CP (a snapshot doesn't name it), or null if kept. */
+	orb: number | null;
 }
 
 const books = (e: { grade?: string; progress?: number }) =>
@@ -72,6 +75,21 @@ export function clearState(loadout: Loadout, snap: ClearSnapshot): ClearState {
 		});
 	} else if (gems.length) notes.push("The clear had a different number of gems; the loadout's gems are kept.");
 
-	if (base.paradise) notes.push("The snapshot doesn't include the Paradise orb; the loadout's is kept.");
-	return { state, notes };
+	// Paradise: a snapshot doesn't name the orb, but its recorded CP does, nearly. Paradise power only grows, so at
+	// today's power the clear's orb scores at or a little above the recorded CP: the closest orb from there up to 1%
+	// over is taken (a raid orb such as Blazing Sun, against a CP setup's Spreading Mist).
+	let orb: number | null = null;
+	const recorded = snap.combatPower?.score;
+	if (base.paradise && !base.paradise.flat && recorded) {
+		const fit = orbChoices(base.paradise)
+			.map((id) => ({ id, over: simulate(loadout, { ...state, paradise: { ...base.paradise!, orb: id } }, base).cp / recorded - 1 }))
+			.filter((o) => o.over >= -0.0005 && o.over <= 0.01)
+			.sort((a, b) => a.over - b.over)[0];
+		if (fit && fit.id !== base.paradise.orb) {
+			orb = fit.id;
+			state.paradise = { ...base.paradise, orb: fit.id };
+			notes.push(`Paradise orb: ${orbName(fit.id)}, from the clear's CP (a snapshot doesn't name it).`);
+		} else if (!fit) notes.push("The snapshot doesn't name the Paradise orb; yours is used.");
+	}
+	return { state, notes, orb };
 }
