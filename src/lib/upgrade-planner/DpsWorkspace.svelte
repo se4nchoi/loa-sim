@@ -20,6 +20,7 @@
 	import { CATEGORY_LABELS, type Upgrade } from './upgrades';
 	import { formatDate, formatPct } from './format';
 	import { className } from './class-names';
+	import { classColor } from './class-colors';
 	import { iconUrl, itemLook, coreLook, bracerLook, engravingIcon, GOLD_ICON } from './icons';
 	import { decodeCore } from './tables';
 	import type { BracerGrade } from './bracer';
@@ -456,7 +457,7 @@
 					{/if}
 				</div>
 				{#if skills.length}
-					<section class="dps-panel min-w-0" aria-label="Your skills in these clears">
+					<section class="dps-panel min-w-0" aria-label="Your skills in these clears" style:--class-color={classColor(loadout.classId) ?? 'var(--color-accent-500)'}>
 						<div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-surface-800 p-3"><h2 class="font-semibold">Your skills in these clears</h2><span class="text-xs text-surface-400">Same measures as LOA Logs, over {runs.length} {runs.length === 1 ? 'clear' : 'clears'}; ranges are lowest–highest in one clear.</span></div>
 						<div class="dps-skill dps-skill-head text-xs text-surface-400"><span>Skill</span><span class="text-right" title="Share of your damage">D%</span><span class="text-right" title="Share of the fight the skill was on cooldown">CDR%</span><span class="dps-skill-extra text-right">Casts</span><span class="dps-skill-extra text-right" title="Casts per minute">CPM</span><span class="dps-skill-extra text-right">Crit</span><span>Gems · next level</span></div>
 						{#each skillRows as row (row.id)}
@@ -501,7 +502,7 @@
 	.dps-worth dd { font-variant-numeric: tabular-nums; white-space: nowrap; }
 	.dps-skill { display: grid; grid-template-columns: minmax(0, 1fr) 4rem 4rem 3.5rem 3.5rem 4rem minmax(9rem, 13rem); gap: .6rem; align-items: center; padding: .45rem .8rem; }
 	.dps-skill-head { padding-block: .5rem; }
-	.dps-skill-row { border-top: 1px solid var(--color-surface-800); background: linear-gradient(90deg, color-mix(in oklab, var(--color-accent-700) 22%, transparent) var(--share), transparent var(--share)); }
+	.dps-skill-row { border-top: 1px solid var(--color-surface-800); background: linear-gradient(90deg, color-mix(in oklab, var(--class-color) 30%, transparent) var(--share), transparent var(--share)); }
 	.dps-gem { display: inline-flex; gap: .2rem; border: 1px solid var(--color-surface-700); border-radius: 2px; padding: 0 .35rem; font-size: .72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 	button.dps-gem:hover { border-color: var(--color-accent-400); }
 	.dps-raids { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .6rem; }
