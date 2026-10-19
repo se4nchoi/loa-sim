@@ -9,6 +9,8 @@ export interface LoggedRunSkill {
 	totalDamage?: number; total_damage?: number; critDamage?: number;
 	hits?: number; crits?: number; casts?: number; timeAvailable?: number;
 	gemDamage?: number; gemCooldown?: number;
+	/** Damage dealt under each buff, by buff id. */
+	buffedBy?: Record<string, number>;
 }
 
 export interface LoggedEntity {
@@ -19,9 +21,19 @@ export interface LoggedEntity {
 	engravings?: unknown;
 	arkPassiveData?: unknown;
 	loadoutHash?: unknown;
+	/** Buff ids the encounter lists as Ark Grid buffs; their damage per skill is kept. */
+	arkGridBuffs?: Set<number>;
 }
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+/** The skill's damage under the encounter's Ark Grid buffs; nothing when the import didn't read the buffs. */
+function arkGridOf(s: LoggedRunSkill, buffs: Set<number> | undefined): { arkGrid?: Record<number, number> } {
+	if (!buffs) return {};
+	const out: Record<number, number> = {};
+	for (const [id, damage] of Object.entries(s.buffedBy ?? {})) if (buffs.has(Number(id)) && num(damage)) out[Number(id)] = damage;
+	return { arkGrid: out };
+}
 
 /** null when the player dealt no skill damage in the run. */
 export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknown, names: Record<number, [string, string]>): RunSummary | null {
@@ -35,7 +47,8 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 			id, damage, critDamage: num(s.critDamage) ?? 0, hits: num(s.hits) ?? 0, crits: num(s.crits) ?? 0, casts: num(s.casts) ?? 0,
 			...(num(s.timeAvailable) !== null ? { timeAvailable: s.timeAvailable } : {}),
 			...(num(s.gemDamage) !== null ? { damageGem: s.gemDamage } : {}),
-			...(num(s.gemCooldown) !== null ? { cooldownGem: s.gemCooldown } : {})
+			...(num(s.gemCooldown) !== null ? { cooldownGem: s.gemCooldown } : {}),
+			...arkGridOf(s, entity.arkGridBuffs)
 		});
 	}
 	if (!skills.length) return null;

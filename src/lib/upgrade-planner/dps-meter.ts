@@ -5,14 +5,17 @@
 //   - damage gems: their skills only (and a T4 gem's base attack, for every skill);
 //   - cooldown gems: their skills cast more often, as far as the clear had them on cooldown (LOA Logs' time
 //     available); skills without that record are listed, not counted;
-//   - anything else (Ark Grid, karma, engravings, Paradise) isn't valued yet: listed, not counted.
+//   - order Ark Grid cores (with the model loaded, see ark-grid-dps.ts): their skill group and Destiny damage;
+//   - anything else (chaos cores, astrogem options, karma, engravings, Paradise) isn't valued yet: listed, not counted.
 import type { RunSummary } from '$lib/logs/protocol';
 import { critRates } from './dps-comparison';
 import { baseAttackOf, gemMembers, planModel, skillEffect } from './dps-explain';
 import { modelGain } from './dps-model';
 import { gateSample } from './dps-gates';
 import { statDeltasAtLeast } from './dps-stats';
+import type { orderCoreEffect } from './ark-grid-dps';
 import type { SimState } from './simulate';
+import { decodeCore } from './tables';
 import type { Loadout } from './types';
 
 export interface MeterSkill {
@@ -41,7 +44,11 @@ const STAT_KEYS = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'qualit
 const LABELS: Partial<Record<keyof SimState, string>> = { arkGrid: 'Ark Grid', karma: 'Karma', engravings: 'Engravings', paradise: 'Paradise' };
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
-export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buildRuns: RunSummary[], runs: RunSummary[]): Meter | null {
+/** The Ark Grid without what the order core model values (which order core, its grade, its points). */
+const arkGridRest = (s: SimState) =>
+	s.arkGrid.map((c) => (decodeCore(c.as ?? c.id)?.attr === 'order' ? c.gems.map((g) => (g.removed ? null : g.opts)) : c));
+
+export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buildRuns: RunSummary[], runs: RunSummary[], arkGrid?: typeof orderCoreEffect): Meter | null {
 	if (!runs.length) return null;
 	const notes: string[] = [];
 	const notInMeter: string[] = [];
@@ -51,7 +58,9 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	for (const key of Object.keys(state) as (keyof SimState)[]) {
 		if (STAT_KEYS.has(key)) continue;
 		if (!same(state[key], base[key])) {
-			if (key !== 'gems') notInMeter.push(LABELS[key] ?? key);
+			if (key === 'arkGrid' && arkGrid) {
+				if (!same(arkGridRest(state), arkGridRest(base))) notInMeter.push('Chaos cores and astrogem options');
+			} else if (key !== 'gems') notInMeter.push(LABELS[key] ?? key);
 			(statState as unknown as Record<string, unknown>)[key] = structuredClone(base[key]);
 		}
 	}
@@ -88,14 +97,17 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	const crit = critRates(runs);
 	const bySkill = new Map<number, MeterSkill>();
 	let before = 0, after = 0, durationMs = 0, statWeighted = 0, statKnown = true;
+	const unvalued = new Set<string>();
 	runs.forEach((run, i) => {
 		const gain = hasStats ? modelGain(delta, { ...model, critRate: crit.perRun[i] }).gainPct : 0;
 		if (gain === null) statKnown = false;
 		const stat = 1 + (gain ?? 0) / 100;
 		statWeighted += run.damage * (gain ?? 0);
 		durationMs += run.duration;
+		const cores = arkGrid && !same(state.arkGrid, base.arkGrid) ? arkGrid(loadout, base, state, run) : null;
+		for (const u of cores?.unvalued ?? []) unvalued.add(u);
 		for (const skill of run.skills) {
-			const gems = gemEffects.reduce((m, g) => (g.skills.has(skill.id) ? m * (1 + g.pct / 100) : m), 1);
+			const gems = gemEffects.reduce((m, g) => (g.skills.has(skill.id) ? m * (1 + g.pct / 100) : m), 1) * (cores?.factor(skill) ?? 1);
 			const row = bySkill.get(skill.id) ?? { id: skill.id, before: 0, after: 0 };
 			row.before += skill.damage;
 			row.after += skill.damage * stat * gems;
@@ -107,6 +119,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	// Damage outside the per-skill list (if any) is scaled by the stat part alone.
 	const listed = [...bySkill.values()].reduce((sum, r) => sum + r.before, 0);
 	if (before > listed) after += (before - listed) * (1 + statWeighted / Math.max(1, before) / 100);
+	if (unvalued.size) notes.push(`Ark Grid, not valued yet: ${[...unvalued].join(' · ')}`);
 	if (hasStats && !statKnown) notes.push("Stat edits need a clear recorded with LOA Logs' stat values (low performance mode off); they're left out.");
 	return {
 		before, after, durationMs,

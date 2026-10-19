@@ -166,6 +166,12 @@ export interface SimCore {
 	/** Swapped core type: another grade, or (chaos) another option (id variant digit). Unset = the equipped core. */
 	grade?: CoreGrade;
 	variant?: number;
+	/**
+	 * The order core actually played in this slot when it isn't the loadout's (a clear's setup: Footsteps of the Dead
+	 * where the character page has Moonlit Midnight). Combat Power doesn't see it (an order core's battle points follow
+	 * shape, grade and points); the DPS meter values its effects.
+	 */
+	as?: number;
 }
 
 /** The id's option variant digit (chaos: sun 0 Flashy / 1 Stable / 2 Swift, moon 0 Smoldering / 1 Absorbing / 2 Crushing, star 0 Attack / 1 Weapon). */

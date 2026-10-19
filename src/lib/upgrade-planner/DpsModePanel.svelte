@@ -26,14 +26,22 @@
 	import Segmented from './sim/Segmented.svelte';
 	import type { Loadout } from './types';
 
-	let { loadout, simState, characterKey, characterName, snapshots = [] }: {
+	let { loadout, simState, characterKey, characterName, snapshots = [], onsimulate }: {
 		loadout: Loadout;
 		/** The Simulator's live edit state. */
 		simState: SimState;
 		characterKey: string;
 		characterName: string;
 		snapshots?: SnapshotOption[];
+		/** Puts a state into the Simulator (the clear's setup). */
+		onsimulate?: (state: SimState) => void;
 	} = $props();
+
+	// The order core model: a large table, so it loads with DPS mode.
+	let arkGridModel = $state<typeof import('./ark-grid-dps') | null>(null);
+	$effect(() => {
+		import('./ark-grid-dps').then((m) => (arkGridModel = m));
+	});
 
 	$effect(() => {
 		loadRuns(characterKey);
@@ -103,7 +111,7 @@
 	// The clear's setup as a Simulator state: the meter's baseline, so gear changed since the clear counts with the edits.
 	const clearSetup = $derived(setup?.snap && setup.hash === clear?.loadoutHash ? clearState(loadout, setup.snap) : null);
 	const clearSetupCp = $derived(clearSetup ? simulate(loadout, clearSetup.state, base).cp : null);
-	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, plain, buildRuns, runs) : null);
+	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, plain, buildRuns, runs, arkGridModel?.orderCoreEffect) : null);
 
 	const gate = (r: RunSummary) => raidGateOf(r.boss)?.gate;
 	const time = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
@@ -169,7 +177,10 @@
 				<p class="flex flex-wrap items-center gap-x-2 text-surface-300">
 					<span class="font-semibold text-surface-100">This clear's setup</span>
 					{#if recorded}<span class="tabular-nums">CP {recorded.toFixed(2)}</span>{/if}
-					<a class="ml-auto text-sky-300 hover:underline" href={bibleSnapshotPage(setup.hash)} target="_blank" rel="noopener">lostark.bible ↗</a>
+					{#if clearSetup && onsimulate}
+						<button type="button" class="ml-auto rounded-xs border border-accent-500/70 bg-accent-700/30 px-2 py-0.5 font-semibold text-accent-100 hover:bg-accent-700/60" title="Load this clear's gear, cores and gems into the Simulator, so your edits start from what you raided with (Undo brings yours back)" onclick={() => onsimulate(structuredClone($state.snapshot(clearSetup.state)) as SimState)}>Simulate from this setup</button>
+					{/if}
+					<a class="{clearSetup && onsimulate ? '' : 'ml-auto'} text-sky-300 hover:underline" href={bibleSnapshotPage(setup.hash)} target="_blank" rel="noopener">lostark.bible ↗</a>
 				</p>
 				{#if setup.error}
 					<p class="mt-1 text-amber-300">{setup.error}</p>

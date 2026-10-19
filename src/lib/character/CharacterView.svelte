@@ -263,7 +263,7 @@
 				</div>
 			</div>
 		{/if}
-		{#if dpsMode && simulation && !sharedBuild}<DpsModePanel {loadout} simState={simulation} characterKey={`${region}/${name}`.toLowerCase()} characterName={name} snapshots={snapshotOptions} />{/if}
+		{#if dpsMode && simulation && !sharedBuild}<DpsModePanel {loadout} simState={simulation} characterKey={`${region}/${name}`.toLowerCase()} characterName={name} snapshots={snapshotOptions} onsimulate={(s) => (simulation = s)} />{/if}
 		{#if simulation}<Simulator {dpsMode} {onmode} restoreInitial={sharedBuild} initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
 	</div>
 {/if}

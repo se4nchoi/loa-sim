@@ -83,3 +83,18 @@ live logs (Serca NM 10-17: weapon +1 → +0.95%, Gluttony damage gem 9 → 10 �
   Apply does), which would also check the engine (CP mode should land near 6523).
 - Same CP can carry different hashes (two 6620.18 clears), so averaging "same gear" clears should compare snapshots'
   gear rather than hashes.
+
+## Step 3, first part: order Ark Grid cores (10-19)
+
+- `scripts/bake-order-cores.mjs` → `order-cores.ts`: every order core's bonuses by points and grade, effects parsed into
+  always-on "<groups> Skill Damage / Damage to foes +a%" and Destiny effects (tied to their buff in the logs); the rest
+  kept as text and named in the meter as not valued.
+- Imports now keep each skill's damage under the encounter's Ark Grid buffs (`RunSkill.arkGrid`); older imports need
+  "Re-import logs" for Destiny effects.
+- `ark-grid-dps.ts`: per skill, (1 + new) / (1 + old) for always-on effects, and for Destiny effects only on the share
+  of the skill's damage dealt under that buff. A Destiny effect the clear never had isn't placed.
+- The clear's setup keeps its real order cores (`SimCore.as`); "Simulate from this setup" loads it into the Simulator.
+- Check on Soulshan's Serca G1 10-17: Footsteps of the Dead relic → ancient ≈ +1.43% (+12.2m), Astaros +4.25%.
+- Approximations: LOA Logs counts every hit while the buff is up; the "2 casts in Deathlord Mode" limit is taken as
+  what the buff's own uptime already reflects. "In Deathlord Mode" always-on effects, cooldown effects and chaos cores /
+  astrogem options are not valued yet.

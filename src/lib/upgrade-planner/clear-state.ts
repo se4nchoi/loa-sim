@@ -45,6 +45,7 @@ export function clearState(loadout: Loadout, snap: ClearSnapshot): ClearState {
 		const was = decodeCore(core.id), now = decodeCore(match.id);
 		if (was && now && now.grade !== was.grade) out.grade = now.grade;
 		if (now?.attr === 'chaos' && coreVariant(match.id) !== coreVariant(core.id)) out.variant = coreVariant(match.id);
+		if (now?.attr === 'order' && String(match.id).slice(0, 8) !== String(core.id).slice(0, 8)) out.as = match.id;
 		return out;
 	});
 

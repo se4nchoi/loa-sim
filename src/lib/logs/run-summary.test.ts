@@ -36,3 +36,12 @@ describe('run summary', () => {
 		expect(old.arkGridOrder).toBeUndefined();
 	});
 });
+
+describe('Ark Grid buffs', () => {
+	it('keeps each skill\'s damage under the encounter\'s Ark Grid buffs only', () => {
+		const row = { id: 1, start: 1, boss: 'Serca', difficulty: 'Nightmare', cleared: true, player: 'Soulshan', duration: 1000 };
+		const r = runSummary(row, { skills: { a: { id: 46430, totalDamage: 10, buffedBy: { '3461200': 6, '210230': 9 } } }, arkGridBuffs: new Set([3461200]) }, null, {})!;
+		expect(r.skills[0].arkGrid).toEqual({ 3461200: 6 });
+		expect(runSummary(row, { skills: { a: { id: 46430, totalDamage: 10 } } }, null, {})!.skills[0].arkGrid).toBeUndefined();
+	});
+});

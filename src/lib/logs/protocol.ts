@@ -97,6 +97,8 @@ export interface RunSkill {
 	/** Gem levels the meter saw on this skill. */
 	damageGem?: number;
 	cooldownGem?: number;
+	/** Damage dealt while each Ark Grid buff was up ("Destiny: Footsteps of the Dead"), by buff id; unknown on old imports. */
+	arkGrid?: Record<number, number>;
 }
 
 /** One cleared run of the player, compact enough to keep hundreds in browser storage. */
