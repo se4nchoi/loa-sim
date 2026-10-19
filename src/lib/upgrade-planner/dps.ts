@@ -11,7 +11,7 @@
 // u = 1 (always cast off cooldown) is the optimistic 1 / k; u = 0 means cooldown gems add nothing.
 
 import { GEM_EFFECTS, GEM_SKILL_GROUPS } from './game-data';
-import type { GemPart, SimGem } from './simulate';
+import { gemsInEffect, type GemPart, type SimGem } from './simulate';
 
 /** Map logged member skills to gem groups; shares add, cooldown use takes the busiest member. */
 export function withGemGroups(gems: SimGem[], values: Record<number, number>, combine: 'sum' | 'max' = 'sum'): Record<number, number> {
@@ -31,9 +31,11 @@ const effect = (gem: SimGem, tier: 'T4' | 'T3') => (GEM_EFFECTS[tier][gem.kind][
 /** Per skill: damage multiplier and the share of its cooldown that remains (Π(1 − cd%)). */
 function skillGems(gems: SimGem[], parts: GemPart[]): Map<number, { damage: number; cooldown: number }> {
 	const out = new Map<number, { damage: number; cooldown: number }>();
+	const on = gemsInEffect(gems);
 	gems.forEach((g, i) => {
 		const tier = g.tier ?? parts[i]?.tier;
-		if (g.skill === null || !tier) return;
+		// A second gem of the same kind on a skill does nothing (the game deactivates it).
+		if (g.skill === null || !tier || !on[i]) return;
 		const e = effect(g, tier);
 		const s = out.get(g.skill) ?? { damage: 1, cooldown: 1 };
 		if (g.kind === 'damage') s.damage *= 1 + e;

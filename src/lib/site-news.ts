@@ -15,10 +15,35 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-10-18',
+		kind: 'fix',
+		title: 'Simulator fix',
+		points: ['Fixed simulator showing wrong engraving for saved snapshots in certain scenarios.']
+	},
+	{
+		date: '2026-10-17',
+		kind: 'new',
+		title: 'Character list',
+		points: [
+			'Reorder characters by drag and drop.',
+			'Pin simulations to a quick-access list for each character. Pinned simulations preserve their original snapshot.'
+		]
+	},
+	{
+		date: '2026-10-17',
+		kind: 'new',
+		title: 'Shareable links',
+		points: [
+			'Character links now load the character even if it is not saved in your browser.',
+			'Share your current simulation as a link that preserves its snapshot and changes. Links expire after 30 days.',
+			'Sharing links replaces JSON export and import.'
+		]
+	},
+	{
 		date: '2026-10-13',
 		kind: 'new',
 		title: 'Saved simulations',
-		points: ['Save named simulations (saved to your browser).', 'Import/export in JSON available, with option to load from a simulation.']
+		points: ['Save named simulations (saved to your browser).', 'Pin saved simulations to your character list for quick access.']
 	},
 	{
 		date: '2026-10-13',
@@ -141,6 +166,11 @@ export interface SiteIssue {
 // - 2026-10-12 "CP lower than your gear" (known issue: bible lists only two loadouts, neither may have your gear) and
 //   "Pick from saved snapshots" (planned): both resolved by Saved snapshots (snapshot-history.ts).
 export const ISSUES: SiteIssue[] = [
+	{
+		status: 'in progress',
+		title: 'Market API',
+		points: ['Testing honing material prices from loa-buddy.']
+	},
 	{
 		status: 'investigating',
 		title: 'Pet ranch CP',

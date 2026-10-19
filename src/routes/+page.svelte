@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import SortableCharacters from '$lib/SortableCharacters.svelte';
+	import ReorderRow from '$lib/ReorderRow.svelte';
+ import { ordered, readOrder, writeOrder, mergeVisibleOrder, type CharacterSection } from '$lib/character-order';
+ import { savedSimulations, pinSimulation, simulationCP, type SavedSimulation } from '$lib/upgrade-planner/saved-simulations';
+ import { page } from '$app/state';
 	import { ROSTER_TTL_MS, bibleToken, cachedRoster, completeSignIn, fetchRoster, hiddenRosterKeys, saveHiddenRosterKeys, signOut, startSignIn, type RosterCharacter } from '$lib/bible-oauth';
 	import { REGIONS, bibleDataUrl, parseCharacterInput, parsePastedData, type Region } from '$lib/bible-data';
 	import { preferredRegion, saveRegion } from '$lib/region-preference';
@@ -10,9 +14,21 @@
 	import { onMount } from 'svelte';
 	import SiteNews from '$lib/SiteNews.svelte';
 	import SiteNewsStrip from '$lib/SiteNewsStrip.svelte';
-	import ImportSimulation from '$lib/ImportSimulation.svelte';
 
-	let region = $state<Region>('NA');
+	let orders = $state<Record<CharacterSection, string[]>>({roster: [], characters: []});
+ let builds = $state<SavedSimulation[]>([]);
+ function changeOrder(section: CharacterSection, ids: string[]) {
+  try { writeOrder(section, ids); orders[section] = ids; } catch (e) { error = (e as Error).message; }
+ }
+ function reorder(section: CharacterSection, ids: string[]) {
+  const all = section === 'roster' ? ordered(roster ?? [], orders.roster) : ordered(saved.filter(c => !rosterKeys.has(characterKey(c))), orders.characters);
+  changeOrder(section, mergeVisibleOrder(all.map(characterKey), ids));
+ }
+ function unpin(id: string) {
+  try { pinSimulation(id, false); builds = savedSimulations().filter(s => s.pinned); }
+  catch (e) { error = (e as Error).message; }
+ }
+ let region = $state<Region>('NA');
 	let input = $state('');
 	let pasted = $state('');
 	let error = $state<string | null>(null);
@@ -58,6 +74,8 @@
 
 	onMount(async () => {
 		saved = listSavedCharacters();
+		orders = {roster: readOrder('roster'), characters: readOrder('characters')};
+		builds = savedSimulations().filter(s => s.pinned);
 		hidden = hiddenRosterKeys();
 		region = preferredRegion(page.url.searchParams.get('region'));
 		saveRegion(region);
@@ -94,9 +112,9 @@
 	const savedByKey = $derived(new Map(saved.map((c) => [characterKey(c), c])));
 	const rosterKeys = $derived(new Set((roster ?? []).map((c) => characterKey(c))));
 	/** Characters loaded by name (or pasted) that aren't on the synced roster. */
-	const typed = $derived(saved.filter((c) => !rosterKeys.has(characterKey(c))));
+	const typed = $derived(ordered(saved.filter((c) => !rosterKeys.has(characterKey(c))), orders.characters));
 	const hiddenSet = $derived(new Set(hidden));
-	const shownRoster = $derived((roster ?? []).filter((c) => showHidden || !hiddenSet.has(characterKey(c))));
+	const shownRoster = $derived(ordered(roster ?? [], orders.roster).filter((c) => showHidden || !hiddenSet.has(characterKey(c))));
 	const hiddenCount = $derived((roster ?? []).filter((c) => hiddenSet.has(characterKey(c))).length);
 	const rosterPending = $derived(booting || (signedIn && roster === null && !rosterError));
 	// Remember the roster's height (rows plus the "hidden · show" line) for next time's skeleton.
@@ -218,7 +236,8 @@
 {#snippet row(c: { region: string; name: string }, classId: string | undefined, ilvl: number | undefined, cp: { score: number; support: boolean } | undefined, note: string | undefined, dismiss: { label: string; icon: 'hide' | 'show' | 'remove'; run: () => void } | null, muted = false)}
 	{@const key = characterKey(c)}
 	{@const have = savedByKey.get(key)}
-	<div class="flex flex-row items-center gap-3 px-3 py-2 {muted ? 'bg-black/20 [&>:not(:last-child)]:opacity-40' : ''}">
+ <ReorderRow label={c.name}>
+ <div class="flex flex-row items-center gap-3 px-3 py-2 {muted ? 'bg-black/20 [&>:not(:last-child)]:opacity-40' : ''}">
 		{#if classIconUrl(classId)}
 			<img src={classIconUrl(classId)} alt={className(classId!)} title={className(classId!)} class="size-9 shrink-0" />
 		{:else}
@@ -249,7 +268,19 @@
 				{/if}
 			</button>
 		{/if}
-	</div>
+ </div>
+ {#if !muted}
+  {#each builds.filter(s => s.characterKey === key) as build (build.id)}
+   {@const score = simulationCP(build)}
+   <div class="mb-2 ml-3 mr-3 flex min-w-0 items-center gap-2 border-l border-accent-400/30 pl-3 text-xs">
+    <a class="flex min-w-0 items-center gap-2 py-1 hover:text-accent-200" href={`/sim?c=${encodeURIComponent(key)}&build=${encodeURIComponent(build.id)}`}>
+     <span class="truncate">{build.name}</span><span class="tabular-nums {build.loadout.combatPower?.id === 2 ? 'text-green-400' : 'text-red-400'}">{score.toFixed(2)}</span>
+    </a>
+    <button type="button" class="flex size-8 shrink-0 items-center justify-center rounded-xs text-lg text-surface-400 hover:bg-surface-800 hover:text-surface-100" aria-label={`Unpin ${build.name}`} title="Unpin build" onclick={() => unpin(build.id)}>×</button>
+   </div>
+  {/each}
+ {/if}
+ </ReorderRow>
 {/snippet}
 
 <!-- Desktop: the characters column with Updates as a side card (like the simulator's CP card); phones get a folded
@@ -262,7 +293,7 @@
 		<p class="text-sm text-surface-300">Load a character, change its gear, and see what each change does to Combat Power.</p>
 		<ul class="list-disc pl-5 text-xs text-surface-400">
 			<li>Uses only what lostark.bible already shows publicly for a character.</li>
-			<li>Nothing is saved anywhere except your browser: loaded characters, your roster and your edits stay on this device.</li>
+			<li>Characters, your roster and edits stay in your browser. Sharing creates a public build link that expires in 30 days.</li>
 		</ul>
 	</div>
 
@@ -282,7 +313,6 @@
 			{loading && target && loading === characterKey(target) ? 'Loading…' : 'Load'}
 		</button>
 	</form>
-	<ImportSimulation />
 	{#if input && !target}<span class="-mt-2 text-sm text-red-400">Enter a character name, or a lostark.bible/character/… link.</span>{/if}
 	{#if error}
 		<p class="-mt-2 text-sm text-red-400">{error}</p>
@@ -326,7 +356,8 @@
 		{:else if roster?.length === 0}
 			<p class="px-3 py-3 text-sm text-surface-400">No characters on your linked rosters yet.</p>
 		{:else if roster}
-			{#each shownRoster as c (characterKey(c))}
+			<SortableCharacters characters={shownRoster} group="roster" onorder={ids => reorder('roster', ids)}>
+ {#snippet children(c)}
 				{@const have = savedByKey.get(characterKey(c))}
 				{@const isHidden = hiddenSet.has(characterKey(c))}
 				{@render row(
@@ -340,12 +371,16 @@
 						: { label: 'Hide', icon: 'hide', run: () => setHidden(characterKey(c), true) },
 					isHidden
 				)}
-			{/each}
+			{/snippet}
+ </SortableCharacters>
+ <div class="flex min-h-10 items-center justify-between gap-3 px-3 py-2">
 			{#if hiddenCount}
-				<button type="button" class="px-3 py-2 text-left text-xs {showHidden ? 'font-semibold text-accent-300 hover:text-accent-200' : 'text-surface-400 hover:text-surface-100'}" onclick={() => (showHidden = !showHidden)}>
+				<button type="button" class="text-left text-xs {showHidden ? 'font-semibold text-accent-300 hover:text-accent-200' : 'text-surface-400 hover:text-surface-100'}" onclick={() => (showHidden = !showHidden)}>
 					{showHidden ? '✓ Confirm' : `${hiddenCount} hidden · show`}
 				</button>
 			{/if}
+ {#if orders.roster.length}<button type="button" class="ml-auto text-xs text-surface-300 underline decoration-surface-600 underline-offset-4 hover:text-surface-100" onclick={() => changeOrder('roster', [])}>Reset order</button>{/if}
+ </div>
 		{/if}
 		{#if rosterError}<p class="px-3 py-3 text-sm text-red-400">{rosterError}</p>{/if}
 	</section>
@@ -355,7 +390,8 @@
 		<section class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 			<div class="bg-black/10 px-3 py-2 font-bold">Characters</div>
 			{#if loadingNew}{@render skeleton()}{/if}
-			{#each typed as c (characterKey(c))}
+			<SortableCharacters characters={typed} group="characters" onorder={ids => reorder('characters', ids)}>
+ {#snippet children(c)}
 				{@render row(
 					c,
 					c.loadout?.classId,
@@ -364,7 +400,9 @@
 					`loaded ${ago(c.savedAt)}`,
 					{ label: 'Remove', icon: 'remove', run: () => remove(c) }
 				)}
-			{/each}
+ {/snippet}
+ </SortableCharacters>
+ {#if orders.characters.length}<div class="flex justify-end px-3 py-2"><button type="button" class="text-xs text-surface-300 underline decoration-surface-600 underline-offset-4 hover:text-surface-100" onclick={() => changeOrder('characters', [])}>Reset order</button></div>{/if}
 		</section>
 	{/if}
 

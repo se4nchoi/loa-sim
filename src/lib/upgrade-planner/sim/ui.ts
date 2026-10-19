@@ -80,6 +80,8 @@ export interface MenuOption<V> {
 	suffix?: { label: string; color?: string };
 	/** Muted text in its own column after the label (e.g. a snapshot's date). */
 	note?: string;
+	/** Small tags after the label (e.g. the gem kinds a skill already holds); `class` styles each one. */
+	chips?: { label: string; class: string }[];
 	/** A value in its own right-aligned column (e.g. a snapshot's CP), so values line up down the list. */
 	detail?: { label: string; color?: string };
 	/** A small ▲ in this color in a slot before the label (e.g. the highest CP); '' keeps the slot empty so labels line up. */
@@ -88,6 +90,8 @@ export interface MenuOption<V> {
 	onremove?: () => void;
 	onsave?: (name: string) => boolean;
 	onrename?: (name: string) => boolean;
+	onpin?: () => void;
+	pinned?: boolean;
 	onload?: () => void;
 	loadDisabled?: boolean;
 	removeLabel?: string;

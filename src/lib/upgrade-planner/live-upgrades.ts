@@ -8,7 +8,7 @@ import { HONING_SLOT_LABELS } from './honing-upgrades';
 import { qualityCost } from './quality';
 import { roleOf } from './roles';
 import { skinParts, skinPriceKey } from './skins';
-import { activeGems, arkGridOverWillpower, gemParts, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
+import { activeGems, arkGridOverWillpower, gemParts, gemsInEffect, simCoreInfo, simCorePoints, simulate, type SimState } from './simulate';
 import { ASTROGEM_OPTION_NAMES, CORE_BREAKPOINTS, CORE_GRADE_CAP, ENGRAVING_BOOK_STEPS, KARMA_MAX_LEVEL, karmaRank } from './tables';
 import type { Loadout } from './types';
 import { coreLabel, coreStates, engravingName, relicBooksNeeded, type Upgrade } from './upgrades';
@@ -43,9 +43,10 @@ export function liveUpgrades(l: Loadout, state: SimState, base: SimState, accRol
 		}
 	}
 	const gemGroups = new Map<string, number>();
+	const gemOn = gemsInEffect(state.gems);
 	state.gems.forEach((gem, i) => {
 		const info = gemInfo[i];
-		if (!info?.table || gem.level >= 10) return;
+		if (!info?.table || gem.level >= 10 || !gemOn[i]) return;
 		const key = `gem:${gem.tier ?? info.tier}:${gem.level}`;
 		if (perSkillGems) {
 			add({ key: `${key}:${i}`, category: 'gem', subject: gem.skill !== null ? GEM_SKILLS[gem.skill]?.[0] ?? `Skill ${gem.skill}` : `Gem ${i + 1}`, title: `${gem.kind === 'damage' ? 'Damage' : 'Cooldown'} gem Lv. ${gem.level} → ${gem.level + 1}`, detail: '' });

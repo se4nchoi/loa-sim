@@ -9,7 +9,8 @@
 	import { className as classNameOf } from './class-names';
 	import { applyUpgrade } from './apply-upgrade';
 	import { autosaveSimulation, loadAutosave } from './saved-simulations';
-	import { roleOf } from './roles';
+	import { roleOf, simulationBaseline } from './roles';
+	import { formatCp } from './format';
 	import UpgradePlanner from './UpgradePlanner.svelte';
 	import { loadStatValues, statValues } from '$lib/logs/stat-values-store.svelte';
 	import { withGemGroups } from './dps';
@@ -33,6 +34,7 @@
 	import SimSkins from './sim/SimSkins.svelte';
 	import MobileSummaryBar from './sim/MobileSummaryBar.svelte';
 	import SimSummary from './sim/SimSummary.svelte';
+	import ShareSimulation from './ShareSimulation.svelte';
 	import CpBreakdownDialog from './sim/CpBreakdownDialog.svelte';
 	import { cpBreakdown } from './cp-breakdown';
 	import { PartType } from './cp';
@@ -44,6 +46,9 @@
 	let {
 		dpsMode = false,
 		loadout,
+		initialState,
+		restoreInitial = false,
+		workspaceKey,
 		sim = $bindable(untrack(() => initSimState(loadout))),
 		sidebar,
 		characterName,
@@ -53,6 +58,9 @@
 	}: {
 		dpsMode?: boolean;
 		loadout: Loadout;
+		initialState?: SimState;
+		restoreInitial?: boolean;
+		workspaceKey?: string;
 		sim?: SimState;
 		sidebar?: Snippet;
 		characterName?: string;
@@ -155,11 +163,12 @@
 	let calculated = $state.raw<SimState>(untrack(() => initSimState(loadout)));
 	// Start over when a different character's loadout comes in.
 	$effect.pre(() => {
-		const currentLoadout = loadout, key = characterKey ?? '';
+		const currentLoadout = loadout, key = workspaceKey ?? characterKey ?? '', initial = initialState, fresh = restoreInitial;
 		untrack(() => {
-			const next = loadAutosave(key, currentLoadout) ?? initSimState(currentLoadout);
+			const next = (fresh && initial ? structuredClone($state.snapshot(initial)) : loadAutosave(key, currentLoadout)) ?? (initial ? structuredClone($state.snapshot(initial)) : initSimState(currentLoadout));
+			// Skill shares come from the character's imported logs, whichever build (workspace) is open.
 			loadStatValues();
-			const saved = key ? statValues.byCharacter[key] : undefined;
+			const saved = characterKey ? statValues.byCharacter[characterKey] : undefined;
 			if (saved?.skillShares) next.skillShares = withGemGroups(next.gems, saved.skillShares);
 			if (saved?.skillCooldownUse) next.skillCooldownUse = withGemGroups(next.gems, saved.skillCooldownUse, 'max');
 			sim = next;
@@ -170,8 +179,9 @@
 	const snapshot = () => $state.snapshot(sim) as SimState;
 	$effect(() => {
 		const state = snapshot();
-		if (!characterKey) return;
-		try { untrack(() => autosaveSimulation(characterKey, loadout, state)); autosaveNote = ''; }
+		const key = workspaceKey ?? characterKey;
+		if (!key) return;
+		try { untrack(() => autosaveSimulation(key, loadout, state)); autosaveNote = ''; }
 		catch (e) { autosaveNote = e instanceof Error ? e.message : 'Changes could not be saved.'; }
 	});
 	$effect(() => {
@@ -193,8 +203,9 @@
 			shieldHeal: { value: b.shieldHeal, pct: (b.shieldHeal / a.shieldHeal - 1) * 100 }
 		};
 	});
-	const current = $derived(loadout.combatPower?.score ?? baseline.cp);
-	// Keep the headline number identical to the in-game score; edits apply as a ratio on top.
+	const startingScore = $derived(simulationBaseline(loadout, baseline.cp));
+	const current = $derived(startingScore.cp);
+	// A consistent snapshot keeps its in-game score; inconsistent gear uses its calculated baseline.
 	const simulated = $derived(current * (result.cp / baseline.cp));
 
 	/** Each section's effect on its own: only that section's edits applied to the starting state. */
@@ -358,12 +369,22 @@
 		canRedo={future.length > 0}
 		onbudget={() => budgetOpen = true}
 		onbreakdown={() => breakdownOpen = true}
-	/>
+	>
+		{#snippet share()}
+			{#if characterKey}<ShareSimulation {characterKey} {loadout} state={sim} />{/if}
+		{/snippet}
+	</SimSummary>
 {/snippet}
 
 {#if autosaveNote}<p class="mb-3 text-sm text-amber-300" role="status">{autosaveNote}</p>{:else}<p class="mb-3 text-xs text-surface-400">Changes saved in this browser · <a class="text-sky-300 hover:underline" href={`/dps?c=${encodeURIComponent(characterKey ?? '')}`}>Analyze in DPS Sim →</a></p>{/if}
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
+{#if startingScore.mismatch}
+	<p class="mb-3 rounded-xs border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200" role="status">
+		This snapshot's gear calculates to {formatCp(baseline.cp)} CP, but its recorded score is {formatCp(startingScore.reported!)}.
+		Simulation uses the supplied gear's CP. Choose another snapshot for a matching gear and score.
+	</p>
+{/if}
 <MobileSummaryBar {current} {simulated} nav={jumpChips} onbudget={() => budgetOpen = true}>{@render summary()}</MobileSummaryBar>
 <div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
 	<!-- Two columns on wide screens; a single column only when the screen is narrow. -->

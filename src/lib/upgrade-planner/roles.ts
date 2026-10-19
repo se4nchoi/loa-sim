@@ -2,7 +2,7 @@
 // two (gem / engraving / core / astrogem / accessory / bracelet values, which parts count, how the score adds
 // up) is looked up here, so the simulator and the upgrade list share one code path.
 
-import { BRACELET_EFFECTS } from './game-data';
+import { BRACELET_EFFECTS, ENGRAVING_ICONS } from './game-data';
 import { PartType, combatPower } from './cp';
 import {
 	SUPPORT_ACCESSORY_LINES,
@@ -56,15 +56,19 @@ export interface RoleTables {
 	score: (parts: BattlePointPart[]) => number;
 }
 
+// Non-scoring engravings still occupy a slot (e.g. Spirit Absorption in a town snapshot).
+const DEALER_UTILITY_IDS = Object.keys(ENGRAVING_ICONS).map(Number).filter((id) => id < 1800 && !engravingTable(id));
+const ZERO_ENGRAVING_TABLE = Array.from({ length: 5 }, () => Array<number>(5).fill(0));
+
 const DEALER: RoleTables = {
 	support: false,
 	gemT4: GEM_T4,
 	gemT3: GEM_T3,
 	engraving: (id) => {
-		const table = engravingTable(id);
+		const table = engravingTable(id) ?? (DEALER_UTILITY_IDS.includes(id) ? ZERO_ENGRAVING_TABLE : undefined);
 		return table ? { table, defense: false } : undefined;
 	},
-	engravingIds,
+	engravingIds: () => [...engravingIds(), ...DEALER_UTILITY_IDS],
 	accessoryLines: ACCESSORY_LINES,
 	astrogemOptions: Object.keys(ASTROGEM_COEFF).map(Number),
 	astrogemValue: astrogemOptionValue,
@@ -100,6 +104,13 @@ const SUPPORT: RoleTables = {
 };
 
 export const roleOf = (l: Loadout): RoleTables => (l.battlePoint.isSupport ? SUPPORT : DEALER);
+
+/** Dealer merged snapshots can carry a score from different gear. Support scores retain their existing calibration. */
+export function simulationBaseline(l: Loadout, computed = roleOf(l).score(l.battlePoint.parts)) {
+	const reported = l.combatPower?.score;
+	const mismatch = !l.battlePoint.isSupport && l.classification === 'raid_merged' && reported !== undefined && Math.abs(reported - computed) > 0.01;
+	return { cp: mismatch ? computed : reported ?? computed, reported, mismatch };
+}
 
 /** Engraving parts this role scores (supports also have Shield & Heal engravings). */
 export const engravingPartTypes = (r: RoleTables) =>

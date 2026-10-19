@@ -4,6 +4,7 @@
 	isn't loaded yet loads it from lostark.bible first.
 -->
 <script lang="ts">
+	import { ordered, readOrder } from '$lib/character-order';
 	import { goto } from '$app/navigation';
 	import { cachedRoster, hiddenRosterKeys } from '$lib/bible-oauth';
 	import { loadCharacter } from '$lib/load-character';
@@ -18,10 +19,10 @@
 	// Read from this browser's storage; recomputed when the shown character changes.
 	const lists = $derived.by(() => {
 		void current;
-		const saved = listSavedCharacters();
+		const saved = ordered(listSavedCharacters(), readOrder('characters'));
 		const byKey = new Map(saved.map((c) => [characterKey(c), c]));
 		const hidden = new Set(hiddenRosterKeys());
-		const roster = (cachedRoster()?.roster ?? []).filter((c) => !hidden.has(characterKey(c)));
+		const roster = ordered((cachedRoster()?.roster ?? []).filter((c) => !hidden.has(characterKey(c))), readOrder('roster'));
 		const rosterKeys = new Set((cachedRoster()?.roster ?? []).map((c) => characterKey(c)));
 		return {
 			byKey,

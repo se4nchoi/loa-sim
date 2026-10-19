@@ -10,7 +10,7 @@
 	import { raidsOf } from './dps-gates';
 	import { comparisonScope, comparisonSample, compareDpsUpgrades, combinedGain, rankDpsCandidates, orderSetup, recordedDps, formatDamage, slotGroup, dpsCpRanks, type DpsSort, type DpsCandidate } from './dps-comparison';
 	import { liveUpgrades } from './live-upgrades';
-	import { costsForCharacter, bookCost, manualGoldCost, gold, loadGold, formatGold, parsePrice, supportsGoldCost, missingPriceCount } from './gold-costs.svelte';
+	import { costsForCharacter, bookCost, bookPricesFor, materialPricesFor, manualGoldCost, gold, loadGold, formatGold, parsePrice, supportsGoldCost, missingPriceCount } from './gold-costs.svelte';
 	import { autoHoningCosts, inventoryMaterials } from './honing-cost';
 	import { rollsFor } from './acc-rolls.svelte';
 	import { difficultyTone, raidArt } from './raid-art';
@@ -141,20 +141,22 @@
 	const candidates = $derived(loadout && sourceState && base && !support ? compareDpsUpgrades(loadout, sourceState, base, eligibleBuildRuns, runs, upgrades) : []);
 	const quotes = $derived(costsForCharacter(key));
 	const bound = $derived(gold.bound[key] ?? {});
-	const auto = $derived(sourceState ? autoHoningCosts(upgrades.map(u => u.key), sourceState.gear, gold.prices, bound, sourceState.karma) : {});
+	// Prices are kept per market region (NA or EUC); the character decides which.
+	const materialPrices = $derived(materialPricesFor(key));
+	const auto = $derived(sourceState ? autoHoningCosts(upgrades.map(u => u.key), sourceState.gear, materialPrices, bound, sourceState.karma) : {});
 	// Simulator's per-level gem quote also prices each individual skill gem here.
 	const priceUpgrade = (u: Upgrade) => {
 		if (u.category !== 'gem' || quotes[u.key] !== undefined) return u;
 		const [, tier, level] = u.key.split(':');
 		return { ...u, key: `gem:${tier}:${level}`, subject: undefined, title: `${tier} gem Lv. ${level} → ${Number(level) + 1}` };
 	};
-	const pricedAuto = $derived(Object.fromEntries(Object.entries(auto).filter(([, h]) => !h.breakdown?.average.materials.some(m => m.bought > 0 && gold.prices[m.id] === undefined))));
+	const pricedAuto = $derived(Object.fromEntries(Object.entries(auto).filter(([, h]) => !h.breakdown?.average.materials.some(m => m.bought > 0 && materialPrices[m.id] === undefined))));
 	const costs = $derived.by(() => {
 		const out: Record<string, number> = {};
 		for (const u of upgrades) {
 			if (!supportsGoldCost(u)) continue;
 			const computed = pricedAuto[u.key]?.expected;
-			const value = u.books ? bookCost(u, gold.bookPrices) : manualGoldCost(u, quotes) ?? manualGoldCost(priceUpgrade(u), quotes) ?? computed ?? u.knownCost;
+			const value = u.books ? bookCost(u, bookPricesFor(key)) : manualGoldCost(u, quotes) ?? manualGoldCost(priceUpgrade(u), quotes) ?? computed ?? u.knownCost;
 			if (value !== undefined && Number.isFinite(value) && value >= 0) out[u.key] = value;
 		}
 		return out;

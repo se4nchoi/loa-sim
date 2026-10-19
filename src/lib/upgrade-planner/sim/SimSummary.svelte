@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type {Snippet} from 'svelte';
 	import { formatTop, type CpStanding, type IlvlRange } from '../cp-distribution';
 	import { folded, toggleFold } from './folded.svelte';
 	import FoldChip from './FoldChip.svelte';
@@ -27,7 +28,8 @@
 		canRedo,
 		split = null,
 		onbudget,
-		onbreakdown
+		onbreakdown,
+		share
 	}: {
 		current: number;
 		simulated: number;
@@ -50,6 +52,7 @@
 		onbudget?: () => void;
 		/** Opens the Combat Power breakdown. */
 		onbreakdown?: () => void;
+		share?: Snippet;
 	} = $props();
 
 	const LABELS: Record<SimSection, string> = {
@@ -120,6 +123,7 @@
 			{/if}
 			<Delta pct={delta} cp={simulated - current} class="text-sm font-semibold" />
 		</div>
+		{@render share?.()}
 		{#if ilvlBefore !== null && ilvlAfter !== null}
 			<span class="mt-1 text-xs text-surface-400">Item Level</span>
 			<span class="text-sm text-surface-200">
@@ -159,8 +163,8 @@
 						{formatTop(now)}{#if formatTop(after) !== formatTop(now)}<span class="font-normal text-surface-400"> → </span><span class={after < now ? 'text-green-400' : 'text-red-400'}>{formatTop(after)}</span>{/if}
 					</span>
 				{:else}
-					<span class="ml-auto truncate text-xs text-surface-500">
-						{range ? `Item Level ${range.from}–${range.to}` : 'All item levels'} · {standing ? `${standing.count.toLocaleString()} ${className}s` : 'no data'}
+					<span class="ml-auto text-right text-xs whitespace-nowrap text-surface-500">
+						{standing ? `Among ${standing.count.toLocaleString()} ${className}s` : 'No standing data'}
 					</span>
 				{/if}
 				<FoldChip open={!folded.standing} />
