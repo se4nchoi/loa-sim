@@ -1,8 +1,8 @@
 import type { RunSummary } from '$lib/logs/protocol';
 import { checkEngravings } from './dps-loadout';
 import { combineStatValues, gateSample } from './dps-gates';
-import { explainGem, gemChoices, gemMembers, planModel, statExplanations, type GemExplanation, type StatExplanation } from './dps-explain';
-import { modelGain } from './dps-model';
+import { explainGem, gemChoices, gemMembers, planModel, skillEffect, statExplanations, type GemExplanation, type StatExplanation } from './dps-explain';
+import { modelGain, modelMarginals, type ModelInput } from './dps-model';
 import type { SimState } from './simulate';
 import type { Loadout } from './types';
 import type { Upgrade } from './upgrades';
@@ -66,6 +66,27 @@ export interface DpsCandidate {
 	notes: string[];
 	/** The gain leaves out part of the upgrade (an Outgoing Damage line), so the real gain is at least gainPct. */
 	atLeast: boolean;
+	/** Cooldown gems only: the gain if the skill's extra casts all happen, from each clear's own cooldown use. An upper
+	 *  bound kept out of the ranking; gainPct over the clears that recorded cooldown use. */
+	asPlayed?: { clears: ClearGain[]; gainPct: number | null; covered: number };
+}
+
+/** Percent of each skill's fight time on cooldown in one clear (from its ready-but-unused time). */
+export function runCooldownUse(run: RunSummary): Record<number, number> {
+	return Object.fromEntries(run.skills.flatMap(s => s.timeAvailable === undefined || !(run.duration > 0) ? []
+		: [[s.id, Math.max(0, Math.min(100, (1 - Math.min(s.timeAvailable, run.duration) / run.duration) * 100))]]));
+}
+
+/** Crit Rate per clear (its own meter value, or the damage-weighted value of the selected clears that have one). */
+function critRates(runs: RunSummary[]) {
+	const own = runs.map(run => {
+		const values = combineStatValues([run.statValues]);
+		return values?.statSamples?.critRate ? values.critRate : null;
+	});
+	const withCrit = runs.filter((_, i) => own[i] !== null);
+	const critDamage = withCrit.reduce((sum, run) => sum + run.damage, 0);
+	const pooled = critDamage > 0 ? runs.reduce((sum, run, i) => sum + (own[i] === null ? 0 : run.damage * own[i]!), 0) / critDamage : null;
+	return { perRun: own.map(v => v ?? pooled), pooled, measured: withCrit.length };
 }
 
 const noStats = { mainStat: 0, weaponPower: 0, additionalDamage: 0, critRate: 0, critDamage: 0, attackPowerPct: 0, attackPower: 0 };
@@ -77,16 +98,10 @@ export function compareDpsUpgrades(loadout: Loadout, state: SimState, base: SimS
 	const model = planModel(loadout, state, base, allRuns, runs).input;
 	// Build buckets are shared; only the recorded Crit Rate value varies per clear. A clear recorded without the meter's
 	// values (low performance mode) uses the damage-weighted value of the selected clears that have one.
-	const own = runs.map(run => {
-		const values = combineStatValues([run.statValues]);
-		return values?.statSamples?.critRate ? values.critRate : null;
-	});
-	const withCrit = runs.filter((_, i) => own[i] !== null);
-	const critDamage = withCrit.reduce((sum, run) => sum + run.damage, 0);
-	const pooledCrit = critDamage > 0 ? runs.reduce((sum, run, i) => sum + (own[i] === null ? 0 : run.damage * own[i]!), 0) / critDamage : null;
-	const perRun = runs.map((run, i) => ({ run, model: { ...model, critRate: own[i] ?? pooledCrit } }));
-	const critNote = withCrit.length && withCrit.length < runs.length
-		? `Crit Rate valued from ${withCrit.length} of ${runs.length} clears; the others were recorded without the meter's stat values.` : null;
+	const crit = critRates(runs);
+	const perRun = runs.map((run, i) => ({ run, model: { ...model, critRate: crit.perRun[i] } }));
+	const critNote = crit.measured && crit.measured < runs.length
+		? `Crit Rate valued from ${crit.measured} of ${runs.length} clears; the others were recorded without the meter's stat values.` : null;
 	const baseAttackNote = !model.buckets ? "Base Atk. Power bonus not included: no recent clear has the meter's stat values." : null;
 	const choices = gemChoices(loadout, state);
 	const totalDamage = runs.reduce((sum, run) => sum + run.damage, 0);
@@ -99,23 +114,37 @@ export function compareDpsUpgrades(loadout: Loadout, state: SimState, base: SimS
 		const choice = upgrade.category === 'gem' ? choices.find(c => c.index === index) : undefined;
 		const gem = choice ? explainGem(loadout, state, base, choice, sample.skillShares, sample.skillCooldownUse, model) : undefined;
 		const reason = gem?.rough ? 'Cooldown changes need cast and rotation data.' : !gem && !stat ? 'DPS not estimated for this upgrade.' : undefined;
+		// A gem in one clear: that clear's share of damage from the gem's skills, times how much more they deal, plus the
+		// base attack it adds. Without the gear's buckets the base-attack part is unknown; the skill part is still measured.
+		const gemGain = (run: RunSummary, runModel: ModelInput, effectPct: number) => {
+			const members = new Set([...gemMembers(gem!.choice.skill), gem!.choice.skill]);
+			const share = run.skills.filter(s => members.has(s.id)).reduce((sum, s) => sum + s.damage, 0) / run.damage;
+			const attack = gem!.baseAttack ? modelGain({ ...noStats, baseAttackPct: gem!.baseAttack }, runModel).gainPct ?? 0 : 0;
+			return ((1 + share * effectPct / 100) * (1 + attack / 100) - 1) * 100;
+		};
 		const clears = perRun.map(({ run, model }): ClearGain => {
 			if (reason) return { run, gainPct: null };
 			if (stat) return { run, gainPct: modelGain(stat.delta, model).gainPct };
 			if (!gem) return { run, gainPct: null };
-			const members = new Set([...gemMembers(gem.choice.skill), gem.choice.skill]);
-			const share = run.skills.filter(s => members.has(s.id)).reduce((sum, s) => sum + s.damage, 0) / run.damage;
-			// Without the gear's buckets the base-attack part is unknown; the skill part is still measured (see notes).
-			const attack = gem.baseAttack ? modelGain({ ...noStats, baseAttackPct: gem.baseAttack }, model).gainPct ?? 0 : 0;
-			return { run, gainPct: ((1 + share * gem.effectPct / 100) * (1 + attack / 100) - 1) * 100 };
+			return { run, gainPct: gemGain(run, model, gem.effectPct) };
 		});
+		// Cooldown gems, clear by clear: as many extra casts as that clear's cooldown use allows.
+		const asPlayed = gem?.rough && choice ? (() => {
+			const played = perRun.map(({ run, model }): ClearGain => {
+				const use = runCooldownUse(run);
+				if (![choice.skill, ...gemMembers(choice.skill)].some(id => use[id] !== undefined)) return { run, gainPct: null };
+				return { run, gainPct: gemGain(run, model, skillEffect(loadout, state, choice, use).effectPct) };
+			});
+			const known = played.filter(c => c.gainPct !== null);
+			return { clears: played, gainPct: combinedGain(known), covered: known.length };
+		})() : undefined;
 		const notes = reason ? [] : [
 			...(stat?.unvalued.length ? [`${stat.unvalued.join(' and ')} isn't valued yet, so the real gain is higher than shown.`] : []),
 			...(stat?.delta.critRate && critNote ? [critNote] : []),
 			...(gem?.baseAttack && baseAttackNote ? [baseAttackNote] : [])
 		];
 		return { id: upgrade.key, upgrade, cpPct: upgrade.gainPct, gainPct: combinedGain(clears), clears,
-			covered: clears.filter(c => c.gainPct !== null).length, gem, stat, reason, notes, atLeast: !reason && !!stat?.unvalued.length };
+			covered: clears.filter(c => c.gainPct !== null).length, gem, stat, reason, notes, atLeast: !reason && !!stat?.unvalued.length, asPlayed };
 	});
 }
 
@@ -161,4 +190,33 @@ export function dpsCpRanks(candidates: DpsCandidate[]) {
 	};
 	const dps = rankBy(c => c.gainPct!), cp = rankBy(c => c.cpPct);
 	return new Map(estimated.map(c => [c.id, { dps: dps(c), cp: cp(c) }]));
+}
+
+/** The per-clear what-ifs of one upgrade: the newest clear's, and the spread over the clears that have one. */
+export function clearSpread(clears: ClearGain[]) {
+	const known = clears.filter((c): c is ClearGain & { gainPct: number } => c.gainPct !== null && Number.isFinite(c.gainPct));
+	if (!known.length) return null;
+	const sorted = known.map(c => c.gainPct).sort((a, b) => a - b);
+	const mid = sorted.length >> 1;
+	return {
+		latest: known.reduce((a, b) => (b.run.start > a.run.start ? b : a)),
+		low: sorted[0], high: sorted[sorted.length - 1],
+		median: sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2,
+		count: known.length
+	};
+}
+
+/** What one more of each stat is worth for this plan in the selected clears (DPS %), with Crit Rate pooled the same way
+ *  as the upgrades value it. null values: not measurable here. */
+export function statWorth(loadout: Loadout, state: SimState, base: SimState, allRuns: RunSummary[], runs: RunSummary[]) {
+	if (!runs.length) return null;
+	const { input, build } = planModel(loadout, state, base, allRuns, runs);
+	const crit = critRates(runs);
+	const values = modelMarginals({ ...input, critRate: crit.pooled });
+	const rows = ([
+		['critRate', '+1% Crit Rate'], ['critDamage', '+1% Crit Damage'], ['additionalDamage', '+1% Additional Damage'],
+		['attackPowerPct', '+1% Atk. Power'], ['mainStat', '+1,000 main stat'], ['weaponPower', '+1,000 Weapon Power']
+	] as const).map(([key, label]) => ({ key, label, gainPct: values[key] ?? null }));
+	const cr = values.critRate, cd = values.critDamage;
+	return { rows, critClears: crit.measured, buildClears: build.length, critVsDamage: cr !== undefined && cd !== undefined && cd > 0 ? cr / cd : null };
 }

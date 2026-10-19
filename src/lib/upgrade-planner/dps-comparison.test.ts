@@ -6,7 +6,7 @@ import { initSimState } from './simulate';
 import { liveUpgrades } from './live-upgrades';
 import { engravingNames } from './dps-loadout';
 import { gemMembers } from './dps-explain';
-import { combinedGain, comparisonSample, comparisonScope, compareDpsUpgrades, dpsCpRanks, formatDamage, orderSetup, rankDpsCandidates, recordedDps, type DpsCandidate } from './dps-comparison';
+import { clearSpread, combinedGain, comparisonSample, comparisonScope, compareDpsUpgrades, dpsCpRanks, formatDamage, orderSetup, rankDpsCandidates, recordedDps, runCooldownUse, statWorth, type DpsCandidate } from './dps-comparison';
 
 const loadout = soulshan as unknown as Loadout;
 const state = initSimState(loadout);
@@ -119,5 +119,47 @@ describe('DPS headline and ranks', () => {
 		expect(ranks.get('n1')).toEqual({ dps: 3, cp: 1 });
 		expect(ranks.get('n2')).toEqual({ dps: 3, cp: 2 });
 		expect(ranks.has('x')).toBe(false);
+	});
+});
+
+describe('replays, cooldown gems as played, and stat worth', () => {
+	it('reads a clear\'s cooldown use from the skill\'s ready-but-unused time', () => {
+		const r = { ...run(1), skills: [{ ...run(1).skills[0], timeAvailable: 15_000 }, { ...run(1).skills[0], id: 2 }] };
+		expect(runCooldownUse(r)).toEqual({ 1: 75 });
+	});
+	it('gives the newest clear, the range and the median of an upgrade\'s per-clear gains', () => {
+		const spread = clearSpread([{ run: run(1), gainPct: 1 }, { run: run(3), gainPct: 0.5 }, { run: run(2), gainPct: 2 }, { run: run(4), gainPct: null }])!;
+		expect(spread.latest.run.id).toBe(3);
+		expect([spread.low, spread.high, spread.median, spread.count]).toEqual([0.5, 2, 1, 3]);
+		expect(clearSpread([{ run: run(1), gainPct: null }])).toBeNull();
+	});
+	it('values a cooldown gem per clear from that clear\'s cooldown use, outside the ranking', () => {
+		const upgrades = liveUpgrades(loadout, state, state, undefined, true);
+		const cd = upgrades.find(u => u.category === 'gem' && u.title.startsWith('Cooldown'))!;
+		expect(cd).toBeDefined();
+		const skill = state.gems[Number(cd.key.split(':')[3])].skill!;
+		const id = gemMembers(skill)[0];
+		// Same share of damage; pressed on cooldown in one clear (ready 0 s), ready half the fight in the other.
+		const busy = { ...run(1), skills: [{ ...run(1).skills[0], id, damage: 50, timeAvailable: 0 }, { ...run(1).skills[0], id: 999, damage: 50 }] };
+		const idle = { ...run(2), skills: [{ ...run(2).skills[0], id, damage: 50, timeAvailable: 30_000 }, { ...run(2).skills[0], id: 999, damage: 50 }] };
+		const unknown = { ...run(3), skills: [{ ...run(3).skills[0], id, damage: 50 }, { ...run(3).skills[0], id: 999, damage: 50 }] };
+		const gem = compareDpsUpgrades(loadout, state, state, [busy, idle, unknown], [busy, idle, unknown], upgrades).find(c => c.id === cd.key)!;
+		expect(gem.gainPct).toBeNull();
+		const [b, i, u] = gem.asPlayed!.clears;
+		expect(b.gainPct!).toBeGreaterThan(i.gainPct!);
+		expect(i.gainPct!).toBeGreaterThan(0);
+		expect(u.gainPct).toBeNull();
+		expect(gem.asPlayed!.covered).toBe(2);
+		expect(gem.asPlayed!.gainPct).toBeCloseTo(combinedGain([b, i])!);
+	});
+	it('says what one more of each stat is worth, with Crit Rate only where it was measured', () => {
+		const worth = statWorth(loadout, state, state, [run(1)], [run(1)])!;
+		const value = (k: string) => worth.rows.find(r => r.key === k)!.gainPct;
+		expect(value('critRate')).toBeCloseTo(meter.critRate);
+		expect(value('critDamage')).toBeCloseTo(meter.critDamage);
+		expect(worth.critVsDamage).toBeCloseTo(meter.critRate / meter.critDamage);
+		const bare = statWorth(loadout, state, state, [run(1)], [{ ...run(2), statValues: null }])!;
+		expect(bare.rows.find(r => r.key === 'critRate')!.gainPct).toBeNull();
+		expect(bare.critVsDamage).toBeNull();
 	});
 });

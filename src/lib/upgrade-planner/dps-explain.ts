@@ -85,8 +85,10 @@ const effect = (tier: 'T4' | 'T3', kind: 'damage' | 'cooldown', level: number) =
 /** Logged skills the gem applies to: itself, or its group's members (e.g. Twelve Forms). */
 export const gemMembers = (skill: number) => GEM_SKILL_GROUPS[skill] ?? [skill];
 
-/** Percent more damage per skill from the gem change alone, same formula as gemDpsGainPct. */
-function skillEffect(loadout: Loadout, state: SimState, choice: GemChoice, cooldownUse: Record<number, number>) {
+/** Percent more damage per skill from the gem change alone, same formula as gemDpsGainPct. A cooldown gem's skill is
+ * cast 1 / (1 − u + u·k) times as often, u being the share of the fight it spent on cooldown and k the new cooldown
+ * over the old: all extra casts when it was pressed on cooldown, none when it was always ready. */
+export function skillEffect(loadout: Loadout, state: SimState, choice: GemChoice, cooldownUse: Record<number, number>) {
 	const tier = state.gems[choice.index].tier ?? gemParts(loadout)[choice.index]?.tier ?? 'T4';
 	if (choice.kind === 'damage') return { effectPct: ((1 + effect(tier, 'damage', choice.to)) / (1 + effect(tier, 'damage', choice.from)) - 1) * 100 };
 	const k = (1 - effect(tier, 'cooldown', choice.to)) / (1 - effect(tier, 'cooldown', choice.from));

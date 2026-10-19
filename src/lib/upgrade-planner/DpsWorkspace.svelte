@@ -9,7 +9,7 @@
 	import { initSimState, simulate, type SimState } from './simulate';
 	import { raidsOf } from './dps-gates';
 	import { buildRuns } from './dps-model';
-	import { comparisonScope, comparisonSample, compareDpsUpgrades, combinedGain, rankDpsCandidates, orderSetup, recordedDps, formatDamage, slotGroup, dpsCpRanks, type DpsSort, type DpsCandidate } from './dps-comparison';
+	import { comparisonScope, comparisonSample, compareDpsUpgrades, combinedGain, rankDpsCandidates, orderSetup, recordedDps, formatDamage, slotGroup, dpsCpRanks, clearSpread, statWorth, type DpsSort, type DpsCandidate } from './dps-comparison';
 	import { liveUpgrades } from './live-upgrades';
 	import { costsForCharacter, bookCost, bookPricesFor, materialPricesFor, manualGoldCost, gold, loadGold, formatGold, parsePrice, supportsGoldCost, missingPriceCount } from './gold-costs.svelte';
 	import { autoHoningCosts, inventoryMaterials } from './honing-cost';
@@ -192,7 +192,21 @@
 			.filter(c => { const group = slotGroup(c); if (!allOptions && seen.has(group)) return false; seen.add(group); return true; });
 	});
 	const estimated = $derived(filtered.filter(c => c.gainPct !== null));
-	const unestimated = $derived(filtered.filter(c => c.gainPct === null));
+	/** Cooldown gems with an "as you played" figure: shown in their own group, never ranked with the estimates. */
+	const asPlayedGain = (c: DpsCandidate) => c.gainPct === null ? c.asPlayed?.gainPct ?? null : null;
+	const cooldownGems = $derived(filtered.filter(c => asPlayedGain(c) !== null).toSorted((a, b) => asPlayedGain(b)! - asPlayedGain(a)!));
+	const unestimated = $derived(filtered.filter(c => c.gainPct === null && asPlayedGain(c) === null));
+	const worth = $derived(loadout && sourceState && base && !support ? statWorth(loadout, sourceState, base, eligibleBuildRuns, runs) : null);
+	const worthSentence = $derived.by(() => {
+		const r = worth?.critVsDamage ?? null;
+		if (r === null) return "Crit Rate isn't measured in these clears (no stat values), so it can't be compared with Crit Damage here.";
+		if (r >= 1.15) return `Here, +1% Crit Rate is worth about ${r.toFixed(1)}× as much as +1% Crit Damage.`;
+		if (r <= 0.87) return `Here, +1% Crit Damage is worth about ${(1 / r).toFixed(1)}× as much as +1% Crit Rate.`;
+		return 'Here, +1% Crit Rate and +1% Crit Damage are worth about the same.';
+	});
+	/** The per-clear what-ifs behind the shown figure: the estimate's, or a cooldown gem's "as you played". */
+	const replayOf = (c: DpsCandidate) => clearSpread(asPlayedGain(c) !== null ? c.asPlayed!.clears : c.gainPct !== null ? c.clears : []);
+	const pctRange = (low: number, high: number) => `${formatPct(low)} to ${formatPct(high)}%`;
 	const listed = $derived(showAll ? estimated : estimated.slice(0, 10));
 	const shown = $derived(filtered.find(c => c.id === pick) ?? estimated[0] ?? filtered[0]);
 	const baseDps = $derived(recordedDps(runs));
@@ -212,7 +226,12 @@
 	};
 	const missingPrices = $derived(missingPriceCount(pricingUpgrades, pricingCosts));
 	const materials = $derived(sourceState ? inventoryMaterials(sourceState.gear, !!sourceState.bracer) : []);
-	const perRaid = $derived(shown ? selected.map(raid => ({ raid, gain: combinedGain(shown.clears.filter(c => raid.runs.some(r => r.id === c.run.id))) })) : []);
+	const perRaid = $derived(shown ? selected.map(raid => {
+		// A cooldown gem's raids use its "as you played" figures, over the clears that recorded cooldown use.
+		const played = asPlayedGain(shown) !== null;
+		const clears = (played ? shown.asPlayed!.clears.filter(c => c.gainPct !== null) : shown.clears).filter(c => raid.runs.some(r => r.id === c.run.id));
+		return { raid, gain: clears.length ? combinedGain(clears) : null };
+	}) : []);
 	const raidScale = $derived(Math.max(.01, ...perRaid.map(r => Math.abs(r.gain ?? 0))));
 	const fmt = (n: number | null) => n === null ? '—' : `≈${formatPct(n)}%`;
 	/** "≥" when part of the upgrade isn't valued (the real gain is higher), "≈" otherwise. */
@@ -265,12 +284,14 @@
 			<div class="dps-about mt-3">
 				<section><h3>What it does</h3><ul>
 					<li>Takes each upgrade Next Upgrades offers and estimates how much DPS it would add in the clears you pick, from your own LOA Logs.</li>
-					<li>Each clear is scored on its own. The total compares estimated damage with recorded damage over the same fight time.</li>
+					<li>Each clear is scored on its own, as a replay: that clear again, same rotation and buffs, with the upgrade. The total compares estimated damage with recorded damage over the same fight time.</li>
+					<li>"What your stats are worth" applies the same model to one more of each stat.</li>
 				</ul></section>
 				<section><h3>How</h3><ul>
 					<li>Stat upgrades (honing, accessories, bracelet rolls, quality): damage grows with attack, Additional Damage, Evolution Damage and crit, each in its own bucket. Your gear's bucket totals are read back from the meter's stat values in your newest clears.</li>
 					<li>Crit Rate is valued per clear from that clear's own meter value, because what it's worth swings by fight (crit buffs, Blunt Thorn's cap).</li>
-					<li>Gems: the share of your damage that skill dealt in the selected clears, times the gem's damage bonus.</li>
+					<li>Damage gems: the share of your damage that skill dealt in each clear, times the gem's damage bonus.</li>
+					<li>Cooldown gems: from how much of each fight the skill spent on cooldown, the extra casts a shorter cooldown allows. Shown separately as "up to", because fight timing isn't simulated.</li>
 				</ul></section>
 				<section><h3>Assumes</h3><ul>
 					<li>The same rotation, fight length and party buffs as the recorded clears.</li>
@@ -278,7 +299,8 @@
 					<li>Your plan's gear is close to the gear in your logs (you're warned when CP differs by 2% or more).</li>
 				</ul></section>
 				<section><h3>Not covered yet</h3><ul>
-					<li>Engravings, Ark Grid, karma, bracelet effects and cooldown gems: listed under "Not estimated yet".</li>
+					<li>Engravings, Ark Grid, karma and bracelet effects: listed under "Not estimated yet".</li>
+					<li>Predicting your next clear's DPS: party, buffs and execution change more between clears than one upgrade does.</li>
 					<li>Outgoing Damage isn't valued; upgrades that add it show a floor ("≥").</li>
 					<li>Clears logged in LOA Logs' low performance mode have no stat values, and Crit Rate needs them.</li>
 					<li>Damage dealers only.</li>
@@ -343,6 +365,14 @@
 			{:else if !runs.length}<p class="dps-panel p-4 text-sm text-amber-300">No clears match these filters. Check Order cores, gates and excluded clears.</p>
 			{:else}
 				{#if baseDps !== null}<p class="dps-panel p-3 text-sm text-surface-300 sm:p-4">Your recorded DPS in {selected.length === 1 ? selected[0].name : `${selected.length} raids`}: <strong class="text-lg text-surface-50">{formatDamage(baseDps)}</strong> average over {runs.length} {runs.length === 1 ? 'clear' : 'clears'}.</p>{/if}
+				{#if worth}
+					<section class="dps-panel p-3 sm:p-4" aria-label="What your stats are worth">
+						<h2 class="font-semibold">What your stats are worth <span class="text-xs font-normal text-surface-400">in these clears</span></h2>
+						<p class="mt-1 text-sm text-surface-300">{worthSentence}</p>
+						<dl class="dps-worth mt-3">{#each worth.rows as r (r.key)}<div><dt>{r.label}</dt><dd class={r.gainPct === null ? 'text-surface-500' : 'text-green-400'}>{r.gainPct === null ? 'not measured' : `≈+${r.gainPct.toFixed(2)}% DPS`}</dd></div>{/each}</dl>
+						<p class="mt-2 text-xs text-surface-400">Crit Rate from {worth.critClears} of {runs.length} clears with stat values; the others from your gear's totals in {worth.buildClears} recent {worth.buildClears === 1 ? 'clear' : 'clears'}. For small changes: crit has caps, so a big crit change can't be read off these.</p>
+					</section>
+				{/if}
 				<div class="flex flex-wrap items-center justify-between gap-3"><h2 class="font-semibold">Next Upgrades</h2><div class="flex flex-wrap gap-2"><button class={btn} onclick={() => inventoryOpen = true}>Material prices / inventory</button><button class={btn} onclick={() => pricesOpen = true}>{missingPrices ? `${missingPrices} missing prices` : 'Prices'}</button></div></div>
 				<div class="dps-columns">
 					<section class="dps-panel min-w-0" aria-label="Next Upgrades">
@@ -356,15 +386,16 @@
 						<div class="flex flex-wrap gap-1.5 border-b border-surface-800 p-3" role="group" aria-label="Upgrade type">{#each tabs as tab}<button class={category === tab ? btnAccent : btn} aria-pressed={category === tab} onclick={() => { category = tab; showAll = false; }}>{tab}</button>{/each}</div>
 						<div class="dps-row dps-row-head text-xs text-surface-400"><span>Upgrade</span><span class="text-right">DPS / CP</span><span class="text-right">Cost</span></div>
 						{#snippet row(c: DpsCandidate)}
-							{@const image = look(c)}{@const cost = costs[c.id]}{@const badge = rankBadge(c)}{@const amount = dpsGain(c)}
+							{@const image = look(c)}{@const cost = costs[c.id]}{@const badge = rankBadge(c)}{@const amount = dpsGain(c)}{@const spread = c.gainPct !== null ? clearSpread(c.clears) : null}
 							<button class="dps-row dps-upgrade {c === shown ? 'dps-current' : ''}" onclick={() => choose(c)} aria-pressed={c === shown}>
-								<span class="flex min-w-0 items-center gap-3">{#if image.icon}<ItemIcon src={image.icon} grade={image.grade} size="size-9" />{/if}<span class="min-w-0"><UpgradeTitle u={c.upgrade} /><span class="mt-1 block text-xs text-surface-400">{#if c.gainPct === null}DPS not estimated{:else}<span title={sourceTag(c).hint}>{sourceTag(c).label}</span>{/if}{#if raidSpecific(c)}{' · '}<span class="text-sky-300" title="This gain changes with the raids you pick.">Raid-specific</span>{/if}{#if badge}{' · '}<span class="dps-badge">{badge}</span>{/if}{#if c.upgrade.detail === 'KR preview'}{' · '}<span class="text-amber-300">KR preview</span>{/if}</span></span></span>
-								<span class="dps-gain text-right"><strong class="block text-base font-semibold text-green-400">{gainText(c)}</strong>{#if amount !== null}<span class="block text-xs text-green-400/80">{amountText(c, amount)}</span>{/if}<span class="mt-0.5 block text-xs text-surface-400">CP {formatPct(c.cpPct)}%</span></span>
+								<span class="flex min-w-0 items-center gap-3">{#if image.icon}<ItemIcon src={image.icon} grade={image.grade} size="size-9" />{/if}<span class="min-w-0"><UpgradeTitle u={c.upgrade} /><span class="mt-1 block text-xs text-surface-400">{#if asPlayedGain(c) !== null}<span title="If you keep using the skill on cooldown as in these clears">If you keep playing like this</span>{:else if c.gainPct === null}DPS not estimated{:else}<span title={sourceTag(c).hint}>{sourceTag(c).label}</span>{/if}{#if raidSpecific(c)}{' · '}<span class="text-sky-300" title="This gain changes with the raids you pick.">Raid-specific</span>{/if}{#if badge}{' · '}<span class="dps-badge">{badge}</span>{/if}{#if c.upgrade.detail === 'KR preview'}{' · '}<span class="text-amber-300">KR preview</span>{/if}</span></span></span>
+								<span class="dps-gain text-right">{#if asPlayedGain(c) !== null}<span class="block text-[10px] text-surface-400">up to</span><strong class="block text-base font-semibold text-green-400/80">{fmt(asPlayedGain(c))}</strong>{:else}<strong class="block text-base font-semibold text-green-400">{gainText(c)}</strong>{/if}{#if amount !== null}<span class="block text-xs text-green-400/80">{amountText(c, amount)}</span>{/if}{#if spread && spread.count > 1 && spread.high - spread.low >= 0.02}<span class="block text-[10px] text-surface-400" title="Lowest to highest over your clears">{formatPct(spread.low)}–{spread.high.toFixed(2)}% by clear</span>{/if}<span class="mt-0.5 block text-xs text-surface-400">CP {formatPct(c.cpPct)}%</span></span>
 								<span class="dps-cost text-right text-sm"><span class={cost === undefined ? 'text-surface-500' : 'text-amber-300'}>{cost === undefined ? '—' : `${formatGold(cost)} gold`}</span><span class="mt-0.5 block text-xs text-surface-400">{cost !== undefined && c.gainPct !== null && c.gainPct > 0 ? `${formatGold(cost / c.gainPct)} / 1% DPS` : '—'}</span></span>
 							</button>
 						{/snippet}
 						{#each listed as c (c.id)}{@render row(c)}{/each}
 						{#if !filtered.length}<p class="p-4 text-sm text-surface-300">No upgrades match these filters.</p>{/if}
+						{#if cooldownGems.length}<p class="border-t border-surface-800 px-3 pt-3 pb-1 text-[11px] font-semibold tracking-wide text-surface-400 uppercase" title="Not ranked with the estimates above: an upper bound that depends on how you use the skill">Cooldown gems · if you keep playing like this</p>{#each cooldownGems as c (c.id)}{@render row(c)}{/each}{/if}
 						{#if unestimated.length}<details class="border-t border-surface-800"><summary class="cursor-pointer p-3 text-xs text-surface-400">Not estimated yet · {unestimated.length}</summary>{#each unestimated as c (c.id)}{@render row(c)}{/each}</details>{/if}
 						<div class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-800 p-3 text-xs text-surface-400">{#if estimated.length > 10}<button class="text-accent-300 hover:underline" onclick={() => showAll = !showAll}>{showAll ? 'Show top 10' : `Show all ${estimated.length}`}</button>{/if}<label class="flex items-center gap-2"><input type="checkbox" bind:checked={allOptions} />All options per slot</label><span>{filtered.length} upgrades</span></div>
 					</section>
@@ -372,12 +403,27 @@
 						<aside id="dps-breakdown" class="dps-panel dps-inspector p-4" aria-label="Breakdown">
 							<h2 class="mb-3 font-semibold">Breakdown</h2><UpgradeTitle u={shown.upgrade} />
 							{#if shown.upgrade.detail === 'KR preview'}<p class="mt-2 text-xs text-amber-300">KR preview</p>{/if}
-							<div class="mt-4 flex flex-wrap items-end justify-between gap-2" aria-live="polite"><div><p class="text-xs text-surface-400">DPS gain</p><p class="text-3xl font-semibold text-green-400">{gainText(shown)}</p>{#if dpsGain(shown) !== null}<p class="text-sm text-green-400/80">{amountText(shown, dpsGain(shown)!)} DPS</p>{/if}{#if rankBadge(shown)}<p class="mt-1 text-xs"><span class="dps-badge">{rankBadge(shown)}</span></p>{/if}</div><div class="text-right"><p class="text-xs text-surface-400">CP gain</p><p class="text-sm text-surface-300">{formatPct(shown.cpPct)}% (+{((cp ?? 0) * shown.cpPct / 100).toFixed(2)})</p></div></div>
-							{#if shown.reason}<p class="mt-3 text-sm text-amber-300">{shown.reason}</p>
+							<div class="mt-4 flex flex-wrap items-end justify-between gap-2" aria-live="polite"><div>{#if asPlayedGain(shown) !== null}<p class="text-xs text-surface-400">If you keep playing like this</p><p class="text-3xl font-semibold text-green-400/80"><span class="text-base font-normal">up to </span>{fmt(asPlayedGain(shown))}</p>{:else}<p class="text-xs text-surface-400">DPS gain</p><p class="text-3xl font-semibold text-green-400">{gainText(shown)}</p>{/if}{#if dpsGain(shown) !== null}<p class="text-sm text-green-400/80">{amountText(shown, dpsGain(shown)!)} DPS</p>{/if}{#if rankBadge(shown)}<p class="mt-1 text-xs"><span class="dps-badge">{rankBadge(shown)}</span></p>{/if}</div><div class="text-right"><p class="text-xs text-surface-400">CP gain</p><p class="text-sm text-surface-300">{formatPct(shown.cpPct)}% (+{((cp ?? 0) * shown.cpPct / 100).toFixed(2)})</p></div></div>
+							{#if asPlayedGain(shown) !== null && shown.gem}
+								{@const use = shown.gem.parts.map(p => sample.skillCooldownUse[p.skill]).find(u => u !== undefined) ?? sample.skillCooldownUse[shown.gem.choice.skill]}
+								<div class="mt-3 space-y-1.5 text-xs text-surface-300">
+									{#if use !== undefined}<p>{shown.gem.choice.name} was on cooldown {use.toFixed(0)}% of the fight in these clears; that much of its shorter cooldown turns into extra casts.</p>{/if}
+									<p class="text-amber-300/90">※ Assumes you use it again as soon as it's ready, as you did in these clears, and that the extra casts don't push out other skills. Fight timing isn't simulated, so this is the most it could add.</p>
+									<p class="text-surface-400">From {shown.asPlayed!.covered} of {runs.length} clears that recorded cooldown use.</p>
+								</div>
+							{:else if shown.reason}<p class="mt-3 text-sm text-amber-300">{shown.reason}</p>
 							{:else if shown.gainPct === null}<p class="mt-3 text-sm text-amber-300">DPS not estimated · {shown.covered}/{runs.length} clears covered.</p>{/if}
 							{#each shown.notes as note}<p class="mt-2 text-xs text-amber-300/90">※ {note}</p>{/each}
+							{#if replayOf(shown)}
+								{@const replay = replayOf(shown)!}
+								{@const sign = asPlayedGain(shown) !== null ? 'up to ≈' : shown.atLeast ? '≥' : '≈'}
+								<div class="mt-4 space-y-1 border-t border-surface-800 pt-3"><h3 class="text-sm font-semibold">Replaying your clears</h3>
+									<p class="text-sm text-surface-300">Your {formatDate(replay.latest.run.start)} {gateName(replay.latest.run.boss)} again, same rotation and buffs, with this upgrade: <strong class="text-green-400">{sign}{formatPct(replay.latest.gainPct)}%</strong></p>
+									{#if replay.count > 1}<p class="text-xs text-surface-400">{replay.high - replay.low < 0.005 ? `The same in all ${replay.count} clears.` : `Across ${replay.count} clears: ${pctRange(replay.low, replay.high)}, typically ${formatPct(replay.median)}%.`}</p>{/if}
+								</div>
+							{/if}
 							{#if shown.gem && !shown.gem.rough}<div class="mt-4 space-y-2 border-t border-surface-800 pt-3">{#each shown.gem.parts as part}<div class="flex items-center justify-between gap-3 text-sm"><span class="min-w-0 break-words">{book.skills[part.skill]?.[0] ?? part.name}</span><span class="shrink-0 text-surface-200">{(sample.skillShares[part.skill] ?? 0).toFixed(1)}% of damage</span></div>{/each}<p class="text-xs text-surface-400">Skill damage {formatPct(shown.gem.effectPct)}%{shown.gem.baseAttack ? ` · Base Atk. Power +${shown.gem.baseAttack.toFixed(2)}%` : ''}</p></div>{/if}
-							<div class="mt-4 border-t border-surface-800 pt-3"><h3 class="mb-2 text-sm font-semibold">By raid</h3><div class="space-y-3">{#each perRaid as result}<div><div class="mb-1 flex flex-wrap justify-between gap-2 text-xs"><span>{result.raid.name} · {result.raid.difficulty}</span><span>{shown.atLeast && result.gain !== null ? `≥${formatPct(result.gain)}%` : fmt(result.gain)}</span></div><div class="h-1.5 rounded-xs bg-surface-800"><div class="h-full rounded-xs bg-accent-500" style:width={`${Math.abs(result.gain ?? 0) / raidScale * 100}%`}></div></div></div>{/each}</div></div>
+							<div class="mt-4 border-t border-surface-800 pt-3"><h3 class="mb-2 text-sm font-semibold">By raid</h3><div class="space-y-3">{#each perRaid as result}<div><div class="mb-1 flex flex-wrap justify-between gap-2 text-xs"><span>{result.raid.name} · {result.raid.difficulty}</span><span>{result.gain === null ? '—' : asPlayedGain(shown) !== null ? `up to ≈${formatPct(result.gain)}%` : shown.atLeast ? `≥${formatPct(result.gain)}%` : fmt(result.gain)}</span></div><div class="h-1.5 rounded-xs bg-surface-800"><div class="h-full rounded-xs bg-accent-500" style:width={`${Math.abs(result.gain ?? 0) / raidScale * 100}%`}></div></div></div>{/each}</div></div>
 							<div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-surface-800 pt-3 text-sm"><span class="flex items-center gap-1.5 text-amber-300"><img src={GOLD_ICON} alt="" class="size-4" />{costs[shown.id] === undefined ? 'Price needed' : `${formatGold(costs[shown.id])} gold`}</span><button class={btn} onclick={() => pricesOpen = true}>Edit prices</button></div>
 							<details class="mt-4 border-t border-surface-800 pt-3 text-xs text-surface-400"><summary>Calculation details</summary><div class="mt-3 space-y-3">
 								<p>Each clear is calculated separately. Combined gain compares total estimated damage with total recorded damage over the same fight time.</p>
@@ -412,6 +458,10 @@
 	.dps-about { display: grid; gap: .9rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
 	.dps-about h3 { margin-bottom: .3rem; font-size: .75rem; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--color-surface-400); }
 	.dps-about ul { display: grid; gap: .3rem; padding-left: 1rem; list-style: disc; font-size: .8rem; line-height: 1.45; }
+	.dps-worth { display: grid; gap: .4rem .9rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
+	.dps-worth > div { display: flex; justify-content: space-between; gap: .5rem; border-bottom: 1px solid var(--color-surface-800); padding-bottom: .3rem; font-size: .85rem; }
+	.dps-worth dt { color: var(--color-surface-300); }
+	.dps-worth dd { font-variant-numeric: tabular-nums; white-space: nowrap; }
 	.dps-raids { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .6rem; }
 	.dps-raid { position: relative; overflow: hidden; border: 1px solid var(--color-surface-700); border-radius: 2px; padding: .7rem; text-align: left; }
 	.dps-raid:has(> button:focus-visible) { outline: 2px solid var(--color-accent-300); outline-offset: 1px; }
