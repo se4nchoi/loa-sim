@@ -1,6 +1,6 @@
 # Site UX audit and DPS logic check (10-19-26)
 
-Status: 1, 3, 12 and 14 done (10-19); 2 decided against; the rest open. Walked Characters, Simulator (with Next Upgrades and the budget), and the DPS tab on branch
+Status: all done (10-19) except 2 (decided against). Item 5 went part way: changes are coloured by direction (green up, red down); totals keep the dealer red / support green that matches lostark.bible. Walked Characters, Simulator (with Next Upgrades and the budget), and the DPS tab on branch
 `dps-sim/v0` (after the market-price merge), at desktop and phone width, with Soulshan refreshed from bible
 (1784.17, CP 6797.64) and 87 real clears imported from the 10-18 `encounters.db` copy. Then checked the DPS model
 against those clears. Items are ordered by harm within each section. Suggested first batch: 1, 2, 3, 14, 12.

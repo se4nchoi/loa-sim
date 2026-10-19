@@ -376,7 +376,7 @@
 	</SimSummary>
 {/snippet}
 
-{#if autosaveNote}<p class="mb-3 text-sm text-amber-300" role="status">{autosaveNote}</p>{:else}<p class="mb-3 text-xs text-surface-400">Changes saved in this browser · <a class="text-sky-300 hover:underline" href={`/dps?c=${encodeURIComponent(characterKey ?? '')}`}>Analyze in DPS Sim →</a></p>{/if}
+{#if autosaveNote}<p class="mb-3 text-sm text-amber-300" role="status">{autosaveNote}</p>{:else}<p class="mb-3 text-xs text-surface-400">Changes saved in this browser · <a class="text-sky-300 hover:underline" href={`/dps?c=${encodeURIComponent(characterKey ?? '')}`}>See DPS gains →</a></p>{/if}
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
 {#if startingScore.mismatch}
@@ -385,7 +385,7 @@
 		Simulation uses the supplied gear's CP. Choose another snapshot for a matching gear and score.
 	</p>
 {/if}
-<MobileSummaryBar {current} {simulated} nav={jumpChips} onbudget={() => budgetOpen = true}>{@render summary()}</MobileSummaryBar>
+<MobileSummaryBar {current} {simulated} support={loadout.battlePoint.isSupport} nav={jumpChips} onbudget={() => budgetOpen = true}>{@render summary()}</MobileSummaryBar>
 <div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
 	<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
 	<div class="flex min-w-0 flex-col gap-2">

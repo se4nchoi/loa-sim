@@ -64,8 +64,8 @@
 			<div><p class="text-xs text-surface-400">{pending ? 'Priced subtotal · average' : 'Estimated total · average'}</p><p class="mt-1 flex items-center gap-1.5 text-xl font-bold text-amber-200"><img src={GOLD_ICON} alt="Gold" class="size-5" />{nonePriced ? '—' : formatGold(average)}</p></div>
 		</div>
 		{#if pending}<p class="text-xs text-amber-300">{pending} unpriced change{pending === 1 ? '' : 's'}.</p>{/if}
-		<section aria-label="Current inventory" class="text-xs text-surface-500">
-			<div class="mb-1.5 flex flex-wrap items-center justify-between gap-2"><h3>Current inventory</h3><button type="button" class="{btn} ml-auto" onclick={() => pricesOpen = true}>Edit material prices / inventory</button></div>
+		<section aria-label="Bound materials on hand" class="text-xs text-surface-500">
+			<div class="mb-1.5 flex flex-wrap items-center justify-between gap-2"><h3>Bound materials on hand</h3><button type="button" class="{btn} ml-auto" onclick={() => pricesOpen = true}>Edit material prices / inventory</button></div>
 			<div class="flex flex-wrap gap-x-4 gap-y-1">{#each materials as id}<span class="inline-flex items-center gap-1 tabular-nums" title={materialName(id)}>{#if materialIcon(id)}<img src={iconUrl(materialIcon(id))} alt={materialName(id)} class="size-4 shrink-0 opacity-60" />{:else}<span>{materialName(id)}</span>{/if}{quantity(gold.bound[characterKey]?.[id] ?? 0)}</span>{/each}</div>
 		</section>
 		{#if !lines.length}<p class="py-6 text-center text-sm text-surface-400">No changes.</p>{/if}
@@ -97,9 +97,8 @@
 			</section>
 		{/each}
 		<ul class="list-disc space-y-1 border-t border-surface-700 pt-3 pl-4 text-xs text-surface-400">
-			<li>Bound materials are used first, across steps in the order listed.</li>
+			<li>Uses your bound materials first, step by step in the order listed. Your saved inventory itself isn't changed.</li>
 			<li>Average costs carry forward estimated material use; actual honing results and remaining inventory will vary.</li>
-			<li>Saved bound material inventory is not deducted.</li>
 		</ul>
 	</div>
 	</div>

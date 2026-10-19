@@ -160,7 +160,7 @@
 
 {#snippet cpAfter(u: Upgrade)}
 	{#if dpsMode}<span class="block text-xs text-sky-300 tabular-nums">{dps.has(u.key) ? 'DPS ≈' + formatPct(dps.get(u.key)!) + '%' : 'DPS unestimated'}</span>{/if}
-	<span class="block text-xs text-surface-100 tabular-nums">{formatCp(cp * (1 + u.gainPct / 100))} <span class={isSupport ? 'text-green-400' : 'text-red-400'}>({formatPct(cp * u.gainPct / 100)})</span></span>
+	<span class="block text-xs text-surface-100 tabular-nums">{formatCp(cp * (1 + u.gainPct / 100))} <span class={u.gainPct < 0 ? 'text-red-400' : 'text-green-400'}>({formatPct(cp * u.gainPct / 100)})</span></span>
 {/snippet}
 
 {#snippet rollPicker()}
@@ -279,7 +279,7 @@
 								<UpgradeTitle {u} />
 							<span class="text-lg font-bold text-green-400">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>
 							{@render cpAfter(u)}
-							{#if mode === 'gold'}<span class="text-xs text-amber-300/90 tabular-nums">{formatGold(goldPerPct(u, costs)!)} gold per 1%</span>{/if}
+							{#if mode === 'gold'}<span class="text-xs text-amber-300/90 tabular-nums">{formatGold(goldPerPct(u, costs)!)} gold per 1% CP</span>{/if}
 						</div>
 					{/each}
 				</div>

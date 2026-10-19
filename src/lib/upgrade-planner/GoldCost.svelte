@@ -116,7 +116,7 @@
 						: !canEdit ? (cost === 0 ? 'Free' : 'No calculated cost is available for this upgrade yet.') : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 		>
 			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-			{#if cost === 0 && !typed}Free{:else if cost !== undefined}{#if !typed && (auto || u.quality)}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal whitespace-nowrap text-surface-300 max-sm:hidden">· {formatGold(per)} per 1%</span>{/if}{:else}{!canEdit ? 'Cost unavailable' : u.books ? 'Add book price' : 'Add gold cost'}{/if}
+			{#if cost === 0 && !typed}Free{:else if cost !== undefined}{#if !typed && (auto || u.quality)}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal whitespace-nowrap text-surface-300 max-sm:hidden">· {formatGold(per)} per 1% CP</span>{/if}{:else}{!canEdit ? 'Cost unavailable' : u.books ? 'Add book price' : 'Add gold cost'}{/if}
 		</button>
 		{#if auto?.breakdown}
 			<button type="button" class="{detailsButton} col-start-2 row-start-1" onclick={() => (breakdownMode = 'average')} aria-label={`Average material breakdown for ${u.title}`} title="Average bound materials used and market purchases">?</button>
@@ -131,7 +131,7 @@
 				title={`Pity: ${auto.maxTaps} taps, when ${u.category === 'karma' ? 'the Karma pity meter' : "artisan's energy"} forces success${u.category === 'karma' ? '. Assumes unlimited Destiny Stones.' : ''}`}
 			>
 				<img src={GOLD_ICON} alt="" class="size-4 shrink-0" /><span class="ml-auto">{formatGold(auto.worst)}</span><span class="w-6 text-left font-normal text-orange-300/70">pity</span>
-				{#if showPer && u.gainPct > 0}<span class="font-normal whitespace-nowrap text-orange-200/80 max-sm:hidden">· {formatGold(auto.worst / u.gainPct)} per 1%</span>{/if}
+				{#if showPer && u.gainPct > 0}<span class="font-normal whitespace-nowrap text-orange-200/80 max-sm:hidden">· {formatGold(auto.worst / u.gainPct)} per 1% CP</span>{/if}
 			</span>
 			{#if auto.breakdown}
 				<button type="button" class="{detailsButton} col-start-2 row-start-2" onclick={() => (breakdownMode = 'pity')} aria-label={`Pity material breakdown for ${u.title}`} title="Bound materials used and market purchases at pity">?</button>

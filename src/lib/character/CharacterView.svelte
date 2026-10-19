@@ -184,14 +184,15 @@
 		{#if loadout}<span class="rounded-xs bg-surface-900 px-2 py-0.5">{className(loadout.classId)}</span>{/if}
 	</div>
 	<h1 class="text-3xl font-bold">{name}</h1>
-	{#if ilvl}<span class="text-xl font-semibold text-surface-200 tabular-nums" title="Item Level">{ilvl.toFixed(2)}</span>{/if}
+	{#if ilvl}<span class="text-xl font-semibold text-surface-200 tabular-nums"><span class="mr-1.5 text-xs font-normal text-surface-400">Item Level</span>{ilvl.toFixed(2)}</span>{/if}
 	{#each lines as line (line)}<span class="text-sm text-surface-300">{line}</span>{/each}
 	<a class="w-fit text-xs text-surface-300 underline hover:text-surface-50" href={`https://lostark.bible/character/${region}/${encodeURIComponent(name)}`} target="_blank" rel="noopener">
 		View on lostark.bible
 	</a>
 	<!-- Always shown, so players find saved snapshots before they have any. -->
 	{#if menu.length && onsnapshot && onloadout}
-		<div class="mt-1 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_2rem] max-lg:grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-1.5">
+		<span class="mt-2 text-xs text-surface-400">Starting gear</span>
+		<div class="grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_2rem] max-lg:grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-1.5">
 			<MenuPicker value={pending ?? menuValue} options={menuOptions} onpick={pickMenu} label="Loadout to simulate" full fitMenu mobileDetails>
 				{#snippet trigger()}
 					<!-- Same words for every choice ("Snapshot on 10-11 6620.18"), so picking one never resizes the button; the
@@ -221,7 +222,8 @@
 		{/if}
 	{/if}
 	{#if loadout && simulation}
-		<div class="mt-2 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_2rem] max-lg:grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-1.5">
+		<span class="mt-2 text-xs text-surface-400">Plan</span>
+		<div class="grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_2rem] max-lg:grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-1.5">
 			<SavedSimulations workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} initialId={initialBuild?.id} characterKey={`${region}/${name}`.toLowerCase()} {loadout} state={simulation} onrestore={(state) => simulation = state} />
 		</div>
 	{/if}

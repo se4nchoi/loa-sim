@@ -8,6 +8,7 @@
 	import { loadAutosave, savedSimulations, sameBaseline, type SavedSimulation } from './saved-simulations';
 	import { initSimState, simulate, type SimState } from './simulate';
 	import { raidsOf } from './dps-gates';
+	import { buildRuns } from './dps-model';
 	import { comparisonScope, comparisonSample, compareDpsUpgrades, combinedGain, rankDpsCandidates, orderSetup, recordedDps, formatDamage, slotGroup, dpsCpRanks, type DpsSort, type DpsCandidate } from './dps-comparison';
 	import { liveUpgrades } from './live-upgrades';
 	import { costsForCharacter, bookCost, bookPricesFor, materialPricesFor, manualGoldCost, gold, loadGold, formatGold, parsePrice, supportsGoldCost, missingPriceCount } from './gold-costs.svelte';
@@ -139,6 +140,9 @@
 	const valued = $derived(runs.filter(r => r.statValues).length);
 	const eligibleBuildRuns = $derived(loadout && character && book ? comparisonScope(loadout, book.runs, character.name, orderFilter).included : []);
 	const sample = $derived(comparisonSample(runs));
+	/** The clears the gear's damage totals are read from; their recorded CP far from the plan's means different gear. */
+	const bucketRun = $derived(buildRuns(eligibleBuildRuns)[0]);
+	const cpGap = $derived(bucketRun?.combatPower && cp ? cp / bucketRun.combatPower - 1 : 0);
 	const upgrades = $derived(loadout && sourceState && base ? liveUpgrades(loadout, sourceState, base, rollsFor(key), true) : []);
 	const candidates = $derived(loadout && sourceState && base && !support ? compareDpsUpgrades(loadout, sourceState, base, eligibleBuildRuns, runs, upgrades) : []);
 	const quotes = $derived(costsForCharacter(key));
@@ -279,6 +283,7 @@
 					<span class="text-xs text-surface-400">{selected.map(r => `${r.name} · ${r.difficulty || 'Normal'}`).join(' / ')}</span>
 				</div>
 				{#if runs.length}<p class="mt-2 text-xs {valued ? 'text-surface-400' : 'text-amber-300'}">Stat values in {valued} of {runs.length} {runs.length === 1 ? 'clear' : 'clears'}{valued < runs.length ? `. ${valued ? 'Crit Rate is valued from these' : "Crit Rate can't be valued for these raids"}; turn off low performance mode in LOA Logs to record stat values in every clear.` : '.'}</p>{/if}
+				{#if Math.abs(cpGap) >= 0.02 && bucketRun}<p class="mt-2 text-xs text-amber-300">Your gear's damage totals come from clears at CP {bucketRun.combatPower!.toFixed(2)} ({formatDate(bucketRun.start)}); this plan is CP {cp!.toFixed(2)} ({formatPct(cpGap * 100, 1)}%). Estimates get closer after you clear with this gear and re-import.</p>{/if}
 				{#if !orderOptions.length}<p class="mt-2 text-xs text-amber-300">Order cores not recorded in this import. Re-import logs to check.</p>
 				{:else if !orderFilter && (orderOptions.length > 1 || gateRuns.some(r => !orderSetup(r)))}<p class="mt-2 text-xs text-amber-300">Order core setups are not filtered.</p>{/if}
 				{#if orderFilter}<p class="mt-2 text-xs text-amber-300">Core choices only. Core points and astrogems are not checked.</p>{/if}
@@ -388,5 +393,5 @@
 		.dps-upgrade > span:first-child { grid-row: span 2; }
 		.dps-gain, .dps-cost { grid-column: 2; }
 	}
-	@media (pointer: coarse) { .dps-workspace :is(button, select, input:not([type='checkbox'])) { min-height: 44px; } .dps-workspace :is(input, select) { font-size: 16px; } }
+	@media (pointer: coarse) { .dps-workspace :is(button, select, a, input:not([type='checkbox'])) { min-height: 44px; } .dps-workspace :is(input, select) { font-size: 16px; } }
 </style>

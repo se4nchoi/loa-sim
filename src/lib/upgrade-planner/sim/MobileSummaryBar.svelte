@@ -13,8 +13,9 @@
 		children,
 		top = 'top-12',
 		nav,
-		onbudget
-	}: { current: number; simulated: number; children: Snippet; top?: string; /** Section links, always shown under the CP line. */ nav?: Snippet<[string]>; onbudget?: () => void } = $props();
+		onbudget,
+		support = false
+	}: { current: number; simulated: number; /** Support CP shows green, as everywhere else. */ support?: boolean; children: Snippet; top?: string; /** Section links, always shown under the CP line. */ nav?: Snippet<[string]>; onbudget?: () => void } = $props();
 
 	// Collapsed by default so it doesn't cover the cards; the full summary opens on tap.
 	let open = $state(false);
@@ -36,7 +37,7 @@
 		<!-- Very narrow phones drop the starting CP; the change still shows it. -->
 		<span class="text-sm text-surface-300 tabular-nums max-[400px]:hidden">{formatCp(current)}</span>
 		<span class="text-surface-500 max-[400px]:hidden">→</span>
-		<span class="text-base font-bold text-red-400 tabular-nums">{formatCp(simulated)}</span>
+		<span class="text-base font-bold tabular-nums {support ? 'text-green-400' : 'text-red-400'}">{formatCp(simulated)}</span>
 		<Delta pct={delta} cp={simulated - current} class="text-xs font-semibold" />
 	</button>
 	{#if onbudget}<button type="button" onclick={onbudget} class="h-7 shrink-0 rounded-xs border border-amber-300/70 bg-amber-500/5 px-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/15" aria-haspopup="dialog">Budget</button>{/if}

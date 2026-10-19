@@ -138,7 +138,7 @@
 		/>
 	{/key}
 {:else if dpsMode}
-	<h1 class="text-xl font-semibold">DPS Sim <span class="text-sm text-amber-300">Experimental</span></h1>
+	<h1 class="text-xl font-semibold">DPS <span class="text-sm text-amber-300">Experimental</span></h1>
 	<p class="mt-2 text-surface-300">Load a character, then import your LOA Logs to test DPS estimates for upgrades.</p>
 	<a href="/" class="mt-4 inline-block rounded-xs bg-accent-700 px-3 py-2 font-semibold text-white hover:bg-accent-600">Load a character</a>
 {/if}
