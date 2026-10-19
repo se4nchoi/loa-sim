@@ -8,7 +8,7 @@
 	import { loadAutosave, savedSimulations, sameBaseline, type SavedSimulation } from './saved-simulations';
 	import { initSimState, simulate, type SimState } from './simulate';
 	import { raidsOf } from './dps-gates';
-	import { comparisonScope, comparisonSample, compareDpsUpgrades, combinedGain, rankDpsCandidates, orderSetup, type DpsSort, type DpsCandidate } from './dps-comparison';
+	import { comparisonScope, comparisonSample, compareDpsUpgrades, combinedGain, rankDpsCandidates, orderSetup, recordedDps, formatDamage, slotGroup, dpsCpRanks, type DpsSort, type DpsCandidate } from './dps-comparison';
 	import { liveUpgrades } from './live-upgrades';
 	import { costsForCharacter, bookCost, manualGoldCost, gold, loadGold, formatGold, parsePrice, supportsGoldCost, missingPriceCount } from './gold-costs.svelte';
 	import { autoHoningCosts, inventoryMaterials } from './honing-cost';
@@ -121,9 +121,11 @@
 		const newest = raids.find(r => r.kind === 'raid') ?? raids[0];
 		return newest ? [newest] : [];
 	});
-	function chooseRaid(raidKey: string) {
+	/** A click on a raid shows that raid alone; "+ Compare" (compare = true) adds it to, or drops it from, the selection. */
+	function chooseRaid(raidKey: string, compare = false) {
 		const current = selected.map(r => r.key);
-		selectedRaids = current.includes(raidKey) ? current.length > 1 ? current.filter(k => k !== raidKey) : current : [...current, raidKey];
+		selectedRaids = !compare ? [raidKey]
+			: current.includes(raidKey) ? current.length > 1 ? current.filter(k => k !== raidKey) : current : [...current, raidKey];
 		gateFilter = ''; runPick = ''; pick = null;
 		try { localStorage.setItem(`loa-sim:dps-raids:${key}`, JSON.stringify(selectedRaids)); } catch { /* this visit only */ }
 	}
@@ -161,15 +163,24 @@
 	const pricingCosts = $derived(Object.fromEntries(upgrades.filter(u => costs[u.key] !== undefined).map(u => [priceUpgrade(u).key, costs[u.key]])));
 	const budget = $derived(budgetText.trim() ? parsePrice(budgetText) : null);
 	const ranked = $derived(rankDpsCandidates(candidates, costs, sort));
-	const tabs = $derived(['All', ...new Set(candidates.map(c => CATEGORY_LABELS[c.upgrade.category]))]);
+	// A category gets a tab only once at least one of its upgrades has a DPS estimate; the rest wait in "Not estimated yet".
+	const tabs = $derived(['All', ...new Set(candidates.filter(c => c.gainPct !== null).map(c => CATEGORY_LABELS[c.upgrade.category]))]);
+	$effect(() => { if (!tabs.includes(category)) untrack(() => { category = 'All'; }); });
 	const filtered = $derived.by(() => {
 		const seen = new Set<string>();
 		return ranked.filter(c => category === 'All' || CATEGORY_LABELS[c.upgrade.category] === category)
 			.filter(c => budget === null || costs[c.id] === undefined || costs[c.id] <= budget)
-			.filter(c => { const group = ['accessory', 'quality'].includes(c.upgrade.category) ? c.upgrade.group ?? c.id : c.id; if (!allOptions && seen.has(group)) return false; seen.add(group); return true; });
+			.filter(c => { const group = slotGroup(c); if (!allOptions && seen.has(group)) return false; seen.add(group); return true; });
 	});
-	const listed = $derived(showAll ? filtered : filtered.slice(0, 10));
-	const shown = $derived(filtered.find(c => c.id === pick) ?? filtered[0]);
+	const estimated = $derived(filtered.filter(c => c.gainPct !== null));
+	const unestimated = $derived(filtered.filter(c => c.gainPct === null));
+	const listed = $derived(showAll ? estimated : estimated.slice(0, 10));
+	const shown = $derived(filtered.find(c => c.id === pick) ?? estimated[0] ?? filtered[0]);
+	const baseDps = $derived(recordedDps(runs));
+	const ranks = $derived(dpsCpRanks(candidates));
+	/** "DPS #3 · CP #9" when the two rankings disagree by 3 places or more: the disagreement this tab exists to show. */
+	const rankBadge = (c: DpsCandidate) => { const r = ranks.get(c.id); return r && Math.abs(r.dps - r.cp) >= 3 ? `DPS #${r.dps} · CP #${r.cp}` : null; };
+	const dpsGain = (c: DpsCandidate) => c.gainPct !== null && baseDps !== null ? baseDps * c.gainPct / 100 : null;
 	const missingPrices = $derived(missingPriceCount(pricingUpgrades, pricingCosts));
 	const materials = $derived(sourceState ? inventoryMaterials(sourceState.gear, !!sourceState.bracer) : []);
 	const perRaid = $derived(shown ? selected.map(raid => ({ raid, gain: combinedGain(shown.clears.filter(c => raid.runs.some(r => r.id === c.run.id))) })) : []);
@@ -229,11 +240,13 @@
 				<div class="dps-raids">
 					{#each raids.filter(r => r.kind === 'raid') as raid (raid.key)}
 						{@const art = raidArt(raid.name)}{@const active = selected.some(r => r.key === raid.key)}
-						<button class="dps-raid {active ? 'dps-selected' : ''}" onclick={() => chooseRaid(raid.key)} aria-pressed={active}>
+						<div class="dps-raid {active ? 'dps-selected' : ''}">
 							{#if art}<span class="absolute inset-0" style={art}></span>{/if}<span class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-black/15"></span>
-							<span class="relative flex items-start justify-between gap-2"><span class="rounded-xs px-1 text-xs {difficultyTone(raid.difficulty)}">{raid.difficulty || 'Normal'}</span><span class="text-xs text-white">{active ? '✓ Included' : 'Include'}</span></span>
-							<span class="relative mt-4 block"><strong class="block text-base text-white">{raid.name}</strong><span class="text-xs text-white/75">{raid.runs.length} {raid.runs.length === 1 ? 'clear' : 'clears'} · {formatDate(raid.last)}</span></span>
-						</button>
+							<button class="absolute inset-0 z-10" onclick={() => chooseRaid(raid.key)} aria-pressed={active && selected.length === 1} aria-label={`Show ${raid.name} ${raid.difficulty || 'Normal'}`}></button>
+							<span class="pointer-events-none relative flex items-start justify-between gap-2"><span class="rounded-xs px-1 text-xs {difficultyTone(raid.difficulty)}">{raid.difficulty || 'Normal'}</span>
+								{#if !active || selected.length > 1}<button class="dps-compare pointer-events-auto relative z-20" onclick={() => chooseRaid(raid.key, true)} aria-pressed={active} aria-label={`${active ? 'Remove' : 'Compare'} ${raid.name} ${raid.difficulty || 'Normal'}`}>{active ? '✓ Compared' : '+ Compare'}</button>{/if}</span>
+							<span class="pointer-events-none relative mt-4 block"><strong class="block text-base text-white">{raid.name}</strong><span class="text-xs text-white/75">{raid.runs.length} {raid.runs.length === 1 ? 'clear' : 'clears'} · {formatDate(raid.last)}</span></span>
+						</div>
 					{/each}
 				</div>
 				<div class="mt-3 flex flex-wrap items-center gap-3 text-sm">
@@ -241,7 +254,7 @@
 					<label class="dps-field">Gates<select class={selectClass(false)} bind:value={gateFilter} onchange={() => runPick = ''}><option value="">All gates</option>{#each gates as gate (gate.key)}<option value={gate.key}>{gate.label} · {gate.difficulty}</option>{/each}</select></label>
 					<label class="dps-field">Clears<select class={selectClass(false)} bind:value={runPick}><option value="">All {gateRuns.length} clears</option>{#each gateRuns as run}<option value={run.id}>{formatDate(run.start)} · {gateName(run.boss)} · {duration(run.duration)}</option>{/each}</select></label>
 					{#if orderOptions.length}<label class="dps-field">Order cores<select class={selectClass(!!orderFilter)} bind:value={orderFilter}><option value="">All recorded</option>{#each orderOptions as setup}<option value={setup}>{setup.replaceAll('/', '')}</option>{/each}</select></label>{/if}
-					{#each selected.filter(r => r.kind === 'other') as r}<button class={btnAccent} onclick={() => chooseRaid(r.key)} aria-label={`Remove ${r.name} ${r.difficulty}`}>{r.name} ×</button>{/each}
+					{#each selected.length > 1 ? selected.filter(r => r.kind === 'other') : [] as r}<button class={btnAccent} onclick={() => chooseRaid(r.key, true)} aria-label={`Remove ${r.name} ${r.difficulty}`}>{r.name} ×</button>{/each}
 				</div>
 				<div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-surface-800 pt-3 text-sm">
 					<p class="font-semibold text-surface-100">{#if orderFilter}Order cores {orderFilter.replaceAll('/', '')} only · {/if}{runs.length} {runs.length === 1 ? 'clear' : 'clears'}{selected.length > 1 ? ' · Mixed raids' : ''}</p>
@@ -263,6 +276,7 @@
 			{#if support}<p class="dps-panel p-4 text-sm text-surface-300">DPS estimates are available for damage dealers.</p>
 			{:else if !runs.length}<p class="dps-panel p-4 text-sm text-amber-300">No clears match these filters. Check Order cores, gates and excluded clears.</p>
 			{:else}
+				{#if baseDps !== null}<p class="dps-panel p-3 text-sm text-surface-300 sm:p-4">Your recorded DPS in {selected.length === 1 ? selected[0].name : `${selected.length} raids`}: <strong class="text-lg text-surface-50">{formatDamage(baseDps)}</strong> average over {runs.length} {runs.length === 1 ? 'clear' : 'clears'}.</p>{/if}
 				<div class="flex flex-wrap items-center justify-between gap-3"><h2 class="font-semibold">Next Upgrades</h2><div class="flex flex-wrap gap-2"><button class={btn} onclick={() => inventoryOpen = true}>Material prices / inventory</button><button class={btn} onclick={() => pricesOpen = true}>{missingPrices ? `${missingPrices} missing prices` : 'Prices'}</button></div></div>
 				<div class="dps-columns">
 					<section class="dps-panel min-w-0" aria-label="Next Upgrades">
@@ -274,22 +288,24 @@
 						{#if budget !== null && missingPrices}<p class="px-3 pt-2 text-xs text-amber-300">Unpriced upgrades remain visible.</p>{/if}
 						<div class="flex flex-wrap gap-1.5 border-b border-surface-800 p-3" role="group" aria-label="Upgrade type">{#each tabs as tab}<button class={category === tab ? btnAccent : btn} aria-pressed={category === tab} onclick={() => { category = tab; showAll = false; }}>{tab}</button>{/each}</div>
 						<div class="dps-row dps-row-head text-xs text-surface-400"><span>Upgrade</span><span class="text-right">DPS / CP</span><span class="text-right">Cost</span></div>
-						{#each listed as c (c.id)}
-							{@const image = look(c)}{@const cost = costs[c.id]}
+						{#snippet row(c: DpsCandidate)}
+							{@const image = look(c)}{@const cost = costs[c.id]}{@const badge = rankBadge(c)}{@const amount = dpsGain(c)}
 							<button class="dps-row dps-upgrade {c === shown ? 'dps-current' : ''}" onclick={() => choose(c)} aria-pressed={c === shown}>
-								<span class="flex min-w-0 items-center gap-3">{#if image.icon}<ItemIcon src={image.icon} grade={image.grade} size="size-9" />{/if}<span class="min-w-0"><UpgradeTitle u={c.upgrade} /><span class="mt-1 block text-xs text-surface-400">{c.gainPct === null ? 'DPS not estimated' : c.gem ? 'From logs' : 'Calculated'}{#if c.upgrade.detail === 'KR preview'}{' · '}<span class="text-amber-300">KR preview</span>{/if}</span></span></span>
-								<span class="dps-gain text-right"><strong class="block text-base font-semibold text-green-400">{fmt(c.gainPct)}</strong><span class="mt-0.5 block text-xs text-red-400">CP {formatPct(c.cpPct)}%</span></span>
+								<span class="flex min-w-0 items-center gap-3">{#if image.icon}<ItemIcon src={image.icon} grade={image.grade} size="size-9" />{/if}<span class="min-w-0"><UpgradeTitle u={c.upgrade} /><span class="mt-1 block text-xs text-surface-400">{c.gainPct === null ? 'DPS not estimated' : c.gem ? 'From logs' : 'Calculated'}{#if badge}{' · '}<span class="dps-badge">{badge}</span>{/if}{#if c.upgrade.detail === 'KR preview'}{' · '}<span class="text-amber-300">KR preview</span>{/if}</span></span></span>
+								<span class="dps-gain text-right"><strong class="block text-base font-semibold text-green-400">{fmt(c.gainPct)}</strong>{#if amount !== null}<span class="block text-xs text-green-400/80">≈ +{formatDamage(amount)}</span>{/if}<span class="mt-0.5 block text-xs text-surface-400">CP {formatPct(c.cpPct)}%</span></span>
 								<span class="dps-cost text-right text-sm"><span class={cost === undefined ? 'text-amber-300/80' : 'text-amber-300'}>{cost === undefined ? supportsGoldCost(c.upgrade) ? 'Price needed' : '—' : `${formatGold(cost)} gold`}</span><span class="mt-0.5 block text-xs text-surface-400">{cost !== undefined && c.gainPct !== null && c.gainPct > 0 ? `${formatGold(cost / c.gainPct)} / 1% DPS` : '—'}</span></span>
 							</button>
-						{/each}
+						{/snippet}
+						{#each listed as c (c.id)}{@render row(c)}{/each}
 						{#if !filtered.length}<p class="p-4 text-sm text-surface-300">No upgrades match these filters.</p>{/if}
-						<div class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-800 p-3 text-xs text-surface-400">{#if filtered.length > 10}<button class="text-accent-300 hover:underline" onclick={() => showAll = !showAll}>{showAll ? 'Show top 10' : `Show all ${filtered.length}`}</button>{/if}<label class="flex items-center gap-2"><input type="checkbox" bind:checked={allOptions} />All options per slot</label><span>{filtered.length} upgrades</span></div>
+						{#if unestimated.length}<details class="border-t border-surface-800"><summary class="cursor-pointer p-3 text-xs text-surface-400">Not estimated yet · {unestimated.length}</summary>{#each unestimated as c (c.id)}{@render row(c)}{/each}</details>{/if}
+						<div class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-800 p-3 text-xs text-surface-400">{#if estimated.length > 10}<button class="text-accent-300 hover:underline" onclick={() => showAll = !showAll}>{showAll ? 'Show top 10' : `Show all ${estimated.length}`}</button>{/if}<label class="flex items-center gap-2"><input type="checkbox" bind:checked={allOptions} />All options per slot</label><span>{filtered.length} upgrades</span></div>
 					</section>
 					{#if shown}
 						<aside id="dps-breakdown" class="dps-panel dps-inspector p-4" aria-label="Breakdown">
 							<h2 class="mb-3 font-semibold">Breakdown</h2><UpgradeTitle u={shown.upgrade} />
 							{#if shown.upgrade.detail === 'KR preview'}<p class="mt-2 text-xs text-amber-300">KR preview</p>{/if}
-							<div class="mt-4 flex flex-wrap items-end justify-between gap-2" aria-live="polite"><div><p class="text-xs text-surface-400">DPS gain</p><p class="text-3xl font-semibold text-green-400">{fmt(shown.gainPct)}</p></div><div class="text-right"><p class="text-xs text-surface-400">CP gain</p><p class="text-sm text-red-400">{formatPct(shown.cpPct)}% (+{((cp ?? 0) * shown.cpPct / 100).toFixed(2)})</p></div></div>
+							<div class="mt-4 flex flex-wrap items-end justify-between gap-2" aria-live="polite"><div><p class="text-xs text-surface-400">DPS gain</p><p class="text-3xl font-semibold text-green-400">{fmt(shown.gainPct)}</p>{#if dpsGain(shown) !== null}<p class="text-sm text-green-400/80">≈ +{formatDamage(dpsGain(shown)!)} DPS</p>{/if}{#if rankBadge(shown)}<p class="mt-1 text-xs"><span class="dps-badge">{rankBadge(shown)}</span></p>{/if}</div><div class="text-right"><p class="text-xs text-surface-400">CP gain</p><p class="text-sm text-surface-300">{formatPct(shown.cpPct)}% (+{((cp ?? 0) * shown.cpPct / 100).toFixed(2)})</p></div></div>
 							{#if shown.reason}<p class="mt-3 text-sm text-amber-300">{shown.reason}</p>
 							{:else if shown.gainPct === null}<p class="mt-3 text-sm text-amber-300">DPS not estimated · {shown.covered}/{runs.length} clears covered.</p>{/if}
 							{#each shown.notes as note}<p class="mt-2 text-xs text-amber-300/90">※ {note}</p>{/each}
@@ -327,6 +343,10 @@
 	.dps-panel { border-radius: 2px; background: var(--color-surface-900); box-shadow: 0 1px 2px var(--color-neutral-800); }
 	.dps-raids { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .6rem; }
 	.dps-raid { position: relative; overflow: hidden; border: 1px solid var(--color-surface-700); border-radius: 2px; padding: .7rem; text-align: left; }
+	.dps-raid:has(> button:focus-visible) { outline: 2px solid var(--color-accent-300); outline-offset: 1px; }
+	.dps-compare { border-radius: 2px; padding: 0 .3rem; font-size: .75rem; color: white; background: rgb(0 0 0 / .45); }
+	.dps-compare:hover { background: rgb(0 0 0 / .7); }
+	.dps-badge { border-radius: 2px; padding: 0 .3rem; color: var(--color-accent-200); background: color-mix(in oklab, var(--color-accent-700) 30%, transparent); white-space: nowrap; }
 	.dps-selected { border-color: var(--color-accent-400); box-shadow: inset 0 -3px var(--color-accent-400); }
 	.dps-field { display: flex; align-items: center; gap: .5rem; min-width: 0; max-width: 100%; }
 	.dps-field select { min-width: 0; max-width: 18rem; }

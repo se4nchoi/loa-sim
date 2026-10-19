@@ -129,3 +129,33 @@ export function rankDpsCandidates(candidates: DpsCandidate[], costs: Record<stri
 		return (b.gainPct ?? -Infinity) - (a.gainPct ?? -Infinity) || b.cpPct - a.cpPct || a.id.localeCompare(b.id);
 	});
 }
+
+/** Recorded DPS of the selected clears together: total damage over total fight time (durations are ms). */
+export function recordedDps(runs: RunSummary[]): number | null {
+	const damage = runs.reduce((sum, run) => sum + run.damage, 0);
+	const duration = runs.reduce((sum, run) => sum + run.duration, 0);
+	return damage > 0 && duration > 0 ? damage / (duration / 1000) : null;
+}
+
+/** 312m, 1.2b, 45.3k: damage numbers as players read them off the meter. */
+export function formatDamage(n: number) {
+	const abs = Math.abs(n);
+	const [div, unit] = abs >= 1e9 ? [1e9, 'b'] : abs >= 1e6 ? [1e6, 'm'] : abs >= 1e3 ? [1e3, 'k'] : [1, ''];
+	const v = n / div;
+	return `${Math.abs(v) >= 100 ? v.toFixed(0) : +v.toFixed(1)}${unit}`;
+}
+
+/** Slot alternatives (accessory and quality options) count as one upgrade in the list and in ranks. */
+export const slotGroup = (c: DpsCandidate) => ['accessory', 'quality'].includes(c.upgrade.category) ? c.upgrade.group ?? c.id : c.id;
+
+/** Each estimated candidate's place by DPS and by CP: 1 + the number of other slots with a better option. */
+export function dpsCpRanks(candidates: DpsCandidate[]) {
+	const estimated = candidates.filter(c => c.gainPct !== null);
+	const rankBy = (value: (c: DpsCandidate) => number) => {
+		const best = new Map<string, number>();
+		for (const c of estimated) best.set(slotGroup(c), Math.max(best.get(slotGroup(c)) ?? -Infinity, value(c)));
+		return (c: DpsCandidate) => 1 + [...best].filter(([group, v]) => group !== slotGroup(c) && v > value(c)).length;
+	};
+	const dps = rankBy(c => c.gainPct!), cp = rankBy(c => c.cpPct);
+	return new Map(estimated.map(c => [c.id, { dps: dps(c), cp: cp(c) }]));
+}

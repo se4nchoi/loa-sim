@@ -6,7 +6,7 @@ import { initSimState } from './simulate';
 import { liveUpgrades } from './live-upgrades';
 import { engravingNames } from './dps-loadout';
 import { gemMembers } from './dps-explain';
-import { combinedGain, comparisonSample, comparisonScope, compareDpsUpgrades, orderSetup, rankDpsCandidates, type DpsCandidate } from './dps-comparison';
+import { combinedGain, comparisonSample, comparisonScope, compareDpsUpgrades, dpsCpRanks, formatDamage, orderSetup, rankDpsCandidates, recordedDps, type DpsCandidate } from './dps-comparison';
 
 const loadout = soulshan as unknown as Loadout;
 const state = initSimState(loadout);
@@ -102,5 +102,22 @@ describe('DPS ranking', () => {
 		expect(rankDpsCandidates(list, { paid: 100, free: 0, unknown: 0, zero: 0 }, 'gold').map(c => c.id)).toEqual(['free', 'paid', 'unpriced', 'zero', 'unknown']);
 		expect(rankDpsCandidates(list, {}, 'dps')[0].id).toBe('unpriced');
 		expect(rankDpsCandidates([candidate('a', 5, 1), candidate('b', null, 2)], {}, 'cp')[0].id).toBe('b');
+	});
+});
+
+describe('DPS headline and ranks', () => {
+	it('reads recorded DPS as total damage over total seconds', () => {
+		expect(recordedDps([run(1, 6_000), { ...run(2, 12_000), duration: 120_000 }])).toBeCloseTo(100);
+		expect(recordedDps([])).toBeNull();
+		expect([formatDamage(312.4e6), formatDamage(3.74e6), formatDamage(1.25e9), formatDamage(950)]).toEqual(['312m', '3.7m', '1.3b', '950']);
+	});
+	it('ranks slots by DPS and by CP, skipping unestimated rows and collapsing slot alternatives', () => {
+		const c = (id: string, gainPct: number | null, cpPct: number, group?: string) =>
+			({ id, gainPct, cpPct, upgrade: { key: id, category: group ? 'accessory' : 'gem', group } }) as unknown as DpsCandidate;
+		const ranks = dpsCpRanks([c('a', 3, 0.1), c('b', 2, 0.5), c('n1', 1, 0.9, 'neck'), c('n2', 0.5, 0.2, 'neck'), c('x', null, 5)]);
+		expect(ranks.get('a')).toEqual({ dps: 1, cp: 3 });
+		expect(ranks.get('n1')).toEqual({ dps: 3, cp: 1 });
+		expect(ranks.get('n2')).toEqual({ dps: 3, cp: 2 });
+		expect(ranks.has('x')).toBe(false);
 	});
 });
