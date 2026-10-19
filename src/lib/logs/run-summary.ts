@@ -21,18 +21,18 @@ export interface LoggedEntity {
 	engravings?: unknown;
 	arkPassiveData?: unknown;
 	loadoutHash?: unknown;
-	/** Buff ids the encounter lists as Ark Grid buffs; their damage per skill is kept. */
-	arkGridBuffs?: Set<number>;
+	/** The encounter's Ark Grid and identity buffs by id, with their names; their damage per skill is kept. */
+	keptBuffs?: Map<number, string>;
 }
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
-/** The skill's damage under the encounter's Ark Grid buffs; nothing when the import didn't read the buffs. */
-function arkGridOf(s: LoggedRunSkill, buffs: Set<number> | undefined): { arkGrid?: Record<number, number> } {
-	if (!buffs) return {};
+/** The skill's damage under the kept buffs; nothing when the import didn't read the buffs. */
+function buffsOf(s: LoggedRunSkill, kept: Map<number, string> | undefined): { buffs?: Record<number, number> } {
+	if (!kept) return {};
 	const out: Record<number, number> = {};
-	for (const [id, damage] of Object.entries(s.buffedBy ?? {})) if (buffs.has(Number(id)) && num(damage)) out[Number(id)] = damage;
-	return { arkGrid: out };
+	for (const [id, damage] of Object.entries(s.buffedBy ?? {})) if (kept.has(Number(id)) && num(damage)) out[Number(id)] = damage;
+	return { buffs: out };
 }
 
 /** null when the player dealt no skill damage in the run. */
@@ -48,7 +48,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 			...(num(s.timeAvailable) !== null ? { timeAvailable: s.timeAvailable } : {}),
 			...(num(s.gemDamage) !== null ? { damageGem: s.gemDamage } : {}),
 			...(num(s.gemCooldown) !== null ? { cooldownGem: s.gemCooldown } : {}),
-			...arkGridOf(s, entity.arkGridBuffs)
+			...buffsOf(s, entity.keptBuffs)
 		});
 	}
 	if (!skills.length) return null;
@@ -84,6 +84,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 		...(Object.keys(arkPassives).length ? { arkPassives } : {}),
 		...(Object.keys(arkGridOrder).length ? { arkGridOrder } : {}),
 		...(typeof entity.loadoutHash === 'string' && entity.loadoutHash ? { loadoutHash: entity.loadoutHash } : {}),
+		...(entity.keptBuffs ? { buffNames: Object.fromEntries(entity.keptBuffs) } : {}),
 		damage: skills.reduce((sum, s) => sum + s.damage, 0),
 		skills: skills.sort((a, b) => b.damage - a.damage),
 		statValues: averageStatValues([split]),

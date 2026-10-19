@@ -1,10 +1,12 @@
 // Order Ark Grid cores in the DPS meter: what a core change (another grade, more points, another core) does to each
 // skill of a recorded clear. Loaded only in DPS mode (the core table is large).
-//   - "Stygian Skill Damage +3%", "Damage to foes +1%": always on, so a skill of the group gets (1 + new) / (1 + old);
-//   - Destiny effects ("Destiny: Footsteps of the Dead: Stygian Skill Damage +54% for 2 casts"): only the damage LOA Logs
-//     recorded while that buff was up changes, by (1 + new) / (1 + old). A Destiny effect the clear never had can't
-//     be placed in it, so it isn't valued (said so).
-// Anything else a core does (cooldowns, meters, Deathlord Mode conditions) isn't valued yet and is named.
+//   - always on ("Stygian Skill Damage +3%", "Astaros Damage +18%", "Damage to foes +1%"): a skill it covers gets
+//     (1 + new) / (1 + old);
+//   - in a state ("In Deathlord Mode, Stygian Skill Damage +18%") or on a Destiny buff ("Destiny: Footsteps of the
+//     Dead: Stygian Skill Damage +54% for 2 casts"): only the share of the skill's damage LOA Logs recorded under that
+//     buff changes, by (1 + new) / (1 + old). A state or buff this clear never had can't be placed in it, so it isn't
+//     valued (said so); neither is a state the logs don't record ("With Possession").
+// Anything else a core does (cooldowns, casting speed, meters) isn't valued yet and is named.
 import type { RunSummary } from '$lib/logs/protocol';
 import { ORDER_CORE_EFFECTS, ORDER_CORES, type OrderCoreEffect } from './order-cores';
 import { SKILL_GROUPS } from './skill-groups';
@@ -12,6 +14,8 @@ import { initSimState, simCorePoints, type SimCore, type SimState } from './simu
 import { swappedCoreId } from './support';
 import { decodeCore } from './tables';
 import type { Loadout } from './types';
+
+type RunSkill = RunSummary['skills'][number];
 
 /**
  * The order core a slot holds in a state: the one actually played (`as`) at the slot's simulated grade (a grade swap
@@ -25,42 +29,41 @@ export function orderCoreOf(core: SimCore): number | null {
 	return grade !== info.grade ? swappedCoreId(id, grade) : id;
 }
 
+/** Where an effect applies: always (''), under a Destiny buff ('buff:34612'), or in a state ('state:Deathlord Mode'). */
+const keyOf = (e: OrderCoreEffect) => (e.feature ? `buff:${Math.floor(e.feature / 100)}` : e.when ? `state:${e.when}` : '');
+
 interface Active {
-	always: OrderCoreEffect[];
-	/** Destiny effects by buff (the feature id's first five digits, as the log's buff ids share them). */
-	destiny: Map<number, OrderCoreEffect[]>;
+	/** Valued effects by where they apply. */
+	effects: Map<string, OrderCoreEffect[]>;
 	/** Effects that aren't valued. */
 	other: string[];
 }
 
-const buffKey = (id: number) => Math.floor(id / 100);
-
 /** A core's effects at these points; of a Destiny feature's levels only the highest counts (it upgrades the lower). */
 export function activeEffects(coreId: number | null, points: number): Active {
-	const out: Active = { always: [], destiny: new Map(), other: [] };
+	const out: Active = { effects: new Map(), other: [] };
 	const core = coreId === null ? undefined : ORDER_CORES[coreId];
 	if (!core) return out;
-	const effects = core.bonuses.filter(([need]) => points >= need).flatMap(([, option]) => ORDER_CORE_EFFECTS[option] ?? []);
+	const all = core.bonuses.filter(([need]) => points >= need).flatMap(([, option]) => ORDER_CORE_EFFECTS[option] ?? []);
 	const top = new Map<number, number>();
-	for (const e of effects) if (e.feature) top.set(e.feature, Math.max(top.get(e.feature) ?? 0, e.level ?? 0));
-	for (const e of effects) {
-		if (e.text) out.other.push(e.text);
-		else if (e.feature) {
-			if ((e.level ?? 0) < (top.get(e.feature) ?? 0)) continue;
-			const list = out.destiny.get(buffKey(e.feature)) ?? [];
-			list.push(e);
-			out.destiny.set(buffKey(e.feature), list);
-		} else out.always.push(e);
+	for (const e of all) if (e.feature) top.set(e.feature, Math.max(top.get(e.feature) ?? 0, e.level ?? 0));
+	for (const e of all) {
+		if (e.text) { out.other.push(e.text); continue; }
+		if (e.feature && (e.level ?? 0) < (top.get(e.feature) ?? 0)) continue;
+		const key = keyOf(e);
+		out.effects.set(key, [...(out.effects.get(key) ?? []), e]);
 	}
 	return out;
 }
 
-const applies = (e: OrderCoreEffect, group: string | undefined) => e.groups === null || (group !== undefined && !!e.groups?.includes(group));
-const bonus = (effects: OrderCoreEffect[], group: string | undefined) => effects.reduce((m, e) => (applies(e, group) ? m * (1 + (e.pct ?? 0)) : m), 1);
+const applies = (e: OrderCoreEffect, skill: number, group: string | undefined) =>
+	e.skills ? e.skills.includes(skill) : e.groups === null || (group !== undefined && !!e.groups?.includes(group));
+const bonus = (effects: OrderCoreEffect[] | undefined, skill: number, group: string | undefined) =>
+	(effects ?? []).reduce((m, e) => (applies(e, skill, group) ? m * (1 + (e.pct ?? 0)) : m), 1);
 
 export interface ArkGridEffect {
-	/** Per skill id: the multiplier on its recorded damage in this run. */
-	factor: (skill: RunSummary['skills'][number]) => number;
+	/** The multiplier on a skill's recorded damage in this run. */
+	factor: (skill: RunSkill) => number;
 	/** What changed but isn't valued ("Footsteps of the Dead: Stygian Skill cooldown -50% ..."). */
 	unvalued: string[];
 	/** Some order core changed. */
@@ -70,8 +73,10 @@ export interface ArkGridEffect {
 /** The order core changes between the clear's setup (`base`) and the simulated one, valued on one recorded run. */
 export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimState, run: RunSummary): ArkGridEffect {
 	const anchor = initSimState(loadout);
-	const unvalued = new Set<string>();
 	const slots: { before: Active; after: Active; cls: string; name: string }[] = [];
+	const swaps: string[] = [], partly = new Set<string>(), missing = new Set<string>();
+	let reimport = false;
+	const family = (id: number | null) => (id === null ? null : String(id).slice(0, 8));
 	state.arkGrid.forEach((core, i) => {
 		const was = base.arkGrid[i];
 		if (!was) return;
@@ -79,43 +84,57 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 		if (idA === null && idB === null) return;
 		const [pA, pB] = [simCorePoints(loadout, base, anchor, was.id), simCorePoints(loadout, state, anchor, core.id)];
 		if (idA === idB && pA === pB) return;
+		// Another core (not another grade) changes the rotation too: cooldowns, what triggers Destiny. Not valued.
+		if (family(idA) !== family(idB)) {
+			swaps.push(`${ORDER_CORES[idA ?? 0]?.name ?? 'none'} → ${ORDER_CORES[idB ?? 0]?.name ?? 'none'}`);
+			return;
+		}
 		const before = activeEffects(idA, pA), after = activeEffects(idB, pB);
 		const meta = ORDER_CORES[idB ?? idA ?? 0];
-		slots.push({ before, after, cls: meta?.cls ?? '', name: meta?.name ?? 'Order core' });
-		const had = new Set(before.other);
-		for (const t of after.other) if (!had.has(t)) unvalued.add(`${meta?.name}: ${t}`);
-		for (const t of before.other) if (!after.other.includes(t)) unvalued.add(`${ORDER_CORES[idA ?? 0]?.name ?? meta?.name}: ${t}`);
+		const name = meta?.name ?? 'Order core';
+		slots.push({ before, after, cls: meta?.cls ?? '', name });
+		if (after.other.some((t) => !before.other.includes(t)) || before.other.some((t) => !after.other.includes(t))) partly.add(name);
 	});
-	if (!slots.length) return { factor: () => 1, unvalued: [], changed: false };
 
-	// Damage under each Ark Grid buff in this run, per skill (by buff key); null when the import didn't keep it.
-	const kept = run.skills.some((s) => s.arkGrid !== undefined);
-	const seen = new Set(run.skills.flatMap((s) => Object.keys(s.arkGrid ?? {}).map((id) => buffKey(Number(id)))));
-	const under = (s: RunSummary['skills'][number], key: number) =>
-		Math.max(0, ...Object.entries(s.arkGrid ?? {}).filter(([id]) => buffKey(Number(id)) === key).map(([, d]) => d));
+	// The run's buffs: Destiny buffs by their id's first five digits, states by name.
+	const kept = run.skills.some((s) => s.buffs !== undefined);
+	const idsOf = (key: string): number[] => {
+		const ids = Object.keys(run.buffNames ?? {}).map(Number);
+		if (key.startsWith('buff:')) return ids.filter((id) => `buff:${Math.floor(id / 100)}` === key);
+		return ids.filter((id) => `state:${run.buffNames![id]}` === key);
+	};
+	const share = (s: RunSkill, ids: number[]) => (s.damage ? Math.min(1, Math.max(0, ...ids.map((id) => s.buffs?.[id] ?? 0)) / s.damage) : 0);
 
-	for (const { before, after, cls, name } of slots) {
-		if (!SKILL_GROUPS[cls] && [...before.always, ...after.always, ...[...before.destiny.values(), ...after.destiny.values()].flat()].some((e) => e.groups))
-			unvalued.add(`${name}: skill groups for this class aren't listed yet`);
-		for (const key of new Set([...before.destiny.keys(), ...after.destiny.keys()])) {
-			if (!kept) unvalued.add(`${name}: Destiny effects need the logs imported again`);
-			else if (!seen.has(key) && after.destiny.has(key)) unvalued.add(`${name}: a Destiny effect this clear didn't have`);
+	const changedKeys = (slot: (typeof slots)[number]) => [...new Set([...slot.before.effects.keys(), ...slot.after.effects.keys()])];
+	for (const slot of slots) {
+		const all = [...slot.before.effects.values(), ...slot.after.effects.values()].flat();
+		if (!SKILL_GROUPS[slot.cls] && all.some((e) => e.groups)) missing.add(`skill groups for ${slot.name}'s class`);
+		for (const key of changedKeys(slot)) {
+			if (!key) continue;
+			if (!kept) reimport = true;
+			else if (!idsOf(key).length && slot.after.effects.has(key)) missing.add(key.startsWith('state:') ? `${key.slice(6)} (${slot.name})` : `${slot.name}'s Destiny buff`);
 		}
 	}
 
-	const factor = (s: RunSummary['skills'][number]) => {
+	const factor = (s: RunSkill) => {
 		let m = 1;
-		for (const { before, after, cls } of slots) {
-			const group = SKILL_GROUPS[cls]?.[s.id];
-			m *= bonus(after.always, group) / bonus(before.always, group);
-			if (!kept || !s.damage) continue;
-			for (const key of new Set([...before.destiny.keys(), ...after.destiny.keys()])) {
-				if (!seen.has(key)) continue;
-				const ratio = bonus(after.destiny.get(key) ?? [], group) / bonus(before.destiny.get(key) ?? [], group);
-				if (ratio !== 1) m *= 1 + Math.min(1, under(s, key) / s.damage) * (ratio - 1);
+		for (const slot of slots) {
+			const group = SKILL_GROUPS[slot.cls]?.[s.id];
+			for (const key of changedKeys(slot)) {
+				const ratio = bonus(slot.after.effects.get(key), s.id, group) / bonus(slot.before.effects.get(key), s.id, group);
+				if (ratio === 1) continue;
+				if (!key) { m *= ratio; continue; }
+				const ids = kept ? idsOf(key) : [];
+				if (ids.length) m *= 1 + share(s, ids) * (ratio - 1);
 			}
 		}
 		return m;
 	};
-	return { factor, unvalued: [...unvalued], changed: true };
+	const unvalued = [
+		...(swaps.length ? [`Ark Grid: core swaps aren't valued, the clear's rotation would change (${swaps.join(', ')}). Simulate from the clear's setup to edit its own cores.`] : []),
+		...(reimport ? ["Ark Grid: re-import logs to value Destiny and Deathlord Mode-like effects."] : []),
+		...(missing.size ? [`Ark Grid: not in this clear's logs: ${[...missing].join(', ')}.`] : []),
+		...(partly.size ? [`Ark Grid: cooldown, casting and Destiny-trigger effects of ${[...partly].join(', ')} aren't valued yet.`] : [])
+	];
+	return { factor, unvalued, changed: slots.length > 0 || swaps.length > 0 };
 }

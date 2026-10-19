@@ -119,7 +119,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	// Damage outside the per-skill list (if any) is scaled by the stat part alone.
 	const listed = [...bySkill.values()].reduce((sum, r) => sum + r.before, 0);
 	if (before > listed) after += (before - listed) * (1 + statWeighted / Math.max(1, before) / 100);
-	if (unvalued.size) notes.push(`Ark Grid, not valued yet: ${[...unvalued].join(' · ')}`);
+	notes.push(...unvalued);
 	if (hasStats && !statKnown) notes.push("Stat edits need a clear recorded with LOA Logs' stat values (low performance mode off); they're left out.");
 	return {
 		before, after, durationMs,

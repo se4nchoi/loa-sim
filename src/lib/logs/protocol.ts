@@ -97,8 +97,11 @@ export interface RunSkill {
 	/** Gem levels the meter saw on this skill. */
 	damageGem?: number;
 	cooldownGem?: number;
-	/** Damage dealt while each Ark Grid buff was up ("Destiny: Footsteps of the Dead"), by buff id; unknown on old imports. */
-	arkGrid?: Record<number, number>;
+	/**
+	 * Damage dealt while each of the player's Ark Grid and identity buffs was up ("Destiny: Footsteps of the Dead",
+	 * "Deathlord Mode"), by buff id; the run's `buffNames` names them. Unknown on old imports.
+	 */
+	buffs?: Record<number, number>;
 }
 
 /** One cleared run of the player, compact enough to keep hundreds in browser storage. */
@@ -111,6 +114,8 @@ export interface RunSummary extends EncounterRow {
 	arkGridOrder?: Partial<Record<'sun' | 'moon' | 'star', number>>;
 	arkPassives?: Record<string, { id: number; lv: number }[]>;
 	loadoutHash?: string;
+	/** Names of the buffs in the skills' `buffs`. */
+	buffNames?: Record<number, string>;
 	/** Sum of the player's skill damage. */
 	damage: number;
 	skills: RunSkill[];

@@ -8,8 +8,9 @@ import type { Loadout } from './types';
 const loadout = soulshan as unknown as Loadout;
 const FOOTSTEPS_RELIC = 673002435, FOOTSTEPS_ANCIENT = 673002436;
 const ASTAROS = 46430, VESTIGE = 46530, FATALITY = 46630;
-const skill = (id: number, damage: number, arkGrid?: Record<number, number>) => ({ id, damage, critDamage: 0, hits: 1, crits: 0, casts: 1, ...(arkGrid ? { arkGrid } : {}) });
-const run = (skills: RunSummary['skills']) => ({ id: 1, skills, damage: skills.reduce((s, k) => s + k.damage, 0) }) as RunSummary;
+const skill = (id: number, damage: number, buffs?: Record<number, number>) => ({ id, damage, critDamage: 0, hits: 1, crits: 0, casts: 1, ...(buffs ? { buffs } : {}) });
+const NAMES = { 3461200: 'Destiny: Footsteps of the Dead', 460501: 'Deathlord Mode' };
+const run = (skills: RunSummary['skills'], buffNames: Record<number, string> = NAMES) => ({ id: 1, skills, damage: skills.reduce((s, k) => s + k.damage, 0), buffNames }) as RunSummary;
 
 // The fixture's sun core slot, played as Footsteps of the Dead (as a clear's setup has it).
 const anchor = initSimState(loadout);
@@ -26,10 +27,10 @@ const withFootsteps = (grade: 'relic' | 'ancient' = 'relic') => {
 describe('order core effects', () => {
 	it('reads Footsteps of the Dead by points, the ancient Destiny buff replacing the relic one', () => {
 		const relic = activeEffects(FOOTSTEPS_RELIC, 20), ancient = activeEffects(FOOTSTEPS_ANCIENT, 20);
-		expect(relic.always.reduce((s, e) => s + (e.pct ?? 0), 0)).toBeCloseTo(0.03 + 3 * 0.006);
-		expect([...relic.destiny.values()].flat().map((e) => e.pct)).toEqual([0.54]);
-		expect([...ancient.destiny.values()].flat().map((e) => e.pct)).toEqual([0.64]);
-		expect(activeEffects(FOOTSTEPS_RELIC, 14).destiny.size).toBe(0);
+		expect(relic.effects.get('')!.reduce((s, e) => s + (e.pct ?? 0), 0)).toBeCloseTo(0.03 + 3 * 0.006);
+		expect(relic.effects.get('buff:34612')!.map((e) => e.pct)).toEqual([0.54]);
+		expect(ancient.effects.get('buff:34612')!.map((e) => e.pct)).toEqual([0.64]);
+		expect(activeEffects(FOOTSTEPS_RELIC, 14).effects.has('buff:34612')).toBe(false);
 	});
 
 	it('relic → ancient raises only the Stygian damage dealt under the Destiny buff', () => {
@@ -46,7 +47,32 @@ describe('order core effects', () => {
 		const r = run([skill(ASTAROS, 1000)]);
 		const e = orderCoreEffect(loadout, withFootsteps(), withFootsteps('ancient'), r);
 		expect(e.factor(r.skills[0])).toBe(1);
-		expect(e.unvalued.some((u) => u.includes('imported again'))).toBe(true);
+		expect(e.unvalued.some((u) => u.includes('re-import'))).toBe(true);
+	});
+
+	it('values "In Deathlord Mode" effects on the damage dealt in Deathlord Mode', () => {
+		// Soul Core (moon) reaching 17P: In Deathlord Mode, Stygian Skill Damage +18%.
+		const SOUL_CORE = 673012436;
+		const moon = anchor.arkGrid.findIndex((c) => String(c.id).slice(3, 5) === '01');
+		const after = structuredClone(anchor);
+		after.arkGrid[moon] = { ...after.arkGrid[moon], as: SOUL_CORE, grade: 'ancient', gems: after.arkGrid[moon].gems.map((g) => ({ ...g, costReduc: 5 })) };
+		const before = structuredClone(after);
+		before.arkGrid[moon].gems = before.arkGrid[moon].gems.map((g, i) => (i < 2 ? { ...g, removed: true } : g));
+		const id = after.arkGrid[moon].id;
+		expect(simCorePoints(loadout, after, anchor, id)).toBeGreaterThanOrEqual(17);
+		expect(simCorePoints(loadout, before, anchor, id)).toBeLessThan(17);
+		const r = run([skill(ASTAROS, 1000, { 460501: 500 }), skill(VESTIGE, 1000, { 460501: 1000 })]);
+		const e = orderCoreEffect(loadout, before, after, r);
+		expect(e.factor(r.skills[0])).toBeCloseTo(1 + 0.5 * 0.18 * (1.006 ** 0), 1);
+		expect(e.factor(r.skills[0])).toBeGreaterThan(1.08);
+		expect(e.factor(r.skills[1])).toBe(1);
+	});
+
+	it("doesn't value core swaps, and names them", () => {
+		const r = run([skill(ASTAROS, 1000, {})]);
+		const e = orderCoreEffect(loadout, anchor, withFootsteps('ancient'), r);
+		expect(e.factor(r.skills[0])).toBe(1);
+		expect(e.unvalued[0]).toContain("Deathlord's Call → Footsteps of the Dead");
 	});
 
 	it('no core change, no effect', () => {

@@ -109,7 +109,7 @@
 	});
 	const diff = $derived(setup?.snap ? setupDiff(loadout, setup.snap) : null);
 	// The clear's setup as a Simulator state: the meter's baseline, so gear changed since the clear counts with the edits.
-	const clearSetup = $derived(setup?.snap && setup.hash === clear?.loadoutHash ? clearState(loadout, setup.snap) : null);
+	const clearSetup = $derived(setup?.snap && setup.hash === clear?.loadoutHash ? clearState(loadout, $state.snapshot(setup.snap) as ClearSnapshot) : null);
 	const clearSetupCp = $derived(clearSetup ? simulate(loadout, clearSetup.state, base).cp : null);
 	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, plain, buildRuns, runs, arkGridModel?.orderCoreEffect) : null);
 

@@ -44,16 +44,16 @@
 	<div class="flex flex-wrap items-end gap-x-3 gap-y-1">
 		<!-- Recorded and simulated side by side, both large and one decimal finer than the bars, so a small change reads. -->
 		<div>
-			<p class="text-xs text-surface-400">Recorded DPS</p>
+			<p class="text-xs text-surface-400">Recorded</p>
 			<p class="text-3xl font-semibold tabular-nums text-surface-300">{headline(before)}</p>
 		</div>
 		<p class="pb-1 text-2xl text-surface-500" aria-hidden="true">→</p>
 		<div>
-			<p class="text-xs text-surface-400">With your edits</p>
+			<p class="text-xs text-surface-400">Simulated</p>
 			<p class="text-4xl font-bold tabular-nums text-surface-50">{headline(shown.current)}</p>
 		</div>
 		<p class="pb-1.5 text-lg font-semibold tabular-nums {!changed ? 'text-surface-400' : pct > 0 ? 'text-green-400' : 'text-red-400'}">
-			{#if changed}{formatPct(pct)}% <span class="text-sm font-normal">({after >= before ? '+' : ''}{formatDamage(after - before)})</span>{:else}±0%{/if}
+			{#if changed}{after >= before ? '+' : ''}{formatDamage(after - before)} <span class="text-sm font-normal">({formatPct(pct)}%)</span>{:else}±0{/if}
 		</p>
 	</div>
 

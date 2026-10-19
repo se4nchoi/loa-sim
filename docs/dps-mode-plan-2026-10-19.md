@@ -98,3 +98,11 @@ live logs (Serca NM 10-17: weapon +1 → +0.95%, Gluttony damage gem 9 → 10 �
 - Approximations: LOA Logs counts every hit while the buff is up; the "2 casts in Deathlord Mode" limit is taken as
   what the buff's own uptime already reflects. "In Deathlord Mode" always-on effects, cooldown effects and chaos cores /
   astrogem options are not valued yet.
+
+Follow-up (10-19, later):
+- Effects on one skill ("Astaros Damage +18%"), negative ones ("Ghast Skill Damage -20%") and effects in a state
+  ("In Deathlord Mode, ...", "With Possession, ...", carried to the sentences after it) are parsed. States are valued on
+  the damage the logs recorded under that identity buff (Deathlord Mode is logged; Possession isn't, so it's named).
+- Imports keep each skill's damage under Ark Grid and identity buffs (`RunSkill.buffs`, names in `RunSummary.buffNames`).
+- Core swaps (another core, not another grade) aren't valued: the clear's rotation would change (cooldowns, Destiny
+  triggers). Raid cores vs CP cores came out at +11.5% mechanically, which isn't a believable number.

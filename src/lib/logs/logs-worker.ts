@@ -258,16 +258,17 @@ async function runSummaries(player: string, ids: number[]) {
 		if (!entity) continue;
 		let misc: unknown = null;
 		if (hasMisc) try { misc = await decodeSkills((await query(`SELECT misc FROM encounter WHERE id = ?`, [row.id]))[0]?.misc); } catch { /* old/unreadable misc */ }
-		// Ark Grid buffs ("Destiny: Footsteps of the Dead"): the meter values Order core changes on the damage dealt under them.
-		let arkGridBuffs: Set<number> | undefined;
+		// Ark Grid and identity buffs ("Destiny: Footsteps of the Dead", "Deathlord Mode"): the meter values Order core
+		// effects on the damage dealt under them.
+		let keptBuffs: Map<number, string> | undefined;
 		if (hasBuffs) try {
-			const buffs = await decodeSkills((await query(`SELECT buffs FROM encounter WHERE id = ?`, [row.id]))[0]?.buffs) as Record<string, { buffCategory?: string }>;
-			arkGridBuffs = new Set(Object.entries(buffs).filter(([, b]) => b?.buffCategory === 'arkgrid').map(([id]) => Number(id)));
+			const buffs = await decodeSkills((await query(`SELECT buffs FROM encounter WHERE id = ?`, [row.id]))[0]?.buffs) as Record<string, { buffCategory?: string; source?: { name?: string } }>;
+			keptBuffs = new Map(Object.entries(buffs).filter(([, b]) => b?.buffCategory === 'arkgrid' || b?.buffCategory === 'identity').map(([id, b]) => [Number(id), b.source?.name ?? '']));
 		} catch { /* old/unreadable buffs */ }
 		const run = runSummary({ ...row, player }, {
 			skills: await decodeSkills(entity.skills) as Record<string, LoggedRunSkill>,
 			combatPower: entity.combat_power, itemLevel: entity.gear_score, spec: entity.spec, engravings: entity.engravings,
-			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash, arkGridBuffs
+			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash, keptBuffs
 		}, misc, names);
 		if (run) runs.push(run);
 	}
