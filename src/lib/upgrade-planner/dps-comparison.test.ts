@@ -109,7 +109,7 @@ describe('DPS headline and ranks', () => {
 	it('reads recorded DPS as total damage over total seconds', () => {
 		expect(recordedDps([run(1, 6_000), { ...run(2, 12_000), duration: 120_000 }])).toBeCloseTo(100);
 		expect(recordedDps([])).toBeNull();
-		expect([formatDamage(312.4e6), formatDamage(3.74e6), formatDamage(1.25e9), formatDamage(950)]).toEqual(['312m', '3.7m', '1.3b', '950']);
+		expect([formatDamage(312.4e6), formatDamage(3.741e6), formatDamage(1.024e9), formatDamage(45.33e3), formatDamage(950)]).toEqual(['312m', '3.74m', '1.02b', '45.3k', '950']);
 	});
 	it('ranks slots by DPS and by CP, skipping unestimated rows and collapsing slot alternatives', () => {
 		const c = (id: string, gainPct: number | null, cpPct: number, group?: string) =>

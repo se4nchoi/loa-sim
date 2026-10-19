@@ -137,12 +137,12 @@ export function recordedDps(runs: RunSummary[]): number | null {
 	return damage > 0 && duration > 0 ? damage / (duration / 1000) : null;
 }
 
-/** 312m, 1.2b, 45.3k: damage numbers as players read them off the meter. */
+/** 312m, 1.02b, 45.3k: damage numbers as players read them off the meter, to 3 significant figures. */
 export function formatDamage(n: number) {
 	const abs = Math.abs(n);
 	const [div, unit] = abs >= 1e9 ? [1e9, 'b'] : abs >= 1e6 ? [1e6, 'm'] : abs >= 1e3 ? [1e3, 'k'] : [1, ''];
 	const v = n / div;
-	return `${Math.abs(v) >= 100 ? v.toFixed(0) : +v.toFixed(1)}${unit}`;
+	return `${+v.toFixed(Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2)}${unit}`;
 }
 
 /** Slot alternatives (accessory and quality options) count as one upgrade in the list and in ranks. */
