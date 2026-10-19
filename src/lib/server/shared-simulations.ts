@@ -6,11 +6,15 @@ import { parseSimulation, simulationCP, type SavedSimulation } from '$lib/upgrad
 
 export const SHARE_TTL = 30 * 24 * 60 * 60;
 export const MAX_SHARE_BYTES = 128 * 1024;
+const MAX_SHARE_RECORD_BYTES = MAX_SHARE_BYTES * 2;
+const MAX_SHARE_ENCODED_CHARS = Math.ceil((MAX_SHARE_RECORD_BYTES + 1024) * 4 / 3);
 export interface SharedSimulation {
 	version: 1;
 	plan: SavedSimulation;
 	expiresAt: number;
 	originalCp: number;
+ /** Recalculated after validating/migrating the saved state using the current simulator. */
+ calculatedCp?: number;
 }
 
 export function redisConfig() {
@@ -69,11 +73,12 @@ export async function getSharedSimulation(id: string, name: string, fetchFn: typ
 	if (!/^[A-Za-z0-9_-]{8}$/.test(id)) return null;
 	const value = await command(['GET', `loa-sim:share:${id}`], fetchFn);
 	if (value === null) return null;
-	if (typeof value !== 'string' || value.length > MAX_SHARE_BYTES) throw new Error('Invalid shared simulation.');
-	const entry = JSON.parse(inflateSync(Buffer.from(value, 'base64url'), {maxOutputLength:MAX_SHARE_BYTES * 2}).toString()) as SharedSimulation;
-	if (entry.version !== 1 || !Number.isFinite(entry.expiresAt) || !Number.isFinite(entry.originalCp)) throw new Error('Invalid shared simulation.');
+ if (typeof value !== 'string' || value.length > MAX_SHARE_ENCODED_CHARS) throw new Error('Invalid shared simulation.');
+ const entry = JSON.parse(inflateSync(Buffer.from(value, 'base64url'), {maxOutputLength:MAX_SHARE_RECORD_BYTES}).toString()) as SharedSimulation;
+ if (!entry || entry.version !== 1 || !Number.isFinite(entry.expiresAt) || !Number.isFinite(entry.originalCp)) throw new Error('Invalid shared simulation.');
 	if (entry.expiresAt <= now) return null;
 	const plan = parseSimulation(JSON.stringify(entry.plan));
-	if (plan.characterKey.split('/')[1]?.toLowerCase() !== name.toLowerCase()) return null;
-	return {...entry,plan:{...plan,id:`shared:${id}`}};
+ if (!/^(na|ce)\/[^/?#\s]{1,40}$/u.test(plan.characterKey.toLowerCase()) ||
+  plan.characterKey.split('/')[1]?.toLowerCase() !== name.toLowerCase()) return null;
+ return {...entry, calculatedCp: simulationCP(plan), plan:{...plan,id:`shared:${id}`}};
 }

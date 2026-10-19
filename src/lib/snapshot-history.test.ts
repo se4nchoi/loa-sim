@@ -21,7 +21,7 @@ Object.assign(globalThis, {
 // Gear follows the score unless given, so different scores are different gear.
 const lo = (score: number, lastUpdated: number, gear: number = score) =>
 	({
-		type: 'ark_passive', classId: 'blade', itemLevel: 1805, lastUpdated, battlePoint: { isSupport: false, parts: [] }, combatPower: { id: 1, score },
+		type: 'ark_passive', classId: 'blade', itemLevel: 1805, lastUpdated, battlePoint: { isSupport: false, parts: [{ type: 1, value: 10000 }] }, combatPower: { id: 1, score },
 		items: [{ slot: 'weapon', id: gear, data: { type: 'weapon' } }]
 	}) as unknown as Loadout;
 const base = { name: 'Soulshan', region: 'NA', header: null };
@@ -32,6 +32,31 @@ describe('snapshot history', () => {
 		store.clear();
 		limit = Infinity;
 	});
+ it('keeps different simulation baselines at identical recorded CP and timestamp separately selectable', () => {
+  const first = lo(6600, 1000), second = structuredClone(first);
+  second.battlePoint.parts[0].value = 11000;
+  recordSnapshots(key, {loadouts: {current: first}});
+  const originalId = listSnapshots(key)[0].id;
+  recordSnapshots(key, {loadouts: {current: second}});
+  const snapshots = listSnapshots(key);
+  expect(snapshots).toHaveLength(2);
+  expect(new Set(snapshots.map((s) => s.id)).size).toBe(2);
+  expect(snapshots.find((s) => s.id === originalId)?.loadout).toEqual(first);
+  // Changed stat totals also affect future upgrade deltas, even with unchanged gear and recorded CP.
+  const third = {...second, stats: [{type: 3, value: 20000}]};
+  recordSnapshots(key, {loadouts: {current: third}});
+  expect(listSnapshots(key)).toHaveLength(3);
+ });
+ it('ignores malformed history lists and entries while retaining valid older snapshots', () => {
+  const good = { id: 'good', kind: 'current', takenAt: 1, loadout: lo(1234, 1) };
+  store.set('loa-sim:snapshots', JSON.stringify({
+   broken: {}, [key]: [null, {}, { ...good, id: 'bad', loadout: { battlePoint: { parts: null } } }, good]
+  }));
+  expect(listSnapshots('broken')).toEqual([]);
+  expect(listSnapshots(key)).toEqual([good]);
+  expect(() => recordSnapshots(key, { loadouts: { current: lo(2345, 2) } })).not.toThrow();
+  expect(listSnapshots(key)).toHaveLength(2);
+ });
 
 	it('keeps each distinct snapshot across loads, newest first, without duplicates', () => {
 		saveCharacter({ ...base, loadout: lo(6650, 1000), loadouts: { current: lo(6600, 1000), estimated: lo(6650, 1000) }, loadoutKind: 'estimated' });

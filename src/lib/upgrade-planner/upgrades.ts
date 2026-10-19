@@ -1,5 +1,6 @@
 import { PartType, partHigh, partRatio, ratioToPct } from './cp';
 import { ENGRAVING_ICONS, GEM_BASE_ATTACK, GEM_REGULAR } from './game-data';
+import { constantEngravingTable, ZERO_ENGRAVING_TABLE } from './engraving-catalog';
 import { engravingPartTypes, roleOf, type RoleTables } from './roles';
 import { supportCombatPower, supportCoreValue, supportWeaponCoreStats } from './support';
 import {
@@ -381,23 +382,26 @@ export function engravingStates(l: Loadout): EngravingState[] {
 		.flatMap((type) => partsOf(l, type))
 		.flatMap((p) => {
 			const id = num(p, 'id');
-			const t = id ? role.engraving(id) : undefined;
-			if (!id || !t) return [];
-			const stone = num(p, 'stonePoints') ?? 0;
+ if (!id) return [];
+ const stone = Math.max(0, Math.min(4, Math.round(num(p, 'stonePoints') ?? 0)));
 			const value = partHigh(p);
-			const col = t.table[stone]?.findIndex((v) => Math.abs(v - value) <= 2) ?? -1;
-			if (col < 0) return [];
+ const known = role.engraving(id);
+ // Future/unmatched tables must not hide an equipped slot or erase its imported CP.
+ const t = known && known.table[stone]?.some((v) => Math.abs(v - value) <= 2)
+  ? known : { table: constantEngravingTable(value), defense: p.type === PartType.EngravingDefense };
+ const equipped = l.engravings?.find((e) => e.id === id);
+ const read = equipped ? equipped.grade === 'engrave_grade05' ? 4 : Math.max(0, Math.min(4, Math.floor((equipped.progress || 0) / 5))) : 0;
+ const col = Math.abs(t.table[stone][read] - value) <= 2 ? read : t.table[stone].findIndex((v) => Math.abs(v - value) <= 2);
 			return [{ id, name: engravingName(id), table: t.table, stone, col, value, defense: t.defense }];
 		});
 	// Utility engravings have no battle-point part, but still occupy a slot and can carry stone nodes.
 	const stoneLines = l.items?.find((i) => i.slot === 'ability_stone')?.data.engravings as { id: number; nodes: number }[] | undefined;
 	for (const e of l.engravings ?? []) {
 		if (scored.some((s) => s.id === e.id)) continue;
-		const t = role.engraving(e.id);
-		if (!t || t.table.some((row) => row.some((v) => v !== 0))) continue;
+ const t = role.engraving(e.id) ?? { table: ZERO_ENGRAVING_TABLE, defense: false };
 		const nodes = stoneLines?.find((s) => s.id + 1000 === e.id)?.nodes ?? 0;
 		const stone = STONE_LEVEL_NODES.findLastIndex((n) => nodes >= n);
-		const col = e.grade === 'engrave_grade05' ? 4 : Math.min(4, Math.floor(e.progress / 5));
+ const col = e.grade === 'engrave_grade05' ? 4 : Math.max(0, Math.min(4, Math.floor((e.progress || 0) / 5)));
 		scored.push({ id: e.id, name: engravingName(e.id), ...t, stone, col, value: 0 });
 	}
 	return scored;
