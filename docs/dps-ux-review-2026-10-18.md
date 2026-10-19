@@ -1,6 +1,6 @@
 # DPS tab: UX review and where to pick up (10-18-26)
 
-Status: 1, 2, 3, 5 and 8 done (10-19); 4, 6, 7, 9, 10 open. Review of the DPS tab (`/dps`, `DpsWorkspace.svelte`) on branch `dps-sim/v0`, done with Soulshan's
+Status: all ten done (10-19); item 6 only has the interim hint, merging `codex/market-api` would fill the prices. Review of the DPS tab (`/dps`, `DpsWorkspace.svelte`) on branch `dps-sim/v0`, done with Soulshan's
 logs. Ordered by how much each item helps a player understand the page. Suggested first batch: 1, 2, 5, 8, 3.
 
 ## What the numbers mean

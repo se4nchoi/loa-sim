@@ -181,6 +181,16 @@
 	/** "DPS #3 · CP #9" when the two rankings disagree by 3 places or more: the disagreement this tab exists to show. */
 	const rankBadge = (c: DpsCandidate) => { const r = ranks.get(c.id); return r && Math.abs(r.dps - r.cp) >= 3 ? `DPS #${r.dps} · CP #${r.cp}` : null; };
 	const dpsGain = (c: DpsCandidate) => c.gainPct !== null && baseDps !== null ? baseDps * c.gainPct / 100 : null;
+	/** Only gems (skill shares) and Crit Rate (recorded per fight) differ by raid; every other gain is the same everywhere. */
+	const raidSpecific = (c: DpsCandidate) => c.gainPct !== null && (!!c.gem || !!c.stat?.delta.critRate);
+	const sourceTag = (c: DpsCandidate) => c.gem
+		? { label: 'From your skill damage', hint: "Uses how much of your damage this skill dealt in the selected clears." }
+		: { label: 'From your stats', hint: "Uses your gear's stat totals, read from the meter's values in your recent clears." };
+	/** The single value when every clear gives the same gain (to the shown precision), so the list needn't repeat it. */
+	const sameInAll = (c: DpsCandidate) => {
+		const values = c.clears.map(x => x.gainPct);
+		return values.length > 1 && values.every(v => v !== null && Math.abs(v - values[0]!) < 0.005) ? values[0] : null;
+	};
 	const missingPrices = $derived(missingPriceCount(pricingUpgrades, pricingCosts));
 	const materials = $derived(sourceState ? inventoryMaterials(sourceState.gear, !!sourceState.bracer) : []);
 	const perRaid = $derived(shown ? selected.map(raid => ({ raid, gain: combinedGain(shown.clears.filter(c => raid.runs.some(r => r.id === c.run.id))) })) : []);
@@ -221,6 +231,7 @@
 		{/if}
 		<header class="flex flex-wrap items-end justify-between gap-3">
 			<div class="min-w-0 max-w-full"><h1 class="text-2xl font-semibold">{character.name} <span class="text-sm font-normal text-surface-400">{className(loadout.classId)}</span></h1>
+				<p class="mt-1 text-sm text-surface-400">Upgrades ranked by how much they'd raise your DPS in the raids you pick, from your own LOA Logs.</p>
 				<label class="mt-2 flex flex-wrap items-center gap-2 text-sm text-surface-300">Build
 					<select class={selectClass(false)} bind:value={selectedPlan}><option value="working">Current simulation</option>{#each plans as plan}<option value={plan.id}>{plan.name}</option>{/each}</select>
 				</label>
@@ -286,14 +297,15 @@
 						</div>
 						{#if budgetText.trim() && budget === null}<p class="px-3 pt-2 text-xs text-amber-300" role="alert">Enter a gold amount, e.g. 100k.</p>{/if}
 						{#if budget !== null && missingPrices}<p class="px-3 pt-2 text-xs text-amber-300">Unpriced upgrades remain visible.</p>{/if}
+						{#if missingPrices}<p class="px-3 pt-2 text-xs text-surface-400">{missingPrices} upgrades have no price yet. <button class="text-accent-300 hover:underline" onclick={() => pricesOpen = true}>Add prices</button> to rank by gold.</p>{/if}
 						<div class="flex flex-wrap gap-1.5 border-b border-surface-800 p-3" role="group" aria-label="Upgrade type">{#each tabs as tab}<button class={category === tab ? btnAccent : btn} aria-pressed={category === tab} onclick={() => { category = tab; showAll = false; }}>{tab}</button>{/each}</div>
 						<div class="dps-row dps-row-head text-xs text-surface-400"><span>Upgrade</span><span class="text-right">DPS / CP</span><span class="text-right">Cost</span></div>
 						{#snippet row(c: DpsCandidate)}
 							{@const image = look(c)}{@const cost = costs[c.id]}{@const badge = rankBadge(c)}{@const amount = dpsGain(c)}
 							<button class="dps-row dps-upgrade {c === shown ? 'dps-current' : ''}" onclick={() => choose(c)} aria-pressed={c === shown}>
-								<span class="flex min-w-0 items-center gap-3">{#if image.icon}<ItemIcon src={image.icon} grade={image.grade} size="size-9" />{/if}<span class="min-w-0"><UpgradeTitle u={c.upgrade} /><span class="mt-1 block text-xs text-surface-400">{c.gainPct === null ? 'DPS not estimated' : c.gem ? 'From logs' : 'Calculated'}{#if badge}{' · '}<span class="dps-badge">{badge}</span>{/if}{#if c.upgrade.detail === 'KR preview'}{' · '}<span class="text-amber-300">KR preview</span>{/if}</span></span></span>
+								<span class="flex min-w-0 items-center gap-3">{#if image.icon}<ItemIcon src={image.icon} grade={image.grade} size="size-9" />{/if}<span class="min-w-0"><UpgradeTitle u={c.upgrade} /><span class="mt-1 block text-xs text-surface-400">{#if c.gainPct === null}DPS not estimated{:else}<span title={sourceTag(c).hint}>{sourceTag(c).label}</span>{/if}{#if raidSpecific(c)}{' · '}<span class="text-sky-300" title="This gain changes with the raids you pick.">Raid-specific</span>{/if}{#if badge}{' · '}<span class="dps-badge">{badge}</span>{/if}{#if c.upgrade.detail === 'KR preview'}{' · '}<span class="text-amber-300">KR preview</span>{/if}</span></span></span>
 								<span class="dps-gain text-right"><strong class="block text-base font-semibold text-green-400">{fmt(c.gainPct)}</strong>{#if amount !== null}<span class="block text-xs text-green-400/80">≈ +{formatDamage(amount)}</span>{/if}<span class="mt-0.5 block text-xs text-surface-400">CP {formatPct(c.cpPct)}%</span></span>
-								<span class="dps-cost text-right text-sm"><span class={cost === undefined ? 'text-amber-300/80' : 'text-amber-300'}>{cost === undefined ? supportsGoldCost(c.upgrade) ? 'Price needed' : '—' : `${formatGold(cost)} gold`}</span><span class="mt-0.5 block text-xs text-surface-400">{cost !== undefined && c.gainPct !== null && c.gainPct > 0 ? `${formatGold(cost / c.gainPct)} / 1% DPS` : '—'}</span></span>
+								<span class="dps-cost text-right text-sm"><span class={cost === undefined ? 'text-surface-500' : 'text-amber-300'}>{cost === undefined ? '—' : `${formatGold(cost)} gold`}</span><span class="mt-0.5 block text-xs text-surface-400">{cost !== undefined && c.gainPct !== null && c.gainPct > 0 ? `${formatGold(cost / c.gainPct)} / 1% DPS` : '—'}</span></span>
 							</button>
 						{/snippet}
 						{#each listed as c (c.id)}{@render row(c)}{/each}
@@ -322,7 +334,8 @@
 								{#if shown.upgrade.quality}<p>Quality cost assumes unlimited Chaos Stones.</p>{/if}
 								{#if shown.upgrade.category === 'accessory'}<p>Accessory prices exclude Pheon costs.</p>{/if}
 								{#if budget !== null}<p>Upgrades without prices remain visible; they are not confirmed within budget.</p>{/if}
-								<details><summary>By clear · {shown.covered}/{runs.length} covered</summary><div class="mt-2 space-y-2">{#each shown.clears as clear}<p class="flex flex-wrap justify-between gap-2"><span>{formatDate(clear.run.start)} · {gateName(clear.run.boss)}</span><span>{fmt(clear.gainPct)}</span></p>{/each}</div></details>
+								{#if sameInAll(shown) !== null}<p class="flex flex-wrap justify-between gap-2"><span>By clear: same in all {shown.clears.length} clears</span><span>{fmt(sameInAll(shown))}</span></p>
+								{:else}<details><summary>By clear · {shown.covered}/{runs.length} covered</summary><div class="mt-2 space-y-2">{#each shown.clears as clear}<p class="flex flex-wrap justify-between gap-2"><span>{formatDate(clear.run.start)} · {gateName(clear.run.boss)}</span><span>{fmt(clear.gainPct)}</span></p>{/each}</div></details>{/if}
 							</div></details>
 						</aside>
 					{/if}
