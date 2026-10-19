@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { pinSimulation, renameSimulation, loadAutosave, deleteSimulation, sameBaseline, savedSimulations, saveSimulation, type SavedSimulation } from './saved-simulations';
-	import { initSimState, simulate, type SimState } from './simulate';
+ import { pinSimulation, renameSimulation, loadAutosave, deleteSimulation, sameBaseline, savedSimulations, saveSimulation, simulationCP, type SavedSimulation } from './saved-simulations';
+ import type { SimState } from './simulate';
 	import type { Loadout } from './types';
 	import type { MenuOption } from './sim/ui';
 	import MenuPicker from './sim/MenuPicker.svelte';
@@ -30,9 +30,7 @@
 			{ value: 'autosave', label: 'Current simulation', marker: '', onsave: saveNamed, title: 'Your current working copy, saved automatically in this browser' }
 		] : []),
 		...list.map(s => {
-			const base = initSimState(s.loadout);
-			const baseline = simulate(s.loadout, base, base).cp;
-			const cp = (s.loadout.combatPower?.score ?? baseline) * simulate(s.loadout, s.state, base).cp / baseline;
+   const cp = simulationCP(s);
 			const compatible = sameBaseline(s.loadout, loadout);
 			return { value: s.id, label: s.name, note: shortDay(s.savedAt),
 				detail: { label: cp.toFixed(2), color: s.loadout.combatPower?.id === 2 ? 'var(--color-green-400)' : 'var(--color-red-400)' }, marker: '', loadDisabled: !compatible,

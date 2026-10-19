@@ -56,7 +56,7 @@
 	} = $props();
 
 	let edited = $state(false);
-	let simulation = $state<SimState | null>(untrack(() => loadout ? initSimState(loadout) : null));
+ let simulation = $state<SimState | null>(untrack(() => initialBuild ? structuredClone($state.snapshot(initialBuild.state)) : loadout ? initSimState(loadout) : null));
 	$effect.pre(() => { simulation = loadout ? initSimState(loadout) : null; });
 	let reloading = $state(false);
 	let reloadNote = $state<{ text: string; tone: 'ok' | 'info' | 'error' } | null>(null);

@@ -2,7 +2,8 @@
 // two (gem / engraving / core / astrogem / accessory / bracelet values, which parts count, how the score adds
 // up) is looked up here, so the simulator and the upgrade list share one code path.
 
-import { BRACELET_EFFECTS, ENGRAVING_ICONS } from './game-data';
+import { BRACELET_EFFECTS } from './game-data';
+import { COMBAT_ENGRAVING_IDS, ZERO_ENGRAVING_TABLE } from './engraving-catalog';
 import { PartType, combatPower } from './cp';
 import {
 	SUPPORT_ACCESSORY_LINES,
@@ -57,8 +58,7 @@ export interface RoleTables {
 }
 
 // Non-scoring engravings still occupy a slot (e.g. Spirit Absorption in a town snapshot).
-const DEALER_UTILITY_IDS = Object.keys(ENGRAVING_ICONS).map(Number).filter((id) => id < 1800 && !engravingTable(id));
-const ZERO_ENGRAVING_TABLE = Array.from({ length: 5 }, () => Array<number>(5).fill(0));
+const DEALER_UTILITY_IDS = COMBAT_ENGRAVING_IDS.filter((id) => !engravingTable(id));
 
 const DEALER: RoleTables = {
 	support: false,
