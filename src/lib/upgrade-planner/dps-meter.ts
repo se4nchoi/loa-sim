@@ -3,11 +3,14 @@
 //   - stat edits (honing, quality, bracer, accessories, bracelet stats, skins): one multiplier for every skill, from
 //     the stat model (dps-model.ts) with that clear's Crit Rate value;
 //   - damage gems: their skills only (and a T4 gem's base attack, for every skill);
-//   - anything else (Ark Grid, karma, engravings, Paradise, cooldown gems) isn't valued yet: listed, not counted.
+//   - cooldown gems: their skills cast more often, as far as the clear had them on cooldown (LOA Logs' time
+//     available); skills without that record are listed, not counted;
+//   - anything else (Ark Grid, karma, engravings, Paradise) isn't valued yet: listed, not counted.
 import type { RunSummary } from '$lib/logs/protocol';
 import { critRates } from './dps-comparison';
 import { baseAttackOf, gemMembers, planModel, skillEffect } from './dps-explain';
 import { modelGain } from './dps-model';
+import { gateSample } from './dps-gates';
 import { statDeltasAtLeast } from './dps-stats';
 import type { SimState } from './simulate';
 import type { Loadout } from './types';
@@ -56,8 +59,10 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	if (!change && !same(statState, base)) notes.push("Some gear edits remove a damage line the model can't value, so they're left out.");
 	if (change?.unvalued.length) notes.push(`${change.unvalued.join(', ')} isn't valued yet: the real gain is a little higher.`);
 
-	// Gems: damage gems scale their skills; a T4 gem's base attack joins the stat part. Cooldown gems aren't counted.
+	// Gems: damage gems scale their skills; a T4 gem's base attack joins the stat part. Cooldown gems add casts, by
+	// how much of these clears their skills spent on cooldown.
 	const gemEffects: { skills: Set<number>; pct: number }[] = [];
+	const cooldownUse = gateSample(runs).skillCooldownUse;
 	let cooldownGems = 0;
 	state.gems.forEach((gem, index) => {
 		const was = base.gems[index];
@@ -66,11 +71,13 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 			notInMeter.push('Gem swaps');
 			return;
 		}
-		if (gem.kind === 'cooldown') { cooldownGems++; return; }
-		const { effectPct } = skillEffect(loadout, state, { index, skill: gem.skill, name: '', kind: 'damage', from: was.level, to: gem.level, label: '' }, {});
-		gemEffects.push({ skills: new Set([...gemMembers(gem.skill), gem.skill]), pct: effectPct });
+		const skills = [...new Set([...gemMembers(gem.skill), gem.skill])];
+		if (gem.kind === 'cooldown' && !skills.some((id) => cooldownUse[id] !== undefined)) { cooldownGems++; return; }
+		const kind = gem.kind === 'cooldown' ? 'cooldown' : 'damage';
+		const { effectPct } = skillEffect(loadout, state, { index, skill: gem.skill, name: '', kind, from: was.level, to: gem.level, label: '' }, cooldownUse);
+		gemEffects.push({ skills: new Set(skills), pct: effectPct });
 	});
-	if (cooldownGems) notInMeter.push(`Cooldown gems (${cooldownGems})`);
+	if (cooldownGems) notInMeter.push(`Cooldown gems without cooldown data (${cooldownGems})`);
 	const gemBaseAttack = baseAttackOf(loadout, state) - baseAttackOf(loadout, base);
 	const delta = change ? { ...change.delta } : { mainStat: 0, weaponPower: 0, additionalDamage: 0, critRate: 0, critDamage: 0, attackPowerPct: 0, attackPower: 0 };
 	if (gemBaseAttack) delta.baseAttackPct = (delta.baseAttackPct ?? 0) + gemBaseAttack;

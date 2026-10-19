@@ -10,7 +10,7 @@
 		size = 'h-8 min-w-11 px-2 text-sm'
 	}: {
 		value: T | null;
-		options: { value: T; label: string; color?: string; title?: string }[];
+		options: { value: T; label: string; color?: string; title?: string; /** A small tag after the label ("Beta"). */ badge?: string }[];
 		onselect: (v: T) => void;
 		label: string;
 		disabled?: boolean;
@@ -35,7 +35,7 @@
 			style:background-color={selected ? (o.color ?? 'var(--color-accent-700)') : undefined}
 			onclick={() => onselect(o.value)}
 		>
-			{o.label}
+			{o.label}{#if o.badge}<span class="ml-1.5 rounded-xs bg-amber-500/15 px-1 align-middle text-[10px] font-semibold text-amber-300">{o.badge}</span>{/if}
 		</button>
 	{/each}
 </div>

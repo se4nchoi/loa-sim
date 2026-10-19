@@ -113,7 +113,16 @@
 </script>
 
 <section class="mb-3 rounded-xs bg-surface-900 p-3 shadow-sm shadow-neutral-800 sm:p-4" aria-label="DPS meter">
-	{#if !book || importing}
+	{#if !(characterKey in runsBooks.byCharacter)}
+		<!-- Holds the meter's space while this browser's imported logs are read. -->
+		<div class="animate-pulse" aria-hidden="true">
+			<div class="flex gap-2 pt-1 pb-2.5">{#each [0, 1, 2, 3, 4] as i (i)}<div class="h-14 w-40 shrink-0 rounded-xs bg-surface-800"></div>{/each}</div>
+			<div class="mt-1.5 mb-3 h-6 w-48 rounded-xs bg-surface-800"></div>
+			<div class="mb-3 h-16 rounded-xs bg-surface-800/60"></div>
+			<div class="mb-3 h-12 w-56 rounded-xs bg-surface-800"></div>
+			<div class="space-y-1">{#each [100, 98, 97, 85, 67, 38, 13, 7] as w (w)}<div class="h-8 rounded-xs bg-surface-800/70" style:width="{w}%"></div>{/each}</div>
+		</div>
+	{:else if !book || importing}
 		<p class="mb-3 text-sm text-surface-300">DPS mode replays one of your own clears with the edits you make below. Import your LOA Logs to pick a clear.</p>
 		{#key characterKey}<DpsRunsImport {characterKey} {characterName} ondone={() => (importing = false)} />{/key}
 		{#if book}<button type="button" class="{btn} mt-3" onclick={() => (importing = false)}>Close</button>{/if}
@@ -164,7 +173,7 @@
 				{#if setup.error}
 					<p class="mt-1 text-amber-300">{setup.error}</p>
 				{:else if !diff}
-					<p class="mt-1 text-surface-400">Loading…</p>
+					<div class="animate-pulse" aria-label="Loading"><div class="mt-1.5 h-3 w-32 rounded-xs bg-surface-800"></div><div class="mt-1.5 h-3 w-96 max-w-full rounded-xs bg-surface-800"></div></div>
 				{:else}
 					{#if sameSetupGear(diff)}
 						<p class="mt-1 text-green-400">● Same gear as now</p>

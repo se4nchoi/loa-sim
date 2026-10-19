@@ -42,6 +42,19 @@ describe('DPS meter', () => {
 		expect(gem.after / gem.before).toBeGreaterThan(other.after / other.before);
 		expect(other.after).toBeGreaterThanOrEqual(other.before);
 	});
+	it('a cooldown gem adds casts as far as its skill sat on cooldown', () => {
+		const index = base.gems.findIndex((g) => g.kind === 'cooldown' && g.skill !== null && g.level < 10);
+		if (index < 0) return;
+		const skill = gemMembers(base.gems[index].skill!)[0];
+		const state = structuredClone(base);
+		state.gems[index].level += 1;
+		const withUse = (available: number) => run(1, { skills: [{ id: skill, damage: 600, critDamage: 0, hits: 1, crits: 0, casts: 1, timeAvailable: available }, { id: 99999, damage: 400, critDamage: 0, hits: 1, crits: 0, casts: 1 }] });
+		const busy = dpsMeter(loadout, base, state, [run(1)], [withUse(0)])!, idle = dpsMeter(loadout, base, state, [run(1)], [withUse(300_000)])!;
+		const ratio = (m: NonNullable<ReturnType<typeof dpsMeter>>, id: number) => { const s = m.skills.find((x) => x.id === id)!; return s.after / s.before; };
+		expect(ratio(busy, skill)).toBeGreaterThan(ratio(busy, 99999) * 1.01);
+		expect(ratio(idle, skill)).toBeCloseTo(ratio(idle, 99999), 9);
+		expect(dpsMeter(loadout, base, state, [run(1)], [run(1)])!.notInMeter).toEqual(['Cooldown gems without cooldown data (1)']);
+	});
 	it("lists edits it doesn't count yet and leaves them out", () => {
 		const state = structuredClone(base);
 		if (state.karma.evolution !== null) state.karma.evolution = Math.min(30, state.karma.evolution + 1);
