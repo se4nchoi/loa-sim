@@ -7,6 +7,7 @@ const service = vi.hoisted(() => ({
 	createSharedSimulation:vi.fn(async () => ({path:'/s/Soulshan/abcdefgh',expiresAt:1234}))
 }));
 vi.mock('$lib/server/shared-simulations', () => ({...service,MAX_SHARE_BYTES:512}));
+vi.mock('$lib/server/stats', () => ({count:vi.fn(async () => {})}));
 const {POST} = await import('../../routes/api/share/+server');
 async function request(body = '{}', origin: string | null = 'https://loa-sim.example') {
 	const headers: Record<string,string> = {'content-type':'application/json'};

@@ -8,6 +8,7 @@
 	import { characterKey, eraseSnapshot, loadSavedCharacter, rememberViewed, setLoadoutKind, setSnapshot } from '$lib/saved-character';
 	import { gearKey, gearOf, listSnapshots, recordSnapshots } from '$lib/snapshot-history';
 	import { loadCharacter } from '$lib/load-character';
+	import { track } from '$lib/stats';
 	import { untrack } from 'svelte';
 
 	// Shared links also load characters this browser hasn't saved yet.
@@ -44,6 +45,7 @@
 		if (!saved) return;
 		const key = characterKey(saved);
 		rememberViewed(key);
+		track({ event: 'sim_open' }, `sim:${key}`);
 		if (build) { older = []; return; }
 		recordSnapshots(key, saved, saved.savedAt);
 		// The chosen snapshot can be folded into a copy of the same gear: go back to bible's loadout then.

@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import { allowShare, createSharedSimulation, MAX_SHARE_BYTES, redisConfig, sharedPlan } from '$lib/server/shared-simulations';
+import { count } from '$lib/server/stats';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({request,url,fetch,getClientAddress}) => {
@@ -24,6 +25,9 @@ export const POST: RequestHandler = async ({request,url,fetch,getClientAddress})
 	try { allowed = await allowShare(getClientAddress(), fetch); }
 	catch { error(503, 'Sharing is temporarily unavailable. Please try again later.'); }
 	if (!allowed) error(429, 'You have shared several builds. Please try again in 10 minutes.');
-	try { return json(await createSharedSimulation(plan, fetch), {status:201,headers:{'cache-control':'no-store'}}); }
+	let created;
+	try { created = await createSharedSimulation(plan, fetch); }
 	catch { error(503, 'Could not save the shared build. Please try again later.'); }
+	await count({event:'share_created'}, fetch);
+	return json(created, {status:201,headers:{'cache-control':'no-store'}});
 };

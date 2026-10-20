@@ -4,12 +4,18 @@
 import type { CharacterData } from '$lib/bible-data';
 import { saveRegion } from '$lib/region-preference';
 import { saveCharacter } from '$lib/saved-character';
+import { track } from '$lib/stats';
 
 export async function loadCharacter(region: string, name: string): Promise<CharacterData> {
-	const res = await fetch(`/api/character/${encodeURIComponent(region)}/${encodeURIComponent(name)}`);
+	const res = await fetch(`/api/character/${encodeURIComponent(region)}/${encodeURIComponent(name)}`).catch((e) => {
+		track({ event: 'lookup_fail', region });
+		throw e;
+	});
 	const body = await res.json().catch(() => null);
+	if (!res.ok || !body?.loadout) track({ event: 'lookup_fail', region });
 	if (!res.ok) throw new Error(body?.message ?? `Loading failed (${res.status})`);
 	if (!body?.loadout) throw new Error(`${name} (${region}) wasn't found on lostark.bible, or has no Ark Passive loadout with Combat Power yet.`);
+	track({ event: 'lookup', region, name: body.name ?? name, class: body.header?.class });
 	saveCharacter(body);
 	saveRegion(region);
 	return body;

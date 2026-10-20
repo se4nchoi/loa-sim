@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import { command, redisConfig } from './redis';
 import { createHash, randomBytes } from 'node:crypto';
 import { deflateSync, inflateSync } from 'node:zlib';
 import { normalizeName } from '$lib/bible-data';
@@ -17,27 +17,7 @@ export interface SharedSimulation {
  calculatedCp?: number;
 }
 
-export function redisConfig() {
-	for (const prefix of ['STORAGE', 'STORAGE_KV', 'STORAGE_UPSTASH_REDIS', 'UPSTASH_REDIS', 'KV']) {
-		const url = env[`${prefix}_REST_API_URL`] ?? env[`${prefix}_REST_URL`];
-		const token = env[`${prefix}_REST_API_TOKEN`] ?? env[`${prefix}_REST_TOKEN`];
-		if (url && token) return { url, token };
-	}
-	return null;
-}
-
-async function command(args: (string | number)[], fetchFn: typeof fetch): Promise<unknown> {
-	const config = redisConfig();
-	if (!config) throw new Error('Sharing storage is not configured.');
-	const response = await fetchFn(config.url, {
-		method: 'POST', headers: { authorization: `Bearer ${config.token}`, 'content-type': 'application/json' },
-		body: JSON.stringify(args), signal: AbortSignal.timeout(10_000), cache: 'no-store'
-	});
-	if (!response.ok) throw new Error('Sharing storage is unavailable.');
-	const body = await response.json();
-	if (body.error) throw new Error('Sharing storage could not complete the request.');
-	return body.result;
-}
+export { redisConfig };
 
 /** A short-lived counter, shared across function instances; never stores the raw address. */
 export async function allowShare(address: string, fetchFn: typeof fetch): Promise<boolean> {
