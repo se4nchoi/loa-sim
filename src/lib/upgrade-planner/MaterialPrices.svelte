@@ -13,7 +13,7 @@
 	import { btn } from './sim/ui';
 	import { PLENTY, SHARDS, materialIcon, materialName, type MaterialPrices } from './honing-cost';
 	import { HONING_MATERIALS } from './honing-cost-data';
-	import { iconUrl } from './icons';
+	import { GRADE_GRADIENTS, iconUrl } from './icons';
 
 	let {
 		ids,
@@ -49,8 +49,8 @@
 		restoreMaterialInventory(clearedInventory);
 		clearedInventory = null;
 	}
-	const upperIds = ['66110226', '66102007', '66102107', '6861013', '66111131', '66111132', SHARDS];
-	const lowerIds = ['66110225', '66102006', '66102106', '6861012', ...HONING_BOOKS.map(b => b.id)];
+	const upperIds = ['66110226', '66102007', '66102107', '6861013', '66111131', '66111132', SHARDS, ...HONING_BOOKS.filter(b => b.set === 'serca').map(b => b.id)];
+	const lowerIds = ['66110225', '66102006', '66102106', '6861012', ...HONING_BOOKS.filter(b => b.set === 'aegir').map(b => b.id)];
 	const editableIds = $derived([...new Set([...upperIds, ...lowerIds, ...ids, ...Object.keys(HONING_MATERIALS)])]);
 
 	let dialog: HTMLDialogElement;
@@ -139,7 +139,7 @@
 					{#if id === lowerIds[0]}<span class="col-span-full mt-2 border-t border-surface-700 pt-2 text-xs font-semibold text-surface-400">Lower T4 materials</span>{/if}
 					<div class="contents">
 						{#if materialIcon(id)}
-							<img src={iconUrl(materialIcon(id))} alt={materialName(id)} title={book ? `${book.name}: ${Object.entries(book.rates).map(([level, rate]) => `+${level}: +${rate / 100}%`).join(', ')}` : materialName(id)} class="size-8 shrink-0 rounded-xs bg-black/30" />
+							<img src={iconUrl(materialIcon(id))} alt={materialName(id)} title={book ? `${book.name}: ${Object.entries(book.rates).map(([level, rate]) => `+${level}: +${rate / 100}%`).join(', ')}` : materialName(id)} style:background-image={book?.set === 'serca' ? GRADE_GRADIENTS[6] : undefined} class="size-8 shrink-0 rounded-xs bg-black/30" />
 						{:else}
 							<span class="size-8 shrink-0 rounded-xs bg-black/30"></span>
 						{/if}

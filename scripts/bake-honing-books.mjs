@@ -39,6 +39,9 @@ const books = specs.map(([id, boundId, kind, from, to]) => {
 // keyed by name until a feed lists them. Each book adds the target level's base success rate, the same rule the
 // Hellfire rows above verify against Aegir's base rates; Serca bases: +12/13 5%, +14-16 4%, +17-19 3%.
 // Names and ranges: https://www.playlostark.com/en-us/game/releases/arbiter-of-death
+// Tremor artwork (both ranges), verified against the item images at https://loaup.com/:
+// https://cdn-lostark.game.onstove.com/efui_iconatlas/use/use_12_218.png (Metallurgy)
+// https://cdn-lostark.game.onstove.com/efui_iconatlas/use/use_12_219.png (Tailoring)
 const tremor = (kind, from, to, rates) => ({ id: `tremor:${kind}:${from}-${to}`, name: `${kind === 'weapon' ? 'Metallurgy' : 'Tailoring'}: Tremor [${from}-${to}]`,
  icon: kind === 'weapon' ? 'Use_12_218' : 'Use_12_219', set: 'serca', kind, rates });
 const low = { 12: 500, 13: 500, 14: 400, 15: 400 }, high = { 16: 400, 17: 300, 18: 300, 19: 300 };
