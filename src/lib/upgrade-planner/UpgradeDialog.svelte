@@ -139,7 +139,9 @@
 		for (const key of [...rowAt.keys()]) if (key.startsWith('accset:')) rowAt.delete(key);
 		onaccrolls?.([...draft]);
 	}
-	const best = $derived(!dpsRank && mode === 'gold' ? byGold(upgrades, costs).slice(0, 3) : upgrades.slice(0, 3));
+	/** Gold is per 1% DPS when the list is ranked by DPS. */
+	const gainOf = (u: Upgrade) => (dpsRank ? (dps.get(u.key) ?? null) : u.gainPct);
+	const best = $derived(mode === 'gold' ? byGold(upgrades, costs, gainOf).slice(0, 3) : upgrades.slice(0, 3));
 	const missingTotal = $derived(missingPriceCount(upgrades, costs));
 	function adjustSkin(index: number, bonus: number) {
 		if (!skins) return;
@@ -195,7 +197,7 @@
 		<div class="flex min-w-0 flex-1 flex-col">
 				<UpgradeTitle {u} />
 			{#if u.detail}<span class="text-xs text-surface-400">{u.detail}</span>{/if}
-			{#if (mode === 'gold' || u.category === 'skin') && supportsGoldCost(u)}<GoldCost {characterKey} {u} auto={auto[u.key]} />{/if}
+			{#if (mode === 'gold' || u.category === 'skin') && supportsGoldCost(u)}<GoldCost {characterKey} {u} auto={auto[u.key]} gain={gainOf(u)} unit={dpsRank ? 'DPS' : 'CP'} />{/if}
 		</div>
 		<div class="flex shrink-0 flex-col text-right">
 			<span class="text-sm font-semibold text-green-400 tabular-nums">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>
@@ -218,7 +220,7 @@
 				<div class="grid grid-cols-[minmax(0,8.5rem)_max-content] items-baseline gap-2 text-sm leading-snug"><span class="min-w-0 text-surface-100">{line.name}</span><span class="font-semibold" style:color={ROLL_COLORS[line.tier as keyof typeof ROLL_COLORS]}>{line.value ?? line.tier}</span></div>
 			{/each}
 			{#if (u.lines?.length ?? 0) < 3}<span class="text-xs text-surface-500">None</span>{/if}
-			{#if mode === 'gold'}<GoldCost {characterKey} {u} />{/if}
+			{#if mode === 'gold'}<GoldCost {characterKey} {u} gain={gainOf(u)} unit={dpsRank ? 'DPS' : 'CP'} />{/if}
 		</div>
 		<div class="flex shrink-0 flex-col gap-2">
 			{#each variants as target (target.key)}<div class="flex items-center gap-2"><div class="text-right"><span class="block text-[11px] text-surface-400">{target.subject}</span><span class="text-sm font-semibold text-green-400 tabular-nums">{target.approximate ? '≈' : ''}{formatPct(target.gainPct)}%</span>{@render cpAfter(target)}</div>{#if onapply}<button type="button" class="{btn} w-14 px-1.5" onclick={() => onapply(target)} title={`Apply to ${target.subject}`}>{flash?.key === target.key ? (flash.ok ? '✓' : 'Done') : 'Apply'}</button>{/if}</div>{/each}
@@ -279,7 +281,7 @@
 								<UpgradeTitle {u} />
 							<span class="text-lg font-bold text-green-400">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}%{#if u.count > 1}<span class="ml-1 text-xs font-normal text-surface-400">each</span>{/if}</span>
 							{@render cpAfter(u)}
-							{#if mode === 'gold'}<span class="text-xs text-amber-300/90 tabular-nums">{formatGold(goldPerPct(u, costs)!)} gold per 1% CP</span>{/if}
+							{#if mode === 'gold' && goldPerPct(u, costs, gainOf)}<span class="text-xs text-amber-300/90 tabular-nums">{formatGold(goldPerPct(u, costs, gainOf)!)} gold per 1% {dpsRank ? 'DPS' : 'CP'}</span>{/if}
 						</div>
 					{/each}
 				</div>

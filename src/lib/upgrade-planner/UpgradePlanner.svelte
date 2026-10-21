@@ -1,6 +1,7 @@
 <!--
 	"Next Upgrades" sidebar card: the best one-step upgrades for the loadout. With `onapply` (the simulator passes
-	it), each row gets an Apply button that makes the edit in the simulator.
+	it), each row gets an Apply button that makes the edit in the simulator. CP mode ranks by CP or gold per 1% CP;
+	DPS mode by DPS or gold per 1% DPS, each upgrade measured on the DPS meter's picked clear (dps-selection).
 		<UpgradePlanner loadout={loadout} onapply={(u) => …} />
 -->
 <script lang="ts">
@@ -22,8 +23,8 @@
 	import { btn } from './sim/ui';
 	import { CATEGORY_LABELS, topDistinct, type Upgrade } from './upgrades';
 	import { applyUpgrade } from './apply-upgrade';
-	import { estimateDps, rankByDps, type DpsEstimate } from './dps-estimate';
-	import { loadStatValues, statValues } from '$lib/logs/stat-values-store.svelte';
+	import { dpsMeter, meterGain } from './dps-meter';
+	import { dpsSelection } from './dps-selection.svelte';
 
 	let {
 		dpsMode = false,
@@ -41,7 +42,6 @@
 		onpricingclose
 	}: { dpsMode?: boolean; pricingRequest?: Upgrade | null; onpricingclose?: () => void; /** Scroll the list inside the card at every width (the phone drawer); otherwise only on desktop. */ scroll?: boolean; class?: string; characterKey?: string; characterName?: string; loadout: Loadout; limit?: number; simState?: SimState; simBase?: SimState; currentCp?: number; /** Returns false when it couldn't be applied. */ onapply?: (u: Upgrade) => boolean } = $props();
 
-	let dpsRank = $state(false);
 	/** Brief feedback on the row just applied. */
 	let flash = $state<{ key: string; ok: boolean } | null>(null);
 	let flashTimer: ReturnType<typeof setTimeout>;
@@ -66,8 +66,9 @@
 	const bookPrices = $derived(bookPricesFor(characterKey));
 	/** This character's bound honing mats. */
 	const bound = $derived(gold.bound[characterKey] ?? {});
+	const perGold = $derived(gold.mode === 'gold');
 	// Equipment honing always uses material prices, ignoring previously entered totals.
-	const auto = $derived(!dpsRank && gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, materialPrices, bound, simNow.karma) : {});
+	const auto = $derived(perGold ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, materialPrices, bound, simNow.karma) : {});
 	const costs = $derived({
 		...Object.fromEntries(upgrades.flatMap((u) => (u.knownCost === undefined ? [] : [[u.key, u.knownCost]]))),
 		...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])),
@@ -96,27 +97,33 @@
 		dialogOpen = true;
 	});
 
-	onMount(() => (loadGold(), loadStatValues()));
-	const meter = $derived(!dpsMode || roleOf(loadout).support ? null : (statValues.byCharacter[characterKey]?.values ?? null));
-	const estimates = $derived.by(() => {
-		const out = new Map<string, DpsEstimate>();
-		if (!dpsMode || roleOf(loadout).support) return out;
+	onMount(loadGold);
+	// DPS mode: each upgrade on the meter's picked clear (the same numbers the meter shows after Apply).
+	const support = $derived(roleOf(loadout).support);
+	const selection = $derived(dpsMode && !support ? dpsSelection(characterKey) : undefined);
+	const dpsGains = $derived.by(() => {
+		const out = new Map<string, { gainPct: number; atLeast: boolean }>();
+		if (!selection) return out;
 		const base = simBase ?? initSimState(loadout);
+		const now = dpsMeter(loadout, selection.baseline, simNow, selection.buildRuns, selection.runs, selection.arkGrid);
 		for (const u of upgrades) {
 			const next = structuredClone(simNow);
-			if (applyUpgrade(loadout, next, base, u)) out.set(u.key, estimateDps(loadout, simNow, next, base, meter));
+			if (!applyUpgrade(loadout, next, base, u)) continue;
+			const g = meterGain(loadout, selection.baseline, simNow, next, selection.buildRuns, selection.runs, selection.arkGrid, now);
+			if (g.gainPct !== null) out.set(u.key, { gainPct: g.gainPct, atLeast: g.atLeast });
 		}
 		return out;
 	});
-	const dps = $derived(new Map([...estimates].flatMap(([key, e]) => e.gainPct !== null && !e.excluded.length ? [[key, e.gainPct] as const] : [])));
-	const ranked = $derived(dpsMode && dpsRank ? rankByDps(upgrades, estimates) : upgrades);
-	const priced = $derived(!dpsRank && gold.mode === 'gold' && !dpsRank ? topDistinct(byGold(upgrades, costs), limit) : []);
-	const shown = $derived(
-		dpsMode && dpsRank ? topDistinct(ranked, limit) : !dpsRank && gold.mode === 'gold'
-			? [...priced, ...topDistinct(upgrades.filter((u) => !supportsGoldCost(u) || costs[u.key] === undefined), limit - priced.length)]
-			: topDistinct(upgrades, limit)
-	);
+	const dps = $derived(new Map([...dpsGains].map(([key, g]) => [key, g.gainPct] as const)));
+	/** The gain the list ranks and prices by: DPS in DPS mode (null = not estimated), CP otherwise. */
+	const gainOf = (u: Upgrade) => (selection ? (dps.get(u.key) ?? null) : u.gainPct);
+	// DPS mode: estimated upgrades by DPS, then the rest by CP.
+	const ranked = $derived(selection ? upgrades.toSorted((a, b) => (dps.get(b.key) ?? -Infinity) - (dps.get(a.key) ?? -Infinity) || b.gainPct - a.gainPct) : upgrades);
+	const pricedFor = (u: Upgrade) => supportsGoldCost(u) && costs[u.key] !== undefined && gainOf(u) !== null;
+	const priced = $derived(perGold ? topDistinct(byGold(upgrades, costs, gainOf), limit) : []);
+	const shown = $derived(perGold ? [...priced, ...topDistinct(ranked.filter((u) => !pricedFor(u)), limit - priced.length)] : topDistinct(ranked, limit));
 	const unpriced = $derived(missingPriceCount(goldUpgrades, costs));
+	const unit = $derived(selection ? 'DPS' : 'CP');
 </script>
 
 <div class="flex min-h-0 flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
@@ -125,19 +132,28 @@
 		<div>Next Upgrades</div>
 		<div>
 			<Segmented
-				value={dpsRank ? 'dps' : gold.mode}
-				options={[
-					...(dpsMode ? [{ value: 'dps', label: 'Most DPS', title: 'Biggest estimated DPS gain first; unestimated upgrades follow' }] : []),
-					{ value: 'cp', label: 'Most CP', title: 'Biggest Combat Power gain first' },
-					{ value: 'gold', label: 'Per gold', title: 'Least gold per 1% Combat Power first (enter gold costs on the rows)' }
-				]}
-				onselect={(mode) => { dpsRank = mode === 'dps'; if (mode === 'cp' || mode === 'gold') setRankMode(mode); }}
+				value={gold.mode}
+				options={dpsMode
+					? [
+						{ value: 'cp', label: 'Most DPS', title: 'Biggest DPS gain on the picked clear first; upgrades without an estimate follow, by CP' },
+						{ value: 'gold', label: 'Per gold', title: 'Least gold per 1% DPS first (enter gold costs on the rows)' }
+					]
+					: [
+						{ value: 'cp', label: 'Most CP', title: 'Biggest Combat Power gain first' },
+						{ value: 'gold', label: 'Per gold', title: 'Least gold per 1% Combat Power first (enter gold costs on the rows)' }
+					]}
+				onselect={(mode) => setRankMode(mode as 'cp' | 'gold')}
 				label="Rank upgrades by"
 				full
 				size="h-7 px-2 text-xs"
 			/>
 		</div>
 	</div>
+	{#if dpsMode && support}
+		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-surface-400">DPS mode is for damage dealers; supports are ranked by CP.</p>
+	{:else if dpsMode && !selection}
+		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-surface-400">Pick a clear in the DPS meter to rank by DPS. Ranked by CP until then.</p>
+	{/if}
 	{#if arkGridOverWillpower(simNow.arkGrid)}
 		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-amber-300" title="An astrogem doesn't fit its core's Willpower, so Ark Grid steps can't be worked out from here">
 			Ark Grid upgrades are left out: a core needs more Willpower than it has.
@@ -147,8 +163,8 @@
 		<p class="p-2 text-sm text-surface-300">No one-step upgrades found for this loadout.</p>
 	{:else}
 		<!-- Kept above the list so they stay in reach when the list scrolls; they split the card's width. -->
-		<div class="grid shrink-0 gap-1.5 px-2 py-1.5 {!dpsRank && gold.mode === 'gold' && materials.length ? 'grid-cols-2' : 'grid-cols-1'}">
-			{#if !dpsRank && gold.mode === 'gold' && materials.length}
+		<div class="grid shrink-0 gap-1.5 px-2 py-1.5 {perGold && materials.length ? 'grid-cols-2' : 'grid-cols-1'}">
+			{#if perGold && materials.length}
 				<button
 					type="button"
 					class="flex h-7 min-w-0 items-center justify-center gap-1 truncate rounded-xs border px-2 text-xs font-semibold transition {unsetPrices
@@ -172,20 +188,22 @@
 				class="flex h-7 min-w-0 items-center justify-center gap-1 truncate rounded-xs border border-surface-700 bg-surface-800 px-2 text-xs font-semibold text-surface-100 transition hover:border-surface-500 hover:bg-surface-700"
 				aria-haspopup="dialog"
 				onclick={() => (dialogOpen = true)}
-				title={!dpsRank && gold.mode === 'gold' && unpriced ? `All Upgrades (${upgrades.length}): ${unpriced} have no gold cost yet` : undefined}
+				title={perGold && unpriced ? `All Upgrades (${upgrades.length}): ${unpriced} have no gold cost yet` : undefined}
 			>
-				{#if !dpsRank && gold.mode === 'gold' && unpriced}<span class="text-amber-300">{unpriced} missing price{unpriced > 1 ? 's' : ''}</span>{:else}All Upgrades ({upgrades.length}){/if}
+				{#if perGold && unpriced}<span class="text-amber-300">{unpriced} missing price{unpriced > 1 ? 's' : ''}</span>{:else}All Upgrades ({upgrades.length}){/if}
 			</button>
 		</div>
 		<div class="grid gap-x-2 p-1 {scroll ? 'min-h-0 overflow-y-auto overscroll-contain' : 'lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain'} {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
 			{#each shown as u, i (u.key)}
-				{@const honing = !dpsRank && gold.mode === 'gold' && auto[u.key] && manualGoldCost(u, characterCosts) === undefined ? auto[u.key] : null}
-				{#if !dpsRank && gold.mode === 'gold' && i === priced.length}
+				{@const honing = perGold && auto[u.key] && manualGoldCost(u, characterCosts) === undefined ? auto[u.key] : null}
+				{@const g = dpsGains.get(u.key)}
+				{@const per = gainOf(u)}
+				{#if perGold && i === priced.length}
 					{#if priced.length}
-						<p class="col-span-full mt-1 border-t border-neutral-950 px-1.5 pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Other CP upgrades</p>
+						<p class="col-span-full mt-1 border-t border-neutral-950 px-1.5 pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Other {unit} upgrades</p>
 					{:else}
 						<p class="col-span-full px-1.5 py-1.5 text-xs text-surface-400">
-							Enter upgrade costs to rank by gold per 1% CP. Ark Grid suggestions are ranked by CP only.
+							Enter upgrade costs to rank by gold per 1% {unit}. Ark Grid suggestions are ranked by {unit} only.
 						</p>
 					{/if}
 				{/if}
@@ -193,7 +211,7 @@
 				     All Upgrades button above. -->
 				<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 				<div
-					class="col-span-full grid cursor-pointer grid-cols-subgrid items-center rounded-xs px-1.5 transition duration-75 hover:bg-black/20 {!dpsRank && gold.mode === 'gold' ? 'py-1.5' : 'py-1'}"
+					class="col-span-full grid cursor-pointer grid-cols-subgrid items-center rounded-xs px-1.5 transition duration-75 hover:bg-black/20 {perGold ? 'py-1.5' : 'py-1'}"
 					title={u.detail}
 					onclick={(e) => {
 						if ((e.target as HTMLElement).closest('button, input, a')) return;
@@ -204,23 +222,32 @@
 					<div class="flex min-w-0 flex-col">
 						<!-- Rows without a subject (karma, gems, engravings) show their category in the same spot, above the title. -->
 						<UpgradeTitle compact u={u.subject ? u : { ...u, subject: CATEGORY_LABELS[u.category] }} />
-						{#if !dpsRank && gold.mode === 'gold' && supportsGoldCost(u)}<GoldCost {characterKey} {u} auto={auto[u.key]} showPer={false} />{/if}
+						{#if perGold && supportsGoldCost(u)}<GoldCost {characterKey} {u} auto={auto[u.key]} showPer={false} />{/if}
 					</div>
 					<!-- On calculated honing rows the gold per 1% lines sit level with the avg / pity boxes. -->
-					<span class="text-right whitespace-nowrap text-green-400 tabular-nums {honing ? 'self-end' : ''}">
-						{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span>
-						{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
-						<span class="block text-[10px] text-surface-100">{formatCp(cp * (1 + u.gainPct / 100))} <span class={u.gainPct < 0 ? 'text-red-400' : 'text-green-400'}>({formatPct(cp * u.gainPct / 100)})</span></span>
-						{#if dps.has(u.key)}<span class="block text-[11px] text-sky-300" title="Damage gained in your own logs, from LOA Logs' stat values">DPS ≈{formatPct(dps.get(u.key)!)}%</span>{:else if dpsMode}<span class="block text-[10px] font-normal text-surface-400">DPS unestimated</span>{/if}
-						{#if honing}
-							<span class="mt-0.5 flex h-6 items-center justify-end text-[11px] text-amber-300/90" title="Gold per 1% Combat Power, from the average honing cost"
-								>{formatGold(honing.expected / u.gainPct)} / 1% CP</span
+					<span class="text-right whitespace-nowrap tabular-nums {honing ? 'self-end' : ''}">
+						{#if selection}
+							{#if g}
+								<span class="text-sky-300" title={g.atLeast ? 'DPS gain on the picked clear. Part of this upgrade (Outgoing Damage) isn’t valued yet, so the real gain is a little higher.' : 'DPS gain on the picked clear'}>{g.atLeast ? '≥' : '≈'}{formatPct(g.gainPct)}<span class="text-xs">% DPS</span></span>
+							{:else}
+								<span class="block text-[11px] font-normal text-surface-400" title="This upgrade changes something the DPS meter doesn’t value yet">DPS not estimated</span>
+							{/if}
+							{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
+							<span class="block text-[10px] text-green-400">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}% CP</span>
+						{:else}
+							<span class="text-green-400">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}<span class="text-xs">%</span></span>
+							{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
+							<span class="block text-[10px] text-surface-100">{formatCp(cp * (1 + u.gainPct / 100))} <span class={u.gainPct < 0 ? 'text-red-400' : 'text-green-400'}>({formatPct(cp * u.gainPct / 100)})</span></span>
+						{/if}
+						{#if honing && per !== null && per > 0}
+							<span class="mt-0.5 flex h-6 items-center justify-end text-[11px] text-amber-300/90" title="Gold per 1% {unit}, from the average honing cost"
+								>{formatGold(honing.expected / per)} / 1% {unit}</span
 							>
-							<span class="mt-0.5 flex h-6 items-center justify-end text-[11px] text-orange-300" title="Gold per 1% Combat Power at pity"
-								>{formatGold(honing.worst / u.gainPct)} / 1% CP</span
+							<span class="mt-0.5 flex h-6 items-center justify-end text-[11px] text-orange-300" title="Gold per 1% {unit} at pity"
+								>{formatGold(honing.worst / per)} / 1% {unit}</span
 							>
-						{:else if !dpsRank && gold.mode === 'gold' && goldPerPct(u, costs)}
-							<span class="block text-[11px] text-amber-300/90" title="Gold per 1% Combat Power">{formatGold(goldPerPct(u, costs)!)} / 1% CP</span>
+						{:else if perGold && goldPerPct(u, costs, gainOf)}
+							<span class="block text-[11px] text-amber-300/90" title="Gold per 1% {unit}">{formatGold(goldPerPct(u, costs, gainOf)!)} / 1% {unit}</span>
 						{/if}
 					</span>
 					{#if onapply}
@@ -239,5 +266,5 @@
 {/if}
 
 {#if dialogOpen}
-	<UpgradeDialog {characterKey} upgrades={ranked} {cp} isSupport={roleOf(loadout).support} skins={simNow.skins} accRolls={rollsFor(characterKey)} onaccrolls={(r) => setAccRolls(characterKey, r)} {auto} {costs} mode={dpsRank ? 'cp' : gold.mode} {dpsMode} {dps} {dpsRank} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => { dialogOpen = false; focusKey = null; if (pricingRequest) onpricingclose?.(); }} />
+	<UpgradeDialog {characterKey} upgrades={ranked} {cp} isSupport={roleOf(loadout).support} skins={simNow.skins} accRolls={rollsFor(characterKey)} onaccrolls={(r) => setAccRolls(characterKey, r)} {auto} {costs} mode={gold.mode} {dpsMode} {dps} dpsRank={!!selection} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => { dialogOpen = false; focusKey = null; if (pricingRequest) onpricingclose?.(); }} />
 {/if}

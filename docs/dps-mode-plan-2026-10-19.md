@@ -1,6 +1,6 @@
 # DPS mode on the Simulator (plan, 10-19-26)
 
-Status: step 1 built 10-19 (`/sim?mode=dps`: `DpsModePanel.svelte`, `sim/DpsMeter.svelte`, `dps-meter.ts`), checked on Soulshan's
+Status: steps 1, 2 and 4 done (2 and 4 on 10-21, see the end). Step 1 built 10-19 (`/sim?mode=dps`: `DpsModePanel.svelte`, `sim/DpsMeter.svelte`, `dps-meter.ts`), checked on Soulshan's
 live logs (Serca NM 10-17: weapon +1 → +0.95%, Gluttony damage gem 9 → 10 → Gluttony +4.14%). Step 2 next. Replaces the answer-first plan
 (`dps-answer-first-plan-2026-10-19.md`): the DPS view becomes a simulator you play with, not a static recommender. Its
 "top pick" can live in the right pane.
@@ -106,3 +106,19 @@ Follow-up (10-19, later):
 - Imports keep each skill's damage under Ark Grid and identity buffs (`RunSkill.buffs`, names in `RunSummary.buffNames`).
 - Core swaps (another core, not another grade) aren't valued: the clear's rotation would change (cooldowns, Destiny
   triggers). Raid cores vs CP cores came out at +11.5% mechanically, which isn't a believable number.
+
+## Decisions and steps 2 and 4 (10-21)
+
+- **One clear at a time.** The "Average of N same-gear clears" toggle is gone: each fight's crits, buffs and rotation are
+  its own, and a single run fits the simulator idea better. The clear's own snapshot (LOA Logs' `loadout_hash`) is the
+  baseline, so older clears work after the gear changed; clears without one fall back to CP matching with a warning.
+- **Step 2:** Next Upgrades in DPS mode ranks **Most DPS | Per gold** (gold per 1% DPS); CP mode stays **Most CP | Per
+  gold**. Each upgrade is scored on the meter itself (`meterGain` in `dps-meter.ts`: the picked clear with and without
+  the upgrade), so a row's figure is what the meter shows after Apply. Upgrades touching something the meter doesn't
+  value read "DPS not estimated", never 0%. The picked clear reaches Next Upgrades through `dps-selection.svelte.ts`.
+  Replaces the older `estimateDps` ranking there.
+- **Step 4:** the `/dps` tab is removed; `/dps` redirects to `/sim?mode=dps`.
+- Next (agreed 10-21): model the damage buckets from the gear (Ark Passive, engravings, …) so stat edits don't need the
+  meter's stat values; note where crit comes from (the character's own crit, support bracelet, party synergy) with the
+  crit-rate value; Beta caveat with per-class verified badges; Ark Grid skill groups for every class, verified on logs;
+  patch-dated game data with a warning on clears recorded before a class's last balance patch.

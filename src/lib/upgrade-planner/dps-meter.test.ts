@@ -5,7 +5,7 @@ import type { Loadout } from './types';
 import { initSimState } from './simulate';
 import { engravingNames } from './dps-loadout';
 import { gemMembers } from './dps-explain';
-import { dpsMeter, matchSnapshot, sameGear } from './dps-meter';
+import { dpsMeter, matchSnapshot, meterGain } from './dps-meter';
 
 const loadout = soulshan as unknown as Loadout;
 const base = initSimState(loadout);
@@ -70,18 +70,37 @@ describe('DPS meter', () => {
 	});
 });
 
+describe('meter gain (Next Upgrades in DPS mode)', () => {
+	it('is the change on the same meter, from the current edits', () => {
+		const from = structuredClone(base);
+		from.gems[damageGem].level += 1;
+		const to = structuredClone(from);
+		to.gear.weapon!.honing += 1;
+		const g = meterGain(loadout, base, from, to, [run(1)], [run(1)]);
+		const a = dpsMeter(loadout, base, from, [run(1)], [run(1)])!, b = dpsMeter(loadout, base, to, [run(1)], [run(1)])!;
+		expect(g.gainPct!).toBeGreaterThan(0);
+		expect(g.gainPct!).toBeCloseTo((b.after / a.after - 1) * 100, 9);
+		expect(g.atLeast).toBe(false);
+	});
+	it("is unknown, not zero, for an edit the meter doesn't value", () => {
+		const to = structuredClone(base);
+		if (to.karma.evolution !== null) to.karma.evolution = Math.min(30, to.karma.evolution + 1);
+		else to.karma.leap = (to.karma.leap ?? 0) + 1;
+		expect(meterGain(loadout, base, base, to, [run(1)], [run(1)]).gainPct).toBeNull();
+	});
+	it("is unknown for a stat edit when no clear has the meter's stat values", () => {
+		const to = structuredClone(base);
+		to.gear.weapon!.honing += 1;
+		const bare = run(1, { statValues: undefined });
+		expect(meterGain(loadout, base, base, to, [bare], [bare]).gainPct).toBeNull();
+	});
+});
+
 describe('clear baseline', () => {
 	it('matches a snapshot within 0.5% CP, closest first', () => {
 		const snaps = [{ id: 'a', cp: 6100 }, { id: 'b', cp: 6020 }, { id: 'c', cp: 6005 }];
 		expect(matchSnapshot(6000, snaps)?.id).toBe('c');
 		expect(matchSnapshot(5000, snaps)).toBeNull();
 		expect(matchSnapshot(null, snaps)).toBeNull();
-	});
-	it('same gear: same loadout hash, else CP within 0.5%, same gate only', () => {
-		expect(sameGear(run(1, { loadoutHash: 'x' }), run(2, { loadoutHash: 'x', combatPower: 6200 }))).toBe(true);
-		expect(sameGear(run(1, { loadoutHash: 'x' }), run(2, { loadoutHash: 'y' }))).toBe(false);
-		expect(sameGear(run(1), run(2, { combatPower: 6020 }))).toBe(true);
-		expect(sameGear(run(1), run(2, { combatPower: 6100 }))).toBe(false);
-		expect(sameGear(run(1), run(2, { boss: 'Other' }))).toBe(false);
 	});
 });

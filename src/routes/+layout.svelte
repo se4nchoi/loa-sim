@@ -15,8 +15,7 @@
 
 	const tabs = [
 		{ href: '/', label: 'Characters', active: (p: string) => p === '/' },
-		{ href: '/sim', label: 'Simulator', active: (p: string) => p.startsWith('/sim') || p.startsWith('/character') || p.startsWith('/s/') },
-		{ href: '/dps', label: 'DPS', beta: true, active: (p: string) => p.startsWith('/dps') }
+		{ href: '/sim', label: 'Simulator', active: (p: string) => p.startsWith('/sim') || p.startsWith('/character') || p.startsWith('/s/') }
 	];
 </script>
 
@@ -43,7 +42,7 @@
 					class="flex items-center border-b-2 px-2 transition sm:px-3 {on ? 'border-accent-500 text-surface-50' : 'border-transparent text-surface-300 hover:text-surface-50'}"
 					aria-current={on ? 'page' : undefined}
 				>
-					{t.label}{#if 'beta' in t}<span class="ml-1 rounded-xs bg-amber-500/15 px-1 text-[10px] font-semibold text-amber-300">Beta</span>{/if}
+					{t.label}
 				</a>
 			{/each}
 		</nav>

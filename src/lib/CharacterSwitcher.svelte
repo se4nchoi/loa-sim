@@ -11,7 +11,7 @@
 	import { characterKey, listSavedCharacters, type SavedCharacter } from '$lib/saved-character';
 	import { classIconUrl } from '$lib/upgrade-planner/class-icons';
 
-	let { current, simulatorPath = '/sim' }: { /** Key of the character on screen ("na/soulshan"). */ current: string; simulatorPath?: '/sim' | '/dps' } = $props();
+	let { current, dpsMode = false }: { /** Key of the character on screen ("na/soulshan"). */ current: string; /** Stay in DPS mode when switching. */ dpsMode?: boolean } = $props();
 
 	let loading = $state<string | null>(null);
 	let error = $state<string | null>(null);
@@ -33,7 +33,7 @@
 		};
 	});
 
-	const openUrl = (key: string) => `${simulatorPath}?c=${encodeURIComponent(key)}`;
+	const openUrl = (key: string) => `/sim?c=${encodeURIComponent(key)}${dpsMode ? '&mode=dps' : ''}`;
 
 	async function pick(key: string) {
 		error = null;

@@ -344,16 +344,18 @@ export function missingPriceCount(upgrades: Upgrade[], costs: Record<string, num
 export const manualGoldCost = (u: Upgrade, costs: Record<string, number>) => materialPriced(u) ? undefined : costs[accessoryPriceKey(u.key, costs)];
 
 /** Gold per 1% Combat Power (lower is better); null without a cost or a gain. */
-export const goldPerPct = (u: Upgrade, costs: Record<string, number>) => {
+/** Gold per 1% gain: CP by default, or another gain (DPS mode passes each upgrade's DPS gain; null = unknown). */
+export const goldPerPct = (u: Upgrade, costs: Record<string, number>, gain: (u: Upgrade) => number | null = (x) => x.gainPct) => {
 	if (!supportsGoldCost(u)) return null;
 	const cost = costs[accessoryPriceKey(u.key, costs)];
-	return cost !== undefined && u.gainPct > 0 ? cost / u.gainPct : null;
+	const pct = gain(u);
+	return cost !== undefined && pct !== null && pct > 0 ? cost / pct : null;
 };
 
 /** Priced upgrades, most efficient first. */
-export const byGold = (upgrades: Upgrade[], costs: Record<string, number>) =>
+export const byGold = (upgrades: Upgrade[], costs: Record<string, number>, gain?: (u: Upgrade) => number | null) =>
 	upgrades
-		.map((u) => ({ u, per: goldPerPct(u, costs) }))
+		.map((u) => ({ u, per: goldPerPct(u, costs, gain) }))
 		.filter((x): x is { u: Upgrade; per: number } => x.per !== null)
 		.sort((a, b) => a.per - b.per)
 		.map((x) => x.u);

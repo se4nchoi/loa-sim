@@ -1,9 +1,11 @@
 <!--
-	DPS mode on the Simulator: pick a raid and one of its clears (or the same-gear clears of that gate), check that the
-	gear being simulated is the gear of that clear, and watch the clear's DPS follow the cards' edits on the meter.
+	DPS mode on the Simulator: pick a raid and one of its clears, check that the gear being simulated is the gear of that
+	clear, and watch the clear's DPS follow the cards' edits on the meter. One clear at a time: each fight's crits,
+	buffs and rotation are its own. Next Upgrades ranks by the same meter (dps-selection).
 -->
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { setDpsSelection } from './dps-selection.svelte';
 	import { loadRuns, runsBooks } from '$lib/logs/runs-store.svelte';
 	import { raidGateOf } from '$lib/logs/raids';
 	import type { RunSummary } from '$lib/logs/protocol';
@@ -15,7 +17,7 @@
 	import { classColor } from './class-colors';
 	import { comparisonScope, formatDamage } from './dps-comparison';
 	import { raidsOf } from './dps-gates';
-	import { dpsMeter, matchSnapshot, sameGear, type SnapshotOption } from './dps-meter';
+	import { dpsMeter, matchSnapshot, type SnapshotOption } from './dps-meter';
 	import { formatDate, formatPct } from './format';
 	import { GEM_SKILLS } from './game-data';
 	import { iconUrl } from './icons';
@@ -23,7 +25,6 @@
 	import { initSimState, simulate, type SimState } from './simulate';
 	import { clearState } from './clear-state';
 	import { btn } from './sim/ui';
-	import Segmented from './sim/Segmented.svelte';
 	import type { Loadout } from './types';
 
 	let { loadout, simState, characterKey, characterName, snapshots = [], onsimulate }: {
@@ -57,17 +58,17 @@
 	const mainRaids = $derived(raids.filter((r) => r.kind === 'raid'));
 	const otherRaids = $derived(raids.filter((r) => r.kind === 'other'));
 
-	// What's picked: raid, clear, and whether to average that gate's same-gear clears. Remembered per character.
+	// What's picked: raid and clear. Remembered per character.
 	const storeKey = $derived(`loa-sim:dps-meter:${characterKey}`);
-	let pick = $state<{ raid: string | null; clear: number | null; average: boolean }>({ raid: null, clear: null, average: false });
+	let pick = $state<{ raid: string | null; clear: number | null }>({ raid: null, clear: null });
 	$effect(() => {
 		const key = storeKey;
 		untrack(() => {
 			try {
 				const v = JSON.parse(localStorage.getItem(key) ?? 'null');
-				pick = { raid: typeof v?.raid === 'string' ? v.raid : null, clear: typeof v?.clear === 'number' ? v.clear : null, average: v?.average === true };
+				pick = { raid: typeof v?.raid === 'string' ? v.raid : null, clear: typeof v?.clear === 'number' ? v.clear : null };
 			} catch {
-				pick = { raid: null, clear: null, average: false };
+				pick = { raid: null, clear: null };
 			}
 		});
 	});
@@ -79,8 +80,7 @@
 	const raid = $derived(raids.find((r) => r.key === pick.raid) ?? mainRaids[0] ?? raids[0] ?? null);
 	const clears = $derived(raid ? raid.runs.toSorted((a, b) => b.start - a.start) : []);
 	const clear = $derived(clears.find((r) => r.id === pick.clear) ?? clears[0] ?? null);
-	const sameGearClears = $derived(clear ? clears.filter((r) => sameGear(clear, r)) : []);
-	const runs = $derived<RunSummary[]>(clear ? (pick.average && sameGearClears.length > 1 ? sameGearClears : [clear]) : []);
+	const runs = $derived<RunSummary[]>(clear ? [clear] : []);
 	// The Simulator's state is reactive (a proxy); the meter works on a plain copy of it.
 	const plain = $derived($state.snapshot(simState) as SimState);
 
@@ -112,6 +112,12 @@
 	const clearSetup = $derived(setup?.snap && setup.hash === clear?.loadoutHash ? clearState(loadout, $state.snapshot(setup.snap) as ClearSnapshot) : null);
 	const clearSetupCp = $derived(clearSetup ? simulate(loadout, clearSetup.state, base).cp : null);
 	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, plain, buildRuns, runs, arkGridModel?.orderCoreEffect) : null);
+	// Shared with Next Upgrades, which ranks upgrades on this meter.
+	$effect(() => {
+		const key = characterKey;
+		setDpsSelection(key, runs.length ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid: arkGridModel?.orderCoreEffect } : null);
+		return () => setDpsSelection(key, null);
+	});
 
 	const gate = (r: RunSummary) => raidGateOf(r.boss)?.gate;
 	const time = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
@@ -159,14 +165,11 @@
 			<button type="button" class="ml-auto shrink-0 self-center text-xs text-sky-300 hover:underline" onclick={() => (importing = true)}>Re-import logs</button>
 		</div>
 
-		<!-- Clear: one by default; the same-gear clears of its gate averaged on request. -->
+		<!-- Clear: one at a time. -->
 		<div class="mt-1.5 mb-3 flex flex-wrap items-center gap-2 text-xs">
 			<select class={select} aria-label="Clear" value={clear.id} onchange={(e) => remember({ clear: Number(e.currentTarget.value) })}>
 				{#each clears as r (r.id)}<option value={r.id}>{clearLabel(r)}</option>{/each}
 			</select>
-			{#if sameGearClears.length > 1}
-				<Segmented label="Clears" value={pick.average ? 'average' : 'one'} options={[{ value: 'one', label: 'This clear' }, { value: 'average', label: `Average of ${sameGearClears.length}`, title: `The ${sameGearClears.length} clears of ${gate(clear) ? `G${gate(clear)}` : 'this fight'} played with the same gear` }]} onselect={(v) => remember({ average: v === 'average' })} size="h-7 px-2.5 text-xs" />
-			{/if}
 		</div>
 
 		<!-- Baseline: the clear's own setup (its snapshot). One status line; what else differs folds away. -->

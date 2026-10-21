@@ -13,9 +13,8 @@
 	import { formatDateTime } from '$lib/upgrade-planner/format';
 	import ModeSwitch from '$lib/upgrade-planner/sim/ModeSwitch.svelte';
 
-	let { dpsMode = false }: { dpsMode?: boolean } = $props();
 	/** CP or DPS: the same simulator, DPS adds a clear from the player's logs and its meter. Kept in the address. */
-	const mode = $derived(dpsMode || page.url.searchParams.get('mode') === 'dps' ? 'dps' : 'cp');
+	const mode = $derived(page.url.searchParams.get('mode') === 'dps' ? 'dps' : 'cp');
 	function setMode(next: 'cp' | 'dps') {
 		const url = new URL(page.url);
 		if (next === 'dps') url.searchParams.set('mode', 'dps');
@@ -80,7 +79,7 @@
 		loadingCharacter = false;
 		if (untrack(() => loadSavedCharacter(key))) return;
 		if (!key) {
-			if (!dpsMode) void goto('/', { replaceState: true });
+			void goto('/', { replaceState: true });
 			return;
 		}
 		const parts = key.split('/');
@@ -133,12 +132,10 @@
 {:else if saved}
  {#if build}<div class="mb-3 flex flex-wrap items-center gap-3 text-sm"><span class="font-semibold text-accent-200">Build: {build.name}</span><a class="text-surface-300 underline" href={`/sim?c=${encodeURIComponent(characterKey(saved))}`}>Back to character</a></div>
  {:else if buildId}<p class="mb-3 text-sm text-surface-300">This saved build is no longer available. Showing your character.</p>{/if}
-	<CharacterSwitcher current={characterKey(saved)} simulatorPath={dpsMode ? '/dps' : '/sim'} />
-	{#if !dpsMode}
-		<div class="mb-3 w-56 lg:hidden"><ModeSwitch dpsMode={mode === 'dps'} onmode={setMode} /></div>
-	{/if}
+	<CharacterSwitcher current={characterKey(saved)} dpsMode={mode === 'dps'} />
+	<div class="mb-3 w-56 lg:hidden"><ModeSwitch dpsMode={mode === 'dps'} onmode={setMode} /></div>
 	{#key `${saved.region}/${saved.name}:${build?.id ?? "character"}`}
-		<CharacterView dpsMode={mode === 'dps'} onmode={dpsMode ? undefined : setMode} initialBuild={build} name={saved.name} region={saved.region} {subtitle} itemLevel={build ? build.loadout.itemLevel : saved.header?.ilvl} loadout={saved.loadout}
+		<CharacterView dpsMode={mode === 'dps'} onmode={setMode} initialBuild={build} name={saved.name} region={saved.region} {subtitle} itemLevel={build ? build.loadout.itemLevel : saved.header?.ilvl} loadout={saved.loadout}
 			cpDistribution={build ? null : saved.cpDistribution}
 			loadouts={saved.loadouts}
 			loadoutKind={saved.loadoutKind}
@@ -151,8 +148,4 @@
 			onreload={build ? undefined : onreload}
 		/>
 	{/key}
-{:else if dpsMode}
-	<h1 class="text-xl font-semibold">DPS <span class="text-sm text-amber-300">Experimental</span></h1>
-	<p class="mt-2 text-surface-300">Load a character, then import your LOA Logs to test DPS estimates for upgrades.</p>
-	<a href="/" class="mt-4 inline-block rounded-xs bg-accent-700 px-3 py-2 font-semibold text-white hover:bg-accent-600">Load a character</a>
 {/if}

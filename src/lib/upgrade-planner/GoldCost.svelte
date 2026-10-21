@@ -15,6 +15,8 @@
 		auto,
 		showPer = true,
 		characterKey = '',
+		gain,
+		unit = 'CP',
 		onedit
 	}: {
 		u: Upgrade;
@@ -23,6 +25,9 @@
 		auto?: HoningCost;
 		/** Show gold per 1% next to the cost (the sidebar shows it by the gain). */
 		showPer?: boolean;
+		/** The gain gold is per (default the CP gain; DPS mode passes the DPS gain, null when not estimated). */
+		gain?: number | null;
+		unit?: 'CP' | 'DPS';
 		/** Open the shared price editor elsewhere, rather than editing inline. */
 		onedit?: () => void;
 	} = $props();
@@ -38,7 +43,8 @@
 	const books = $derived(bookPricesFor(characterKey));
 	const bookPrice = $derived(u.books ? books[u.books.engraving] : undefined);
 	const cost = $derived(typed ?? auto?.expected ?? bookCost(u, books) ?? u.knownCost);
-	const per = $derived(cost !== undefined && u.gainPct > 0 ? cost / u.gainPct : null);
+	const pct = $derived(gain === undefined ? u.gainPct : gain);
+	const per = $derived(cost !== undefined && pct !== null && pct > 0 ? cost / pct : null);
 	const autoTitle = $derived(
 		u.quality ? `Average ${formatGold(u.knownCost!)} gold over ${u.quality.taps.toFixed(1)} taps, ${u.quality.fee} gold per tap. Assumes unlimited Chaos Stones. Stops at target quality or higher; CP gain shown is at the target. No pity.` : auto
 			? `Average ${formatGold(auto.expected)} over ${auto.taps.toFixed(1)} taps (used for gold per 1%). ${breathStrategy(auto)} ` +
@@ -116,7 +122,7 @@
 						: !canEdit ? (cost === 0 ? 'Free' : 'No calculated cost is available for this upgrade yet.') : `Gold cost${u.count > 1 ? ' of one' : ''}, e.g. 45k or 1.2m`}
 		>
 			<img src={GOLD_ICON} alt="" class="size-4 shrink-0" />
-			{#if cost === 0 && !typed}Free{:else if cost !== undefined}{#if !typed && (auto || u.quality)}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal whitespace-nowrap text-surface-300 max-sm:hidden">· {formatGold(per)} per 1% CP</span>{/if}{:else}{!canEdit ? 'Cost unavailable' : u.books ? 'Add book price' : 'Add gold cost'}{/if}
+			{#if cost === 0 && !typed}Free{:else if cost !== undefined}{#if !typed && (auto || u.quality)}<span class="ml-auto">≈{formatGold(cost)}</span><span class="w-6 text-left font-normal text-surface-400">avg</span>{:else}{formatGold(cost)}{/if}{#if per !== null && showPer}<span class="font-normal whitespace-nowrap text-surface-300 max-sm:hidden">· {formatGold(per)} per 1% {unit}</span>{/if}{:else}{!canEdit ? 'Cost unavailable' : u.books ? 'Add book price' : 'Add gold cost'}{/if}
 		</button>
 		{#if auto?.breakdown}
 			<button type="button" class="{detailsButton} col-start-2 row-start-1" onclick={() => (breakdownMode = 'average')} aria-label={`Average material breakdown for ${u.title}`} title="Average bound materials used and market purchases">?</button>
@@ -131,7 +137,7 @@
 				title={`Pity: ${auto.maxTaps} taps, when ${u.category === 'karma' ? 'the Karma pity meter' : "artisan's energy"} forces success${u.category === 'karma' ? '. Assumes unlimited Destiny Stones.' : ''}`}
 			>
 				<img src={GOLD_ICON} alt="" class="size-4 shrink-0" /><span class="ml-auto">{formatGold(auto.worst)}</span><span class="w-6 text-left font-normal text-orange-300/70">pity</span>
-				{#if showPer && u.gainPct > 0}<span class="font-normal whitespace-nowrap text-orange-200/80 max-sm:hidden">· {formatGold(auto.worst / u.gainPct)} per 1% CP</span>{/if}
+				{#if showPer && pct !== null && pct > 0}<span class="font-normal whitespace-nowrap text-orange-200/80 max-sm:hidden">· {formatGold(auto.worst / pct)} per 1% {unit}</span>{/if}
 			</span>
 			{#if auto.breakdown}
 				<button type="button" class="{detailsButton} col-start-2 row-start-2" onclick={() => (breakdownMode = 'pity')} aria-label={`Pity material breakdown for ${u.title}`} title="Bound materials used and market purchases at pity">?</button>

@@ -42,6 +42,7 @@ export interface Meter {
 /** Edited parts of the state the stat model covers (see dps-stats COVERED) or that are only log data. */
 const STAT_KEYS = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet', 'skillShares', 'skillCooldownUse']);
 const LABELS: Partial<Record<keyof SimState, string>> = { arkGrid: 'Ark Grid', karma: 'Karma', engravings: 'Engravings', paradise: 'Paradise' };
+const DROPPED_EDITS = 'Some gear edits';
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 /** The Ark Grid without what the order core model values (which order core, its grade, its points). */
@@ -65,7 +66,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 		}
 	}
 	const change = statDeltasAtLeast(loadout, base, statState, base);
-	if (!change && !same(statState, base)) notes.push("Some gear edits remove a damage line the model can't value, so they're left out.");
+	if (!change && !same(statState, base)) notes.push(`${DROPPED_EDITS} remove a damage line the model can't value, so they're left out.`);
 	if (change?.unvalued.length) notes.push(`${change.unvalued.join(', ')} isn't valued yet: the real gain is a little higher.`);
 
 	// Gems: damage gems scale their skills; a T4 gem's base attack joins the stat part. Cooldown gems add casts, by
@@ -129,6 +130,25 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	};
 }
 
+/**
+ * DPS change from one more edit (`from` → `to`), measured on the same meter as DPS mode shows: percent more total
+ * damage on the picked clear. null when the edit touches something the meter doesn't value yet (it would read as 0).
+ * `atLeast`: part of it isn't valued (an Outgoing Damage line), so the real gain is a little higher.
+ */
+export function meterGain(loadout: Loadout, baseline: SimState, from: SimState, to: SimState, buildRuns: RunSummary[], runs: RunSummary[], arkGrid?: typeof orderCoreEffect, fromMeter?: Meter | null): { gainPct: number | null; atLeast: boolean } {
+	const a = fromMeter ?? dpsMeter(loadout, baseline, from, buildRuns, runs, arkGrid);
+	const b = dpsMeter(loadout, baseline, to, buildRuns, runs, arkGrid);
+	if (!a || !b || !(a.after > 0)) return { gainPct: null, atLeast: false };
+	const added = (x: string[], y: string[]) => y.filter((v) => !x.includes(v));
+	if (added(a.notInMeter, b.notInMeter).length || (b.statPct === null && a.statPct !== null)) return { gainPct: null, atLeast: false };
+	const newNotes = added(a.notes, b.notes);
+	if (newNotes.some((n) => n.startsWith(DROPPED_EDITS))) return { gainPct: null, atLeast: false };
+	const gainPct = (b.after / a.after - 1) * 100;
+	// A core grade whose effect isn't parsed moves nothing: unknown, not zero.
+	if (newNotes.length && Math.abs(gainPct) < 1e-6) return { gainPct: null, atLeast: false };
+	return { gainPct, atLeast: newNotes.length > 0 };
+}
+
 /** A snapshot the Simulator can switch to, for matching a clear's gear. */
 export interface SnapshotOption {
 	id: string;
@@ -144,11 +164,4 @@ export function matchSnapshot<T extends { cp: number | null }>(clearCp: number |
 	if (!clearCp) return null;
 	const close = snapshots.filter((s) => s.cp && Math.abs(s.cp / clearCp - 1) <= tolerance);
 	return close.sort((a, b) => Math.abs(a.cp! - clearCp) - Math.abs(b.cp! - clearCp))[0] ?? null;
-}
-
-/** Same-gear clears of one gate: same LOA Logs loadout hash, or CP within 0.5% when no hash was recorded. */
-export function sameGear(run: RunSummary, other: RunSummary): boolean {
-	if (run.boss !== other.boss || run.difficulty !== other.difficulty) return false;
-	if (run.loadoutHash && other.loadoutHash) return run.loadoutHash === other.loadoutHash;
-	return !!run.combatPower && !!other.combatPower && Math.abs(other.combatPower / run.combatPower - 1) <= 0.005;
 }
