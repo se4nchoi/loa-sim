@@ -33,7 +33,7 @@
 
 <SimCard title="Equipment" {delta} info="Honing uses the game's Aegir and Serca stat tables. Weapon quality adds Additional Damage; armor quality adds Vigor and HP, increasing support Shield & Heal Power. Quality is read from the loadout's quality or additional stat.">
 	{#snippet actions()}
-		<button type="button" class={btnAccent} onclick={() => maxEquipment(sim)} title="Max honing, advanced honing and quality, Sidereal growth, and Ancient +25 bracer">Max</button>
+		<button type="button" class={btnAccent} onclick={() => maxEquipment(sim)} title="Max honing, advanced honing and quality, Sidereal growth, and Ancient +25 Vambraces">Max</button>
 		<button type="button" class={btn} onclick={() => bumpAll(-1)}>All −1</button>
 		<button type="button" class={btn} onclick={() => bumpAll(1)}>All +1</button>
 		<button type="button" class={btn} onclick={() => { sim.gear = structuredClone($state.snapshot(base.gear)); sim.quality = { ...base.quality }; sim.sidereal = structuredClone($state.snapshot(base.sidereal)); sim.bracer = base.bracer ? { ...base.bracer } : null; }}>Reset</button>

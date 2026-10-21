@@ -84,5 +84,5 @@ const BRACER_CLASS_ICON: Record<string, number> = Object.fromEntries([
 export function bracerLook(classId: string, grade: BracerGrade): ItemLook {
 	const offset = BRACER_CLASS_ICON[classId.replaceAll('_', '').toLowerCase()] ?? 1;
 	const index = BRACER_GRADES.indexOf(grade);
-	return { icon: iconUrl(`bracer_${offset + 11 * index}`), grade: index + 3, name: `${grade[0].toUpperCase() + grade.slice(1)} Bracer` };
+	return { icon: iconUrl(`bracer_${offset + 11 * index}`), grade: index + 3, name: `${grade[0].toUpperCase() + grade.slice(1)} Vambraces` };
 }

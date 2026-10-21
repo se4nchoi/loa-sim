@@ -15,6 +15,15 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-10-21',
+		kind: 'improved',
+		title: 'Vambraces & books',
+		points: [
+			'Bracer is now called Vambraces, matching the global release, and is no longer marked as a KR preview.',
+			'Serca gear honing can now use Metallurgy and Tailoring: Tremor books from +12 to +19.'
+		]
+	},
+	{
 		date: '2026-10-18',
 		kind: 'fix',
 		title: 'Simulator fix',
