@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { autoHoningCosts, booksFor, honingCost, inventoryMaterials, tapsFor, type HoningBook } from './honing-cost';
+import { HONING_BOOKS } from './honing-books-data';
 import { HONING_COSTS, type HoningTap } from './honing-cost-data';
 import { priceBudget, type BudgetChange } from './sim-budget';
 
@@ -36,7 +37,12 @@ describe('additive honing books', () => {
 		expect(booksFor('aegir', 'weapon', 19)).toMatchObject([{ id: '66112553', rate: 300 }, { id: '66112555', rate: 600 }]);
 		expect(booksFor('aegir', 'weapon', 20)).toMatchObject([{ id: '66112553', rate: 150 }, { id: '66112555', rate: 300 }]);
 		for (const level of [10, 21, 25]) expect(booksFor('aegir', 'weapon', level)).toEqual([]);
-		expect(booksFor('serca', 'weapon', 19)).toEqual([]);
+		expect(booksFor('serca', 'weapon', 12)).toMatchObject([{ id: 'tremor:weapon:12-15', rate: 500 }]);
+		expect(booksFor('serca', 'upper_body', 15)).toMatchObject([{ id: 'tremor:armor:12-15', rate: 400 }]);
+		expect(booksFor('serca', 'weapon', 19)).toMatchObject([{ id: 'tremor:weapon:16-19', rate: 300 }]);
+		for (const level of [11, 20]) expect(booksFor('serca', 'weapon', level)).toEqual([]);
+		// Each regular book adds the target level's base rate (enhanced: double), as the game's Hellfire rows do on Aegir.
+		for (const b of HONING_BOOKS.filter(b => !b.name.startsWith('Enhanced'))) for (const [level, rate] of Object.entries(b.rates)) expect(rate).toBe(HONING_COSTS[b.set][b.kind][Number(level) - 1].success);
 		const auto = autoHoningCosts(['honing:weapon:19'], { weapon: { set: 'aegir' } }, { '66112555': 0 });
 		expect(auto['honing:weapon:19'].book).toBeDefined();
 		expect(honingCost(tapsFor('aegir', 'weapon', 19)!, { '66112555': 0 })).toEqual(auto['honing:weapon:19']);

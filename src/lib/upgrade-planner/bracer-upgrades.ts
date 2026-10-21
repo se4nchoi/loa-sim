@@ -16,15 +16,15 @@ export function bracerUpgrades(l: Loadout, state = initSimState(l), base: SimSta
 	return [{
 		key: `bracer:${to.grade}:${to.honing}`,
 		category: 'honing',
-		subject: 'Bracer',
+		subject: 'Vambraces',
 		title: !from ? 'Equip Epic +0' : from.grade !== to.grade
 			? `${name(from.grade)} → ${name(to.grade)} (+${to.honing})`
 			: `Honing +${from.honing} → +${to.honing}`,
-		detail: 'KR preview',
+		detail: '',
 		gainPct: (after / before - 1) * 100,
 		count: 1,
 		approximate: true,
-		// The first bracer drops from the first Belgardin clear: free, so it tops the gold ranking.
+		// The first Vambraces drop from the first Belgardin clear: free, so it tops the gold ranking.
 		...(!from ? { knownCost: 0 } : {}),
 		group: 'honing:bracer'
 	}];

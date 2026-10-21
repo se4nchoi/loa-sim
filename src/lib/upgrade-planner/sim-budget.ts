@@ -52,15 +52,15 @@ export function budgetChanges(loadout: Loadout, base: SimState, target: SimState
 	if (different(base.bracer, target.bracer)) {
 		const to = target.bracer;
 		if (!to || (base.bracer && (to.honing < base.bracer.honing || BRACER_GRADES.indexOf(to.grade) < BRACER_GRADES.indexOf(base.bracer.grade)))) {
-			add('Equipment', 'Bracer reduction', base.bracer, to, { status: 'excluded' });
+			add('Equipment', 'Vambraces reduction', base.bracer, to, { status: 'excluded' });
 		} else {
 			let from = base.bracer;
 			for (let n = 0; n < 30 && different(from, to); n++) {
 				const next = nextBracer(from);
 				if (!next || !to || next.honing > to.honing) break;
-				if (!from) add('Equipment', 'Acquire Epic bracer +0', null, next, { fixed: 0, detail: 'First bracer is free.' });
-				else if (next.grade !== from.grade) add('Equipment', `Bracer limit break: ${from.grade} → ${next.grade}`, from, next, { status: 'unavailable', detail: 'Limit-break cost is not calculated.' });
-				else add('Equipment', `Bracer +${from.honing} → +${next.honing}`, from, next, { tap: BRACER_TAPS[next.honing - 1] });
+				if (!from) add('Equipment', 'Acquire Epic Vambraces +0', null, next, { fixed: 0, detail: 'The first Vambraces are free.' });
+				else if (next.grade !== from.grade) add('Equipment', `Vambraces limit break: ${from.grade} → ${next.grade}`, from, next, { status: 'unavailable', detail: 'Limit-break cost is not calculated.' });
+				else add('Equipment', `Vambraces +${from.honing} → +${next.honing}`, from, next, { tap: BRACER_TAPS[next.honing - 1] });
 				from = next;
 			}
 		}

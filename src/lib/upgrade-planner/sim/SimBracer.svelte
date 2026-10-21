@@ -20,23 +20,22 @@
 </script>
 
 <div class="mt-3.5 grid grid-cols-[2.5rem_minmax(0,1fr)_max-content_max-content] items-center gap-x-4 max-sm:gap-x-2">
-<ItemIcon src={look?.icon} grade={look?.grade} title={look ? `${look.name} +${sim.bracer!.honing}\n${details}` : 'Bracer · Not equipped'} />
-<span class="min-w-0 text-sm font-semibold text-surface-100" title={sim.bracer ? details : 'Belgardin Bracer'}>
-	Bracer
-	<span class="block text-[10px] font-normal text-surface-400" title="KR honing and stats; global release audit pending">KR preview</span>
+<ItemIcon src={look?.icon} grade={look?.grade} title={look ? `${look.name} +${sim.bracer!.honing}\n${details}` : 'Vambraces · Not equipped'} />
+<span class="min-w-0 text-sm font-semibold text-surface-100" title={sim.bracer ? details : 'Belgardin Vambraces'}>
+	Vambraces
 </span>
 {#if sim.bracer}
-	<Stepper bind:value={sim.bracer.honing} min={BRACER_LIMITS[sim.bracer.grade][0]} max={BRACER_LIMITS[sim.bracer.grade][1]} prefix="+" label="Bracer honing" width="w-7" {changed} />
+	<Stepper bind:value={sim.bracer.honing} min={BRACER_LIMITS[sim.bracer.grade][0]} max={BRACER_LIMITS[sim.bracer.grade][1]} prefix="+" label="Vambraces honing" width="w-7" {changed} />
 {:else}
 	<span class="text-center text-sm text-surface-500">—</span>
 {/if}
-<select aria-label="Bracer grade" class="{selectClass(changed)} w-28 min-w-0 max-sm:w-24" value={sim.bracer?.grade ?? 'none'} onchange={(e) => setGrade(e.currentTarget.value)}>
+<select aria-label="Vambraces grade" class="{selectClass(changed)} w-28 min-w-0 max-sm:w-24" value={sim.bracer?.grade ?? 'none'} onchange={(e) => setGrade(e.currentTarget.value)}>
 	<option value="none">None</option>
 	{#each BRACER_GRADES as grade}
 		<option value={grade}>{grade[0].toUpperCase() + grade.slice(1)}</option>
 	{/each}
 </select>
 <div class="col-span-full mt-1.5 flex justify-end gap-1.5">
-	<button type="button" class={btn} aria-label="Reset bracer" onclick={() => (sim.bracer = base.bracer ? { ...base.bracer } : null)}>Reset</button>
+	<button type="button" class={btn} aria-label="Reset vambraces" onclick={() => (sim.bracer = base.bracer ? { ...base.bracer } : null)}>Reset</button>
 </div>
 </div>
