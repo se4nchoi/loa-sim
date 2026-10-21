@@ -59,7 +59,7 @@ export function budgetChanges(loadout: Loadout, base: SimState, target: SimState
 				const next = nextBracer(from);
 				if (!next || !to || next.honing > to.honing) break;
 				if (!from) add('Equipment', 'Acquire Epic Vambraces +0', null, next, { fixed: 0, detail: 'The first Vambraces are free.' });
-				else if (next.grade !== from.grade) add('Equipment', `Vambraces limit break: ${from.grade} → ${next.grade}`, from, next, { status: 'unavailable', detail: 'Limit-break cost is not calculated.' });
+				else if (next.grade !== from.grade) add('Equipment', `Vambraces limit break: ${from.grade} → ${next.grade}`, from, next, { fixed: 0, detail: 'No gold; uses Spectral Shade or Deathly Hand (raid drops, not counted).' });
 				else add('Equipment', `Vambraces +${from.honing} → +${next.honing}`, from, next, { tap: BRACER_TAPS[next.honing - 1] });
 				from = next;
 			}

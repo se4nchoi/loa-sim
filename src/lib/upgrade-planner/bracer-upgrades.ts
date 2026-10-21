@@ -24,8 +24,9 @@ export function bracerUpgrades(l: Loadout, state = initSimState(l), base: SimSta
 		gainPct: (after / before - 1) * 100,
 		count: 1,
 		approximate: true,
-		// The first Vambraces drop from the first Belgardin clear: free, so it tops the gold ranking.
-		...(!from ? { knownCost: 0 } : {}),
+		// The first Vambraces drop from the first Belgardin clear, and limit breaks take only Belgardin's
+		// untradeable drops: no gold either way, so they top the gold ranking.
+		...(!from || from.grade !== to.grade ? { knownCost: 0 } : {}),
 		group: 'honing:bracer'
 	}];
 }

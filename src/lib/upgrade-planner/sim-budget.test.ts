@@ -101,13 +101,14 @@ describe('current changes budget', () => {
 		expect(upgrade?.lines).toEqual(row.rolls);
 		expect(priceBudget([row], {}, {}, { [upgrade!.key]: 50000 }, {})[0].average).toBe(50000);
 	});
-	it('prices the full bracer progression including unpriced limit breaks', () => {
+	it('prices the full bracer progression, with gold-free limit breaks', () => {
 		const base = initSimState(loadout), target = structuredClone(base);
 		base.bracer = null;
 		target.bracer = { grade: 'ancient', honing: 25 };
 		const changes = budgetChanges(loadout, base, target);
 		expect(changes.filter((r) => r.tap)).toHaveLength(25);
-		expect(changes.filter((r) => r.status === 'unavailable')).toHaveLength(3);
+		expect(changes.filter((r) => r.title.includes('limit break')).map((r) => r.fixed)).toEqual([0, 0, 0]);
+		expect(changes.some((r) => r.status === 'unavailable')).toBe(false);
 		expect(changes[0].fixed).toBe(0);
 	});
 	it('lists sidereal weapon steps up for the player to price, and excludes steps down', () => {
