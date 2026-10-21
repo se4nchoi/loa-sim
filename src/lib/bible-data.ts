@@ -29,7 +29,10 @@ export const bibleDataUrl = (region: string, name: string) =>
 
 /** A loadout snapshot LOA Logs links each clear to ("v3/<64 hex>", its `loadout_hash`). */
 export const isSnapshotHash = (hash: string) => /^v\d{1,2}\/[0-9a-f]{64}$/.test(hash);
-export const bibleSnapshotUrl = (hash: string) => `https://lostark.bible/character/snapshot/${hash}/__data.json`;
+export const bibleSnapshotUrl = (hash: string) => {
+	if (!isSnapshotHash(hash) || !hash.startsWith('v3/')) throw new Error('Unsupported snapshot version');
+	return `https://loadout.mathi.moe/v3/loadouts/by-hash/${hash.slice(3)}`;
+};
 export const bibleSnapshotPage = (hash: string) => `https://lostark.bible/character/snapshot/${hash}`;
 
 /** The gear a clear was played with: lostark.bible's snapshot of it. It has no battle point parts or stats, so it isn't a
@@ -40,6 +43,8 @@ export type ClearSnapshot = Pick<Loadout, 'classId' | 'items' | 'gems' | 'arkGri
 	cards?: unknown;
 	elixirs?: unknown;
 	transcendences?: unknown;
+	/** Original endpoint payload, including skills/tripods and unmodeled or future fields. */
+	raw?: Record<string, unknown>;
 };
 
 export const bibleCharacterUrl = (region: string, name: string) =>

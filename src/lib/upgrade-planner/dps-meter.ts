@@ -17,6 +17,7 @@ import type { orderCoreEffect } from './ark-grid-dps';
 import type { SimState } from './simulate';
 import { decodeCore } from './tables';
 import type { Loadout } from './types';
+import { statGain, type DamageContext } from './dps-stat-engine';
 
 export interface MeterSkill {
 	id: number;
@@ -49,7 +50,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stri
 const arkGridRest = (s: SimState) =>
 	s.arkGrid.map((c) => (decodeCore(c.as ?? c.id)?.attr === 'order' ? c.gems.map((g) => (g.removed ? null : g.opts)) : c));
 
-export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buildRuns: RunSummary[], runs: RunSummary[], arkGrid?: typeof orderCoreEffect): Meter | null {
+export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buildRuns: RunSummary[], runs: RunSummary[], arkGrid?: typeof orderCoreEffect, context?: DamageContext): Meter | null {
 	if (!runs.length) return null;
 	const notes: string[] = [];
 	const notInMeter: string[] = [];
@@ -97,13 +98,16 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	const model = planModel(loadout, base, base, buildRuns, runs).input;
 	const crit = critRates(runs);
 	const bySkill = new Map<number, MeterSkill>();
-	let before = 0, after = 0, durationMs = 0, statWeighted = 0, statKnown = true;
+	let before = 0, after = 0, durationMs = 0, statWeighted = 0, outsideDamage = 0, statKnown = true;
 	const unvalued = new Set<string>();
 	runs.forEach((run, i) => {
-		const gain = hasStats ? modelGain(delta, { ...model, critRate: crit.perRun[i] }).gainPct : 0;
+		const gain = hasStats ? context
+			? run.critConversion && !context.critConversion && (delta.critRate || delta.critDamage || delta.evolutionDamage) ? null : statGain(context, delta)
+			: modelGain(delta, { ...model, critRate: crit.perRun[i] }).gainPct : 0;
 		if (gain === null) statKnown = false;
 		const stat = 1 + (gain ?? 0) / 100;
-		statWeighted += run.damage * (gain ?? 0);
+		statWeighted += Math.max(0, run.damage - run.skills.filter((s) => s.hyper).reduce((sum, s) => sum + s.damage, 0)) * (gain ?? 0);
+		outsideDamage += Math.max(0, run.damage - run.skills.reduce((sum, s) => sum + s.damage, 0)) * stat;
 		durationMs += run.duration;
 		const cores = arkGrid && !same(state.arkGrid, base.arkGrid) ? arkGrid(loadout, base, state, run) : null;
 		for (const u of cores?.unvalued ?? []) unvalued.add(u);
@@ -111,17 +115,16 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 			const gems = gemEffects.reduce((m, g) => (g.skills.has(skill.id) ? m * (1 + g.pct / 100) : m), 1) * (cores?.factor(skill) ?? 1);
 			const row = bySkill.get(skill.id) ?? { id: skill.id, before: 0, after: 0 };
 			row.before += skill.damage;
-			row.after += skill.damage * stat * gems;
+			row.after += skill.damage * (skill.hyper ? 1 : stat * gems);
 			bySkill.set(skill.id, row);
 		}
 		before += run.damage;
 	});
 	for (const row of bySkill.values()) after += row.after;
 	// Damage outside the per-skill list (if any) is scaled by the stat part alone.
-	const listed = [...bySkill.values()].reduce((sum, r) => sum + r.before, 0);
-	if (before > listed) after += (before - listed) * (1 + statWeighted / Math.max(1, before) / 100);
+	after += outsideDamage;
 	notes.push(...unvalued);
-	if (hasStats && !statKnown) notes.push("Stat edits need a clear recorded with LOA Logs' stat values (low performance mode off); they're left out.");
+	if (hasStats && !statKnown) notes.push(context ? 'Configured totals do not cover this run’s crit conversion; stat edits are left out.' : "Stat edits need a run recorded with LOA Logs' stat values, or configured combat totals; they're left out.");
 	return {
 		before, after, durationMs,
 		skills: [...bySkill.values()].sort((a, b) => b.after - a.after),
@@ -135,12 +138,12 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
  * damage on the picked clear. null when the edit touches something the meter doesn't value yet (it would read as 0).
  * `atLeast`: part of it isn't valued (an Outgoing Damage line), so the real gain is a little higher.
  */
-export function meterGain(loadout: Loadout, baseline: SimState, from: SimState, to: SimState, buildRuns: RunSummary[], runs: RunSummary[], arkGrid?: typeof orderCoreEffect, fromMeter?: Meter | null): { gainPct: number | null; atLeast: boolean } {
-	const a = fromMeter ?? dpsMeter(loadout, baseline, from, buildRuns, runs, arkGrid);
-	const b = dpsMeter(loadout, baseline, to, buildRuns, runs, arkGrid);
+export function meterGain(loadout: Loadout, baseline: SimState, from: SimState, to: SimState, buildRuns: RunSummary[], runs: RunSummary[], arkGrid?: typeof orderCoreEffect, fromMeter?: Meter | null, context?: DamageContext): { gainPct: number | null; atLeast: boolean } {
+	const a = fromMeter ?? dpsMeter(loadout, baseline, from, buildRuns, runs, arkGrid, context);
+	const b = dpsMeter(loadout, baseline, to, buildRuns, runs, arkGrid, context);
 	if (!a || !b || !(a.after > 0)) return { gainPct: null, atLeast: false };
 	const added = (x: string[], y: string[]) => y.filter((v) => !x.includes(v));
-	if (added(a.notInMeter, b.notInMeter).length || (b.statPct === null && a.statPct !== null)) return { gainPct: null, atLeast: false };
+	if (added(a.notInMeter, b.notInMeter).length || b.statPct === null) return { gainPct: null, atLeast: false };
 	const newNotes = added(a.notes, b.notes);
 	if (newNotes.some((n) => n.startsWith(DROPPED_EDITS))) return { gainPct: null, atLeast: false };
 	const gainPct = (b.after / a.after - 1) * 100;

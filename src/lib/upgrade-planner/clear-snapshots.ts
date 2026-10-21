@@ -2,7 +2,7 @@
 // change, so each is kept: in memory for this visit and in localStorage (the last few) for the next.
 import type { ClearSnapshot } from '$lib/bible-data';
 
-const PREFIX = 'loa-sim:clear-snapshot:';
+const PREFIX = 'loa-sim:clear-snapshot:v2:';
 const KEEP = 30;
 const memory = new Map<string, Promise<ClearSnapshot>>();
 

@@ -86,6 +86,8 @@ export interface ReplayRun extends EncounterRow {
 /** One skill in one run, as the DPS tab keeps it (names and icons live once per character, in RunsBook). */
 export interface RunSkill {
 	id: number;
+	/** Hyper Awakening damage does not follow ordinary attack/stat upgrades. Missing on older imports. */
+	hyper?: boolean;
 	damage: number;
 	/** Damage dealt by crits. */
 	critDamage: number;

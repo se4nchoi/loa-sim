@@ -4,6 +4,7 @@ import { untrack } from 'svelte';
 import type { RunSummary } from '$lib/logs/protocol';
 import type { orderCoreEffect } from './ark-grid-dps';
 import type { SimState } from './simulate';
+import type { DamageContext } from './dps-stat-engine';
 
 export interface DpsSelection {
 	/** The meter's baseline: the clear's own setup, or the snapshot when the clear has none. */
@@ -11,6 +12,7 @@ export interface DpsSelection {
 	buildRuns: RunSummary[];
 	runs: RunSummary[];
 	arkGrid?: typeof orderCoreEffect;
+	context?: DamageContext;
 }
 
 const selections = new Map<string, DpsSelection>();

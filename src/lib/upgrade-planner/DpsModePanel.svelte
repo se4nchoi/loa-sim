@@ -15,7 +15,7 @@
 	import DpsRunsImport from './DpsRunsImport.svelte';
 	import DpsMeter from './sim/DpsMeter.svelte';
 	import { classColor } from './class-colors';
-	import { comparisonScope, formatDamage } from './dps-comparison';
+	import { formatDamage } from './dps-comparison';
 	import { raidsOf } from './dps-gates';
 	import { dpsMeter, matchSnapshot, type SnapshotOption } from './dps-meter';
 	import { formatDate, formatPct } from './format';
@@ -26,6 +26,10 @@
 	import { clearState } from './clear-state';
 	import { btn } from './sim/ui';
 	import type { Loadout } from './types';
+	import DpsStatContext from './DpsStatContext.svelte';
+	import type { DamageContext } from './dps-stat-engine';
+	import DpsCheckpoint from './DpsCheckpoint.svelte';
+	import { configuredPlanGain } from './dps-configured';
 
 	let { loadout, simState, characterKey, characterName, snapshots = [], onsimulate }: {
 		loadout: Loadout;
@@ -50,10 +54,11 @@
 	const book = $derived(runsBooks.byCharacter[characterKey] ?? null);
 	let importing = $state(false);
 	const base = $derived(initSimState(loadout));
+	let context = $state<DamageContext | null>(null);
+	let confirmed = $state<string | null>(null);
 
 	// The character's own clears; the gear's damage buckets come from the clears played with these engravings.
-	const own = $derived(book ? book.runs.filter((r) => r.cleared && r.player.toLowerCase() === characterName.toLowerCase() && r.damage > 0 && r.duration > 0) : []);
-	const buildRuns = $derived(comparisonScope(loadout, own, characterName).included);
+	const own = $derived(book ? book.runs.filter((r) => r.player.toLowerCase() === characterName.toLowerCase() && r.damage > 0 && r.duration > 0) : []);
 	const raids = $derived(raidsOf(own));
 	const mainRaids = $derived(raids.filter((r) => r.kind === 'raid'));
 	const otherRaids = $derived(raids.filter((r) => r.kind === 'other'));
@@ -81,6 +86,8 @@
 	const clears = $derived(raid ? raid.runs.toSorted((a, b) => b.start - a.start) : []);
 	const clear = $derived(clears.find((r) => r.id === pick.clear) ?? clears[0] ?? null);
 	const runs = $derived<RunSummary[]>(clear ? [clear] : []);
+	// Calibration belongs to the selected attempt. Similar CP/engravings on another run do not prove the same build.
+	const buildRuns = $derived(runs);
 	// The Simulator's state is reactive (a proxy); the meter works on a plain copy of it.
 	const plain = $derived($state.snapshot(simState) as SimState);
 
@@ -103,31 +110,41 @@
 		let live = true;
 		setup = { hash, snap: null, error: null };
 		clearSnapshot(hash)
-			.then((snap) => { if (live) setup = { hash, snap, error: null }; })
+			.then((snap) => {
+				if (snap.classId.replaceAll('_', '').toLowerCase() !== loadout.classId.replaceAll('_', '').toLowerCase()) throw new Error('The snapshot class does not match this character.');
+				if (live) setup = { hash, snap, error: null };
+			})
 			.catch((e) => { if (live) setup = { hash, snap: null, error: e instanceof Error ? e.message : String(e) }; });
 		return () => { live = false; };
 	});
 	const diff = $derived(setup?.snap ? setupDiff(loadout, setup.snap) : null);
 	// The clear's setup as a Simulator state: the meter's baseline, so gear changed since the clear counts with the edits.
 	const clearSetup = $derived(setup?.snap && setup.hash === clear?.loadoutHash ? clearState(loadout, $state.snapshot(setup.snap) as ClearSnapshot) : null);
+	const baselineKey = $derived(clear ? `${characterKey}:${clear.id}:${clear.start}:${JSON.stringify(base)}` : '');
+	const baselineReady = $derived(!!clearSetup || confirmed === baselineKey);
 	const clearSetupCp = $derived(clearSetup ? simulate(loadout, clearSetup.state, base).cp : null);
-	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, plain, buildRuns, runs, arkGridModel?.orderCoreEffect) : null);
+	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, baselineReady ? plain : clearSetup?.state ?? base, buildRuns, runs, arkGridModel?.orderCoreEffect, context ?? undefined) : null);
+	const configuredGain = $derived(context && !runs.length ? configuredPlanGain(loadout, base, base, plain, context) : null);
 	// Shared with Next Upgrades, which ranks upgrades on this meter.
 	$effect(() => {
 		const key = characterKey;
-		setDpsSelection(key, runs.length ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid: arkGridModel?.orderCoreEffect } : null);
+		setDpsSelection(key, runs.length && baselineReady ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid: arkGridModel?.orderCoreEffect, context: context ?? undefined }
+			: !runs.length && context ? {baseline: base, buildRuns: [], runs: [], context} : null);
 		return () => setDpsSelection(key, null);
 	});
 
 	const gate = (r: RunSummary) => raidGateOf(r.boss)?.gate;
 	const time = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
-	const clearLabel = (r: RunSummary) => `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${time(r.duration)} · ${formatDamage(r.damage / (r.duration / 1000))}`;
+	const outcome = (r: RunSummary) => r.cleared === true ? 'Clear' : r.cleared === false ? 'Failed' : 'Unknown outcome';
+	const clearLabel = (r: RunSummary) => `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${outcome(r)} · ${time(r.duration)} · ${formatDamage(r.damage / (r.duration / 1000))}`;
 	const skillName = (id: number) => book?.skills[id]?.[0] ?? GEM_SKILLS[id]?.[0] ?? `Skill ${id}`;
 	const skillIcon = (id: number) => { const icon = book?.skills[id]?.[1] || GEM_SKILLS[id]?.[1]; return icon ? iconUrl(icon) : undefined; };
 	const select = 'rounded-xs border border-surface-700 bg-surface-800 px-2 py-1 text-xs text-surface-100';
 </script>
 
 <section class="mb-3 rounded-xs bg-surface-900 p-3 shadow-sm shadow-neutral-800 sm:p-4" aria-label="DPS meter">
+	{#key characterKey}<DpsStatContext {loadout} base={clearSetup?.state ?? base} {characterKey} oncontext={(c) => { context = c; }} />{/key}
+	{#if context && !runs.length}<p class="mb-3 text-sm text-surface-100">Configured damage change: <strong class="text-sky-300 tabular-nums">{configuredGain === null ? 'Not estimated for these edits' : `${formatPct(configuredGain)}%`}</strong></p>{/if}
 	{#if !(characterKey in runsBooks.byCharacter)}
 		<!-- Holds the meter's space while this browser's imported logs are read. -->
 		<div class="animate-pulse" aria-hidden="true">
@@ -138,11 +155,11 @@
 			<div class="space-y-1">{#each [100, 98, 97, 85, 67, 38, 13, 7] as w (w)}<div class="h-8 rounded-xs bg-surface-800/70" style:width="{w}%"></div>{/each}</div>
 		</div>
 	{:else if !book || importing}
-		<p class="mb-3 text-sm text-surface-300">DPS mode replays one of your own clears with the edits you make below. Import your LOA Logs to pick a clear.</p>
+		<p class="mb-3 text-sm text-surface-300">Configure combat totals above for per-stat upgrade estimates, or import a clear or failed pull to estimate changes to recorded DPS.</p>
 		{#key characterKey}<DpsRunsImport {characterKey} {characterName} ondone={() => (importing = false)} />{/key}
 		{#if book}<button type="button" class="{btn} mt-3" onclick={() => (importing = false)}>Close</button>{/if}
 	{:else if !raid || !clear}
-		<p class="text-sm text-surface-300">No clears of {characterName} in the imported logs. <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
+		<p class="text-sm text-surface-300">No attempts of {characterName} in the imported logs. <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
 	{:else}
 		<!-- Raid: one card per raid and difficulty; Guardian raids and other fights in a menu. -->
 		<div class="-mx-1 flex items-end gap-2 overflow-x-auto px-1 pt-1 pb-2.5" aria-label="Raids">
@@ -153,7 +170,7 @@
 					{#if art}<span class="absolute inset-0" style={art}></span>{/if}
 					<span class="absolute inset-0 bg-gradient-to-r from-black/85 via-black/40 to-transparent"></span>
 					<span class="absolute top-1 right-1 rounded-xs px-1 text-[10px] font-semibold {difficultyTone(r.difficulty)}">{r.difficulty || 'Normal'}</span>
-					<span class="absolute inset-x-2 bottom-1"><span class="block truncate text-sm font-semibold text-white">{r.name}</span><span class="block text-[11px] text-white/70">{r.runs.length} {r.runs.length === 1 ? 'clear' : 'clears'}</span></span>
+					<span class="absolute inset-x-2 bottom-1"><span class="block truncate text-sm font-semibold text-white">{r.name}</span><span class="block text-[11px] text-white/70">{r.runs.length} {r.runs.length === 1 ? 'attempt' : 'attempts'}</span></span>
 				</button>
 			{/each}
 			{#if otherRaids.length}
@@ -167,10 +184,17 @@
 
 		<!-- Clear: one at a time. -->
 		<div class="mt-1.5 mb-3 flex flex-wrap items-center gap-2 text-xs">
-			<select class={select} aria-label="Clear" value={clear.id} onchange={(e) => remember({ clear: Number(e.currentTarget.value) })}>
+			<select class={select} aria-label="Attempt" value={clear.id} onchange={(e) => remember({ clear: Number(e.currentTarget.value) })}>
 				{#each clears as r (r.id)}<option value={r.id}>{clearLabel(r)}</option>{/each}
 			</select>
 		</div>
+		{#if !clearSetup}
+			<div class="mb-3 rounded-xs border border-amber-500/40 px-3 py-2 text-xs text-amber-200">
+				{#if baselineReady}Using the loaded equipment, confirmed for this attempt.
+				{:else}This attempt has no resolved equipment baseline. CP similarity alone does not verify the build.
+				<button type="button" class="ml-2 underline" onclick={() => { confirmed = baselineKey; }}>Use loaded equipment for this attempt</button>{/if}
+			</div>
+		{/if}
 
 		<!-- Baseline: the clear's own setup (its snapshot). One status line; what else differs folds away. -->
 		{#if setup}
@@ -212,7 +236,7 @@
 			</div>
 		{:else if gap !== null}
 			{#if matches}
-				<p class="mb-3 text-xs text-surface-400"><span class="text-green-400">●</span> Gear matches this clear (CP {currentCp!.toFixed(2)} · clear {clearCp!.toFixed(2)})</p>
+				<p class="mb-3 text-xs text-surface-400">Similar recorded CP (loaded {currentCp!.toFixed(2)} · attempt {clearCp!.toFixed(2)}); equipment still needs confirmation.</p>
 			{:else}
 				<div class="mb-3 rounded-xs border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
 					The gear here is {Math.abs(gap).toFixed(1)}% CP {gap > 0 ? 'above' : 'below'} this clear (CP {currentCp!.toFixed(2)} · clear {clearCp!.toFixed(2)}), so the meter applies your edits to different gear than you raided in.
@@ -220,9 +244,10 @@
 				</div>
 			{/if}
 		{:else}
-			<p class="mb-3 text-xs text-surface-400">This clear didn't record CP, so the gear can't be checked against it.</p>
+			{#if !baselineReady}<p class="mb-3 text-xs text-surface-400">This attempt didn't record CP; equipment must be selected or confirmed separately.</p>{/if}
 		{/if}
 
 		{#if meter}<DpsMeter {meter} {skillName} {skillIcon} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} />{/if}
+		{#key `${characterKey}:${clear.id}:${clear.start}`}<DpsCheckpoint run={clear} {loadout} baseline={clearSetup?.state ?? base} simState={plain} {context} ready={baselineReady} />{/key}
 	{/if}
 </section>

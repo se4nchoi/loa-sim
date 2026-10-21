@@ -4,7 +4,8 @@
 // Set BIBLE_SERVER_FETCH=0 to turn it off (players then paste their data instead).
 
 import { env } from '$env/dynamic/private';
-import { decodeCharacterData, bibleDataUrl, bibleSnapshotUrl, decodeSnapshot, type CharacterData, type ClearSnapshot } from '$lib/bible-data';
+import { decodeCharacterData, bibleDataUrl, bibleSnapshotUrl, type CharacterData, type ClearSnapshot } from '$lib/bible-data';
+import { decodeMathiLoadout } from '$lib/mathi-loadout';
 
 // The CDN can cache this result for another minute: keep the combined window under two minutes.
 export const CHARACTER_CACHE_SECONDS = 60;
@@ -77,7 +78,7 @@ async function fetchSnapshot(hash: string, fetchFn: typeof fetch): Promise<Clear
 	} catch {
 		throw new Error('lostark.bible sent something unexpected');
 	}
-	return decodeSnapshot(body);
+	return decodeMathiLoadout(body);
 }
 
 /** The gear snapshot LOA Logs linked to a clear, from the cache or a single upstream request. */

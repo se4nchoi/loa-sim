@@ -18,6 +18,9 @@ const CLASS_NUMBERS: Record<string, number> = {
 	dragonhuman: 701, dragonknight: 702
 };
 
+export const classKeyForNumber = (id: number): string | undefined =>
+	Object.entries(CLASS_NUMBERS).find(([, value]) => value === id)?.[0];
+
 /** Emblem URL for a bible class id, the game's numeric id, or an NA class name; undefined when unknown. */
 export function classIconUrl(classId: string | number | undefined): string | undefined {
 	if (classId === undefined || classId === '') return undefined;

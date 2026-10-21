@@ -18,6 +18,29 @@ const run = (id: number, extra: Partial<RunSummary> = {}): RunSummary => ({ id, 
 	statValues: meter, critConversion: false, meterVersion: null, ...extra }) as RunSummary;
 
 describe('DPS meter', () => {
+	it('uses configured totals for a failed pull with no log stat values', () => {
+		const context = {mainStat: 700000, weaponPower: 260000, baseAttackPct: 10, attackPowerPct: 0,
+			flatAttack: 0, supportAttack: 0, additionalDamage: 40, evolutionDamage: 80, critRate: 70, critDamage: 200, critCap: 100};
+		const failed = run(1, {cleared: false, statValues: null});
+		const state = structuredClone(base); state.gear.weapon!.honing++;
+		const m = dpsMeter(loadout, base, state, [], [failed], undefined, context)!;
+		expect(m.statPct).toBeGreaterThan(0);
+		expect(m.after).toBeGreaterThan(m.before);
+		expect(meterGain(loadout, base, base, state, [], [failed], undefined, undefined, context).gainPct).toBeCloseTo(m.statPct!, 8);
+		const conversionRun = {...failed, critConversion: true};
+		// Unknown crit conversion does not block attack-only changes: that unchanged bucket cancels.
+		expect(dpsMeter(loadout, base, state, [], [conversionRun], undefined, context)!.statPct).toBeGreaterThan(0);
+	});
+	it('keeps recorded Hyper Awakening damage fixed under an ordinary honing upgrade', () => {
+		const state = structuredClone(base); state.gear.weapon!.honing++;
+		const ordinary = run(1);
+		const mixed = {...ordinary, skills: ordinary.skills.map((s, i) => ({...s, hyper: i === 1}))};
+		const full = dpsMeter(loadout, base, state, [ordinary], [ordinary])!;
+		const result = dpsMeter(loadout, base, state, [ordinary], [mixed])!;
+		expect(result.skills.find((s) => s.id === 99999)!.after).toBe(400);
+		expect(result.statPct).toBeCloseTo(full.statPct! * .6, 9);
+		expect((result.after / result.before - 1) * 100).toBeCloseTo(result.statPct!, 9);
+	});
 	it('shows the recorded clear unchanged without edits', () => {
 		const m = dpsMeter(loadout, base, base, [run(1)], [run(1)])!;
 		expect(m.after).toBeCloseTo(m.before);
