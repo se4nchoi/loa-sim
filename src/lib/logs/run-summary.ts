@@ -12,6 +12,7 @@ export interface LoggedRunSkill {
 	isHyperAwakening?: boolean;
 	/** Damage dealt under each buff, by buff id. */
 	buffedBy?: Record<string, number>;
+	frontAttackDamage?: number; backAttackDamage?: number;
 }
 
 export interface LoggedEntity {
@@ -50,7 +51,9 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 			...(num(s.timeAvailable) !== null ? { timeAvailable: s.timeAvailable } : {}),
 			...(num(s.gemDamage) !== null ? { damageGem: s.gemDamage } : {}),
 			...(num(s.gemCooldown) !== null ? { cooldownGem: s.gemCooldown } : {}),
-			...buffsOf(s, entity.keptBuffs)
+			...buffsOf(s, entity.keptBuffs),
+			...(num(s.frontAttackDamage) !== null ? { front: s.frontAttackDamage } : {}),
+			...(num(s.backAttackDamage) !== null ? { back: s.backAttackDamage } : {})
 		});
 	}
 	if (!skills.length) return null;

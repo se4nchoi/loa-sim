@@ -141,3 +141,21 @@ Follow-up (10-19, later):
   Bare lines now take the skills or groups named in the sentence before; "per stack" effects stay unvalued.
 - Still not valued: Incarnation Mode (not in the logs), "per stack" effects, cooldown/casting/resource effects, and a
   skill's own crit damage (Blinding Obliteration 10P).
+
+## Ark Grid effects audit (10-22)
+
+- Source of truth for NA numbers: the Maxroll feed (global client). LoaGuard's Korean pages are the KR server's current
+  patch (KR has had Ark Grid balance passes NA hasn't), so they are used to read a sentence's meaning, not its values.
+- Every valued percentage was checked against its option's English text, sign included: no mismatches.
+- Fixed from the audit: "(Max 3 stacks)" hid a Destiny buff's name (Soulfist Supreme Connection's -80% Martial Art was
+  applied all the time; now only under its buff); a tripod clause names the skill of a bare "Damage +x%" (Deadeye
+  Flawless Aim: Judgment Day, not all Rifle skills); "With X," conditions carry one sentence only (Lancemaster
+  Evolution's End); exclusions are honoured ("excluding Hyper Awakening Technique / Awakening Skills / <skill>"); lists
+  ("A, B, and C", "A or B"); "While the Destiny: X effect is active"; "During X,"; named Destiny buffs without a feature
+  id; "On X Crit Hit, Damage +y%" on the logged crit damage; "Frontal / Back Attack Damage" on the logged front / back
+  attack damage (kept on import now).
+- Re-checked on Soulshan, Shanzkii, Kamehameshaan and Ignishan clears (grade changes on every equipped order core).
+  A relic core that can't fit the current astrogems drops below 17P and loses its 17P line (Willpower), which can make a
+  "downgrade" look like a gain when the 17P line was a trade-off (Breaker Shock Charge: -8% damage for -10s cooldown).
+- Still not valued (named in the meter): crit damage / crit rate changes, stagger, per-stack effects, timed effects,
+  cooldown / casting / resource effects, states the logs don't record.

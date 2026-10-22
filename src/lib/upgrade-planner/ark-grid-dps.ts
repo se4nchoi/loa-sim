@@ -33,7 +33,10 @@ export function orderCoreOf(core: SimCore): number | null {
  * Where an effect applies: always (''), under a named buff or state ('state:Destiny: Footsteps of the Dead',
  * 'state:Deathlord Mode'), or under an unnamed Destiny buff by its feature id ('buff:34622').
  */
-const keyOf = (e: OrderCoreEffect) => (e.buff ? `state:${e.buff}` : e.feature ? `buff:${Math.floor(e.feature / 100)}` : e.when ? `state:${e.when}` : '');
+const whereOf = (e: OrderCoreEffect) => (e.buff ? `state:${e.buff}` : e.feature ? `buff:${Math.floor(e.feature / 100)}` : e.when ? `state:${e.when}` : '');
+/** And on which part of a skill's damage: all of it (''), its crits, or its frontal / back attacks. */
+const keyOf = (e: OrderCoreEffect) => `${whereOf(e)}#${e.crit ? 'crit' : e.position ?? ''}`;
+const splitKey = (key: string) => { const i = key.lastIndexOf('#'); return { where: key.slice(0, i), portion: key.slice(i + 1) }; };
 /** One Destiny buff's levels replace each other (relic 54% → ancient 64%); two buffs of one feature don't. */
 const levelKey = (e: OrderCoreEffect) => `${e.buff ?? ''}|${e.feature}`;
 /** A logged buff's name for a state: the same name, or for a mode/stance its word in the buff ("Hype Mode" → "Level 3 Hype"). */
@@ -66,7 +69,7 @@ export function activeEffects(coreId: number | null, points: number): Active {
 
 /** Whether an effect covers a skill: it names the skill, or one of its groups ("Stygian", "Holding"), or every skill. */
 const applies = (e: OrderCoreEffect, skill: number, groups: string[] | undefined) =>
-	e.groups === null || !!e.skills?.includes(skill) || !!e.groups?.some((g) => groups?.includes(g));
+	!e.except?.includes(skill) && (e.groups === null || !!e.skills?.includes(skill) || !!e.groups?.some((g) => groups?.includes(g)));
 const bonus = (effects: OrderCoreEffect[] | undefined, skill: number, groups: string[] | undefined) =>
 	(effects ?? []).reduce((m, e) => (applies(e, skill, groups) ? m * (1 + (e.pct ?? 0)) : m), 1);
 
@@ -119,9 +122,11 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 		const all = [...slot.before.effects.values(), ...slot.after.effects.values()].flat();
 		if (!SKILL_GROUPS[slot.cls] && all.some((e) => e.groups)) missing.add(`skill groups for ${slot.name}'s class`);
 		for (const key of changedKeys(slot)) {
-			if (!key) continue;
+			const { where, portion } = splitKey(key);
+			if ((portion === 'front' || portion === 'back') && !run.skills.some((s) => s.front !== undefined)) reimport = true;
+			if (!where) continue;
 			if (!kept) reimport = true;
-			else if (!idsOf(key).length && slot.after.effects.has(key)) missing.add(key.startsWith('state:') ? `${key.slice(6)} (${slot.name})` : `${slot.name}'s Destiny buff`);
+			else if (!idsOf(where).length && slot.after.effects.has(key)) missing.add(where.startsWith('state:') ? `${where.slice(6)} (${slot.name})` : `${slot.name}'s Destiny buff`);
 		}
 	}
 
@@ -132,16 +137,21 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 			for (const key of changedKeys(slot)) {
 				const ratio = bonus(slot.after.effects.get(key), s.id, groups) / bonus(slot.before.effects.get(key), s.id, groups);
 				if (ratio === 1) continue;
-				if (!key) { m *= ratio; continue; }
-				const ids = kept ? idsOf(key) : [];
-				if (ids.length) m *= 1 + share(s, ids) * (ratio - 1);
+				const { where, portion } = splitKey(key);
+				// The part of the skill's damage the effect touches: crits, frontal / back attacks, or all of it.
+				const part = !s.damage ? 0 : portion === 'crit' ? s.critDamage / s.damage
+					: portion === 'front' ? (s.front ?? 0) / s.damage : portion === 'back' ? (s.back ?? 0) / s.damage : 1;
+				if (!where) { m *= 1 + Math.min(1, part) * (ratio - 1); continue; }
+				const ids = kept ? idsOf(where) : [];
+				// Under a buff and on crits (say): taken as independent.
+				if (ids.length) m *= 1 + share(s, ids) * Math.min(1, part) * (ratio - 1);
 			}
 		}
 		return m;
 	};
 	const unvalued = [
 		...(swaps.length ? [`Ark Grid: core swaps aren't valued, the clear's rotation would change (${swaps.join(', ')}). Simulate from the clear's setup to edit its own cores.`] : []),
-		...(reimport ? ["Ark Grid: re-import logs to value Destiny and Deathlord Mode-like effects."] : []),
+		...(reimport ? ["Ark Grid: re-import logs to value Destiny, Deathlord Mode-like and frontal / back attack effects."] : []),
 		...(missing.size ? [`Ark Grid: not in this clear's logs: ${[...missing].join(', ')}.`] : []),
 		...(partly.size ? [`Ark Grid: cooldown, casting and Destiny-trigger effects of ${[...partly].join(', ')} aren't valued yet.`] : [])
 	];

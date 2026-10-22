@@ -104,6 +104,9 @@ export interface RunSkill {
 	 * "Deathlord Mode"), by buff id; the run's `buffNames` names them. Unknown on old imports.
 	 */
 	buffs?: Record<number, number>;
+	/** Damage dealt by frontal and back attacks; unknown on old imports. */
+	front?: number;
+	back?: number;
 }
 
 /** One cleared run of the player, compact enough to keep hundreds in browser storage. */
