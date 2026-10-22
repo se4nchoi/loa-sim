@@ -139,6 +139,8 @@
 	const clearLabel = (r: RunSummary) => `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${outcome(r)} · ${time(r.duration)} · ${formatDamage(r.damage / (r.duration / 1000))}`;
 	const skillName = (id: number) => book?.skills[id]?.[0] ?? GEM_SKILLS[id]?.[0] ?? `Skill ${id}`;
 	const skillIcon = (id: number) => { const icon = book?.skills[id]?.[1] || GEM_SKILLS[id]?.[1]; return icon ? iconUrl(icon) : undefined; };
+	/** A raid's best recorded DPS, for its chip. */
+	const bestDps = (runs: RunSummary[]) => Math.max(0, ...runs.map((r) => r.damage / Math.max(1, r.duration / 1000)));
 	const select = 'rounded-xs border border-surface-700 bg-surface-800 px-2 py-1 text-xs text-surface-100';
 	/** Menus on the raid banner: dark glass over the art. */
 	const banner = 'w-fit rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-white backdrop-blur-sm hover:border-white/40 [&_option]:bg-surface-900 [&_optgroup]:bg-surface-900';
@@ -163,9 +165,36 @@
 	{:else if !raid || !clear}
 		<p class="text-sm text-surface-300">No attempts of {characterName} in the imported logs. <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
 	{:else}
-		<!-- Raid: one card per raid and difficulty; Guardian raids and other fights in a menu. -->
-		<!-- Raid and attempt: one banner in the picked raid's official art, with the two menus on it. -->
+		<!-- Two columns on wide screens: the raids on the left (best DPS on each), the picked one on the right. -->
 		{@const art = raidArt(raid.name)}
+		<div class="lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:gap-4">
+		<nav class="flex flex-col gap-1.5 max-lg:hidden" aria-label="Raids">
+			{#each mainRaids as r (r.key)}
+				{@const rart = raidArt(r.name)}
+				{@const on = r === raid}
+				<button type="button" class="relative h-14 w-full shrink-0 overflow-hidden rounded-xs border text-left transition {raidTone(r.name)} {on ? 'ring-2 ring-accent-300' : 'opacity-50 saturate-50 hover:opacity-100 hover:saturate-100'}" aria-pressed={on} onclick={() => remember({ raid: r.key, clear: null })}>
+					{#if rart}<span class="absolute inset-0" style={rart}></span>{/if}
+					<span class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-black/10"></span>
+					<span class="absolute inset-x-2 top-1.5 flex items-center gap-1.5"><span class="truncate text-sm font-semibold text-white">{r.name}</span></span>
+					<span class="absolute inset-x-2 bottom-1.5 flex items-center gap-1.5">
+						<span class="rounded-xs px-1 text-[10px] font-semibold {difficultyTone(r.difficulty)}">{r.difficulty || 'Normal'}</span>
+						<span class="ml-auto rounded-xs bg-black/70 px-1 text-[10px] font-semibold text-sky-200 tabular-nums" title="Best recorded DPS of {r.runs.length} {r.runs.length === 1 ? 'attempt' : 'attempts'}">{formatDamage(bestDps(r.runs))}</span>
+					</span>
+				</button>
+			{/each}
+			{#if otherRaids.length}
+				<p class="mt-1 text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Other fights</p>
+				{#each otherRaids as r (r.key)}
+					{@const on = r === raid}
+					<button type="button" class="flex items-center gap-1.5 rounded-xs px-1.5 py-1 text-left text-xs transition {on ? 'bg-surface-700 text-surface-50 ring-1 ring-accent-300' : 'text-surface-300 hover:bg-surface-800'}" aria-pressed={on} onclick={() => remember({ raid: r.key, clear: null })}>
+						<span class="min-w-0 truncate">{r.name} <span class="text-surface-500">· {r.difficulty || 'Normal'}</span></span>
+						<span class="ml-auto text-[10px] text-sky-300 tabular-nums">{formatDamage(bestDps(r.runs))}</span>
+					</button>
+				{/each}
+			{/if}
+		</nav>
+		<div class="min-w-0">
+		<!-- Raid and attempt: one banner in the picked raid's official art, with the menus on it (the raid menu on phones). -->
 		<div class="relative mb-3 overflow-hidden rounded-xs border {raidTone(raid.name)}" aria-label="Raid and attempt">
 			{#if art}<span class="absolute inset-0" style={art} aria-hidden="true"></span>{/if}
 			<span class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/10" aria-hidden="true"></span>
@@ -175,7 +204,8 @@
 						<span class="rounded-xs px-1 text-[10px] font-semibold {difficultyTone(raid.difficulty)}">{raid.difficulty || 'Normal'}</span>
 						<span class="text-[11px] text-white/70">{raid.runs.length} {raid.runs.length === 1 ? 'attempt' : 'attempts'}</span>
 					</span>
-					<select class="{banner} max-w-full text-lg font-semibold" aria-label="Raid" value={raid.key} onchange={(e) => remember({ raid: e.currentTarget.value, clear: null })}>
+					<h3 class="text-lg font-semibold text-white max-lg:hidden">{raid.name}</h3>
+					<select class="{banner} max-w-full text-lg font-semibold lg:hidden" aria-label="Raid" value={raid.key} onchange={(e) => remember({ raid: e.currentTarget.value, clear: null })}>
 						<optgroup label="Raids">{#each mainRaids as r (r.key)}<option value={r.key}>{r.name} · {r.difficulty || 'Normal'}</option>{/each}</optgroup>
 						{#if otherRaids.length}<optgroup label="Other fights">{#each otherRaids as r (r.key)}<option value={r.key}>{r.name} · {r.difficulty || 'Normal'}</option>{/each}</optgroup>{/if}
 					</select>
@@ -247,5 +277,7 @@
 
 		{#if meter}<DpsMeter {meter} {skillName} {skillIcon} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} />{/if}
 		{#key `${characterKey}:${clear.id}:${clear.start}`}<DpsCheckpoint run={clear} {loadout} baseline={clearSetup?.state ?? base} simState={plain} {context} ready={baselineReady} />{/key}
+		</div>
+		</div>
 	{/if}
 </section>
