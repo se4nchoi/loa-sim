@@ -19,8 +19,8 @@ const CLASS_NUMBERS: Record<string, number> = {
 };
 
 /** Internal class key (without underscores) for the numeric class id used by the loadout API. */
-export const classKeyFromId = (id: number): string | undefined =>
-	Object.keys(CLASS_NUMBERS).find((key) => CLASS_NUMBERS[key] === id);
+export const classKeyForNumber = (id: number): string | undefined =>
+	Object.entries(CLASS_NUMBERS).find(([, value]) => value === id)?.[0];
 
 /** Emblem URL for a bible class id, the game's numeric id, or an NA class name; undefined when unknown. */
 export function classIconUrl(classId: string | number | undefined): string | undefined {

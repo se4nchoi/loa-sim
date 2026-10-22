@@ -1,7 +1,7 @@
 // Mathi's content-addressed loadout API (provided 2026-10-21) uses the game's wire names and numeric slots.
 // Convert at the server boundary so the clear comparison and simulator keep the same bible page-data shape.
-import { isSnapshotHash, type ClearSnapshot } from './bible-data';
-import { classKeyFromId } from './upgrade-planner/class-icons';
+import { bibleSnapshotUrl, type ClearSnapshot } from './bible-data';
+import { classKeyForNumber } from './upgrade-planner/class-icons';
 import type { ItemStat, LoadoutItem } from './upgrade-planner/types';
 
 const SLOTS: Record<number, string> = {
@@ -16,15 +16,14 @@ const number = (v: unknown): number => typeof v === 'number' && Number.isFinite(
 const integer = (v: unknown): number => Number.isInteger(number(v)) ? v as number : unexpected();
 
 export function loadoutSnapshotUrl(hash: string): string {
-	if (!isSnapshotHash(hash)) throw new Error('Unknown snapshot');
-	const [version, digest] = hash.split('/');
-	return `https://loadout.mathi.moe/${version}/loadouts/by-hash/${digest}`;
+	return bibleSnapshotUrl(hash);
 }
 
 function stat(value: unknown): ItemStat {
 	const s = record(value);
 	return {
-		type: integer(s.addon_type), index: integer(s.index), id: integer(s.tree_id), value: number(s.value),
+		type: integer(s.addon_type), index: integer(s.index), value: number(s.value),
+		...(s.tree_id === undefined ? {} : { id: integer(s.tree_id) }),
 		...(typeof s.is_base_stat === 'boolean' && typeof s.fixed !== 'boolean' ? { base: s.is_base_stat } : {}),
 		...(typeof s.fixed === 'boolean' ? { fixed: s.fixed } : {})
 	};
@@ -32,8 +31,9 @@ function stat(value: unknown): ItemStat {
 
 function item(value: unknown): LoadoutItem {
 	const i = record(value), raw = record(i.item_data);
-	const slot = SLOTS[integer(i.slot)];
-	if (!slot || typeof raw.type !== 'string') unexpected();
+	const slotId = integer(i.slot), slot = SLOTS[slotId] ?? `unknown:${slotId}`;
+	if (typeof raw.type !== 'string') unexpected();
+	if (!SLOTS[slotId]) return { id: integer(i.id), slot, data: { ...raw, type: raw.type } };
 	const data: LoadoutItem['data'] = { type: raw.type };
 	if (raw.type === 'equipment') {
 		data.stats = list(raw.rolled_stats).map(stat);
@@ -59,7 +59,7 @@ const node = (value: unknown) => {
 export function decodeLoadoutSnapshot(body: unknown): ClearSnapshot {
 	const raw = record(body), loadout = record(raw.loadout);
 	if (loadout.type !== 'ark_passive') unexpected();
-	const classId = classKeyFromId(integer(raw.class));
+	const classId = classKeyForNumber(integer(raw.class));
 	if (!classId) unexpected();
 	const cp = raw.combat_power == null ? null : record(raw.combat_power);
 	const snapshot: ClearSnapshot = {
@@ -78,13 +78,13 @@ export function decodeLoadoutSnapshot(body: unknown): ClearSnapshot {
 			if (grade < 0 || grade > 6) unexpected();
 			return { id: integer(e.id), grade: `engrave_grade${String(grade).padStart(2, '0')}`, progress: integer(e.progress) };
 		}),
-		arkPassive: Object.fromEntries(['evolution', 'enlightenment', 'leap'].map((tree) => [tree, list(loadout[`${tree}_points`]).map(node)])),
+		arkPassive: Object.fromEntries(['evolution', 'enlightenment', 'leap'].map((tree) => [tree, list(loadout[`${tree}_points`] ?? []).map(node)])),
 		arkGridCores: raw.ark_grid == null ? [] : list(record(raw.ark_grid).cores).map((value) => {
 			const c = record(value);
 			return { id: integer(c.id), base: integer(c.base_tree_id), gems: list(c.astro_gems).map((value) => {
 				const g = record(value);
 				// The simulator has no inactive-socket representation; do not count one as an active gem.
-				if (g.active !== true) unexpected();
+				if (g.active !== undefined && g.active !== true) unexpected();
 				return { id: integer(g.id), idx: integer(g.index), costReduc: integer(g.willpower_cost_reduction),
 					corePoints: integer(g.core_points), opts: list(g.options).map(node) };
 			}) };
@@ -101,5 +101,5 @@ export function decodeLoadoutSnapshot(body: unknown): ClearSnapshot {
 	if (raw.equipped_cards !== undefined) snapshot.cards = list(raw.equipped_cards).map(node);
 	if (raw.elixirs !== undefined) snapshot.elixirs = list(raw.elixirs);
 	if (raw.transcendence !== undefined) snapshot.transcendences = list(raw.transcendence);
-	return snapshot;
+	return { ...snapshot, raw };
 }

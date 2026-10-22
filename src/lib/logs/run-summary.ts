@@ -9,6 +9,7 @@ export interface LoggedRunSkill {
 	totalDamage?: number; total_damage?: number; critDamage?: number;
 	hits?: number; crits?: number; casts?: number; timeAvailable?: number;
 	gemDamage?: number; gemCooldown?: number;
+	isHyperAwakening?: boolean;
 	/** Damage dealt under each buff, by buff id. */
 	buffedBy?: Record<string, number>;
 }
@@ -45,6 +46,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 		names[id] ??= [s.name ?? `Skill ${id}`, (s.icon ?? '').replace(/\.png$/i, '')];
 		skills.push({
 			id, damage, critDamage: num(s.critDamage) ?? 0, hits: num(s.hits) ?? 0, crits: num(s.crits) ?? 0, casts: num(s.casts) ?? 0,
+			...(s.isHyperAwakening === true ? {hyper: true} : {}),
 			...(num(s.timeAvailable) !== null ? { timeAvailable: s.timeAvailable } : {}),
 			...(num(s.gemDamage) !== null ? { damageGem: s.gemDamage } : {}),
 			...(num(s.gemCooldown) !== null ? { cooldownGem: s.gemCooldown } : {}),

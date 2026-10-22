@@ -12,7 +12,9 @@ const hash = 'v3/36a26708fae48f6b0a05ce80d57fe5e0fb530383a3c8377f5382995a23feeac
 
 describe('Mathi loadout API adapter', () => {
 	it('preserves every field used by the clear baseline, matching the bible snapshot exactly', () => {
-		expect(decodeLoadoutSnapshot(raw)).toEqual(expected);
+		const { raw: preserved, ...snapshot } = decodeLoadoutSnapshot(raw);
+		expect(snapshot).toEqual(expected);
+		expect(preserved).toEqual(raw);
 		expect(loadoutSnapshotUrl(hash)).toBe(`https://loadout.mathi.moe/v3/loadouts/by-hash/${hash.split('/')[1]}`);
 	});
 	it('carries the historical gear, gems, engravings and real order cores into the simulator', () => {
@@ -33,6 +35,6 @@ describe('Mathi loadout API adapter', () => {
 		expect(() => decodeLoadoutSnapshot(changed)).toThrow('unsupported snapshot');
 	});
 	it.each(['../v3/' + 'a'.repeat(64), 'v3/not-a-hash', 'https://example.com'])('rejects invalid hashes before requesting anything', (hash) => {
-		expect(() => loadoutSnapshotUrl(hash)).toThrow('Unknown snapshot');
+		expect(() => loadoutSnapshotUrl(hash)).toThrow('snapshot');
 	});
 });

@@ -34,6 +34,18 @@ describe('server clear snapshot loader', () => {
 });
 
 describe('server character loader', () => {
+	it('fetches raw snapshots from Mathi, deduplicates requests, and retries failures', async () => {
+		const raw = snapshot;
+		const fetchFn = vi.fn(async (_url: unknown) => new Response(JSON.stringify(raw)));
+		const hash = `v3/${'c'.repeat(64)}`;
+		const [a, b] = await Promise.all([loadSnapshot(hash, fetchFn as never), loadSnapshot(hash, fetchFn as never)]);
+		expect(fetchFn).toHaveBeenCalledTimes(1);
+		expect(fetchFn.mock.calls[0][0]).toBe(`https://loadout.mathi.moe/v3/loadouts/by-hash/${'c'.repeat(64)}`);
+		expect(a.classId).toBe('souleater'); expect(b).toBe(a);
+		const missing = `v3/${'b'.repeat(64)}`;
+		await expect(loadSnapshot(missing, vi.fn(async () => new Response('', {status: 404})) as never)).rejects.toThrow('snapshot');
+		await expect(loadSnapshot(missing, fetchFn as never)).resolves.toHaveProperty('classId', 'souleater');
+	});
 	it('is on unless turned off', () => {
 		expect(serverFetchEnabled()).toBe(true);
 	});

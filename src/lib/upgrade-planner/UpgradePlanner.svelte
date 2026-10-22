@@ -25,6 +25,7 @@
 	import { applyUpgrade } from './apply-upgrade';
 	import { dpsMeter, meterGain } from './dps-meter';
 	import { dpsSelection } from './dps-selection.svelte';
+	import { configuredPlanGain } from './dps-configured';
 
 	let {
 		dpsMode = false,
@@ -105,11 +106,13 @@
 		const out = new Map<string, { gainPct: number; atLeast: boolean }>();
 		if (!selection) return out;
 		const base = simBase ?? initSimState(loadout);
-		const now = dpsMeter(loadout, selection.baseline, simNow, selection.buildRuns, selection.runs, selection.arkGrid);
+		const now = dpsMeter(loadout, selection.baseline, simNow, selection.buildRuns, selection.runs, selection.arkGrid, selection.context);
 		for (const u of upgrades) {
 			const next = structuredClone(simNow);
 			if (!applyUpgrade(loadout, next, base, u)) continue;
-			const g = meterGain(loadout, selection.baseline, simNow, next, selection.buildRuns, selection.runs, selection.arkGrid, now);
+			const g = !selection.runs.length && selection.context
+				? {gainPct: configuredPlanGain(loadout, selection.baseline, simNow, next, selection.context), atLeast: false}
+				: meterGain(loadout, selection.baseline, simNow, next, selection.buildRuns, selection.runs, selection.arkGrid, now, selection.context);
 			if (g.gainPct !== null) out.set(u.key, { gainPct: g.gainPct, atLeast: g.atLeast });
 		}
 		return out;
@@ -135,7 +138,7 @@
 				value={gold.mode}
 				options={dpsMode
 					? [
-						{ value: 'cp', label: 'Most DPS', title: 'Biggest DPS gain on the picked clear first; upgrades without an estimate follow, by CP' },
+						{ value: 'cp', label: 'Most DPS', title: 'Biggest estimated damage gain first; upgrades without an estimate follow, by CP' },
 						{ value: 'gold', label: 'Per gold', title: 'Least gold per 1% DPS first (enter gold costs on the rows)' }
 					]
 					: [
@@ -152,7 +155,7 @@
 	{#if dpsMode && support}
 		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-surface-400">DPS mode is for damage dealers; supports are ranked by CP.</p>
 	{:else if dpsMode && !selection}
-		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-surface-400">Pick a clear in the DPS meter to rank by DPS. Ranked by CP until then.</p>
+		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-surface-400">Configure combat totals or confirm an attempt's equipment to rank by damage gain. Ranked by CP until then.</p>
 	{/if}
 	{#if arkGridOverWillpower(simNow.arkGrid)}
 		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-amber-300" title="An astrogem doesn't fit its core's Willpower, so Ark Grid steps can't be worked out from here">
@@ -228,7 +231,7 @@
 					<span class="text-right whitespace-nowrap tabular-nums {honing ? 'self-end' : ''}">
 						{#if selection}
 							{#if g}
-								<span class="text-sky-300" title={g.atLeast ? 'DPS gain on the picked clear. Part of this upgrade (Outgoing Damage) isn’t valued yet, so the real gain is a little higher.' : 'DPS gain on the picked clear'}>{g.atLeast ? '≥' : '≈'}{formatPct(g.gainPct)}<span class="text-xs">% DPS</span></span>
+								<span class="text-sky-300" title={g.atLeast ? 'Estimated damage gain. Part of this upgrade is not valued yet.' : selection.runs.length ? 'Estimated damage gain on the selected attempt' : 'Estimated damage gain from configured combat totals'}>{g.atLeast ? '≥' : '≈'}{formatPct(g.gainPct)}<span class="text-xs">% DPS</span></span>
 							{:else}
 								<span class="block text-[11px] font-normal text-surface-400" title="This upgrade changes something the DPS meter doesn’t value yet">DPS not estimated</span>
 							{/if}

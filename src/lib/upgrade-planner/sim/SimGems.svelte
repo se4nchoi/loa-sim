@@ -1,13 +1,8 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
-	import { gemDpsGainPct } from '../dps';
-	import type { RoleTables } from '../roles';
-	import { formatPct } from '../format';
-	import { GEM_SKILL_GROUPS, GEM_SKILLS, ITEMS } from '../game-data';
+	import { GEM_SKILLS, ITEMS } from '../game-data';
 	import { iconUrl, itemLook } from '../icons';
 	import { gemsInEffect, MAX_GEMS, type GemKind, type GemPart, type SimState } from '../simulate';
 	import ItemIcon from './ItemIcon.svelte';
-	import LogsImport from './LogsImport.svelte';
 	import MenuPicker from './MenuPicker.svelte';
 	import SimCard from './SimCard.svelte';
 	import HScroll from './HScroll.svelte';
@@ -18,19 +13,10 @@
 		sim = $bindable(),
 		base,
 		gems,
-		delta,
-		characterName,
-		characterKey
-	}: { sim: SimState; base: SimState; gems: GemPart[]; delta: SectionDelta; characterName?: string; characterKey?: string } = $props();
+		delta
+	}: { sim: SimState; base: SimState; gems: GemPart[]; delta: SectionDelta } = $props();
 
 	const KINDS: GemKind[] = ['damage', 'cooldown'];
-	const GEM_INFO = [
-		`Combat Power counts every gem the same. The DPS estimate weighs each gem by its skill:`,
-		`• DPS gain = skill damage share × gem effect. Damage gems raise the skill's damage; cooldown gems add casts.`,
-		`• CD use: how much of the fight the skill spends on cooldown (LOA Logs records it). At 100% every second saved becomes casts; the lower it is, the less a cooldown gem helps (0% = the skill always waits on your rotation). Blank counts as 100%.`,
-		`• Enter damage shares by hand from your logs or a combat analyzer, or load your LOA Logs database to use your average shares.`,
-		`• Logs can include older builds or settings (e.g. Night's Edge before switching to Full Moon Harvester), so pick a range that matches your current build.`
-	].join('\n');
 	/** Snapshot gems with a known CP table, plus gems added in empty slots (after the snapshot's). */
 	const editable = $derived(sim.gems.map((_, i) => i).filter((i) => i >= gems.length || gems[i].table));
 	const isAdded = (i: number) => i >= base.gems.length;
@@ -112,20 +98,6 @@
 		if (j >= 0) sim.gems[j].skill = sim.gems[i].skill;
 		sim.gems[i].skill = skill;
 	}
-	/** Per-skill values from logs, for a gem on a skill group: shares add up; cooldown use takes the busiest skill. */
-	const withGroups = (values: Record<number, number>, combine: 'sum' | 'max' = 'sum') => {
-		const out = { ...values };
-		for (const g of sim.gems) {
-			const members = g.skill !== null ? GEM_SKILL_GROUPS[g.skill] : undefined;
-			if (!members || out[g.skill!] !== undefined) continue;
-			const known = members.filter((m) => values[m] !== undefined).map((m) => values[m]);
-			if (!known.length) continue;
-			const v = combine === 'sum' ? known.reduce((a, x) => a + x, 0) : Math.max(...known);
-			if (v > 0) out[g.skill!] = Number(v.toFixed(2));
-		}
-		return out;
-	};
-
 	const tierOf = (i: number) => sim.gems[i].tier ?? gems[i]?.tier ?? 'T4';
 	/** A new gem in an empty slot: the character's usual tier and highest level, skill picked next. */
 	function addGem() {
@@ -138,29 +110,6 @@
 		editable.forEach((i) => (sim.gems[i].level = Math.min(10, Math.max(1, fn(sim.gems[i].level)))));
 	const gemChanged = (i: number) => JSON.stringify(sim.gems[i]) !== JSON.stringify(base.gems[i]);
 	const TIER_OPTIONS: MenuOption<'T3' | 'T4'>[] = [{ value: 'T3', label: 'T3' }, { value: 'T4', label: 'T4' }];
-
-	const dps = $derived(gemDpsGainPct(base.gems, sim.gems, gems, sim.skillShares, sim.skillCooldownUse));
-	/** Skills with a gem in effect, once each, in row order: what damage shares are entered for. */
-	const gemSkills = $derived.by(() => {
-		const out: { skill: number; gems: number[] }[] = [];
-		for (const i of order) {
-			const skill = sim.gems[i].skill;
-			if (!on[i] || skill === null) continue;
-			const row = out.find((r) => sameSkill(r.skill, skill));
-			if (row) row.gems.push(i);
-			else out.push({ skill, gems: [i] });
-		}
-		return out;
-	});
-	const covered = $derived(gemSkills.reduce((a, r) => a + (Number(sim.skillShares[r.skill]) || 0), 0));
-	const unshared = $derived(gemSkills.filter((r) => sim.skillShares[r.skill] === undefined).length);
-	// Damage shares estimate a dealer's DPS; supports don't get them.
-	const role = getContext<() => RoleTables>('loa-sim:role');
-	const support = $derived(role().support);
-	let showShares = $state(false);
-	$effect.pre(() => {
-		if (Object.keys(sim.skillShares).length || Object.keys(sim.skillCooldownUse).length) showShares = true;
-	});
 </script>
 
 {#snippet gemCell(i: number)}
@@ -177,42 +126,7 @@
 	</div>
 {/snippet}
 
-{#snippet pctInput(map: Record<number, number>, skill: number, what: string, hint: string, placeholder: string)}
-	<label
-		class="flex h-8 w-16 cursor-text items-center gap-0.5 justify-self-end rounded-xs border border-surface-600 bg-surface-800 px-1.5 focus-within:border-accent-500 hover:border-accent-500"
-		title={`${skillName(skill)}: ${hint}`}
-	>
-		<input
-			type="number"
-			min="0"
-			max="100"
-			step="0.1"
-			{placeholder}
-			class="w-full [appearance:textfield] bg-transparent text-right text-sm tabular-nums focus:outline-none [&::-webkit-inner-spin-button]:appearance-none"
-			aria-label={`${skillName(skill)} ${what}`}
-			value={map[skill] ?? ''}
-			oninput={(e) => {
-				const v = Number(e.currentTarget.value);
-				if (e.currentTarget.value !== '' && v >= 0) map[skill] = Math.min(100, v);
-				else delete map[skill];
-			}}
-		/>
-		<span class="text-xs text-surface-400">%</span>
-	</label>
-{/snippet}
-
-<SimCard
-	title="Gems"
-	{delta}
-	info={support ? undefined : GEM_INFO}
->
-	{#snippet actions()}
-		{#if !support}
-			<button type="button" class={btn} onclick={() => (showShares = !showShares)} aria-pressed={showShares}>
-				{showShares ? 'Hide' : 'Add'} damage shares
-			</button>
-		{/if}
-	{/snippet}
+<SimCard title="Gems" {delta}>
 	{#snippet toolbar()}
 		<!-- Sticks with the card header: one sideways-scrolling row of bulk levels, Reset pinned on the right. -->
 		<div class="flex min-w-0 flex-row items-center gap-2" hidden={editable.length === 0}>
@@ -226,64 +140,10 @@
 			</HScroll>
 			<button type="button" class="{btn} shrink-0" onclick={() => {
 				sim.gems = structuredClone($state.snapshot(base.gems));
-				sim.skillShares = {};
-				sim.skillCooldownUse = {};
-				showShares = false;
 			}}>Reset</button>
 		</div>
 	{/snippet}
 	{#if editable.length === 0}<p class="mb-2 text-sm text-surface-400">No gems equipped. Add one below.</p>{/if}
-		{#if showShares}
-			<div class="mb-3 flex flex-col gap-2">
-				{#if dps !== null}
-					<div class="text-sm">
-						DPS estimate
-						<span class="font-bold {dps > 0 ? 'text-green-400' : dps < 0 ? 'text-red-400' : 'text-surface-200'}">{formatPct(dps)}%</span>
-						<span class="text-xs text-surface-400">· skills with gems deal {covered.toFixed(0)}% of your damage</span>
-						<button type="button" class="ml-1 text-xs text-surface-400 underline hover:text-surface-100" onclick={() => ((sim.skillShares = {}), (sim.skillCooldownUse = {}))}>Clear</button>
-					</div>
-				{/if}
-				<details class="group rounded-xs border border-surface-700 bg-black/15 px-3 py-2 text-xs text-surface-300">
-					<summary class="cursor-pointer font-semibold text-surface-100 select-none hover:text-accent-200">How the DPS estimate works</summary>
-					<div class="mt-2 flex flex-col gap-2 leading-relaxed">
-						<p>
-							Combat Power counts every gem the same. Real damage depends on the skill: a gem on a skill that does 30% of your
-							damage matters 15× more than one on a skill doing 2%. The estimate adds up each skill's change, weighted by its
-							<b class="text-surface-100">Share</b> of your damage.
-						</p>
-						<p>
-							<b class="text-surface-100">Damage gems</b> multiply that skill's damage. Lv. 9 → 10 (40% → 44%) is ×1.44 / 1.40 = +2.9%
-							for the skill; at a 20% share that's about <b class="text-green-400">+0.57%</b> DPS.
-						</p>
-						<p>
-							<b class="text-surface-100">Cooldown gems</b> add casts, but only while the skill is actually waiting on its cooldown.
-							<b class="text-surface-100">CD use</b> is the share of the fight the skill spends on cooldown; the rest it sits ready while
-							you cast other things. Cooldown 20% → 24% gives
-							<b class="text-green-400">+5.3%</b> casts at 100% CD use, <b class="text-green-400">+2.6%</b> at 50%, and nothing at 0%.
-							Blank CD use counts as 100% (the best case).
-						</p>
-						<p>
-							<b class="text-surface-100">Where the numbers come from:</b> type them in, or load your LOA Logs file. Share is the average per
-							run; CD use comes from LOA Logs' "time available" (logs you recorded yourself, recent versions). Skills without a gem
-							(awakenings, identity, ...) count in the total but don't change.
-						</p>
-						<p class="text-surface-400">
-							Limits: it assumes the rest of your rotation stays the same, and doesn't model buff windows or identity timing. Logs
-							can include older builds, so pick a range after your last build change.
-						</p>
-					</div>
-				</details>
-				<LogsImport
-					{characterName}
-					{characterKey}
-					onapply={(shares, cooldownUse) => {
-						sim.skillShares = withGroups(shares);
-						sim.skillCooldownUse = withGroups(cooldownUse, 'max');
-					}}
-				/>
-			</div>
-		{/if}
-
 		<!-- One row per gem slot, like the game. Narrow cards scroll the rows sideways at their desktop size. -->
 		<div class="@container">
 		<div class="grid items-center gap-x-2 max-sm:gap-x-1 grid-cols-[auto_auto_minmax(2.5rem,1fr)]">
@@ -313,24 +173,4 @@
 			{/each}
 		</div>
 		</div>
-
-		{#if showShares && gemSkills.length}
-			<!-- Damage share and cooldown use belong to the skill, not the gem: entered once per skill. -->
-			<div class="mt-4 grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 gap-y-1 text-sm">
-				<span class="text-xs text-surface-400">Skills with gems</span>
-				<span class="text-xs text-surface-400">Gems</span>
-				<span class="text-right text-xs text-surface-400" title="Share of your total damage">Share</span>
-				<span class="text-right text-xs text-surface-400" title="Share of the fight the skill spent on cooldown (from LOA Logs); blank = always cast right off cooldown">CD use</span>
-				{#each gemSkills as r (r.skill)}
-					<span class="flex min-w-0 items-center gap-2 border-t border-neutral-950 pt-1">
-						{#if GEM_SKILLS[r.skill]}<img src={iconUrl(GEM_SKILLS[r.skill][1])} alt="" class="size-6 shrink-0 rounded-xs" />{/if}
-						<span class="truncate" title={skillName(r.skill)}>{shortName(r.skill)}</span>
-					</span>
-					<span class="border-t border-neutral-950 pt-1 text-xs tabular-nums text-surface-400">{r.gems.map((i) => `${sim.gems[i].kind === 'damage' ? 'DMG' : 'CD'} ${sim.gems[i].level}`).join(' · ')}</span>
-					<span class="border-t border-neutral-950 pt-1">{@render pctInput(sim.skillShares, r.skill, 'damage share', 'share of total damage', '0')}</span>
-					<span class="border-t border-neutral-950 pt-1">{@render pctInput(sim.skillCooldownUse, r.skill, 'cooldown use', 'share of the fight spent on cooldown; blank = 100%', '100')}</span>
-				{/each}
-			</div>
-			{#if unshared}<p class="mt-2 text-xs text-amber-300">{unshared} {unshared === 1 ? 'skill has' : 'skills have'} no damage share, so {unshared === 1 ? 'its gems count' : 'their gems count'} as 0 DPS.</p>{/if}
-		{/if}
 </SimCard>
