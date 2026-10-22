@@ -39,7 +39,7 @@ const targetOf = (target, cls) => {
 function effectsOf(option, cls) {
 	const feature = option.stats.find((s) => s.type === 28);
 	const out = [];
-	let inBuff = false, sticky, buffName;
+	let inBuff = false, sticky, buffName, prev = '';
 	for (const line of strip(option.desc.replace(/<br>|\n/gi, '\n')).split(/(?<=\.)\s+(?=[A-Z])/)) {
 		let s = line.trim();
 		if (!s) continue;
@@ -57,13 +57,26 @@ function effectsOf(option, cls) {
 		if (destiny) s = s.replace(/^(?:In|While in|While using) [A-Z][\w' ]+, /, '');
 		// A state the effect needs ("In Deathlord Mode, ...", "With Possession, ..."): valued on the damage dealt in it.
 		let when = sticky;
-		const state = !destiny && s.match(/^(?:(?:In|While in) ([A-Z][\w' ]+ (?:Mode|Stance))|With ([A-Z][\w' ]+)), (.*)$/);
+		// "With Exploding Finisher's Blue Heart, ..." is a tripod the core is built around: taken as met, not a state.
+		const tripod = !destiny && s.match(/^With [A-Z][\w ]+'s [A-Z][\w' ]+, (.*)$/);
+		if (tripod) s = tripod[1];
+		const state = !destiny && !tripod && s.match(/^(?:(?:In|While in) ([A-Z][\w' ]+ (?:Mode|Stance))|With ([A-Z][\w' ]+)), (.*)$/);
 		if (state) { when = sticky = state[1] ?? state[2]; s = state[3]; } // and the sentences after it
 		s = s.charAt(0).toUpperCase() + s.slice(1);
 		// A Destiny sentence whose damage is its last clause ("When Shock Skill ends, Shock Energy +100 and Shock Skill
 		// Damage +0.5%."): the buff's uptime stands for the condition, so the clause is the effect.
 		const last = s.replace(/\.$/, '').split(/, | and (?=[A-Z])/).at(-1);
 		if (destiny && last !== s.replace(/\.$/, '') && /^[A-Z].* Damage [+-][\d.]+%$/.test(last) && !/^[A-Z][^,]* Damage [+-][\d.]+%\.?$/.test(s)) s = last;
+		// A bare "Damage +13.0%." continues the sentence before it (one Korean sentence split in two): the skills named
+		// there ("While using World Decimation, all incoming Damage -30.0%. Damage + 13.0%.").
+		const bare = s.match(/^Damage ?([+-]) ?([\d.]+)%\.?$/);
+		if (bare) {
+			const named = Object.keys(skillIds[cls] ?? {}).filter((n) => n.length > 3 && prev.includes(n));
+			const longest = named.filter((n) => !named.some((m) => m !== n && m.includes(n)));
+			const groups = groupNames(cls).filter((g) => ` ${prev} `.includes(` ${g} Skill`)).map((g) => `${g} Skill`);
+			const parts = [...longest, ...groups];
+			if (parts.length) s = `${parts.join(' and ')} Damage ${bare[1]}${bare[2]}%`;
+		}
 		const foes = s.match(/^Damage to foes ([+-][\d.]+)%(.*)$/);
 		const skill = s.match(/^(.+?) Damage ([+-][\d.]+)%(.*)$/);
 		const target = foes ? { groups: null } : skill ? targetOf(skill[1], cls) : undefined;
@@ -73,10 +86,13 @@ function effectsOf(option, cls) {
 			const trailing = tail.match(/^in ([A-Z][\w' ]+ Mode)$/);
 			if (trailing) when = trailing[1];
 		}
-		const plain = !destiny && (tail === '' || when);
-		if (target !== undefined && Number.isFinite(pct) && (plain || (destiny && feature))) {
+		// "per stack" grows with stacks the logs don't count: not valued as a flat bonus.
+		const perStack = /per stack/i.test(tail);
+		const plain = !destiny && !perStack && (tail === '' || when);
+		if (target !== undefined && Number.isFinite(pct) && (plain || (destiny && feature && !perStack))) {
 			out.push({ pct, ...target, ...(destiny ? { feature: feature.index, level: feature.value, ...(inBuff && buffName ? { buff: buffName } : {}) } : {}), ...(when ? { when } : {}) });
 		} else out.push({ text: line.trim() });
+		prev = line;
 	}
 	return out;
 }

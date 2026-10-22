@@ -135,5 +135,9 @@ Follow-up (10-19, later):
 - Checked on real clears, one relic core to ancient each: Breaker Charged Shock +0.94% (Shock +1.0%), Soulfist Blinding
   Obliteration +1.67% (World Decimation +5.56%) and Sky Shattering Strike +0.78% (Force +1.44%), Guardian Knight Finisher
   +0.81% (Exploding/Rending Finisher +4.0/+3.75%), Souleater Footsteps of the Dead +1.54%.
-- Still not valued: bare "Damage +x%" lines whose target is in the previous sentence (translation), Incarnation Mode
-  (not in the logs), cooldown/casting/resource effects. Charged Shock's +x% may stack per Shock skill; taken as flat.
+- Checked against the Korean core text (loaguard.com): Destiny: Charged Shock is a fixed increase (no 중첩 wording, where
+  other cores say "4중첩"); a bare "Damage +x%" is one Korean sentence split in two, its target named before it
+  (Blinding Obliteration 14P = 천하섬멸옥, Last Stand 17P = 익스플로전 피니셔 with the 푸른 심장 tripod, taken as met).
+  Bare lines now take the skills or groups named in the sentence before; "per stack" effects stay unvalued.
+- Still not valued: Incarnation Mode (not in the logs), "per stack" effects, cooldown/casting/resource effects, and a
+  skill's own crit damage (Blinding Obliteration 10P).
