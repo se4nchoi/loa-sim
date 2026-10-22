@@ -19,6 +19,23 @@ for (const [id, k] of Object.entries(skillTable)) {
 	((k.category > 0 ? hyper : awakening)[k.class] ??= []).push(Number(id));
 }
 
+// Tripods: their names per class ("Possession", "Blue Heart"), and per skill by tier, as a character's skills list them
+// (tier 1-3, 1-based within the tier; the tier is in the icon name, "Tripod_Tier_2_33").
+const tripodNames = {};
+const tripodTiers = {};
+for (const [id, k] of Object.entries(skillTable)) {
+	if (!k?.class || !k.tripods?.length) continue;
+	const tiers = [[], [], []];
+	for (const t of k.tripods) {
+		if (!t?.name) continue;
+		const tier = Number(t.icon?.match(/Tripod_Tier_(\d)/)?.[1] ?? 0);
+		if (tier >= 1 && tier <= 3) tiers[tier - 1].push(t.name);
+		(tripodNames[k.class] ??= new Set()).add(t.name);
+	}
+	tripodTiers[id] = tiers;
+}
+const usedTripodSkills = new Set();
+
 const strip = (s) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 // What an effect names, part by part ("Ghast Skill and Deathlord Skill", "Rending Finisher and Exploding Finisher",
 // "Phantom Beast Skills"): each part is one of the class's groups (scripts/skill-group-map.mjs) or a skill by name.
@@ -47,7 +64,7 @@ const targetOf = (target, cls) => {
 function effectsOf(option, cls) {
 	const feature = option.stats.find((s) => s.type === 28);
 	const out = [];
-	let inBuff = false, sticky, buffName, prev = '';
+	let inBuff = false, sticky, stickyTripod, buffName, prev = '';
 	const desc = strip(option.desc.replace(/<br>|\n/gi, '\n')).replace(/\s*\((?:Max|Up to) [^)]*\)/gi, '').replace(/%\.(?=[A-Z])/g, '%. ');
 	for (const line of desc.split(/(?<=\.)\s+(?=[A-Z])/)) {
 		let s = line.trim();
@@ -69,14 +86,20 @@ function effectsOf(option, cls) {
 		sticky = undefined;
 		const onCrit = s.match(/^On (.+?) Crit Hit, (Damage(?: to foes)? [+-][\d.]+%\.?)$/);
 		let crit = false;
-		if (onCrit) { s = onCrit[2].startsWith('Damage to foes') ? onCrit[2] : onCrit[1] + ' ' + onCrit[2]; crit = true; }
-		// "With Exploding Finisher's Blue Heart, ..." is a tripod the core is built around: taken as met, not a state.
-		const tripod = !destiny && s.match(/^With ([A-Z][\w ]+)'s [A-Z][\w' ]+, (.*)$/);
+		// "On Rifle Skill Crit Hit, Damage to foes +6.5%": the crits of those skills, not every skill's.
+		if (onCrit) { s = onCrit[1] + ' ' + onCrit[2].replace(/^Damage to foes/, 'Damage'); crit = true; }
+		// "With Exploding Finisher's Blue Heart, ..." / "With Possession, ...": a tripod, checked against the character's skills.
+		let needs = stickyTripod;
+		stickyTripod = undefined;
+		const tripod = !destiny && s.match(/^With ([A-Z][\w ]+)'s ([A-Z][\w' ]+), (.*)$/);
 		if (tripod) {
-			s = tripod[2];
+			s = tripod[3];
+			needs = stickyTripod = tripod[2];
 			if (/^Damage ?[+-] ?[\d.]+%\.?$/.test(s) && skillIds[cls]?.[tripod[1]]) s = s.replace(/^Damage/, tripod[1] + ' Damage');
 		}
-		const state = !destiny && !tripod && s.match(/^(?:(?:In|While in) ([A-Z][\w' ]+ (?:Mode|Stance))|With ([A-Z][\w' ]+)|During ([A-Z][\w' ]+)), (.*)$/);
+		const classTripod = !destiny && !tripod && s.match(/^With ([A-Z][\w' ]+), (.*)$/);
+		if (classTripod && tripodNames[cls]?.has(classTripod[1])) { needs = stickyTripod = classTripod[1]; s = classTripod[2]; }
+		const state = !destiny && !tripod && !(classTripod && needs) && s.match(/^(?:(?:In|While in) ([A-Z][\w' ]+ (?:Mode|Stance))|With ([A-Z][\w' ]+)|During ([A-Z][\w' ]+?)(?<! use)), (.*)$/); // "During Perfect Shot use" is a skill-use condition
 		if (state) { when = sticky = state[1] ?? state[2] ?? state[3]; s = state[4]; } // and the sentence after it
 		s = s.charAt(0).toUpperCase() + s.slice(1);
 		const except = [];
@@ -125,7 +148,7 @@ function effectsOf(option, cls) {
 		const perStack = /per stack/i.test(tail);
 		const plain = !destiny && !perStack && (tail === '' || when);
 		if (target !== undefined && !exceptUnknown && Number.isFinite(pct) && (plain || (destiny && (feature || (inBuff && buffName)) && !perStack))) {
-			out.push({ pct, ...target, ...(except.length ? { except: [...new Set(except)] } : {}), ...(destiny ? { ...(feature ? { feature: feature.index, level: feature.value } : {}), ...(inBuff && buffName ? { buff: buffName } : {}) } : {}), ...(when ? { when } : {}), ...(crit ? { crit: true } : {}), ...(position ? { position: position[1] === 'Back' ? 'back' : 'front' } : {}) });
+			out.push({ pct, ...target, ...(except.length ? { except: [...new Set(except)] } : {}), ...(destiny ? { ...(feature ? { feature: feature.index, level: feature.value } : {}), ...(inBuff && buffName ? { buff: buffName } : {}) } : {}), ...(when ? { when } : {}), ...(crit ? { crit: true } : {}), ...(needs ? { tripod: needs } : {}), ...(position ? { position: position[1] === 'Back' ? 'back' : 'front' } : {}) });
 		} else out.push({ text: line.trim() });
 		prev = line;
 	}
@@ -152,6 +175,8 @@ export interface OrderCoreEffect {
 	skills?: number[];
 	/** Skills left out ("excluding Hyper Awakening Technique", "excluding Last Request"). */
 	except?: number[];
+	/** Only with this tripod on the effect's skills ("Possession" on Gluttony): checked against the character's skills. */
+	tripod?: string;
 	/** On crit hits only: valued on the crit share of the damage. */
 	crit?: boolean;
 	/** Frontal or back attacks only: valued on the logged front/back attack damage. */
@@ -168,9 +193,14 @@ export interface OrderCoreEffect {
 	text?: string;
 }
 `;
+for (const es of Object.values(effects)) for (const e of es) if (e.tripod) for (const id of e.skills ?? []) usedTripodSkills.add(id);
+const tiers = Object.fromEntries([...usedTripodSkills].filter((id) => tripodTiers[id]).map((id) => [id, tripodTiers[id]]));
 writeFileSync('src/lib/upgrade-planner/order-cores.ts', `${header}
 export const ORDER_CORES: Record<number, { cls: string; name: string; bonuses: [points: number, option: number][] }> = ${JSON.stringify(cores)};
 
 export const ORDER_CORE_EFFECTS: Record<number, OrderCoreEffect[]> = ${JSON.stringify(effects)};
+
+/** Tripod names by tier, for the skills tripod effects name (a character's skills pick one per tier, 1-based). */
+export const TRIPOD_TIERS: Record<number, string[][]> = ${JSON.stringify(tiers)};
 `);
 console.log(Object.keys(cores).length, 'cores,', Object.keys(effects).length, 'options');

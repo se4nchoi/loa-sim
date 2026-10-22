@@ -159,3 +159,14 @@ Follow-up (10-19, later):
   "downgrade" look like a gain when the 17P line was a trade-off (Breaker Shock Charge: -8% damage for -10s cooldown).
 - Still not valued (named in the meter): crit damage / crit rate changes, stagger, per-stack effects, timed effects,
   cooldown / casting / resource effects, states the logs don't record.
+
+Follow-up (10-22, later): the two states the logs didn't have.
+- "Possession" (Souleater) is a tripod, not a state: the Korean core text reads "글러트니의 '빙의' 트라이포드 적용 시 …
+  피해량이 160.0% 증가" and "아스타로스의 '빙의' 트라이포드 적용 시 피해량이 36.0% 증가". Tripod conditions ("With
+  Possession", "With Exploding Finisher's Blue Heart") are now checked against the character's chosen tripods (bible's
+  skills list one pick per tier; `TRIPOD_TIERS` holds the tier lists), assumed taken when the skills aren't known.
+  Soulshan's Serca 10-17 clear has Possession on both Gluttony and Astaros.
+- "Incarnation Mode" (Guardian Knight) is 화신 상태, entered with 화신화, in which the Incarnation skills are used; the
+  logs keep no buff for it, so a mode named after a class group is valued on that group's skills.
+- "During Perfect Shot use," is a skill-use condition, not a state; "On Rifle Skill Crit Hit, Damage to foes +x%" is the
+  Rifle skills' crits.

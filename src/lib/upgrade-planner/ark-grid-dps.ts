@@ -8,7 +8,7 @@
 //     valued (said so); neither is a state the logs don't record ("With Possession").
 // Anything else a core does (cooldowns, casting speed, meters) isn't valued yet and is named.
 import type { RunSummary } from '$lib/logs/protocol';
-import { ORDER_CORE_EFFECTS, ORDER_CORES, type OrderCoreEffect } from './order-cores';
+import { ORDER_CORE_EFFECTS, ORDER_CORES, TRIPOD_TIERS, type OrderCoreEffect } from './order-cores';
 import { SKILL_GROUPS } from './skill-groups';
 import { initSimState, simCorePoints, type SimCore, type SimState } from './simulate';
 import { swappedCoreId } from './support';
@@ -68,10 +68,23 @@ export function activeEffects(coreId: number | null, points: number): Active {
 }
 
 /** Whether an effect covers a skill: it names the skill, or one of its groups ("Stygian", "Holding"), or every skill. */
-const applies = (e: OrderCoreEffect, skill: number, groups: string[] | undefined) =>
-	!e.except?.includes(skill) && (e.groups === null || !!e.skills?.includes(skill) || !!e.groups?.some((g) => groups?.includes(g)));
-const bonus = (effects: OrderCoreEffect[] | undefined, skill: number, groups: string[] | undefined) =>
-	(effects ?? []).reduce((m, e) => (applies(e, skill, groups) ? m * (1 + (e.pct ?? 0)) : m), 1);
+/** Whether a character took a tripod on a skill (bible's skills list one pick per tier); unknown → taken. */
+export type TripodCheck = (skill: number, tripod: string) => boolean;
+export function tripodsOf(loadout: Loadout): TripodCheck {
+	const skills = (loadout as Loadout & { skills?: { id: number; tripods?: number[] }[] }).skills;
+	if (!Array.isArray(skills)) return () => true;
+	return (skill, tripod) => {
+		const picks = skills.find((s) => s.id === skill)?.tripods;
+		const tiers = TRIPOD_TIERS[skill];
+		if (!picks || !tiers) return true;
+		return picks.some((pick, tier) => tiers[tier]?.[pick - 1] === tripod);
+	};
+}
+const applies = (e: OrderCoreEffect, skill: number, groups: string[] | undefined, took: TripodCheck) =>
+	!e.except?.includes(skill) && (!e.tripod || took(skill, e.tripod)) &&
+	(e.groups === null || !!e.skills?.includes(skill) || !!e.groups?.some((g) => groups?.includes(g)));
+const bonus = (effects: OrderCoreEffect[] | undefined, skill: number, groups: string[] | undefined, took: TripodCheck) =>
+	(effects ?? []).reduce((m, e) => (applies(e, skill, groups, took) ? m * (1 + (e.pct ?? 0)) : m), 1);
 
 export interface ArkGridEffect {
 	/** The multiplier on a skill's recorded damage in this run. */
@@ -85,6 +98,7 @@ export interface ArkGridEffect {
 /** The order core changes between the clear's setup (`base`) and the simulated one, valued on one recorded run. */
 export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimState, run: RunSummary): ArkGridEffect {
 	const anchor = initSimState(loadout);
+	const took = tripodsOf(loadout);
 	const slots: { before: Active; after: Active; cls: string; name: string }[] = [];
 	const swaps: string[] = [], partly = new Set<string>(), missing = new Set<string>();
 	let reimport = false;
@@ -117,6 +131,11 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 	};
 	const share = (s: RunSkill, ids: number[]) => (s.damage ? Math.min(1, Math.max(0, ...ids.map((id) => s.buffs?.[id] ?? 0)) / s.damage) : 0);
 
+	/** "Incarnation Mode": the logs keep no buff for it, but in it the class uses its Incarnation skills. */
+	const modeGroup = (where: string, cls: string) => {
+		const name = where.match(/^state:([A-Z][\w' ]+?) Mode$/)?.[1];
+		return name && Object.values(SKILL_GROUPS[cls] ?? {}).some((g) => g.includes(name)) ? name : null;
+	};
 	const changedKeys = (slot: (typeof slots)[number]) => [...new Set([...slot.before.effects.keys(), ...slot.after.effects.keys()])];
 	for (const slot of slots) {
 		const all = [...slot.before.effects.values(), ...slot.after.effects.values()].flat();
@@ -126,7 +145,7 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 			if ((portion === 'front' || portion === 'back') && !run.skills.some((s) => s.front !== undefined)) reimport = true;
 			if (!where) continue;
 			if (!kept) reimport = true;
-			else if (!idsOf(where).length && slot.after.effects.has(key)) missing.add(where.startsWith('state:') ? `${where.slice(6)} (${slot.name})` : `${slot.name}'s Destiny buff`);
+			else if (!idsOf(where).length && !modeGroup(where, slot.cls) && slot.after.effects.has(key)) missing.add(where.startsWith('state:') ? `${where.slice(6)} (${slot.name})` : `${slot.name}'s Destiny buff`);
 		}
 	}
 
@@ -135,7 +154,7 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 		for (const slot of slots) {
 			const groups = SKILL_GROUPS[slot.cls]?.[s.id];
 			for (const key of changedKeys(slot)) {
-				const ratio = bonus(slot.after.effects.get(key), s.id, groups) / bonus(slot.before.effects.get(key), s.id, groups);
+				const ratio = bonus(slot.after.effects.get(key), s.id, groups, took) / bonus(slot.before.effects.get(key), s.id, groups, took);
 				if (ratio === 1) continue;
 				const { where, portion } = splitKey(key);
 				// The part of the skill's damage the effect touches: crits, frontal / back attacks, or all of it.
@@ -145,6 +164,7 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 				const ids = kept ? idsOf(where) : [];
 				// Under a buff and on crits (say): taken as independent.
 				if (ids.length) m *= 1 + share(s, ids) * Math.min(1, part) * (ratio - 1);
+				else if (modeGroup(where, slot.cls)) m *= groups?.includes(modeGroup(where, slot.cls)!) ? 1 + Math.min(1, part) * (ratio - 1) : 1;
 			}
 		}
 		return m;
