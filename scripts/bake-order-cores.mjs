@@ -2,6 +2,7 @@
 // cache (cache/maxroll-items.json, cache/maxroll-stats.json) into src/lib/upgrade-planner/order-cores.ts.
 //   node scripts/bake-order-cores.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
+import { groupNames } from './skill-group-map.mjs';
 
 const items = JSON.parse(readFileSync('cache/maxroll-items.json', 'utf8'));
 const options = JSON.parse(readFileSync('cache/maxroll-stats.json', 'utf8')).arkGridCoreOptions;
@@ -11,11 +12,12 @@ const skillIds = {};
 for (const [id, k] of Object.entries(skillTable)) if (k?.class && k.name) ((skillIds[k.class] ??= {})[k.name] ??= []).push(Number(id));
 
 const strip = (s) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-// "Stygian Skill", "Ghast Skill and Deathlord Skill" → { groups: ['Stygian'] }; "Astaros" → { skills: [46430] };
-// undefined when it's neither.
+// "Stygian Skill", "Ghast Skill and Deathlord Skill", "Phantom Beast Skills" → { groups: [...] } when every part is one
+// of the class's groups (scripts/skill-group-map.mjs); "Astaros" → { skills: [46430] }; undefined when neither.
 const targetOf = (target, cls) => {
-	const parts = target.split(' and ').map((t) => t.match(/^([A-Z][a-z]+) Skill$/)?.[1]);
-	if (parts.every(Boolean)) return { groups: parts };
+	const parts = target.split(' and ').map((t) => t.match(/^(.+?) Skills?$/)?.[1]);
+	const names = groupNames(cls);
+	if (parts.every((p) => p && names.includes(p))) return { groups: parts };
 	const ids = skillIds[cls]?.[target];
 	return ids ? { skills: ids } : undefined;
 };

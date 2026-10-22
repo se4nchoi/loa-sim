@@ -56,10 +56,11 @@ export function activeEffects(coreId: number | null, points: number): Active {
 	return out;
 }
 
-const applies = (e: OrderCoreEffect, skill: number, group: string | undefined) =>
-	e.skills ? e.skills.includes(skill) : e.groups === null || (group !== undefined && !!e.groups?.includes(group));
-const bonus = (effects: OrderCoreEffect[] | undefined, skill: number, group: string | undefined) =>
-	(effects ?? []).reduce((m, e) => (applies(e, skill, group) ? m * (1 + (e.pct ?? 0)) : m), 1);
+/** Whether an effect covers a skill: it names the skill, or one of its groups ("Stygian", "Holding"), or every skill. */
+const applies = (e: OrderCoreEffect, skill: number, groups: string[] | undefined) =>
+	e.skills ? e.skills.includes(skill) : e.groups === null || !!e.groups?.some((g) => groups?.includes(g));
+const bonus = (effects: OrderCoreEffect[] | undefined, skill: number, groups: string[] | undefined) =>
+	(effects ?? []).reduce((m, e) => (applies(e, skill, groups) ? m * (1 + (e.pct ?? 0)) : m), 1);
 
 export interface ArkGridEffect {
 	/** The multiplier on a skill's recorded damage in this run. */
@@ -119,9 +120,9 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 	const factor = (s: RunSkill) => {
 		let m = 1;
 		for (const slot of slots) {
-			const group = SKILL_GROUPS[slot.cls]?.[s.id];
+			const groups = SKILL_GROUPS[slot.cls]?.[s.id];
 			for (const key of changedKeys(slot)) {
-				const ratio = bonus(slot.after.effects.get(key), s.id, group) / bonus(slot.before.effects.get(key), s.id, group);
+				const ratio = bonus(slot.after.effects.get(key), s.id, groups) / bonus(slot.before.effects.get(key), s.id, groups);
 				if (ratio === 1) continue;
 				if (!key) { m *= ratio; continue; }
 				const ids = kept ? idsOf(key) : [];

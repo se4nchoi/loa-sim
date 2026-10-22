@@ -140,6 +140,8 @@
 	const skillName = (id: number) => book?.skills[id]?.[0] ?? GEM_SKILLS[id]?.[0] ?? `Skill ${id}`;
 	const skillIcon = (id: number) => { const icon = book?.skills[id]?.[1] || GEM_SKILLS[id]?.[1]; return icon ? iconUrl(icon) : undefined; };
 	const select = 'rounded-xs border border-surface-700 bg-surface-800 px-2 py-1 text-xs text-surface-100';
+	/** Menus on the raid banner: dark glass over the art. */
+	const banner = 'w-fit rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-white backdrop-blur-sm hover:border-white/40 [&_option]:bg-surface-900 [&_optgroup]:bg-surface-900';
 </script>
 
 <section class="mb-3 rounded-xs bg-surface-900 p-3 shadow-sm shadow-neutral-800 sm:p-4" aria-label="DPS meter">
@@ -162,31 +164,27 @@
 		<p class="text-sm text-surface-300">No attempts of {characterName} in the imported logs. <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
 	{:else}
 		<!-- Raid: one card per raid and difficulty; Guardian raids and other fights in a menu. -->
-		<div class="-mx-1 flex items-end gap-2 overflow-x-auto px-1 pt-1 pb-2.5" aria-label="Raids">
-			{#each mainRaids as r (r.key)}
-				{@const art = raidArt(r.name)}
-				{@const on = r === raid}
-				<button type="button" class="relative h-14 w-40 shrink-0 overflow-hidden rounded-xs border text-left transition {raidTone(r.name)} {on ? 'ring-2 ring-accent-300 ring-offset-2 ring-offset-surface-900' : 'opacity-40 saturate-50 hover:opacity-90 hover:saturate-100'}" aria-pressed={on} onclick={() => remember({ raid: r.key, clear: null })}>
-					{#if art}<span class="absolute inset-0" style={art}></span>{/if}
-					<span class="absolute inset-0 bg-gradient-to-r from-black/85 via-black/40 to-transparent"></span>
-					<span class="absolute top-1 right-1 rounded-xs px-1 text-[10px] font-semibold {difficultyTone(r.difficulty)}">{r.difficulty || 'Normal'}</span>
-					<span class="absolute inset-x-2 bottom-1"><span class="block truncate text-sm font-semibold text-white">{r.name}</span><span class="block text-[11px] text-white/70">{r.runs.length} {r.runs.length === 1 ? 'attempt' : 'attempts'}</span></span>
-				</button>
-			{/each}
-			{#if otherRaids.length}
-				<select class="{select} shrink-0 self-center {raid.kind === 'other' ? 'border-accent-400 ring-2 ring-accent-300 ring-offset-2 ring-offset-surface-900' : ''}" aria-label="Other fights" value={raid.kind === 'other' ? raid.key : ''} onchange={(e) => e.currentTarget.value && remember({ raid: e.currentTarget.value, clear: null })}>
-					<option value="">Other fights ({otherRaids.length})…</option>
-					{#each otherRaids as r (r.key)}<option value={r.key}>{r.name} · {r.difficulty}</option>{/each}
-				</select>
-			{/if}
-			<button type="button" class="ml-auto shrink-0 self-center text-xs text-sky-300 hover:underline" onclick={() => (importing = true)}>Re-import logs</button>
-		</div>
-
-		<!-- Clear: one at a time. -->
-		<div class="mt-1.5 mb-3 flex flex-wrap items-center gap-2 text-xs">
-			<select class={select} aria-label="Attempt" value={clear.id} onchange={(e) => remember({ clear: Number(e.currentTarget.value) })}>
-				{#each clears as r (r.id)}<option value={r.id}>{clearLabel(r)}</option>{/each}
-			</select>
+		<!-- Raid and attempt: one banner in the picked raid's official art, with the two menus on it. -->
+		{@const art = raidArt(raid.name)}
+		<div class="relative mb-3 overflow-hidden rounded-xs border {raidTone(raid.name)}" aria-label="Raid and attempt">
+			{#if art}<span class="absolute inset-0" style={art} aria-hidden="true"></span>{/if}
+			<span class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/10" aria-hidden="true"></span>
+			<div class="relative flex flex-wrap items-end gap-x-4 gap-y-2 px-3 py-3 sm:min-h-28">
+				<div class="flex min-w-0 flex-col gap-1.5">
+					<span class="flex items-center gap-2">
+						<span class="rounded-xs px-1 text-[10px] font-semibold {difficultyTone(raid.difficulty)}">{raid.difficulty || 'Normal'}</span>
+						<span class="text-[11px] text-white/70">{raid.runs.length} {raid.runs.length === 1 ? 'attempt' : 'attempts'}</span>
+					</span>
+					<select class="{banner} max-w-full text-lg font-semibold" aria-label="Raid" value={raid.key} onchange={(e) => remember({ raid: e.currentTarget.value, clear: null })}>
+						<optgroup label="Raids">{#each mainRaids as r (r.key)}<option value={r.key}>{r.name} · {r.difficulty || 'Normal'}</option>{/each}</optgroup>
+						{#if otherRaids.length}<optgroup label="Other fights">{#each otherRaids as r (r.key)}<option value={r.key}>{r.name} · {r.difficulty || 'Normal'}</option>{/each}</optgroup>{/if}
+					</select>
+					<select class="{banner} max-w-full text-xs" aria-label="Attempt" value={clear.id} onchange={(e) => remember({ clear: Number(e.currentTarget.value) })}>
+						{#each clears as r (r.id)}<option value={r.id}>{clearLabel(r)}</option>{/each}
+					</select>
+				</div>
+				<button type="button" class="ml-auto self-start rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm hover:border-white/40 hover:text-white" onclick={() => (importing = true)}>Re-import logs</button>
+			</div>
 		</div>
 		{#if !clearSetup}
 			<div class="mb-3 rounded-xs border border-amber-500/40 px-3 py-2 text-xs text-amber-200">
