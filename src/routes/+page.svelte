@@ -291,7 +291,7 @@
 	<div class="flex flex-col gap-1">
 		<h1 class="text-2xl font-bold">Combat Power Simulator</h1>
 		<p class="text-sm text-surface-300">Load a character, change its gear, and see what each change does to Combat Power.</p>
-		<p class="text-sm text-surface-300">The DPS tab ranks the same upgrades by how much DPS they'd add, from your own LOA Logs.</p>
+		<p class="text-sm text-surface-300">Switch the Simulator to DPS (Beta) to replay one of your own LOA Logs clears with your edits.</p>
 		<ul class="list-disc pl-5 text-xs text-surface-400">
 			<li>Uses only what lostark.bible already shows publicly for a character.</li>
 			<li>Characters, your roster and edits stay in your browser. Sharing creates a public build link that expires in 30 days.</li>

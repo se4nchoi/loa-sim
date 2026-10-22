@@ -52,7 +52,8 @@
 	function valueOf(name: keyof DamageContext) { return values[name] ?? defaults[name as keyof typeof defaults]; }
 </script>
 
-<details class="mb-3 rounded-xs border border-surface-700 bg-surface-900 p-3" open>
+<!-- Folded until the player has entered totals, so a first visit leads with the log import. -->
+<details class="mb-3 rounded-xs border border-surface-700 bg-surface-900 p-3" open={Object.keys(values).length > 0}>
 	<summary class="cursor-pointer text-sm font-semibold text-surface-100">Per-stat damage gains <span class="font-normal text-surface-400">· no logs required</span></summary>
 	<p class="mt-2 text-xs text-surface-300">Enter the baseline build's combat totals. Main stat, Weapon Power, gems and bracer bonuses start from the loaded gear. Other totals include your passives and active buffs.</p>
 	<div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">

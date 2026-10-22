@@ -15,22 +15,23 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-10-22',
+		kind: 'new',
+		title: 'DPS mode (Beta)',
+		points: [
+			"Switch the Simulator to DPS to replay one of your own LOA Logs clears or failed pulls, and see each edit's effect on its damage.",
+			'Import encounters.db on the PC where LOA Logs runs; it is read in your browser and nothing is uploaded.',
+			"Each clear starts from the gear and Ark Grid you raided with; Next Upgrades can rank by DPS or gold per 1% DPS.",
+			'Beta: gear, gems and Order core changes are counted; engravings, karma, Paradise and chaos cores are not yet. Ark Grid skill effects are checked for Souleater only.'
+		]
+	},
+	{
 		date: '2026-10-21',
 		kind: 'improved',
 		title: 'Vambraces & books',
 		points: [
 			'Bracer is now called Vambraces, matching the global release, and is no longer marked as a KR preview.',
 			'Serca gear honing can now use Metallurgy and Tailoring: Tremor books from +12 to +19.'
-		]
-	},
-	{
-		date: '2026-10-19',
-		kind: 'new',
-		title: 'DPS tab',
-		points: [
-			"A new DPS tab ranks upgrades by how much DPS they'd add, using your own LOA Logs.",
-			'Import encounters.db on the PC where LOA Logs runs; nothing is uploaded.',
-			'Pick a raid to see which upgrades matter most there.'
 		]
 	},
 	{
