@@ -12,14 +12,21 @@ const skillIds = {};
 for (const [id, k] of Object.entries(skillTable)) if (k?.class && k.name) ((skillIds[k.class] ??= {})[k.name] ??= []).push(Number(id));
 
 const strip = (s) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-// "Stygian Skill", "Ghast Skill and Deathlord Skill", "Phantom Beast Skills" → { groups: [...] } when every part is one
-// of the class's groups (scripts/skill-group-map.mjs); "Astaros" → { skills: [46430] }; undefined when neither.
+// What an effect names, part by part ("Ghast Skill and Deathlord Skill", "Rending Finisher and Exploding Finisher",
+// "Phantom Beast Skills"): each part is one of the class's groups (scripts/skill-group-map.mjs) or a skill by name.
+// → { groups, skills }; undefined when a part is neither.
 const targetOf = (target, cls) => {
-	const parts = target.split(' and ').map((t) => t.match(/^(.+?) Skills?$/)?.[1]);
 	const names = groupNames(cls);
-	if (parts.every((p) => p && names.includes(p))) return { groups: parts };
-	const ids = skillIds[cls]?.[target];
-	return ids ? { skills: ids } : undefined;
+	const groups = [], skillList = [];
+	for (const raw of target.split(' and ')) {
+		const part = raw.trim();
+		const group = part.match(/^(.+?) Skills?$/)?.[1];
+		if (group && names.includes(group)) { groups.push(group); continue; }
+		const ids = skillIds[cls]?.[part] ?? (group ? skillIds[cls]?.[group] : undefined);
+		if (!ids) return undefined;
+		skillList.push(...ids);
+	}
+	return { ...(groups.length ? { groups } : {}), ...(skillList.length ? { skills: skillList } : {}) };
 };
 
 /**
@@ -32,22 +39,31 @@ const targetOf = (target, cls) => {
 function effectsOf(option, cls) {
 	const feature = option.stats.find((s) => s.type === 28);
 	const out = [];
-	let inBuff = false, sticky;
+	let inBuff = false, sticky, buffName;
 	for (const line of strip(option.desc.replace(/<br>|\n/gi, '\n')).split(/(?<=\.)\s+(?=[A-Z])/)) {
 		let s = line.trim();
 		if (!s) continue;
 		// A Destiny buff's lines: "Destiny: Death Sentence: ..." and the sentences after it.
 		let destiny = inBuff;
-		const named = s.match(/^Destiny: [^:]+: (.*)$/);
-		if (named) { s = named[1]; destiny = inBuff = true; }
+		const named = s.match(/^(Destiny: [^:]+): (.*)$/);
+		if (named) { buffName = named[1]; s = named[2]; destiny = inBuff = true; }
 		if (/^On Destiny (is )?activation, gain the Destiny: .* effect/.test(s)) continue; // the buff line follows
 		const onDestiny = s.match(/^On Destiny (?:is )?activation, (?:next )?(.*)$/);
 		if (onDestiny) { s = onDestiny[1]; destiny = true; }
+		// "While Destiny: Decimation is active, ...": in the state of that Destiny buff (the logs name it).
+		const whileDestiny = !destiny && s.match(/^While (Destiny: [^,]+) is active, (.*)$/);
+		if (whileDestiny) { sticky = whileDestiny[1]; s = whileDestiny[2]; }
+		// Inside a Destiny effect the buff's own uptime stands for its condition ("Destiny: Decimation: While in Hype Mode, ...").
+		if (destiny) s = s.replace(/^(?:In|While in|While using) [A-Z][\w' ]+, /, '');
 		// A state the effect needs ("In Deathlord Mode, ...", "With Possession, ..."): valued on the damage dealt in it.
 		let when = sticky;
-		const state = !destiny && s.match(/^(?:In ([A-Z][\w' ]+ Mode)|With ([A-Z][\w' ]+)), (.*)$/);
+		const state = !destiny && s.match(/^(?:(?:In|While in) ([A-Z][\w' ]+ (?:Mode|Stance))|With ([A-Z][\w' ]+)), (.*)$/);
 		if (state) { when = sticky = state[1] ?? state[2]; s = state[3]; } // and the sentences after it
 		s = s.charAt(0).toUpperCase() + s.slice(1);
+		// A Destiny sentence whose damage is its last clause ("When Shock Skill ends, Shock Energy +100 and Shock Skill
+		// Damage +0.5%."): the buff's uptime stands for the condition, so the clause is the effect.
+		const last = s.replace(/\.$/, '').split(/, | and (?=[A-Z])/).at(-1);
+		if (destiny && last !== s.replace(/\.$/, '') && /^[A-Z].* Damage [+-][\d.]+%$/.test(last) && !/^[A-Z][^,]* Damage [+-][\d.]+%\.?$/.test(s)) s = last;
 		const foes = s.match(/^Damage to foes ([+-][\d.]+)%(.*)$/);
 		const skill = s.match(/^(.+?) Damage ([+-][\d.]+)%(.*)$/);
 		const target = foes ? { groups: null } : skill ? targetOf(skill[1], cls) : undefined;
@@ -59,7 +75,7 @@ function effectsOf(option, cls) {
 		}
 		const plain = !destiny && (tail === '' || when);
 		if (target !== undefined && Number.isFinite(pct) && (plain || (destiny && feature))) {
-			out.push({ pct, ...target, ...(destiny ? { feature: feature.index, level: feature.value } : {}), ...(when ? { when } : {}) });
+			out.push({ pct, ...target, ...(destiny ? { feature: feature.index, level: feature.value, ...(inBuff && buffName ? { buff: buffName } : {}) } : {}), ...(when ? { when } : {}) });
 		} else out.push({ text: line.trim() });
 	}
 	return out;
@@ -81,11 +97,14 @@ export interface OrderCoreEffect {
 	pct?: number;
 	/** Skill groups the damage applies to; null = every skill. */
 	groups?: string[] | null;
-	/** Or these skills only (ids). */
+	/** And/or these skills (ids). */
 	skills?: number[];
-	/** Only while in this state ("Deathlord Mode", "Possession"): valued on the damage the logs recorded in it. */
+	/** Only while in this state ("Deathlord Mode", "Brawl King Stance", "Possession"): valued on the damage the logs
+	 *  recorded under the player's buff of that name. */
 	when?: string;
-	/** A Destiny effect: the ability feature (its buff in the logs) and its level. */
+	/** A Destiny effect: the ability feature and its level, and the buff's name when the effect names it (the logs
+	 *  record the buff under that name: "Destiny: Footsteps of the Dead"). */
+	buff?: string;
 	feature?: number;
 	level?: number;
 	/** Not valued: the option's own words. */

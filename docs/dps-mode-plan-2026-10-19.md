@@ -123,3 +123,17 @@ Follow-up (10-19, later):
   meter's stat values; note where crit comes from (the character's own crit, support bracelet, party synergy) with the
   crit-rate value; Beta caveat with per-class verified badges; Ark Grid skill groups for every class, verified on logs;
   patch-dated game data with a warning on clears recorded before a class's last balance patch.
+
+## Ark Grid for every class (10-22)
+
+- Skill groups for all classes are baked from the game's own data (`scripts/bake-skill-groups.mjs`): a skill's Maxroll
+  `category` is its class group, its `type` its kind (Point, Charge, Holding, Combo, Chain, Casting). Category names come
+  from one lostarkcodex.com page per category (`scripts/skill-group-map.mjs`); Souleater matches the confirmed hand list.
+- Core effects also parse: several named skills ("Rending Finisher and Exploding Finisher"), "In … Stance" / "While in …
+  Mode" states, "While Destiny: X is active", Destiny buffs by name, and a Destiny sentence's last damage clause.
+- Imports keep the player's own class-skill and Ark Passive buffs too ("Brawl King Stance", "Level 3 Hype").
+- Checked on real clears, one relic core to ancient each: Breaker Charged Shock +0.94% (Shock +1.0%), Soulfist Blinding
+  Obliteration +1.67% (World Decimation +5.56%) and Sky Shattering Strike +0.78% (Force +1.44%), Guardian Knight Finisher
+  +0.81% (Exploding/Rending Finisher +4.0/+3.75%), Souleater Footsteps of the Dead +1.54%.
+- Still not valued: bare "Damage +x%" lines whose target is in the previous sentence (translation), Incarnation Mode
+  (not in the logs), cooldown/casting/resource effects. Charged Shock's +x% may stack per Shock skill; taken as flat.

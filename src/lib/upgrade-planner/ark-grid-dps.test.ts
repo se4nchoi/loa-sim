@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RunSummary } from '$lib/logs/protocol';
 import soulshan from './fixtures/na-soulshan.json';
-import { activeEffects, orderCoreEffect } from './ark-grid-dps';
+import { activeEffects, buffMatches, orderCoreEffect } from './ark-grid-dps';
 import { initSimState, simCorePoints } from './simulate';
 import type { Loadout } from './types';
 
@@ -28,9 +28,9 @@ describe('order core effects', () => {
 	it('reads Footsteps of the Dead by points, the ancient Destiny buff replacing the relic one', () => {
 		const relic = activeEffects(FOOTSTEPS_RELIC, 20), ancient = activeEffects(FOOTSTEPS_ANCIENT, 20);
 		expect(relic.effects.get('')!.reduce((s, e) => s + (e.pct ?? 0), 0)).toBeCloseTo(0.03 + 3 * 0.006);
-		expect(relic.effects.get('buff:34612')!.map((e) => e.pct)).toEqual([0.54]);
-		expect(ancient.effects.get('buff:34612')!.map((e) => e.pct)).toEqual([0.64]);
-		expect(activeEffects(FOOTSTEPS_RELIC, 14).effects.has('buff:34612')).toBe(false);
+		expect(relic.effects.get('state:Destiny: Footsteps of the Dead')!.map((e) => e.pct)).toEqual([0.54]);
+		expect(ancient.effects.get('state:Destiny: Footsteps of the Dead')!.map((e) => e.pct)).toEqual([0.64]);
+		expect(activeEffects(FOOTSTEPS_RELIC, 14).effects.has('state:Destiny: Footsteps of the Dead')).toBe(false);
 	});
 
 	it('relic → ancient raises only the Stygian damage dealt under the Destiny buff', () => {
@@ -73,6 +73,13 @@ describe('order core effects', () => {
 		const e = orderCoreEffect(loadout, anchor, withFootsteps('ancient'), r);
 		expect(e.factor(r.skills[0])).toBe(1);
 		expect(e.unvalued[0]).toContain("Deathlord's Call → Footsteps of the Dead");
+	});
+
+	it('finds a state under its logged buff name', () => {
+		expect(buffMatches('Level 3 Hype', 'Hype Mode')).toBe(true);
+		expect(buffMatches('Brawl King Stance', 'Brawl King Stance')).toBe(true);
+		expect(buffMatches('Destiny: Decimation', 'Destiny: Decimation')).toBe(true);
+		expect(buffMatches('Deathlord Mode', 'Possession')).toBe(false);
 	});
 
 	it('no core change, no effect', () => {

@@ -29,8 +29,16 @@ export function orderCoreOf(core: SimCore): number | null {
 	return grade !== info.grade ? swappedCoreId(id, grade) : id;
 }
 
-/** Where an effect applies: always (''), under a Destiny buff ('buff:34612'), or in a state ('state:Deathlord Mode'). */
-const keyOf = (e: OrderCoreEffect) => (e.feature ? `buff:${Math.floor(e.feature / 100)}` : e.when ? `state:${e.when}` : '');
+/**
+ * Where an effect applies: always (''), under a named buff or state ('state:Destiny: Footsteps of the Dead',
+ * 'state:Deathlord Mode'), or under an unnamed Destiny buff by its feature id ('buff:34622').
+ */
+const keyOf = (e: OrderCoreEffect) => (e.buff ? `state:${e.buff}` : e.feature ? `buff:${Math.floor(e.feature / 100)}` : e.when ? `state:${e.when}` : '');
+/** One Destiny buff's levels replace each other (relic 54% → ancient 64%); two buffs of one feature don't. */
+const levelKey = (e: OrderCoreEffect) => `${e.buff ?? ''}|${e.feature}`;
+/** A logged buff's name for a state: the same name, or for a mode/stance its word in the buff ("Hype Mode" → "Level 3 Hype"). */
+export const buffMatches = (buff: string, state: string) =>
+	buff === state || (/ (Mode|Stance)$/.test(state) && buff.split(' ').includes(state.replace(/ (Mode|Stance)$/, '')));
 
 interface Active {
 	/** Valued effects by where they apply. */
@@ -45,11 +53,11 @@ export function activeEffects(coreId: number | null, points: number): Active {
 	const core = coreId === null ? undefined : ORDER_CORES[coreId];
 	if (!core) return out;
 	const all = core.bonuses.filter(([need]) => points >= need).flatMap(([, option]) => ORDER_CORE_EFFECTS[option] ?? []);
-	const top = new Map<number, number>();
-	for (const e of all) if (e.feature) top.set(e.feature, Math.max(top.get(e.feature) ?? 0, e.level ?? 0));
+	const top = new Map<string, number>();
+	for (const e of all) if (e.feature) top.set(levelKey(e), Math.max(top.get(levelKey(e)) ?? 0, e.level ?? 0));
 	for (const e of all) {
 		if (e.text) { out.other.push(e.text); continue; }
-		if (e.feature && (e.level ?? 0) < (top.get(e.feature) ?? 0)) continue;
+		if (e.feature && (e.level ?? 0) < (top.get(levelKey(e)) ?? 0)) continue;
 		const key = keyOf(e);
 		out.effects.set(key, [...(out.effects.get(key) ?? []), e]);
 	}
@@ -58,7 +66,7 @@ export function activeEffects(coreId: number | null, points: number): Active {
 
 /** Whether an effect covers a skill: it names the skill, or one of its groups ("Stygian", "Holding"), or every skill. */
 const applies = (e: OrderCoreEffect, skill: number, groups: string[] | undefined) =>
-	e.skills ? e.skills.includes(skill) : e.groups === null || !!e.groups?.some((g) => groups?.includes(g));
+	e.groups === null || !!e.skills?.includes(skill) || !!e.groups?.some((g) => groups?.includes(g));
 const bonus = (effects: OrderCoreEffect[] | undefined, skill: number, groups: string[] | undefined) =>
 	(effects ?? []).reduce((m, e) => (applies(e, skill, groups) ? m * (1 + (e.pct ?? 0)) : m), 1);
 
@@ -102,7 +110,7 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 	const idsOf = (key: string): number[] => {
 		const ids = Object.keys(run.buffNames ?? {}).map(Number);
 		if (key.startsWith('buff:')) return ids.filter((id) => `buff:${Math.floor(id / 100)}` === key);
-		return ids.filter((id) => `state:${run.buffNames![id]}` === key);
+		return ids.filter((id) => buffMatches(run.buffNames![id], key.slice(6)));
 	};
 	const share = (s: RunSkill, ids: number[]) => (s.damage ? Math.min(1, Math.max(0, ...ids.map((id) => s.buffs?.[id] ?? 0)) / s.damage) : 0);
 
