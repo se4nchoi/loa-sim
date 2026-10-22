@@ -4,8 +4,11 @@ The material-price dialog imports T4 honing materials, regular Hellfire books an
 [loa-buddy](https://loa-buddy.pages.dev/market). This is an unofficial community price feed,
 not a live AGS market API. Requests go through `/api/market?region=nae|euc` to avoid browser CORS restrictions.
 
-The import is off unless `PUBLIC_MARKET_PRICES=1` is set (pending loa-buddy's developer's agreement): with it off,
-the dialog hides the Load button and `/api/market` answers 404. Typed prices work either way.
+zyr approved this server-proxied use (permission shared on 2026-10-22). The import is on by default;
+set `PUBLIC_MARKET_PRICES=0` to switch it off. With it off, the dialog hides the Load button and
+`/api/market` answers 404. Typed prices work either way. The import panel credits and links to loa-buddy
+before and after loading. The upstream endpoint and schema have no stability guarantee; failed or malformed
+responses leave saved prices unchanged.
 
 - NA characters use NA East; CE characters use EU Central. The upstream feed supports these two regions.
 - Loading prices replaces returned items only. Missing items, enhanced books and bound inventory stay unchanged.

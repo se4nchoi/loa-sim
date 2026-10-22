@@ -113,6 +113,13 @@ request between simultaneous loads. Set `BIBLE_SERVER_FETCH=0` to turn it off (s
 paste instead. Either way the data is decoded and saved in the player's browser, so a return visit opens straight
 into the simulator.
 
+On the experimental `dps-sim/v0` branch, DPS mode can load the gear linked to a selected clear through
+Mathi's loadout API, using the endpoint he supplied for this purpose. Content-addressed snapshots are cached
+and normalized to the simulator's gear format. Honing material and relic-book prices come from
+[loa-buddy](https://loa-buddy.pages.dev/market), with zyr's permission, through a fixed-catalog server proxy
+with a 10-minute cache. Set `PUBLIC_MARKET_PRICES=0` to disable price imports. See
+[market prices](docs/market-prices.md) for units, caching and failure behavior.
+
 ### Reports
 
 The Updates card's **Report it** opens a form that posts to `/api/report`; the server files it as a GitHub issue

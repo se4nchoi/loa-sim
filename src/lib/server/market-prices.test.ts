@@ -22,12 +22,21 @@ describe('market price proxy', () => {
 		await expect(marketPrices('nae', fetchFn)).rejects.toThrow();
 		expect((await marketPrices('nae', fetchFn)).quotes['66110225'].price).toBe(13);
 	});
-	it('is off unless PUBLIC_MARKET_PRICES=1, without any upstream call', async () => {
-		vi.doMock('$env/dynamic/public', () => ({ env: {} }));
+	it('can be switched off with PUBLIC_MARKET_PRICES=0, without any upstream call', async () => {
+		vi.doMock('$env/dynamic/public', () => ({ env: { PUBLIC_MARKET_PRICES: '0' } }));
 		const { GET } = await import('../../routes/api/market/+server');
 		const fetchFn = vi.fn();
 		await expect(GET({ url: new URL('https://example.com/api/market?region=nae'), fetch: fetchFn } as never)).rejects.toMatchObject({ status: 404 });
 		expect(fetchFn).not.toHaveBeenCalled();
+	});
+	it('is enabled by default and returns normalized, cacheable prices', async () => {
+		vi.doMock('$env/dynamic/public', () => ({ env: {} }));
+		const { GET } = await import('../../routes/api/market/+server');
+		const fetchFn = vi.fn(async () => new Response(JSON.stringify([{ item_slug: 'destiny-destruction-stone', price: 2500, timestamp: Date.now() / 1000 - 5 }])));
+		const response = await GET({ url: new URL('https://example.com/api/market?region=nae'), fetch: fetchFn } as never) as Response;
+		expect(response.status).toBe(200);
+		expect((await response.json()).quotes['66102006'].price).toBe(25);
+		expect(response.headers.get('cache-control')).toContain('s-maxage=600');
 	});
 	it('rejects unsupported regions before any upstream call and marks failures as non-cacheable', async () => {
 		vi.doMock('$env/dynamic/public', () => ({ env: { PUBLIC_MARKET_PRICES: '1' } }));

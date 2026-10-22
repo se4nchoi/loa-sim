@@ -74,8 +74,9 @@ live logs (Serca NM 10-17: weapon +1 → +0.95%, Gluttony damage gem 9 → 10 �
   hash's content never changes); `clear-snapshots.ts` keeps it in the browser; `setup-diff.ts` compares it with the
   loadout being simulated and DPS mode shows the differences (gear slots, gems, Ark Grid cores and Ark Passive nodes by
   name from `ark-passive-names.ts`, baked by `scripts/bake-ark-passives.mjs`).
-- **Ask lostark.bible's developer before shipping:** the server-fetch OK was for character pages ("one character per
-  player action"); snapshot fetches are the same scale but a different endpoint.
+- **Resolved 10-22:** Mathi supplied `https://loadout.mathi.moe/v3/loadouts/by-hash/<hash>` for these lookups,
+  already cached on his server and Cloudflare. The proxy now uses that endpoint, with an adapter for its raw schema;
+  the supplied Soulshan snapshot is tested against the independently decoded bible page snapshot.
 - Soulshan, Serca NM 10-17: the bible character page is a CP setup (6797.64) while the clear's snapshot is 6523.07:
   same honing, accessories and gems; different Ability Stone, Bracelet, engravings, all three Ark Passive trees
   (Full Moon Harvester in the clear) and Ark Grid cores.

@@ -1,12 +1,36 @@
 import { describe, expect, it, vi } from 'vitest';
+import snapshot from '$lib/upgrade-planner/fixtures/mathi-soulshan-v3.json';
 
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
-const { loadCharacter, serverFetchEnabled } = await import('./bible');
+const { loadCharacter, loadSnapshot, serverFetchEnabled } = await import('./bible');
 
 // A minimal SvelteKit __data.json body: one page node with an ark passive loadout.
 const body = (score: number) => ({
 	type: 'data',
 	nodes: [{ type: 'data', data: [{ loadouts: 1 }, [2], { type: 3, battlePoint: 4, combatPower: 5 }, 'ark_passive', { parts: 6, isSupport: 7 }, { id: 8, score: 9 }, [], false, 1, score] }]
+});
+
+describe('server clear snapshot loader', () => {
+	it('uses Mathi\'s endpoint, coalesces callers and caches the normalized snapshot', async () => {
+		const hash = `v3/${'a'.repeat(64)}`;
+		const fetchFn = vi.fn(async () => new Response(JSON.stringify(snapshot)));
+		const [a, b] = await Promise.all([loadSnapshot(hash, fetchFn), loadSnapshot(hash, fetchFn)]);
+		expect(a).toBe(b);
+		expect(a.combatPower?.score).toBe(6620.18);
+		expect(a.items?.[0]).toMatchObject({ slot: 'weapon', data: { honing: 24, advancedHoning: 40 } });
+		await loadSnapshot(hash, fetchFn);
+		expect(fetchFn).toHaveBeenCalledTimes(1);
+		expect(fetchFn).toHaveBeenCalledWith(`https://loadout.mathi.moe/v3/loadouts/by-hash/${'a'.repeat(64)}`, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+	});
+	it('does not cache missing snapshots, invalid JSON or changed schemas', async () => {
+		for (const [index, response] of [new Response('', { status: 404 }), new Response('<html>'), new Response('{}')].entries()) {
+			const hash = `v3/${String(index).repeat(64)}`;
+			const fetchFn = vi.fn().mockResolvedValueOnce(response).mockResolvedValueOnce(new Response(JSON.stringify(snapshot)));
+			await expect(loadSnapshot(hash, fetchFn)).rejects.toThrow();
+			await expect(loadSnapshot(hash, fetchFn)).resolves.toMatchObject({ combatPower: { score: 6620.18 } });
+			expect(fetchFn).toHaveBeenCalledTimes(2);
+		}
+	});
 });
 
 describe('server character loader', () => {

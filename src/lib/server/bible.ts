@@ -4,7 +4,8 @@
 // Set BIBLE_SERVER_FETCH=0 to turn it off (players then paste their data instead).
 
 import { env } from '$env/dynamic/private';
-import { decodeCharacterData, bibleDataUrl, bibleSnapshotUrl, decodeSnapshot, type CharacterData, type ClearSnapshot } from '$lib/bible-data';
+import { decodeCharacterData, bibleDataUrl, type CharacterData, type ClearSnapshot } from '$lib/bible-data';
+import { decodeLoadoutSnapshot, loadoutSnapshotUrl } from '$lib/loadout-snapshot';
 
 // The CDN can cache this result for another minute: keep the combined window under two minutes.
 export const CHARACTER_CACHE_SECONDS = 60;
@@ -60,24 +61,25 @@ const snapshots = new Map<string, ClearSnapshot>();
 const snapshotsInFlight = new Map<string, Promise<ClearSnapshot>>();
 
 async function fetchSnapshot(hash: string, fetchFn: typeof fetch): Promise<ClearSnapshot> {
+	const url = loadoutSnapshotUrl(hash);
 	let res: Response;
 	try {
-		res = await fetchFn(bibleSnapshotUrl(hash), {
+		res = await fetchFn(url, {
 			headers: { 'user-agent': 'loa-sim combat power simulator (https://loa-sim.vercel.app; one snapshot per player action)' },
 			signal: AbortSignal.timeout(TIMEOUT_MS)
 		});
 	} catch (e) {
-		throw new Error(e instanceof Error && e.name === 'TimeoutError' ? 'lostark.bible took too long to answer' : "Couldn't reach lostark.bible");
+		throw new Error(e instanceof Error && e.name === 'TimeoutError' ? 'The loadout API took too long to answer' : "Couldn't reach the loadout API");
 	}
-	if (res.status === 404) throw new Error("lostark.bible doesn't have this clear's snapshot");
-	if (!res.ok) throw new Error(`lostark.bible returned ${res.status}`);
+	if (res.status === 404) throw new Error("The loadout API doesn't have this clear's snapshot");
+	if (!res.ok) throw new Error(`The loadout API returned ${res.status}`);
 	let body: unknown;
 	try {
 		body = await res.json();
 	} catch {
-		throw new Error('lostark.bible sent something unexpected');
+		throw new Error('The loadout API sent something unexpected');
 	}
-	return decodeSnapshot(body);
+	return decodeLoadoutSnapshot(body);
 }
 
 /** The gear snapshot LOA Logs linked to a clear, from the cache or a single upstream request. */

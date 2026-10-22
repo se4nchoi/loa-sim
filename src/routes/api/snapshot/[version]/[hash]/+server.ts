@@ -1,5 +1,5 @@
-// One clear's gear snapshot from lostark.bible as JSON (LOA Logs stores its hash with each clear). Browsers can't fetch
-// bible's data directly. A snapshot never changes, so browsers and the CDN keep it.
+// One clear's gear snapshot from Mathi's loadout API, normalized to bible's page-data shape. Mathi supplied this
+// endpoint for our clear lookups (2026-10-21). A snapshot never changes, so browsers and the CDN keep it.
 import { isSnapshotHash } from '$lib/bible-data';
 import { loadSnapshot, serverFetchEnabled } from '$lib/server/bible';
 import { error, json } from '@sveltejs/kit';

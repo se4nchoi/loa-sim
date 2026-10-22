@@ -178,11 +178,11 @@
 						{#if marketUndo}<button type="button" class={btn} onclick={undoImport}>Undo import</button>{/if}
 					</div>
 				</div>
-				<p class="text-xs text-surface-400">Loads honing materials and relic engraving books. Replaces returned prices for this region.</p>
+				<p class="text-xs text-surface-400">Prices from <a href="https://loa-buddy.pages.dev/market" target="_blank" rel="noopener" class="underline hover:text-surface-100">loa-buddy</a>. Loads honing materials and relic engraving books. Replaces returned prices for this region.</p>
 				{#if marketNote}<p role="status" class="text-xs text-green-400">{marketNote}</p>{/if}
 				{#if marketError}<p role="alert" class="text-xs text-red-300">{marketError}</p>{/if}
 				{#if observedAt}
-					<p class="text-xs text-surface-400">Price from {priceDate(observedAt)} <a href="https://loa-buddy.pages.dev/market" target="_blank" rel="noopener" class="ml-1 underline hover:text-surface-100">loa-buddy</a></p>
+					<p class="text-xs text-surface-400">Price from {priceDate(observedAt)}</p>
 					<p class="text-xs {stale ? 'text-amber-300' : 'text-surface-400'}">({hoursAgo} {hoursAgo === 1 ? 'hour' : 'hours'} ago)</p>
 				{/if}
 			</div>{/if}
