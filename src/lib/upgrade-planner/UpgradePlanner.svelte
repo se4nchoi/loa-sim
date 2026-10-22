@@ -26,6 +26,8 @@
 	import { dpsMeter, meterGain } from './dps-meter';
 	import { dpsSelection } from './dps-selection.svelte';
 	import { configuredPlanGain } from './dps-configured';
+	import { formatDamage } from './dps-comparison';
+	import { parseTargetDps, planToTarget, type TargetPlan } from './dps-target';
 
 	let {
 		dpsMode = false,
@@ -127,6 +129,60 @@
 	const shown = $derived(perGold ? [...priced, ...topDistinct(ranked.filter((u) => !pricedFor(u)), limit - priced.length)] : topDistinct(ranked, limit));
 	const unpriced = $derived(missingPriceCount(goldUpgrades, costs));
 	const unit = $derived(selection ? 'DPS' : 'CP');
+
+	// Target DPS: the path of upgrades to a DPS on the picked clear (dps-target.ts), by gold or by fewest steps.
+	/** 1.331b: as the meter's headline. */
+	const dpsText = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(3)}b` : formatDamage(n));
+	const canTarget = $derived(!!selection?.runs.length && !!onapply);
+	const meterDps = $derived.by(() => {
+		if (!selection?.runs.length) return null;
+		const m = dpsMeter(loadout, selection.baseline, simNow, selection.buildRuns, selection.runs, selection.arkGrid, selection.context);
+		return m ? m.after / (m.durationMs / 1000) : null;
+	});
+	let targetText = $state('');
+	let targetPlan = $state<TargetPlan | null>(null);
+	let planning = $state(false);
+	let targetError = $state<string | null>(null);
+	/** Gold for an upgrade made from state `s`, as the rows price it (a typed or book price, else honing from prices). */
+	function goldFor(u: Upgrade, s: SimState): number | null {
+		const book = bookCost(u, bookPrices);
+		if (book !== undefined) return book;
+		const manual = manualGoldCost(u, characterCosts);
+		if (manual !== undefined) return manual;
+		const honing = autoHoningCosts([u.key], s.gear, materialPrices, bound, s.karma)[u.key];
+		if (honing) return honing.expected;
+		return u.knownCost ?? null;
+	}
+	function planTarget() {
+		targetError = null;
+		const target = meterDps === null ? null : parseTargetDps(targetText, meterDps);
+		if (!selection || target === null) { targetError = 'Enter a DPS like 1.4b or 1400m, or +5%.'; return; }
+		planning = true;
+		targetPlan = null;
+		const sel = selection, from = simNow, byGold = perGold;
+		// Let the button show "Planning…" before the work (a few hundred ms per step).
+		setTimeout(() => {
+			targetPlan = planToTarget({
+				loadout, base: simBase ?? initSimState(loadout), start: from, selection: sel, targetDps: target, byGold,
+				upgradesFor: (st) => liveUpgrades(loadout, st, simBase ?? initSimState(loadout), rollsFor(characterKey), true),
+				goldFor
+			});
+			if (!targetPlan) targetError = 'The meter needs a picked attempt to plan from.';
+			planning = false;
+		}, 20);
+	}
+	// A plan is for the state it was made from: edits (or Apply all) retire it.
+	let plannedFrom = '';
+	$effect(() => {
+		const now = JSON.stringify(simNow);
+		if (targetPlan && plannedFrom && now !== plannedFrom) targetPlan = null;
+		if (targetPlan && !plannedFrom) plannedFrom = now;
+		if (!targetPlan) plannedFrom = '';
+	});
+	function applyPlan() {
+		const steps = targetPlan?.steps ?? [];
+		for (const st of steps) if (!(onapply?.(st.upgrade) ?? false)) break;
+	}
 </script>
 
 <div class="flex min-h-0 flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
@@ -161,6 +217,37 @@
 		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-amber-300" title="An astrogem doesn't fit its core's Willpower, so Ark Grid steps can't be worked out from here">
 			Ark Grid upgrades are left out: a core needs more Willpower than it has.
 		</p>
+	{/if}
+	{#if canTarget}
+		<details class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs">
+			<summary class="cursor-pointer font-semibold text-surface-200">Target DPS{#if meterDps}<span class="font-normal text-surface-400"> · now {dpsText(meterDps)}</span>{/if}</summary>
+			<form class="mt-1.5 flex gap-1.5" onsubmit={(e) => { e.preventDefault(); planTarget(); }}>
+				<input class="h-7 min-w-0 flex-1 rounded-xs border border-surface-700 bg-surface-950 px-2 text-xs text-surface-100" placeholder="1.4b, 1400m or +5%" bind:value={targetText} aria-label="Target DPS" />
+				<button type="submit" class="{btn} h-7 px-2.5" disabled={planning}>{planning ? 'Planning…' : 'Plan'}</button>
+			</form>
+			<p class="mt-1 text-[11px] text-surface-500">{perGold ? 'Least gold per 1% DPS at each step' : 'Biggest DPS gain at each step'}, measured on the picked attempt. Switch above to plan {perGold ? 'by gain' : 'by gold'}.</p>
+			{#if perGold && unsetPrices}<p class="mt-1 text-[11px] text-amber-300">No material prices yet: honing counts as free. Load market prices first.</p>{/if}
+			{#if targetError}<p class="mt-1 text-amber-300">{targetError}</p>{/if}
+			{#if targetPlan}
+				{@const p = targetPlan}
+				<p class="mt-2 font-semibold {p.reached ? 'text-green-400' : 'text-amber-300'}">
+					{#if !p.steps.length && p.reached}Already there: {dpsText(p.startDps)}.
+					{:else}{dpsText(p.startDps)} → {dpsText(p.endDps)} in {p.steps.length} step{p.steps.length === 1 ? '' : 's'}{#if perGold} · {formatGold(p.gold)} gold{/if}{#if !p.reached} · target not reached{/if}{/if}
+				</p>
+				<ol class="mt-1 space-y-1">
+					{#each p.steps as st, i (i)}
+						<li class="grid grid-cols-[1.25rem_1fr_max-content] items-center gap-1.5">
+							<span class="text-surface-500 tabular-nums">{i + 1}.</span>
+							<UpgradeTitle compact u={st.upgrade.subject ? st.upgrade : { ...st.upgrade, subject: CATEGORY_LABELS[st.upgrade.category] }} />
+							<span class="text-right tabular-nums"><span class="text-sky-300">{formatPct(st.gainPct)}%</span>
+								<span class="block text-[10px] text-surface-400">{dpsText(st.dps)}{#if st.gold !== null && perGold} · {st.gold ? formatGold(st.gold) : 'free'}{/if}</span></span>
+						</li>
+					{/each}
+				</ol>
+				{#if !p.reached}<p class="mt-1 text-[11px] text-surface-400">{p.steps.length ? 'No further one-step upgrade the meter can value gets closer.' : 'No upgrade the meter can value raises DPS from here.'}{#if p.unpriced} {p.unpriced} unpriced upgrade{p.unpriced === 1 ? ' was' : 's were'} left out.{/if}</p>{:else if p.unpriced}<p class="mt-1 text-[11px] text-surface-400">{p.unpriced} upgrade{p.unpriced === 1 ? '' : 's'} without a gold cost {p.unpriced === 1 ? 'was' : 'were'} left out.</p>{/if}
+				{#if p.steps.length}<button type="button" class="{btn} mt-1.5 h-7 w-full" onclick={applyPlan}>Apply all {p.steps.length}</button>{/if}
+			{/if}
+		</details>
 	{/if}
 	{#if upgrades.length === 0}
 		<p class="p-2 text-sm text-surface-300">No one-step upgrades found for this loadout.</p>

@@ -1,0 +1,104 @@
+// "Get me to X DPS": a path of upgrades from the simulated state to a target DPS on the DPS meter's picked clear.
+// Greedy, re-measured each step: every one-step upgrade is scored on the meter from where the path is now (gains
+// interact: crit near its cap, a second gem on the same skill), the best value is taken, and so on. Value is gold per
+// 1% DPS when ranking by gold (unpriced upgrades are left out), the biggest gain otherwise. When the best-value step
+// would reach the target, the cheapest (or smallest) step that does ends the path instead of overshooting.
+import { applyUpgrade } from './apply-upgrade';
+import { dpsMeter, meterGain } from './dps-meter';
+import type { DpsSelection } from './dps-selection.svelte';
+import type { SimState } from './simulate';
+import type { Loadout } from './types';
+import type { Upgrade } from './upgrades';
+
+export interface TargetStep {
+	upgrade: Upgrade;
+	/** DPS gain of this step, percent of the DPS before it. */
+	gainPct: number;
+	/** Gold for this step (0 = free), null when ranking by gain and the step has no price. */
+	gold: number | null;
+	/** Meter DPS after the step. */
+	dps: number;
+}
+
+export interface TargetPlan {
+	startDps: number;
+	endDps: number;
+	steps: TargetStep[];
+	reached: boolean;
+	/** Total gold of the priced steps. */
+	gold: number;
+	/** Upgrades left out because they have no gold cost (ranking by gold). */
+	unpriced: number;
+}
+
+export interface TargetOptions {
+	loadout: Loadout;
+	/** The Simulator's base (the loadout's own state). */
+	base: SimState;
+	start: SimState;
+	selection: DpsSelection;
+	targetDps: number;
+	upgradesFor: (s: SimState) => Upgrade[];
+	/** Gold for an upgrade made from state `s`; null when unknown. */
+	goldFor: (u: Upgrade, s: SimState) => number | null;
+	byGold: boolean;
+	maxSteps?: number;
+}
+
+/** DPS as the meter shows it: damage over the recorded fight time. */
+const dpsOf = (m: { after: number; durationMs: number }) => m.after / (m.durationMs / 1000);
+
+export function planToTarget(o: TargetOptions): TargetPlan | null {
+	const { loadout, base, selection: sel } = o;
+	const meterOf = (s: SimState) => dpsMeter(loadout, sel.baseline, s, sel.buildRuns, sel.runs, sel.arkGrid, sel.context);
+	let state = structuredClone(o.start);
+	let meter = meterOf(state);
+	if (!meter || !sel.runs.length) return null;
+	const plan: TargetPlan = { startDps: dpsOf(meter), endDps: dpsOf(meter), steps: [], reached: dpsOf(meter) >= o.targetDps, gold: 0, unpriced: 0 };
+	const unpriced = new Set<string>();
+
+	for (let i = 0; i < (o.maxSteps ?? 15) && !plan.reached; i++) {
+		const now = dpsOf(meter);
+		const options: { u: Upgrade; next: SimState; gain: number; gold: number | null }[] = [];
+		for (const u of o.upgradesFor(state)) {
+			// Priced first: the meter is the slow part, and unpriced upgrades can't be on a gold path.
+			const gold = o.goldFor(u, state);
+			if (o.byGold && gold === null) { unpriced.add(u.key); continue; }
+			const next = structuredClone(state);
+			if (!applyUpgrade(loadout, next, base, u)) continue;
+			const g = meterGain(loadout, sel.baseline, state, next, sel.buildRuns, sel.runs, sel.arkGrid, meter, sel.context);
+			if (g.gainPct === null || !(g.gainPct > 0.001)) continue;
+			options.push({ u, next, gain: g.gainPct, gold });
+		}
+		if (!options.length) break;
+		const cost = (x: (typeof options)[number]) => (o.byGold ? x.gold! : x.gain);
+		const best = options.reduce((a, b) => {
+			if (!o.byGold) return b.gain > a.gain ? b : a;
+			const va = a.gold! / a.gain, vb = b.gold! / b.gain;
+			return vb < va || (vb === va && b.gain > a.gain) ? b : a;
+		});
+		// Once the best-value step would reach the target, the cheapest (or smallest) step that does ends the path.
+		const reaches = (x: (typeof options)[number]) => now * (1 + x.gain / 100) >= o.targetDps;
+		const pick = reaches(best) ? options.filter(reaches).reduce((a, b) => (cost(b) < cost(a) ? b : a)) : best;
+		state = pick.next;
+		meter = meterOf(state);
+		if (!meter) break;
+		plan.endDps = dpsOf(meter);
+		plan.steps.push({ upgrade: pick.u, gainPct: pick.gain, gold: pick.gold, dps: plan.endDps });
+		plan.gold += pick.gold ?? 0;
+		plan.reached = plan.endDps >= o.targetDps;
+	}
+	plan.unpriced = unpriced.size;
+	return plan;
+}
+
+/** "1.4b", "1400m", "1,400,000k" → DPS; "+5%" → the current DPS × 1.05. */
+export function parseTargetDps(text: string, current: number): number | null {
+	const t = text.trim().toLowerCase().replace(/,/g, '');
+	const pct = t.match(/^\+?([\d.]+)\s*%$/);
+	if (pct) return current * (1 + Number(pct[1]) / 100);
+	const m = t.match(/^([\d.]+)\s*([kmb]?)$/);
+	if (!m || !Number.isFinite(Number(m[1]))) return null;
+	const v = Number(m[1]) * ({ k: 1e3, m: 1e6, b: 1e9, '': 1 } as Record<string, number>)[m[2]];
+	return v > 0 ? v : null;
+}
