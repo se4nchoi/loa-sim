@@ -84,7 +84,42 @@ const applies = (e: OrderCoreEffect, skill: number, groups: string[] | undefined
 	!e.except?.includes(skill) && (!e.tripod || took(skill, e.tripod)) &&
 	(e.groups === null || !!e.skills?.includes(skill) || !!e.groups?.some((g) => groups?.includes(g)));
 const bonus = (effects: OrderCoreEffect[] | undefined, skill: number, groups: string[] | undefined, took: TripodCheck) =>
-	(effects ?? []).reduce((m, e) => (applies(e, skill, groups, took) ? m * (1 + (e.pct ?? 0)) : m), 1);
+	(effects ?? []).reduce((m, e) => (!e.stat && applies(e, skill, groups, took) ? m * (1 + (e.pct ?? 0)) : m), 1);
+/** Crit Rate / Crit Damage the effects add to a skill (percentage points as fractions: 0.25 = +25%). */
+const critAdd = (effects: OrderCoreEffect[] | undefined, stat: 'critRate' | 'critDamage', skill: number, groups: string[] | undefined, took: TripodCheck) =>
+	(effects ?? []).reduce((sum, e) => (e.stat === stat && applies(e, skill, groups, took) ? sum + (e.pct ?? 0) : sum), 0);
+
+/**
+ * A skill's crit rate and crit multiplier in a run. The multiplier comes from LOA Logs' own stat value when the log has
+ * it: +1% Crit Damage adds (crit share of damage) / multiplier percent, so multiplier = crit share / that value;
+ * this works for 100% crit builds too. Otherwise from the hits: the average crit hit over the average non-crit hit
+ * (per skill, or the run's damage-weighted one for skills with few of either).
+ */
+export function critProfile(run: RunSummary) {
+	const damage = run.skills.reduce((t, s) => t + s.damage, 0);
+	const critShare = damage ? run.skills.reduce((t, s) => t + s.critDamage, 0) / damage : 0;
+	const perPoint = run.statValues?.critDamage;
+	// +1% Crit Damage (0.01) adds perPoint% = critShare x 0.01 / multiplier.
+	const logged = perPoint && perPoint > 0 && critShare > 0 ? critShare / perPoint : null;
+	if (logged && logged > 1 && logged < 10) return (s: RunSkill) => ({ rate: s.hits ? Math.min(1, s.crits / s.hits) : 0, multiplier: logged });
+	const own = (s: RunSkill) => {
+		const nonCrits = s.hits - s.crits;
+		if (s.crits < 3 || nonCrits < 3 || !(s.damage > s.critDamage)) return null;
+		const m = (s.critDamage / s.crits) / ((s.damage - s.critDamage) / nonCrits);
+		return m > 1 && m < 10 ? m : null;
+	};
+	let weight = 0, sum = 0;
+	for (const s of run.skills) { const m = own(s); if (m) { weight += s.damage; sum += s.damage * m; } }
+	const pooled = weight ? sum / weight : null;
+	return (s: RunSkill) => ({ rate: s.hits ? Math.min(1, s.crits / s.hits) : 0, multiplier: own(s) ?? pooled });
+}
+
+/** Expected hit, relative: 1 + rate × (multiplier − 1); a crit change moves rate and multiplier. */
+export function critRatio(rate: number, multiplier: number, addRate: number, addDamage: number): number {
+	const before = 1 + rate * (multiplier - 1);
+	const after = 1 + Math.min(1, Math.max(0, rate + addRate)) * (multiplier + addDamage - 1);
+	return after / before;
+}
 
 export interface ArkGridEffect {
 	/** The multiplier on a skill's recorded damage in this run. */
@@ -149,12 +184,22 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 		}
 	}
 
+	const crits = critProfile(run);
+	let noCrits = false;
 	const factor = (s: RunSkill) => {
 		let m = 1;
 		for (const slot of slots) {
 			const groups = SKILL_GROUPS[slot.cls]?.[s.id];
 			for (const key of changedKeys(slot)) {
-				const ratio = bonus(slot.after.effects.get(key), s.id, groups, took) / bonus(slot.before.effects.get(key), s.id, groups, took);
+				const [a, b] = [slot.after.effects.get(key), slot.before.effects.get(key)];
+				let ratio = bonus(a, s.id, groups, took) / bonus(b, s.id, groups, took);
+				const addRate = critAdd(a, 'critRate', s.id, groups, took) - critAdd(b, 'critRate', s.id, groups, took);
+				const addDamage = critAdd(a, 'critDamage', s.id, groups, took) - critAdd(b, 'critDamage', s.id, groups, took);
+				if (addRate || addDamage) {
+					const c = crits(s);
+					if (c.multiplier) ratio *= critRatio(c.rate, c.multiplier, addRate, addDamage);
+					else noCrits = true;
+				}
 				if (ratio === 1) continue;
 				const { where, portion } = splitKey(key);
 				// The part of the skill's damage the effect touches: crits, frontal / back attacks, or all of it.
@@ -173,6 +218,7 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 		...(swaps.length ? [`Ark Grid: core swaps aren't valued, the clear's rotation would change (${swaps.join(', ')}). Simulate from the clear's setup to edit its own cores.`] : []),
 		...(reimport ? ["Ark Grid: re-import logs to value Destiny, Deathlord Mode-like and frontal / back attack effects."] : []),
 		...(missing.size ? [`Ark Grid: not in this clear's logs: ${[...missing].join(', ')}.`] : []),
+		...(noCrits ? ["Ark Grid: crit effects need a clear with crit hits recorded."] : []),
 		...(partly.size ? [`Ark Grid: cooldown, casting and Destiny-trigger effects of ${[...partly].join(', ')} aren't valued yet.`] : [])
 	];
 	return { factor, unvalued, changed: slots.length > 0 || swaps.length > 0 };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RunSummary } from '$lib/logs/protocol';
 import soulshan from './fixtures/na-soulshan.json';
-import { activeEffects, buffMatches, orderCoreEffect } from './ark-grid-dps';
+import { activeEffects, buffMatches, critProfile, critRatio, orderCoreEffect } from './ark-grid-dps';
 import { ORDER_CORE_EFFECTS } from './order-cores';
 import { initSimState, simCorePoints } from './simulate';
 import type { Loadout } from './types';
@@ -80,6 +80,21 @@ describe('order core effects', () => {
 		const effects = Object.values(ORDER_CORE_EFFECTS).flat();
 		expect(effects.some((e) => e.crit && e.pct)).toBe(true);
 		expect(effects.some((e) => e.position === 'front')).toBe(true);
+	});
+
+	it('values crit changes on the logged crit rate and crit multiplier', () => {
+		// 50% crits, crits hit 2.5x: +25% Crit Damage → (1 + 0.5 x 1.75) / (1 + 0.5 x 1.5) = 1.0714...
+		expect(critRatio(0.5, 2.5, 0, 0.25)).toBeCloseTo(1.875 / 1.75, 9);
+		// +10% Crit Rate at 95% stops at 100%.
+		expect(critRatio(0.95, 2, 0.1, 0)).toBeCloseTo(2 / 1.95, 9);
+		const run = { skills: [{ id: 1, damage: 3500, critDamage: 2500, hits: 20, crits: 10, casts: 1 }, { id: 2, damage: 100, critDamage: 0, hits: 1, crits: 0, casts: 1 }] } as unknown as RunSummary;
+		const c = critProfile(run);
+		expect(c(run.skills[0]).multiplier).toBeCloseTo(2.5, 9); // 250 per crit, 100 per non-crit
+		expect(c(run.skills[1]).multiplier).toBeCloseTo(2.5, 9); // too few hits: the run's
+		expect(c(run.skills[0]).rate).toBe(0.5);
+		// With LOA Logs' value for +1% Crit Damage (0.27% here, 2500 of 3600 damage on crits): 0.694 / 0.27 = 2.57.
+		const logged = critProfile({ ...run, statValues: { critDamage: 0.27 } } as unknown as RunSummary);
+		expect(logged(run.skills[1]).multiplier).toBeCloseTo((2500 / 3600) / 0.27, 9);
 	});
 
 	it('finds a state under its logged buff name', () => {

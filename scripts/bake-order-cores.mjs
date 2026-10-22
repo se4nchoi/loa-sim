@@ -122,6 +122,14 @@ function effectsOf(option, cls) {
 			head = whole.slice(0, whole.length - last.length);
 			s = last;
 		}
+		// Crit Rate / Crit Damage of skills ("Hurricane Sword Crit Damage +60.0%", "Overdrive Crit Rate +10.0%"): valued
+		// with each skill's logged crit rate and crit multiplier. Read as a damage line, marked by `stat`.
+		let stat;
+		const critStat = s.match(/^(?:(.+?) )?Crit (Damage|Rate) ([+-]) ?([\d.]+)%(.*)$/);
+		if (critStat && !/^On /.test(s)) {
+			stat = critStat[2] === 'Rate' ? 'critRate' : 'critDamage';
+			s = `${critStat[1] ? critStat[1] + ' ' : ''}Damage ${critStat[3]}${critStat[4]}%${critStat[5]}`;
+		}
 		// A bare "Damage +13.0%." continues the sentence before it (one Korean sentence split in two): the skills named
 		// there ("While using World Decimation, all incoming Damage -30.0%. Damage + 13.0%.").
 		const bare = s.match(/^Damage ?([+-]) ?([\d.]+)%\.?$/);
@@ -148,7 +156,7 @@ function effectsOf(option, cls) {
 		const perStack = /per stack/i.test(tail);
 		const plain = !destiny && !perStack && (tail === '' || when);
 		if (target !== undefined && !exceptUnknown && Number.isFinite(pct) && (plain || (destiny && (feature || (inBuff && buffName)) && !perStack))) {
-			out.push({ pct, ...target, ...(except.length ? { except: [...new Set(except)] } : {}), ...(destiny ? { ...(feature ? { feature: feature.index, level: feature.value } : {}), ...(inBuff && buffName ? { buff: buffName } : {}) } : {}), ...(when ? { when } : {}), ...(crit ? { crit: true } : {}), ...(needs ? { tripod: needs } : {}), ...(position ? { position: position[1] === 'Back' ? 'back' : 'front' } : {}) });
+			out.push({ pct, ...target, ...(except.length ? { except: [...new Set(except)] } : {}), ...(destiny ? { ...(feature ? { feature: feature.index, level: feature.value } : {}), ...(inBuff && buffName ? { buff: buffName } : {}) } : {}), ...(when ? { when } : {}), ...(crit ? { crit: true } : {}), ...(needs ? { tripod: needs } : {}), ...(stat ? { stat } : {}), ...(position ? { position: position[1] === 'Back' ? 'back' : 'front' } : {}) });
 		} else out.push({ text: line.trim() });
 		prev = line;
 	}
@@ -177,6 +185,8 @@ export interface OrderCoreEffect {
 	except?: number[];
 	/** Only with this tripod on the effect's skills ("Possession" on Gluttony): checked against the character's skills. */
 	tripod?: string;
+	/** A Crit Rate / Crit Damage change (pct in percentage points) instead of a damage multiplier. */
+	stat?: 'critRate' | 'critDamage';
 	/** On crit hits only: valued on the crit share of the damage. */
 	crit?: boolean;
 	/** Frontal or back attacks only: valued on the logged front/back attack damage. */

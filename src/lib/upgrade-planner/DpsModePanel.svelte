@@ -123,12 +123,20 @@
 	const baselineKey = $derived(clear ? `${characterKey}:${clear.id}:${clear.start}:${JSON.stringify(base)}` : '');
 	const baselineReady = $derived(!!clearSetup || confirmed === baselineKey);
 	const clearSetupCp = $derived(clearSetup ? simulate(loadout, clearSetup.state, base).cp : null);
-	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, baselineReady ? plain : clearSetup?.state ?? base, buildRuns, runs, arkGridModel?.orderCoreEffect, context ?? undefined) : null);
+	// Tripod conditions ("With Possession") are checked on the clear's own skills when its snapshot has them.
+	const clearSkills = $derived(setup?.snap?.raw?.skills as { id: number; tripods?: number[] }[] | undefined);
+	const arkGrid = $derived.by(() => {
+		const model = arkGridModel;
+		if (!model) return undefined;
+		const skills = clearSkills;
+		return skills ? ((l: Loadout, b: SimState, st: SimState, r: RunSummary) => model.orderCoreEffect({ ...l, skills } as Loadout, b, st, r)) as typeof model.orderCoreEffect : model.orderCoreEffect;
+	});
+	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, baselineReady ? plain : clearSetup?.state ?? base, buildRuns, runs, arkGrid, context ?? undefined) : null);
 	const configuredGain = $derived(context && !runs.length ? configuredPlanGain(loadout, base, base, plain, context) : null);
 	// Shared with Next Upgrades, which ranks upgrades on this meter.
 	$effect(() => {
 		const key = characterKey;
-		setDpsSelection(key, runs.length && baselineReady ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid: arkGridModel?.orderCoreEffect, context: context ?? undefined }
+		setDpsSelection(key, runs.length && baselineReady ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid: arkGrid, context: context ?? undefined }
 			: !runs.length && context ? {baseline: base, buildRuns: [], runs: [], context} : null);
 		return () => setDpsSelection(key, null);
 	});

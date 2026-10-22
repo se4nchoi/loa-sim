@@ -170,3 +170,9 @@ Follow-up (10-22, later): the two states the logs didn't have.
   logs keep no buff for it, so a mode named after a class group is valued on that group's skills.
 - "During Perfect Shot use," is a skill-use condition, not a state; "On Rifle Skill Crit Hit, Damage to foes +x%" is the
   Rifle skills' crits.
+
+Follow-up (10-22, crit): Crit Rate / Crit Damage effects ("Hurricane Sword Crit Damage +60%", "Overdrive Crit Rate +10%")
+are valued with each skill's logged crit rate and a crit multiplier from LOA Logs' own stat value: +1% Crit Damage adds
+(crit share) / multiplier percent, so multiplier = crit share / that value (Soulshan 2.54, Shanzkii 2.56, Kamehameshaan
+2.55, Ignishan 2.37 on their latest clears; works for 100% crit builds). Without the stat value, the hits estimate it
+(average crit hit / average non-crit hit). Tripod conditions now use the clear's own skills (Mathi's `raw.skills`).
