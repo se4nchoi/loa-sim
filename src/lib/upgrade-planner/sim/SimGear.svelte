@@ -54,7 +54,7 @@
 							<span class="text-sm font-semibold text-surface-100">{LABELS[slot]}</span>
 							<span title="Item level" class="rounded-full border border-surface-700 px-1 text-[11px] leading-4 tabular-nums {gearItemLevel(g) !== gearItemLevel(b) ? 'text-accent-300' : 'text-surface-300'}">{gearItemLevel(g)}</span>
 						</div>
-						{#if sim.quality[slot] !== undefined}<div class="mt-1 flex max-w-40 items-center gap-1.5"><span class="text-[10px] text-surface-400">Quality</span><QualityInput small hideMax bind:value={sim.quality[slot]!} changed={sim.quality[slot] !== base.quality[slot]} label={`${LABELS[slot]} quality`} /></div>{/if}
+						{#if sim.quality[slot] !== undefined}<div class="mt-1 flex max-w-40 items-center gap-1.5"><QualityInput small hideMax bind:value={sim.quality[slot]!} changed={sim.quality[slot] !== base.quality[slot]} label={`${LABELS[slot]} quality`} /></div>{/if}
 					</div>
 				</div>
 				<div class="ml-auto flex shrink-0 items-center gap-2">

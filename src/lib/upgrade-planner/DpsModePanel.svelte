@@ -69,15 +69,15 @@
 
 	// The panel's own view: folded, and the Beta intro dismissed. Kept for every character.
 	const VIEW_KEY = 'loa-sim:dps-panel';
-	let view = $state<{ folded: boolean; intro: boolean }>({ folded: false, intro: true });
-	$effect(() => {
-		untrack(() => {
-			try {
-				const v = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null');
-				view = { folded: v?.folded === true, intro: v?.intro !== false };
-			} catch { /* defaults */ }
-		});
-	});
+	// Read before the first draw: an intro card shown and then dropped (once dismissed) would move everything under it.
+	let view = $state<{ folded: boolean; intro: boolean }>((() => {
+		try {
+			const v = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null');
+			return { folded: v?.folded === true, intro: v?.intro !== false };
+		} catch {
+			return { folded: false, intro: true };
+		}
+	})());
 	function setView(next: Partial<typeof view>) {
 		view = { ...view, ...next };
 		try { localStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch { /* this visit only */ }

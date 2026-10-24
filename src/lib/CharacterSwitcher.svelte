@@ -10,8 +10,9 @@
 	import { loadCharacter } from '$lib/load-character';
 	import { characterKey, listSavedCharacters, type SavedCharacter } from '$lib/saved-character';
 	import { classIconUrl } from '$lib/upgrade-planner/class-icons';
+	import { hasStoredRuns } from '$lib/logs/runs-store.svelte';
 
-	let { current, dpsMode = false }: { /** Key of the character on screen ("na/soulshan"). */ current: string; /** Stay in DPS mode when switching. */ dpsMode?: boolean } = $props();
+	let { current, dpsMode = false }: { /** Key of the character on screen ("na/soulshan"). */ current: string; /** In DPS mode now: kept for a character with runs in this browser. */ dpsMode?: boolean } = $props();
 
 	let loading = $state<string | null>(null);
 	let error = $state<string | null>(null);
@@ -33,7 +34,8 @@
 		};
 	});
 
-	const openUrl = (key: string) => `/sim?c=${encodeURIComponent(key)}${dpsMode ? '&mode=dps' : ''}`;
+	// DPS mode carries over only to a character with runs in this browser; one without opens in CP, not on an import prompt.
+	const openUrl = (key: string) => `/sim?c=${encodeURIComponent(key)}${dpsMode && hasStoredRuns(key) ? '&mode=dps' : ''}`;
 
 	async function pick(key: string) {
 		error = null;
