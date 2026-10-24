@@ -27,7 +27,8 @@
 		simState: SimState;
 		base: SimState;
 		characterKey: string;
-		selection: DpsSelection;
+		/** null until the run's gear is confirmed: the card keeps its place, disabled. */
+		selection: DpsSelection | null;
 		/** The meter's simulated DPS now. */
 		meterDps: number;
 		/** Puts the plan's end state into the Simulator. */
@@ -64,7 +65,7 @@
 	const dpsText = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(3)}b` : formatDamage(n));
 
 	function run(start: SimState, target: number, done: (p: TargetPlan | null) => void) {
-		if (planning) return;
+		if (planning || !selection) return;
 		error = null;
 		planning = true;
 		const sel = selection, gold = byGold;
@@ -81,6 +82,7 @@
 		const typed = text.trim();
 		const target = typed ? parseTargetDps(typed, meterDps) : null;
 		if (typed && target === null) { error = 'Enter a DPS like 1.4b or 1400m, or +5%, or leave it empty.'; return; }
+		if (!selection) return;
 		const ceiling = target !== null && target > meterDps ? gearCeiling(loadout, simState, selection) : null;
 		// A little room over the measured ceiling: accessories, the bracelet and Ark Grid can add some.
 		const out = target !== null && ceiling !== null && target > ceiling * 1.05;
@@ -128,12 +130,12 @@
 	<!-- One control: how to plan, then what to plan for. Switching the method re-plans a plan already shown. -->
 	<form class="mt-1.5 flex w-full max-w-sm flex-col gap-1.5" onsubmit={(e) => { e.preventDefault(); planNow(); }}>
 		<div class="relative" onclickcapture={(e) => { if (stale(e)) { e.stopPropagation(); e.preventDefault(); } }}>
-		<Segmented label="Plan by" full disabled={planning} value={byGold ? 'gold' : 'steps'} options={[{ value: 'steps', label: 'Fewest steps', title: 'Biggest DPS gain at each step' }, { value: 'gold', label: 'Least gold', title: 'Least gold per 1% DPS at each step' }]} onselect={(v) => { byGold = v === 'gold'; if (plan) planNow(); }} size="h-7 px-2 text-xs" />
+		<Segmented label="Plan by" full disabled={planning || !selection} value={byGold ? 'gold' : 'steps'} options={[{ value: 'steps', label: 'Fewest steps', title: 'Biggest DPS gain at each step' }, { value: 'gold', label: 'Least gold', title: 'Least gold per 1% DPS at each step' }]} onselect={(v) => { byGold = v === 'gold'; if (plan) planNow(); }} size="h-7 px-2 text-xs" />
 		{#if planning}<span class="absolute inset-0 flex items-center justify-center" role="status" aria-label="Planning">{@render spinner('size-4 text-accent-300')}</span>{/if}
 		</div>
 		<div class="flex gap-1.5">
-			<input disabled={planning} class="h-8 min-w-0 flex-1 disabled:opacity-60 rounded-xs border border-surface-700 bg-surface-950 px-2 text-sm text-surface-100 tabular-nums" placeholder="1.4b, +5%, or empty: best upgrades" bind:value={text} aria-label="Target DPS" />
-			<button type="submit" class="{btn} h-8 gap-1.5 px-4" disabled={planning}>{#if planning}{@render spinner('size-3.5')}Planning…{:else}Plan{/if}</button>
+			<input disabled={planning || !selection} class="h-8 min-w-0 flex-1 disabled:opacity-60 rounded-xs border border-surface-700 bg-surface-950 px-2 text-sm text-surface-100 tabular-nums" placeholder="1.4b, +5%, or empty: best upgrades" bind:value={text} aria-label="Target DPS" />
+			<button type="submit" class="{btn} h-8 gap-1.5 px-4" disabled={planning || !selection}>{#if planning}{@render spinner('size-3.5')}Planning…{:else}Plan{/if}</button>
 		</div>
 	</form>
 	{#if plan && goal?.ceiling}

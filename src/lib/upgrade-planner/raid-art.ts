@@ -19,16 +19,21 @@ const ART: Record<string, Layer[]> = {
 	Mordum: [{ src: 'https://cdn-lostark.game.onstove.com/2026/event/260923_update_C4XgyQie/images/pc/slide1.webp', size: 'cover', position: '30% 40%' }]
 };
 
-/** One layer's image: the small copy (and its 2x for sharp screens), or a full URL as is. */
-const image = (src: string) =>
-	src.startsWith('https://') ? `url("${src}")` : `image-set(url("/raids/${src}-640.jpg") 1x, url("/raids/${src}-1280.jpg") 2x)`;
+/**
+ * One layer's image: a full URL as is, else our copy. Cards (~200px wide) take the 640 one (1280 on sharp screens); the
+ * banner, up to ~1250px wide, always the 1280 one: the browser picks by pixel density, not by how wide it's drawn.
+ */
+const image = (src: string, wide: boolean) =>
+	src.startsWith('https://') ? `url("${src}")`
+	: wide ? `url("/raids/${src}-1280.jpg")`
+	: `image-set(url("/raids/${src}-640.jpg") 1x, url("/raids/${src}-1280.jpg") 2x)`;
 
-/** Raid (card name) → CSS background (image, size, position) of its art, when one is known. */
-export function raidArt(name: string): string | undefined {
+/** Raid (card name) → CSS background (image, size, position) of its art, when one is known. `wide`: for the banner. */
+export function raidArt(name: string, wide = false): string | undefined {
 	const layers = ART[name];
 	if (!layers) return undefined;
 	return [
-		`background-image: ${layers.map((l) => image(l.src)).join(', ')}`,
+		`background-image: ${layers.map((l) => image(l.src, wide)).join(', ')}`,
 		`background-size: ${layers.map((l) => l.size).join(', ')}`,
 		`background-position: ${layers.map((l) => l.position).join(', ')}`,
 		'background-repeat: no-repeat'

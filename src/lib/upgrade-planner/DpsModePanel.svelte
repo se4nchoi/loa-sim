@@ -330,7 +330,7 @@
 		{#if !raid || !clear}
 			<p class="text-sm text-surface-300">{pick.use === 'failed' ? 'No failed runs with boss HP.' : 'No cleared runs.'} <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
 		{:else}
-		{@const art = raidArt(raid.name)}
+		{@const art = raidArt(raid.name, true)}
 		<!-- Two columns on wide screens: the raids on the left (best DPS on each), the picked one on the right. -->
 		<div class={shared ? '' : 'lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:gap-4'}>
 		<nav class="flex flex-col gap-1.5 max-lg:hidden" aria-label="Raids" hidden={!!shared}>
@@ -400,30 +400,38 @@
 			</div>
 		</div>
 
-		<!-- A failed pull: how it ended; for an enrage, the DPS it needed. -->
-		{#if wipe}
-			<!-- Your part of what the party was short: everyone the same +%, so your DPS by the party's missing percent. -->
-			{@const yours = clear.damage / (clear.duration / 1000)}
-			{@const need = yours * (1 + wipe.partyPct / 100)}
-			{@const hint = wipe.pattern?.kind === 'time' ? `${wipe.pattern.count} pulls ended near ${time(wipe.pattern.at * 1000)} with the boss at different HP` : wipe.pattern?.kind === 'hp' ? `${wipe.pattern.count} pulls ended near ${hpText(wipe.pattern.at)} HP` : undefined}
-			<div class="mb-3 rounded-xs border px-3 py-2 text-sm {enrage ? 'border-rose-500/40 bg-rose-950/30' : 'border-surface-700 bg-surface-950/50'}">
-				<dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-surface-300">
-					<dt>Wiped at</dt><dd class="font-semibold text-surface-50 tabular-nums">{time(clear.duration)}</dd>
-					<dt class="truncate">{clear.boss}</dt><dd class="font-semibold text-rose-200 tabular-nums">{hpText(wipe.hpLeftPct)} HP</dd>
-					{#if wipe.dead?.of}<dt>Players dead</dt><dd class="font-semibold text-surface-50 tabular-nums">{wipe.dead.count} of {wipe.dead.of}</dd>{/if}
-					<dd class="col-span-2 mt-1 flex items-center gap-2" title={hint}>
+		<!-- The run in a few facts, the same shape for clears and wipes (left: how it ended; right: your part), so switching
+		     runs or tabs doesn't move the page. An enrage's right side: the party's shortfall and your part of it (everyone the
+		     same +%, so your DPS by the party's missing percent). -->
+		{#if clear}
+		{@const yours = clear.damage / (clear.duration / 1000)}
+		{@const sharePct = clear.partyDamage ? Math.min(100, (clear.damage / clear.partyDamage) * 100) : null}
+		{@const need = wipe ? yours * (1 + wipe.partyPct / 100) : 0}
+		{@const hint = wipe?.pattern?.kind === 'time' ? `${wipe.pattern.count} pulls ended near ${time(wipe.pattern.at * 1000)}, boss HP varied` : wipe?.pattern?.kind === 'hp' ? `${wipe.pattern.count} pulls ended near ${hpText(wipe.pattern.at)} HP` : undefined}
+		<div class="mb-3 grid gap-x-6 gap-y-2 rounded-xs border px-3 py-2 text-sm sm:grid-cols-2 {wipe && enrage ? 'border-rose-500/40 bg-rose-950/30' : 'border-surface-700 bg-surface-950/50'}">
+			<dl class="grid grid-cols-[max-content_minmax(0,1fr)] content-start gap-x-3 gap-y-0.5 text-surface-300">
+				<dt>{wipe ? 'Wiped at' : clear.cleared ? 'Cleared at' : 'Ended at'}</dt><dd class="font-semibold text-surface-50 tabular-nums">{time(clear.duration)}</dd>
+				<dt class="max-w-48 truncate">{clear.boss}</dt><dd class="font-semibold tabular-nums {wipe ? 'text-rose-200' : 'text-emerald-300'}">{wipe ? `${hpText(wipe.hpLeftPct)} HP` : clear.cleared ? 'Cleared' : '—'}</dd>
+				<dt>Players dead</dt><dd class="font-semibold text-surface-50 tabular-nums">{clear.dead?.of ? `${clear.dead.count} of ${clear.dead.of}` : '—'}</dd>
+				<dd class="col-span-2 mt-1 flex h-6 min-w-0 items-center gap-2" title={hint}>
+					{#if wipe}
 						<Segmented label="Cause" value={enrage ? 'enrage' : 'mech'} options={[{ value: 'enrage', label: 'Enrage', color: 'var(--color-rose-700)' }, { value: 'mech', label: 'Mech fail' }]} onselect={(v) => markEnrage(clear, v === 'enrage')} size="h-6 px-2 text-xs" />
-						{#if hint}<span class="text-xs text-surface-500">{hint}</span>{/if}
-					</dd>
-				</dl>
-				{#if enrage}
-					<div class="mt-2 border-t border-rose-500/20 pt-2 text-rose-100">
-						<p>The party was <span class="font-semibold tabular-nums">+{wipe.partyPct.toFixed(1)}%</span> damage short.</p>
-						<p class="mt-0.5">Your part{#if wipe.sharePct !== null}{' '}<span class="text-rose-200/70">({wipe.sharePct.toFixed(1)}% of the party's damage)</span>{/if}: <span class="tabular-nums">{formatDamage(yours)}</span> → <span class="font-semibold tabular-nums">{formatDamage(need)}</span> DPS, <span class="font-semibold tabular-nums">{formatDamage(need - yours)}</span> short.</p>
-						{#if target}<button type="button" class="mt-1.5 rounded-xs border border-rose-400/50 bg-rose-500/15 px-2 py-0.5 font-semibold hover:bg-rose-500/30" onclick={() => target?.planFor(`${(need / 1e6).toFixed(1)}m`)}>Plan DPS</button>{/if}
-					</div>
+						{#if hint}<span class="truncate text-xs text-surface-500">{hint}</span>{/if}
+					{/if}
+				</dd>
+			</dl>
+			<dl class="grid grid-cols-[max-content_minmax(0,1fr)] content-start gap-x-3 gap-y-0.5 text-surface-300">
+				{#if wipe && enrage}
+					<dt>Party short</dt><dd class="font-semibold text-rose-100 tabular-nums">+{wipe.partyPct.toFixed(1)}% damage</dd>
+					<dt>Your part</dt><dd class="text-rose-100 tabular-nums">{formatDamage(yours)} → <span class="font-semibold">{formatDamage(need)}</span> DPS</dd>
+					<dt>Short by</dt><dd class="font-semibold text-rose-100 tabular-nums">{formatDamage(need - yours)}</dd>
+					<dd class="col-span-2 mt-1 flex h-6 items-center">{#if target}<button type="button" class="h-6 rounded-xs border border-rose-400/50 bg-rose-500/15 px-2 text-xs font-semibold text-rose-100 hover:bg-rose-500/30" onclick={() => target?.planFor(`${(need / 1e6).toFixed(1)}m`)}>Plan DPS</button>{/if}</dd>
+				{:else}
+					<dt>Your DPS</dt><dd class="font-semibold text-surface-50 tabular-nums">{formatDamage(yours)}</dd>
+					<dt>Party share</dt><dd class="font-semibold text-surface-50 tabular-nums">{sharePct !== null ? `${sharePct.toFixed(1)}%` : '—'}</dd>
 				{/if}
-			</div>
+			</dl>
+		</div>
 		{/if}
 
 		<!-- Baseline: the run's own setup (its snapshot). One status line; what else differs folds away. -->
@@ -485,7 +493,7 @@
 		{/if}
 
 		<!-- Target DPS above the meter, for clears and wipes alike: the skill list below can be long. -->
-		{#if selection && meter && onsimulate}
+		{#if meter && onsimulate}
 			<div class="mb-3"><DpsTarget bind:this={target} {loadout} simState={plain} {base} {characterKey} {selection} meterDps={simulatedDps} onapply={onsimulate} /></div>
 		{/if}
 		{#if meter}<div bind:this={meterBox}><DpsMeter {meter} {skillName} {skillIcon} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>{/if}
