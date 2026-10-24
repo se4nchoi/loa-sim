@@ -97,7 +97,8 @@
 
 <div class="flex flex-col divide-y divide-neutral-950 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800">
 	<div class="flex flex-row items-center bg-black/10 px-3 py-2 font-bold">
-		<span>Combat Power Simulator</span>
+		<!-- Overview in both modes: the card shows CP either way (DPS lives in the DPS sim panel). -->
+		<span>Overview</span>
 		{#if onbreakdown}
 			<button
 				type="button"
