@@ -1,13 +1,14 @@
 // How each raid looks on the DPS tab's cards: official key art from lostark.game.onstove.com/Artwork, kept here as
 // small copies (static/raids/<raid>-640.jpg and -1280.jpg, made from the 3840x2160 originals, collected 10-14-26; Belgardin 10-24-26), else
-// a color per raid. Mordum (Act 3) has no Artwork entry and uses its update page's art from the game's CDN.
+// a color per raid. Mordum (Act 3) has no Artwork entry and uses its update page's art from the game's CDN. Armoche's gallery
+// entry shows Echidna, so its copy is the Act 4 update page's Armoche cutout over that page's Fortress backdrop (10-24-26).
 // `position` keeps the boss in view when the art is cropped to a card or the banner.
 
 interface Layer { src: string; size: string; position: string }
 const local = (raid: string, position: string): Layer[] => [{ src: raid, size: 'cover', position }];
 const ART: Record<string, Layer[]> = {
 	Kazeros: local('kazeros', '50% 30%'),
-	Armoche: local('armoche', '35% 30%'),
+	Armoche: local('armoche', '68% 12%'),
 	Aegir: local('aegir', '55% 25%'),
 	Brelshaza: local('brelshaza', '58% 25%'),
 	'Horizon Cathedral': local('cathedral', '50% 20%'),
