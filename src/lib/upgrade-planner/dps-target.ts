@@ -5,7 +5,8 @@
 // would reach the target, the cheapest (or smallest) step that does ends the path instead of overshooting.
 import { applyUpgrade } from './apply-upgrade';
 import { maxEquipment } from './sim-max';
-import { dpsMeter, meterGain } from './dps-meter';
+import { dpsMeter, meterGain, type Meter } from './dps-meter';
+import { supportGain, supportMeter } from './support-meter';
 import type { DpsSelection } from './dps-selection.svelte';
 import type { SimState } from './simulate';
 import type { Loadout } from './types';
@@ -50,12 +51,15 @@ export interface TargetOptions {
 	maxSteps?: number;
 }
 
+/** What a plan measures: the meter's damage with the edits over the recorded fight time. */
+type Measured = { after: number; durationMs: number };
 /** DPS as the meter shows it: damage over the recorded fight time. */
 const dpsOf = (m: { after: number; durationMs: number }) => m.after / (m.durationMs / 1000);
 
 export function planToTarget(o: TargetOptions): TargetPlan | null {
 	const { loadout, base, selection: sel } = o;
-	const meterOf = (s: SimState) => dpsMeter(loadout, sel.baseline, s, sel.buildRuns, sel.runs, sel.arkGrid, sel.context);
+	// A support's plan measures the party DPS their buffs add (support-meter.ts); a dealer's, their own.
+	const meterOf = (s: SimState): Measured | null => (sel.support ? supportMeter(loadout, sel.baseline, s, sel.runs[0]) : dpsMeter(loadout, sel.baseline, s, sel.buildRuns, sel.runs, sel.arkGrid, sel.context));
 	let state = structuredClone(o.start);
 	let meter = meterOf(state);
 	if (!meter || !sel.runs.length) return null;
@@ -72,7 +76,8 @@ export function planToTarget(o: TargetOptions): TargetPlan | null {
 			if (o.byGold && gold === null) { unpriced.add(u.key); continue; }
 			const next = structuredClone(state);
 			if (!applyUpgrade(loadout, next, base, u)) continue;
-			const g = meterGain(loadout, sel.baseline, state, next, sel.buildRuns, sel.runs, sel.arkGrid, meter, sel.context);
+			const g = sel.support ? { gainPct: supportGain(loadout, sel.baseline, state, next, sel.runs[0]) }
+				: meterGain(loadout, sel.baseline, state, next, sel.buildRuns, sel.runs, sel.arkGrid, meter as Meter, sel.context);
 			if (g.gainPct === null || !(g.gainPct > 0.001)) continue;
 			options.push({ u, next, gain: g.gainPct, gold });
 		}
@@ -147,6 +152,7 @@ export function gearCeiling(loadout: Loadout, start: SimState, selection: DpsSel
 	const s = structuredClone(start);
 	maxEquipment(s);
 	for (const g of s.gems) g.level = 10;
-	const m = dpsMeter(loadout, selection.baseline, s, selection.buildRuns, selection.runs, selection.arkGrid, selection.context);
+	const m = selection.support ? supportMeter(loadout, selection.baseline, s, selection.runs[0])
+		: dpsMeter(loadout, selection.baseline, s, selection.buildRuns, selection.runs, selection.arkGrid, selection.context);
 	return m ? dpsOf(m) : null;
 }

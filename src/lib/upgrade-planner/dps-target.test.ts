@@ -73,3 +73,18 @@ describe('plan steps grouped', () => {
 		expect(groups[1].gold).toBe(30);
 	});
 });
+
+describe('target DPS for a support', () => {
+	it("plans on the party DPS a support's buffs add, each step measured on the support model", async () => {
+		const sup = (await import('./fixtures/na-brushann.json')).default as unknown as Loadout;
+		const supBase = initSimState(sup);
+		const supRun = { id: 1, start: 1, boss: 'Corvus Tul Rak', difficulty: 'Hard', cleared: true, player: 'Brushann', duration: 100_000, damage: 1e9, skills: [],
+			combatPower: null, itemLevel: null, spec: null, engravings: [], statValues: null, critConversion: false, meterVersion: null,
+			support: { kinds: { attack: 4e10, damage: 3e10, brand: 2e10, other: 1e10 }, dealers: [{ cls: 'Souleater', damage: 3e11, kinds: { attack: 4e10, damage: 3e10, brand: 2e10, other: 1e10 } }] } } as unknown as RunSummary;
+		const plan = planToTarget({ loadout: sup, base: supBase, start: supBase, selection: { baseline: supBase, buildRuns: [], runs: [supRun], support: true },
+			targetDps: Infinity, byGold: false, maxSteps: 3, goldFor: () => null, upgradesFor: (s) => liveUpgrades(sup, s, supBase, undefined, true) })!;
+		expect(plan.startDps).toBeCloseTo(1e11 / 100);
+		expect(plan.steps.length).toBeGreaterThan(0);
+		expect(plan.endDps).toBeGreaterThan(plan.startDps);
+	});
+});
