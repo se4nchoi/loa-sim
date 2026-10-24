@@ -268,7 +268,21 @@
 				<li class="rounded-xs bg-surface-950/60 p-2"><p class="font-semibold text-surface-100">2 · Pick a run</p><p class="mt-0.5 text-surface-400">Its damage, skill by skill, on the gear it was played with.</p></li>
 				<li class="rounded-xs bg-surface-950/60 p-2"><p class="font-semibold text-surface-100">3 · Edit the cards below</p><p class="mt-0.5 text-surface-400">Each skill's damage follows your gear, gems and Ark Grid edits.</p></li>
 			</ol>
-			<p class="mt-2 text-[11px] text-surface-500">Effects not modelled yet are listed under the meter.</p>
+			<div class="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+				<div class="rounded-xs bg-surface-950/60 p-2">
+					<p class="font-semibold text-surface-100">What it simulates</p>
+					<p class="mt-0.5 text-surface-300">The same run, played the same way: <span class="text-surface-100">if you played it exactly like this again, how much DPS would this change add?</span></p>
+					<ul class="mt-1 list-disc space-y-0.5 pl-4 text-surface-400">
+						<li>Kept as recorded: casts, rotation, crits, buffs and fight length.</li>
+						<li>Scaled: each skill's damage, by the stat, gem and Ark Grid changes.</li>
+						<li>Not counted yet: listed under the meter.</li>
+					</ul>
+				</div>
+				<div class="rounded-xs border border-green-500/30 bg-green-500/5 p-2">
+					<p class="font-semibold text-green-200">Before spending gold</p>
+					<p class="mt-0.5 text-surface-300">Gear moves DPS by a few percent. Uptime, positionals and staying alive usually move it far more, for free. Use this to see what an upgrade is worth, not as a shopping list.</p>
+				</div>
+			</div>
 		</div>
 	{/if}
 
@@ -356,7 +370,9 @@
 
 		<!-- A failed pull: how it ended; for an enrage, the DPS it needed. -->
 		{#if wipe}
-			{@const need = wipe.youPct !== null ? (clear.damage / (clear.duration / 1000)) * (1 + wipe.youPct / 100) : null}
+			<!-- Your part of what the party was short: everyone the same +%, so your DPS by the party's missing percent. -->
+			{@const yours = clear.damage / (clear.duration / 1000)}
+			{@const need = yours * (1 + wipe.partyPct / 100)}
 			{@const hint = wipe.pattern?.kind === 'time' ? `${wipe.pattern.count} pulls ended near ${time(wipe.pattern.at * 1000)} with the boss at different HP` : wipe.pattern?.kind === 'hp' ? `${wipe.pattern.count} pulls ended near ${hpText(wipe.pattern.at)} HP` : undefined}
 			<div class="mb-3 rounded-xs border px-3 py-2 text-xs {enrage ? 'border-rose-500/40 bg-rose-950/30' : 'border-surface-700 bg-surface-950/50'}">
 				<dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-surface-300">
@@ -369,11 +385,12 @@
 						{#if hint}<span class="text-[11px] text-surface-500">{hint}</span>{/if}
 					</dd>
 				</dl>
-				{#if enrage && need !== null}
-					<p class="mt-2 flex flex-wrap items-center gap-2 text-rose-100">
-						<span>You needed <span class="font-semibold tabular-nums">{formatDamage(need)}</span> DPS <span class="text-rose-200/70 tabular-nums">(+{wipe.youPct!.toFixed(1)}%)</span></span>
-						{#if target}<button type="button" class="ml-auto rounded-xs border border-rose-400/50 bg-rose-500/15 px-2 py-0.5 font-semibold hover:bg-rose-500/30" onclick={() => target?.planFor(`${(need / 1e6).toFixed(1)}m`)}>Plan for it</button>{/if}
-					</p>
+				{#if enrage}
+					<div class="mt-2 border-t border-rose-500/20 pt-2 text-rose-100">
+						<p>The party was <span class="font-semibold tabular-nums">+{wipe.partyPct.toFixed(1)}%</span> damage short.</p>
+						<p class="mt-0.5">Your part{#if wipe.sharePct !== null}{' '}<span class="text-rose-200/70">({wipe.sharePct.toFixed(1)}% of the party's damage)</span>{/if}: <span class="tabular-nums">{formatDamage(yours)}</span> → <span class="font-semibold tabular-nums">{formatDamage(need)}</span> DPS, <span class="font-semibold tabular-nums">{formatDamage(need - yours)}</span> short.</p>
+						{#if target}<button type="button" class="mt-1.5 rounded-xs border border-rose-400/50 bg-rose-500/15 px-2 py-0.5 font-semibold hover:bg-rose-500/30" onclick={() => target?.planFor(`${(need / 1e6).toFixed(1)}m`)}>Plan DPS</button>{/if}
+					</div>
 				{/if}
 			</div>
 		{/if}
@@ -428,10 +445,11 @@
 			</div>
 		{/if}
 
-		{#if meter}<div bind:this={meterBox}><DpsMeter {meter} {skillName} {skillIcon} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>{/if}
+		<!-- Target DPS above the meter, for clears and wipes alike: the skill list below can be long. -->
 		{#if selection && meter && onsimulate}
-			<div class="mt-3"><DpsTarget bind:this={target} {loadout} simState={plain} {base} {characterKey} {selection} meterDps={simulatedDps} onapply={onsimulate} /></div>
+			<div class="mb-3"><DpsTarget bind:this={target} {loadout} simState={plain} {base} {characterKey} {selection} meterDps={simulatedDps} onapply={onsimulate} /></div>
 		{/if}
+		{#if meter}<div bind:this={meterBox}><DpsMeter {meter} {skillName} {skillIcon} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>{/if}
 		</div>
 		</div>
 		{/if}
