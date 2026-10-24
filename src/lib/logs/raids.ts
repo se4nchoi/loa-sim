@@ -57,7 +57,8 @@ const RAIDS: [raid: string, gates: string[][]][] = [
 	['Armoche (Act 4)', [['Act 4: Covetous Master Echidna', 'Brelshaza, Ember in the Ashes'], ['Armoche, Sentinel of the Abyss']]],
 	['Kazeros (Final Act)', [['Abyss Lord Kazeros', 'Abyssal Afterimage'], ['Archdemon Kazeros', 'Death Incarnate Kazeros']]],
 	['Serca', [['Witch of Agony, Serca'], ['Corvus Tul Rak']]],
-	['Horizon Cathedral', [['Archbishop Arcenos'], ['Arcenos, Vanguard of Fanaticism']]]
+	['Horizon Cathedral', [['Archbishop Arcenos'], ['Arcenos, Vanguard of Fanaticism']]],
+	['Belgardin', [['Belgardin, Arbiter of Death']]]
 ];
 
 export interface RaidGate {

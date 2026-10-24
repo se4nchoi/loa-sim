@@ -1,5 +1,5 @@
 // How each raid looks on the DPS tab's cards: official key art from lostark.game.onstove.com/Artwork, kept here as
-// small copies (static/raids/<raid>-640.jpg and -1280.jpg, made from the 3840x2160 originals, collected 10-14-26), else
+// small copies (static/raids/<raid>-640.jpg and -1280.jpg, made from the 3840x2160 originals, collected 10-14-26; Belgardin 10-24-26), else
 // a color per raid. Mordum (Act 3) has no Artwork entry and uses its update page's art from the game's CDN.
 // `position` keeps the boss in view when the art is cropped to a card or the banner.
 
@@ -12,6 +12,7 @@ const ART: Record<string, Layer[]> = {
 	Brelshaza: local('brelshaza', '58% 25%'),
 	'Horizon Cathedral': local('cathedral', '50% 20%'),
 	Serca: local('serca', '62% 15%'),
+	Belgardin: local('belgardin', '50% 25%'),
 	Behemoth: local('behemoth', '45% 35%'),
 	Echidna: local('echidna', '50% 18%'),
 	Thaemine: local('thaemine', '55% 35%'),
@@ -43,10 +44,11 @@ const TONES = [
 	'bg-violet-950 border-violet-800/70 text-violet-200',
 	'bg-fuchsia-950 border-fuchsia-800/70 text-fuchsia-200',
 	'bg-teal-950 border-teal-800/70 text-teal-200',
-	'bg-orange-950 border-orange-800/70 text-orange-200'
+	'bg-orange-950 border-orange-800/70 text-orange-200',
+	'bg-indigo-950 border-indigo-800/70 text-indigo-200'
 ];
 
-const KNOWN: Record<string, number> = { 'Horizon Cathedral': 3, Serca: 4, Kazeros: 0, Armoche: 6, Mordum: 7, Brelshaza: 5, Aegir: 2 };
+const KNOWN: Record<string, number> = { 'Horizon Cathedral': 3, Serca: 4, Kazeros: 0, Armoche: 6, Mordum: 7, Brelshaza: 5, Aegir: 2, Belgardin: 8 };
 
 /** Same raid, same color, every visit. */
 export function raidTone(name: string): string {
