@@ -385,8 +385,7 @@
 					<dt>Wiped at</dt><dd class="font-semibold text-surface-50 tabular-nums">{time(clear.duration)}</dd>
 					<dt class="truncate">{clear.boss}</dt><dd class="font-semibold text-rose-200 tabular-nums">{hpText(wipe.hpLeftPct)} HP</dd>
 					{#if wipe.dead?.of}<dt>Players dead</dt><dd class="font-semibold text-surface-50 tabular-nums">{wipe.dead.count} of {wipe.dead.of}</dd>{/if}
-					<dt class="self-center">Cause</dt>
-					<dd class="flex items-center gap-2" title={hint}>
+					<dd class="col-span-2 mt-1 flex items-center gap-2" title={hint}>
 						<Segmented label="Cause" value={enrage ? 'enrage' : 'mech'} options={[{ value: 'enrage', label: 'Enrage', color: 'var(--color-rose-700)' }, { value: 'mech', label: 'Mech fail' }]} onselect={(v) => markEnrage(clear, v === 'enrage')} size="h-6 px-2 text-xs" />
 						{#if hint}<span class="text-[11px] text-surface-500">{hint}</span>{/if}
 					</dd>

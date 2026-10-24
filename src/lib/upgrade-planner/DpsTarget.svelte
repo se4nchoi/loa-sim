@@ -102,21 +102,31 @@
 </script>
 
 <div class="rounded-xs border border-surface-700 bg-surface-950/50 p-3 text-xs" bind:this={box}>
-	<div class="flex flex-wrap items-center gap-2">
-		<span class="text-sm font-semibold text-surface-100">Target DPS</span>
-		<form class="flex min-w-0 flex-1 gap-1.5" onsubmit={(e) => { e.preventDefault(); planNow(); }}>
-			<input class="h-7 min-w-0 flex-1 rounded-xs border border-surface-700 bg-surface-950 px-2 text-xs text-surface-100 sm:max-w-48" placeholder="1.4b, 1400m or +5%" bind:value={text} aria-label="Target DPS" />
-			<button type="submit" class="{btn} h-7 px-3" disabled={planning}>{planning ? 'Planning…' : 'Plan'}</button>
-		</form>
-		<Segmented label="Plan by" value={byGold ? 'gold' : 'steps'} options={[{ value: 'steps', label: 'Fewest steps', title: 'Biggest DPS gain at each step' }, { value: 'gold', label: 'Least gold', title: 'Least gold per 1% DPS at each step' }]} onselect={(v) => { byGold = v === 'gold'; plan = null; }} size="h-7 px-2 text-xs" />
-	</div>
+	<p class="text-sm font-semibold text-surface-100">Target DPS</p>
+	<!-- One control: how to plan, then what to plan for. Switching the method re-plans a plan already shown. -->
+	<form class="mt-1.5 flex w-full max-w-sm flex-col gap-1.5" onsubmit={(e) => { e.preventDefault(); planNow(); }}>
+		<Segmented label="Plan by" full value={byGold ? 'gold' : 'steps'} options={[{ value: 'steps', label: 'Fewest steps', title: 'Biggest DPS gain at each step' }, { value: 'gold', label: 'Least gold', title: 'Least gold per 1% DPS at each step' }]} onselect={(v) => { byGold = v === 'gold'; if (plan) planNow(); }} size="h-7 px-2 text-xs" />
+		<div class="flex gap-1.5">
+			<input class="h-8 min-w-0 flex-1 rounded-xs border border-surface-700 bg-surface-950 px-2 text-sm text-surface-100 tabular-nums" placeholder="1.4b, 1400m or +5%" bind:value={text} aria-label="Target DPS" />
+			<button type="submit" class="{btn} h-8 px-4" disabled={planning}>{planning ? 'Planning…' : 'Plan'}</button>
+		</div>
+	</form>
 	{#if byGold && unsetPrices}<p class="mt-1.5 text-amber-300">No material prices yet: honing counts as free.</p>{/if}
 	{#if error}<p class="mt-1.5 text-amber-300">{error}</p>{/if}
 	{#if plan}
 		{@const p = plan}
-		<p class="mt-2 font-semibold {p.reached ? 'text-green-400' : 'text-amber-300'}">
-			{#if !p.steps.length && p.reached}Already there: {dpsText(p.startDps)}.
-			{:else}{dpsText(p.startDps)} → {dpsText(p.endDps)} · {p.steps.length} step{p.steps.length === 1 ? '' : 's'}{#if byGold} · {formatGold(p.gold)} gold{/if}{#if !p.reached} · not reached{/if}{/if}
+		<!-- Each figure its own colour: DPS before and after, steps, gold. -->
+		<p class="mt-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+			{#if !p.steps.length && p.reached}<span class="font-semibold text-green-400">Already there: {dpsText(p.startDps)}</span>
+			{:else}
+				<span class="text-surface-400 tabular-nums">{dpsText(p.startDps)}</span>
+				<span class="text-surface-500" aria-hidden="true">→</span>
+				<span class="font-bold tabular-nums {p.reached ? 'text-green-400' : 'text-amber-300'}">{dpsText(p.endDps)}</span>
+				{#if !p.reached}<span class="text-xs text-amber-300">not reached</span>{/if}
+				<span class="text-surface-600" aria-hidden="true">·</span>
+				<span class="text-surface-100">{p.steps.length} step{p.steps.length === 1 ? '' : 's'}</span>
+				{#if byGold}<span class="text-surface-600" aria-hidden="true">·</span><span class="font-semibold text-yellow-300 tabular-nums">{formatGold(p.gold)} gold</span>{/if}
+			{/if}
 		</p>
 		<ol class="mt-1 grid gap-x-4 gap-y-1 sm:grid-cols-2">
 			{#each groupSteps(p.steps) as g, i (i)}
@@ -130,8 +140,9 @@
 							<span class="block truncate text-surface-100">{g.first.upgrade.title} … {g.last.upgrade.title}</span>
 						</span>
 					{/if}
-					<span class="text-right tabular-nums"><span class="text-sky-300" style:color={classTextColor(loadout.classId)}>{formatPct(g.gainPct)}%</span>
-						<span class="block text-[10px] text-surface-400">{dpsText(g.last.dps)}{#if g.gold !== null && byGold} · {g.gold ? formatGold(g.gold) : 'free'}{/if}</span></span>
+					<span class="text-right tabular-nums"><span class="font-semibold" style:color={classTextColor(loadout.classId)}>{formatPct(g.gainPct)}%</span>
+						<span class="block text-sm font-semibold text-surface-50">{dpsText(g.last.dps)}</span>
+						{#if g.gold !== null && byGold}<span class="block text-[11px] text-yellow-300/90">{g.gold ? `${formatGold(g.gold)} gold` : 'free'}</span>{/if}</span>
 				</li>
 			{/each}
 		</ol>
