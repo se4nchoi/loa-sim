@@ -9,7 +9,7 @@
 	import GoldCost from './GoldCost.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
 	import { autoHoningCosts, inventoryMaterials, materialsFor } from './honing-cost';
-	import { bookCost, costsForCharacter, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, missingPriceCount, setRankMode, supportsGoldCost } from './gold-costs.svelte';
+	import { bookCost, bookPricesFor, materialPricesFor, costsForCharacter, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, missingPriceCount, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { onMount } from 'svelte';
 	import { liveUpgrades } from './live-upgrades';
@@ -57,10 +57,12 @@
 	});
 	const goldUpgrades = $derived(upgrades.filter(supportsGoldCost));
 	const characterCosts = $derived(costsForCharacter(characterKey));
+	const materialPrices = $derived(materialPricesFor(characterKey));
+	const bookPrices = $derived(bookPricesFor(characterKey));
 	/** This character's bound honing mats. */
 	const bound = $derived(gold.bound[characterKey] ?? {});
 	// Equipment honing always uses material prices, ignoring previously entered totals.
-	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, gold.prices, bound, simNow.karma) : {});
+	const auto = $derived(gold.mode === 'gold' ? autoHoningCosts(upgrades.map((u) => u.key), simNow.gear, materialPrices, bound, simNow.karma) : {});
 	const costs = $derived({
 		...Object.fromEntries(upgrades.flatMap((u) => (u.knownCost === undefined ? [] : [[u.key, u.knownCost]]))),
 		...Object.fromEntries(Object.entries(auto).map(([k, c]) => [k, c.expected])),
@@ -69,13 +71,13 @@
 			return cost === undefined ? [] : [[u.key, cost]];
 		})),
 		// Book rows: price per book × books, over any total typed on the row before book prices existed.
-		...Object.fromEntries(upgrades.flatMap((u) => (bookCost(u, gold.bookPrices) === undefined ? [] : [[u.key, bookCost(u, gold.bookPrices)!]])))
+		...Object.fromEntries(upgrades.flatMap((u) => (bookCost(u, bookPrices) === undefined ? [] : [[u.key, bookCost(u, bookPrices)!]])))
 	});
 	const materials = $derived(materialsFor(upgrades.map((u) => u.key), simNow.gear));
 	/** Nothing priced yet: every material counts as 0 (bound). */
 	/** No character-bound mats entered for this character: honing is priced as if every mat were bought. */
 	const noBound = $derived(materials.every((id) => !bound[id]));
-	const unsetPrices = $derived(materials.every((id) => gold.prices[id] === undefined && bound[id] === undefined));
+	const unsetPrices = $derived(materials.every((id) => materialPrices[id] === undefined && bound[id] === undefined));
 	let pricesOpen = $state(false);
 	const cp = $derived(currentCp ?? loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
 	let dialogOpen = $state(false);

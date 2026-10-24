@@ -4,7 +4,7 @@
 	import { goldPriceButton } from './sim/ui';
 	import { numberField } from './sim/field';
 	import { GOLD_ICON } from './icons';
-	import { bookCost, costsForCharacter, formatGold, gold, manualGoldCost, parseGold, setBookPrice, setGoldCost } from './gold-costs.svelte';
+	import { bookCost, bookPricesFor, costsForCharacter, formatGold, gold, manualGoldCost, parseGold, setBookPrice, setGoldCost } from './gold-costs.svelte';
 	import { breathStrategy, type HoningCost } from './honing-cost';
 	import type { Upgrade } from './upgrades';
 	import HoningBreakdown from './HoningBreakdown.svelte';
@@ -35,8 +35,9 @@
 	const canEdit = $derived(u.category !== 'honing' && u.category !== 'quality');
 	const typed = $derived(u.books ? undefined : manualGoldCost(u, costsForCharacter(characterKey)));
 	/** Engraving book rows are priced per book; the box edits that price. */
-	const bookPrice = $derived(u.books ? gold.bookPrices[u.books.engraving] : undefined);
-	const cost = $derived(typed ?? auto?.expected ?? bookCost(u, gold.bookPrices) ?? u.knownCost);
+	const books = $derived(bookPricesFor(characterKey));
+	const bookPrice = $derived(u.books ? books[u.books.engraving] : undefined);
+	const cost = $derived(typed ?? auto?.expected ?? bookCost(u, books) ?? u.knownCost);
 	const per = $derived(cost !== undefined && u.gainPct > 0 ? cost / u.gainPct : null);
 	const autoTitle = $derived(
 		u.quality ? `Average ${formatGold(u.knownCost!)} gold over ${u.quality.taps.toFixed(1)} taps, ${u.quality.fee} gold per tap. Assumes unlimited Chaos Stones. Stops at target quality or higher; CP gain shown is at the target. No pity.` : auto
@@ -58,7 +59,7 @@
 		if (!editing) return;
 		editing = false;
 		if (u.books) {
-			setBookPrice(u.books.engraving, text.trim() ? parseGold(text) : null);
+			setBookPrice(u.books.engraving, text.trim() ? parseGold(text) : null, characterKey);
 			if (gold.costs[u.key] !== undefined) setGoldCost(u.key, null); // drop an old typed total for this row
 		}
 		else setGoldCost(u.key, text.trim() ? parseGold(text) : null, characterKey);
