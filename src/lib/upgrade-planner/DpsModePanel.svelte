@@ -30,8 +30,9 @@
 	import Segmented from './sim/Segmented.svelte';
 	import { wipeGap, wipeStory } from './dps-wipe';
 	import type { Loadout } from './types';
+	import type { SharedDps } from './shared-dps';
 
-	let { loadout, simState, characterKey, characterName, snapshots = [], onsimulate }: {
+	let { loadout, simState, characterKey, characterName, snapshots = [], onsimulate, shared }: {
 		loadout: Loadout;
 		/** The Simulator's live edit state. */
 		simState: SimState;
@@ -40,6 +41,8 @@
 		snapshots?: SnapshotOption[];
 		/** Puts a state into the Simulator (the run's setup, a Target DPS plan). */
 		onsimulate?: (state: SimState) => void;
+		/** A shared link's run: shown on its own, read-only (no import, tabs or raid list), nothing remembered. */
+		shared?: SharedDps;
 	} = $props();
 
 	// The order core model: a large table, so it loads with DPS mode.
@@ -49,7 +52,7 @@
 	});
 
 	$effect(() => {
-		loadRuns(characterKey);
+		if (!shared) loadRuns(characterKey);
 	});
 	const book = $derived(runsBooks.byCharacter[characterKey] ?? null);
 	let importing = $state(false);
@@ -73,12 +76,12 @@
 	}
 
 	// The character's own runs.
-	const own = $derived(book ? book.runs.filter((r) => r.player.toLowerCase() === characterName.toLowerCase() && r.damage > 0 && r.duration > 0) : []);
+	const own = $derived(shared ? [shared.run] : book ? book.runs.filter((r) => r.player.toLowerCase() === characterName.toLowerCase() && r.damage > 0 && r.duration > 0) : []);
 	const allRaids = $derived(raidsOf(own));
 	type Use = 'cleared' | 'failed';
 	/** The runs each tab works on: clears, or wipes with the boss HP recorded. */
 	const fits = (r: RunSummary, use: Use) => (use === 'cleared' ? r.cleared !== false : wipeGap(r) !== null);
-	const raids = $derived(allRaids.filter((r) => r.runs.some((x) => fits(x, pick.use))));
+	const raids = $derived(shared ? allRaids : allRaids.filter((r) => r.runs.some((x) => fits(x, pick.use))));
 	const mainRaids = $derived(raids.filter((r) => r.kind === 'raid'));
 	const otherRaids = $derived(raids.filter((r) => r.kind === 'other'));
 	/** Current raids with no run on this tab, listed dimmed under the played ones. */
@@ -93,6 +96,10 @@
 	$effect(() => {
 		const key = storeKey;
 		untrack(() => {
+			if (shared) {
+				pick = { ...NO_PICK, use: shared.run.cleared === false ? 'failed' : 'cleared', enrage: shared.enrage ? [shared.run.id] : [] };
+				return;
+			}
 			try {
 				const v = JSON.parse(localStorage.getItem(key) ?? 'null');
 				const ids = (x: unknown) => (Array.isArray(x) ? x.filter((n): n is number => typeof n === 'number') : []);
@@ -105,6 +112,7 @@
 	});
 	function remember(next: Partial<typeof pick>) {
 		pick = { ...pick, ...next };
+		if (shared) return;
 		try { localStorage.setItem(storeKey, JSON.stringify(pick)); } catch { /* this visit only */ }
 	}
 
@@ -116,7 +124,7 @@
 		return pool.toSorted((a, b) => recent(b) - recent(a) || b.last - a.last)[0] ?? null;
 	});
 	const raid = $derived(raids.find((r) => r.key === pick.raid) ?? busiest);
-	const clears = $derived(raid ? raid.runs.filter((r) => fits(r, pick.use)).toSorted((a, b) => b.start - a.start) : []);
+	const clears = $derived(raid ? raid.runs.filter((r) => shared || fits(r, pick.use)).toSorted((a, b) => b.start - a.start) : []);
 	/** A wipe's story against its gate's other wipes (a timer shows as pulls ending at one time, boss at different HP). */
 	const storyOf = (r: RunSummary) => wipeStory(r, raid ? raid.runs.filter((x) => x.cleared === false && gate(x) === gate(r)) : [],
 		Math.max(0, ...(raid?.runs ?? []).filter((x) => x.cleared === true && gate(x) === gate(r)).map((x) => x.duration / 1000)));
@@ -145,7 +153,7 @@
 	let setup = $state<{ hash: string; snap: ClearSnapshot | null; error: string | null } | null>(null);
 	$effect(() => {
 		const hash = clear?.loadoutHash;
-		if (!hash || !isSnapshotHash(hash)) {
+		if (shared || !hash || !isSnapshotHash(hash)) {
 			setup = null;
 			return;
 		}
@@ -161,12 +169,12 @@
 	});
 	const diff = $derived(setup?.snap ? setupDiff(loadout, setup.snap) : null);
 	// The run's setup as a Simulator state: the meter's baseline, so gear changed since the run counts with the edits.
-	const clearSetup = $derived(setup?.snap && setup.hash === clear?.loadoutHash ? clearState(loadout, $state.snapshot(setup.snap) as ClearSnapshot) : null);
+	const clearSetup = $derived(shared ? { state: shared.baseline, notes: [] as string[] } : setup?.snap && setup.hash === clear?.loadoutHash ? clearState(loadout, $state.snapshot(setup.snap) as ClearSnapshot) : null);
 	const baselineKey = $derived(clear ? `${characterKey}:${clear.id}:${clear.start}:${JSON.stringify(base)}` : '');
 	const baselineReady = $derived(!!clearSetup || confirmed === baselineKey);
 	const clearSetupCp = $derived(clearSetup ? simulate(loadout, clearSetup.state, base).cp : null);
 	// Tripod conditions ("With Possession") are checked on the run's own skills when its snapshot has them.
-	const clearSkills = $derived(setup?.snap?.raw?.skills as { id: number; tripods?: number[] }[] | undefined);
+	const clearSkills = $derived(shared ? shared.arkSkills : (setup?.snap?.raw?.skills as { id: number; tripods?: number[] }[] | undefined));
 	const arkGrid = $derived.by(() => {
 		const model = arkGridModel;
 		if (!model) return undefined;
@@ -174,7 +182,14 @@
 		return skills ? ((l: Loadout, b: SimState, st: SimState, r: RunSummary) => model.orderCoreEffect({ ...l, skills } as Loadout, b, st, r)) as typeof model.orderCoreEffect : model.orderCoreEffect;
 	});
 	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, baselineReady ? plain : clearSetup?.state ?? base, buildRuns, runs, arkGrid) : null);
-	const selection = $derived<DpsSelection | null>(runs.length && baselineReady ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid } : null);
+	// What a share link carries from here: this run, its baseline, its skills' names and icons (shared-dps.ts).
+	const share = $derived.by<SharedDps | undefined>(() => {
+		if (!clear || !baselineReady) return undefined;
+		const skills = Object.fromEntries(clear.skills.map((s) => [s.id, [skillName(s.id), skillsBook?.[s.id]?.[1] || GEM_SKILLS[s.id]?.[1] || '']])) as SharedDps['skills'];
+		const tripods = clearSkills?.filter((s) => clear.skills.some((x) => x.id === s.id)).map((s) => ({ id: s.id, ...(s.tripods ? { tripods: s.tripods } : {}) }));
+		return { run: $state.snapshot(clear) as RunSummary, baseline: $state.snapshot(clearSetup?.state ?? base) as SimState, skills, ...(tripods?.length ? { arkSkills: tripods } : {}), ...(clear.cleared === false && isEnrage(clear) ? { enrage: true } : {}) };
+	});
+	const selection = $derived<DpsSelection | null>(runs.length && baselineReady ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid, share } : null);
 	// Shared with Next Upgrades, which ranks upgrades on this meter.
 	$effect(() => {
 		const key = characterKey;
@@ -198,8 +213,9 @@
 	const runTone = (r: RunSummary) => (r.cleared === false ? 'text-rose-300' : r.cleared === true ? 'text-emerald-200' : 'text-white');
 	const wipe = $derived(clear ? storyOf(clear) : null);
 	const enrage = $derived(clear ? isEnrage(clear) : false);
-	const skillName = (id: number) => book?.skills[id]?.[0] ?? GEM_SKILLS[id]?.[0] ?? `Skill ${id}`;
-	const skillIcon = (id: number) => { const icon = book?.skills[id]?.[1] || GEM_SKILLS[id]?.[1]; return icon ? iconUrl(icon) : undefined; };
+	const skillsBook = $derived(shared ? shared.skills : book?.skills);
+	const skillName = (id: number) => skillsBook?.[id]?.[0] ?? GEM_SKILLS[id]?.[0] ?? `Skill ${id}`;
+	const skillIcon = (id: number) => { const icon = skillsBook?.[id]?.[1] || GEM_SKILLS[id]?.[1]; return icon ? iconUrl(icon) : undefined; };
 	/** A raid's chip: how many runs the tab has of it ("3 clears"). */
 	const runCount = (runs: RunSummary[]) => {
 		const n = runs.filter((x) => fits(x, pick.use)).length;
@@ -263,7 +279,7 @@
 				<span class="text-sm font-semibold text-surface-100">How the DPS sim works</span>
 				<button type="button" class="ml-auto rounded-xs border border-surface-600 px-2 py-0.5 text-xs text-surface-200 hover:bg-surface-800" onclick={() => setView({ intro: false })}>Got it</button>
 			</div>
-			<ol class="mt-2 grid gap-2 text-xs sm:grid-cols-3">
+			<ol class="mt-2 grid gap-2 text-xs sm:grid-cols-3" hidden={!!shared}>
 				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">1 · Import your logs</p><p class="mt-0.5 text-surface-400">LOA Logs' encounters.db, read in this browser. Nothing is uploaded.</p></li>
 				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">2 · Pick a run</p><p class="mt-0.5 text-surface-400">Its damage, skill by skill, on the gear it was played with.</p></li>
 				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">3 · Edit the cards below</p><p class="mt-0.5 text-surface-400">Each skill's damage follows your gear, gems and Ark Grid edits.</p></li>
@@ -292,7 +308,10 @@
 		</div>
 	{/if}
 
-	{#if !(characterKey in runsBooks.byCharacter)}
+	{#if loadout.battlePoint.isSupport}
+		<!-- A support's own skill damage says little about what they add; the party's damage isn't in their log. -->
+		<p class="text-sm text-surface-300">The DPS sim is for damage dealers. A support's value is in the party's damage, which their own log doesn't measure; use CP mode.</p>
+	{:else if !shared && !(characterKey in runsBooks.byCharacter)}
 		<!-- Holds the meter's space while this browser's imported logs are read. -->
 		<div class="animate-pulse" aria-hidden="true">
 			<div class="mb-3 h-9 w-72 rounded-xs bg-surface-800"></div>
@@ -300,12 +319,12 @@
 			<div class="mb-3 h-12 w-56 rounded-xs bg-surface-800"></div>
 			<div class="space-y-1">{#each [100, 98, 97, 85, 67, 38, 13, 7] as w (w)}<div class="h-8 rounded-xs bg-surface-800/70" style:width="{w}%"></div>{/each}</div>
 		</div>
-	{:else if !book || importing}
+	{:else if !shared && (!book || importing)}
 		{#if book}<button type="button" class="mb-3 flex items-center gap-1 text-xs text-surface-300 hover:text-surface-50" onclick={() => (importing = false)}>← Cancel re-import</button>{/if}
 		{#key characterKey}<DpsRunsImport {characterKey} {characterName} ondone={() => (importing = false)} />{/key}
 	{:else}
-		<!-- Two tabs: clears, or failed pulls and what they needed. -->
-		<div class="mb-3">
+		<!-- Two tabs: clears, or failed pulls and what they needed. A shared link has its one run. -->
+		<div class="mb-3" hidden={!!shared}>
 			<Segmented label="Runs" value={pick.use} options={[{ value: 'cleared', label: 'Cleared runs' }, { value: 'failed', label: 'Failed runs' }]} onselect={(v) => remember({ use: v as Use, clear: null })} size="h-8 px-4 text-sm" />
 		</div>
 		{#if !raid || !clear}
@@ -313,8 +332,8 @@
 		{:else}
 		{@const art = raidArt(raid.name)}
 		<!-- Two columns on wide screens: the raids on the left (best DPS on each), the picked one on the right. -->
-		<div class="lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:gap-4">
-		<nav class="flex flex-col gap-1.5 max-lg:hidden" aria-label="Raids">
+		<div class={shared ? '' : 'lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:gap-4'}>
+		<nav class="flex flex-col gap-1.5 max-lg:hidden" aria-label="Raids" hidden={!!shared}>
 			{#each mainRaids as r (r.key)}
 				{@const rart = raidArt(r.name)}
 				{@const on = r === raid}
@@ -370,7 +389,8 @@
 						{#each clears as r (r.id)}<option value={r.id} class={runTone(r)}>{runLabel(r)}</option>{/each}
 					</select>
 				</div>
-				<button type="button" class="ml-auto self-start rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm hover:border-white/40 hover:text-white" onclick={() => (importing = true)}>Re-import logs</button>
+				{#if shared}<span class="ml-auto self-start rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm">Shared run · {shared.run.player}</span>
+				{:else}<button type="button" class="ml-auto self-start rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm hover:border-white/40 hover:text-white" onclick={() => (importing = true)}>Re-import logs</button>{/if}
 			</div>
 		</div>
 
@@ -401,7 +421,14 @@
 		{/if}
 
 		<!-- Baseline: the run's own setup (its snapshot). One status line; what else differs folds away. -->
-		{#if setup}
+		{#if shared}
+			<div class="mb-3 flex flex-wrap items-center gap-x-2 rounded-xs border border-surface-700 bg-surface-950/50 px-3 py-2 text-xs text-surface-300">
+				<span class="text-sm font-semibold text-surface-100">Run setup</span>
+				<span class="tabular-nums">CP {simulate(loadout, shared.baseline, base).cp.toFixed(2)}</span>
+				<span>The gear this run was played with, as shared.</span>
+				{#if onsimulate}<button type="button" class="ml-auto rounded-xs border border-accent-500/70 bg-accent-700/30 px-2 py-0.5 font-semibold text-accent-100 hover:bg-accent-700/60" title="Load the run's gear into the Simulator (Undo brings the shared edits back)" onclick={() => onsimulate(structuredClone($state.snapshot(shared.baseline)) as SimState)}>Simulate from this setup</button>{/if}
+			</div>
+		{:else if setup}
 			{@const recorded = setup.snap?.combatPower?.score ?? null}
 			{@const build = diff ? [...(diff.cores ? ['Ark Grid cores'] : []), ...diff.passives.map((t) => t.tree), ...diff.other] : []}
 			<div class="mb-3 rounded-xs border border-surface-700 bg-surface-950/50 px-3 py-2 text-xs">
@@ -481,7 +508,7 @@
 			<span class="shrink-0">Simulated <span class="text-base font-bold text-surface-50 tabular-nums">{dpsText(simulatedDps)}</span></span>
 			<span class="shrink-0 rounded-xs border px-1.5 py-0.5 font-semibold tabular-nums {tint}">{Math.abs(gainPct) < 0.0005 ? '±0' : `${simulatedDps >= recordedDps ? '+' : ''}${formatDamage(simulatedDps - recordedDps)} (${formatPct(gainPct)}%)`}</span>
 			{#if meter.notInMeter.length}<span class="shrink-0 text-amber-300" title="Edits that still count toward CP, not DPS: {meter.notInMeter.join(', ')}">※ {meter.notInMeter.length} not counted</span>{/if}
-			<button type="button" class="shrink-0 rounded-xs border border-surface-600 px-2 py-1 text-surface-200 hover:border-surface-400 hover:text-surface-50" onclick={() => section?.scrollIntoView({ block: 'start' })}>↑ Back to sim</button>
+			<button type="button" class="shrink-0 rounded-xs border border-surface-600 px-2 py-1 text-surface-200 hover:border-surface-400 hover:text-surface-50" onclick={() => section?.scrollIntoView({ block: 'start' })}>↑ DPS sim</button>
 		</div>
 	</div>
 	<button type="button" class="fixed inset-x-3 bottom-[4.25rem] z-30 flex flex-col gap-0.5 rounded-xs border bg-surface-900/95 px-3 py-1.5 text-left text-xs shadow-lg shadow-black/60 backdrop-blur lg:hidden {tint.split(' ')[0]}" onclick={() => section?.scrollIntoView({ block: 'start' })} aria-label="Back to the DPS sim">

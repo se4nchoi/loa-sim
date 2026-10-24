@@ -5,6 +5,7 @@ import type { RunSummary } from '$lib/logs/protocol';
 import type { orderCoreEffect } from './ark-grid-dps';
 import type { SimState } from './simulate';
 import type { DamageContext } from './dps-stat-engine';
+import type { SharedDps } from './shared-dps';
 
 export interface DpsSelection {
 	/** The meter's baseline: the clear's own setup, or the snapshot when the clear has none. */
@@ -13,6 +14,8 @@ export interface DpsSelection {
 	runs: RunSummary[];
 	arkGrid?: typeof orderCoreEffect;
 	context?: DamageContext;
+	/** What a share link carries from DPS mode: the run and its baseline. */
+	share?: SharedDps;
 }
 
 const selections = new Map<string, DpsSelection>();

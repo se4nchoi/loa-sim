@@ -17,6 +17,8 @@ export interface SavedSimulation {
 	pinned?: boolean;
 	loadout: Loadout;
 	state: SimState;
+	/** Shared links from DPS mode: the run the edits were measured on (shared-dps.ts). */
+	dps?: import('./shared-dps').SharedDps;
 }
 
 /** Includes the entire baseline: identical editable gear alone does not imply identical CP. */

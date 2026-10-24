@@ -18,6 +18,7 @@
 		onmode,
 		initialBuild,
 		sharedBuild = false,
+		sharedDps,
 		name,
 		region,
 		subtitle,
@@ -38,6 +39,8 @@
 		onmode?: (mode: 'cp' | 'dps') => void;
 		initialBuild?: import('$lib/upgrade-planner/saved-simulations').SavedSimulation;
 		sharedBuild?: boolean;
+		/** A shared DPS build's run: the DPS panel shows it instead of this browser's logs. */
+		sharedDps?: import('$lib/upgrade-planner/shared-dps').SharedDps;
 		name: string;
 		region: string;
 		/** Lines under the name (guild, snapshot time). */
@@ -263,7 +266,7 @@
 				</div>
 			</div>
 		{/if}
-		{#if dpsMode && simulation && !sharedBuild}<DpsModePanel {loadout} simState={simulation} characterKey={`${region}/${name}`.toLowerCase()} characterName={name} snapshots={snapshotOptions} onsimulate={(s) => (simulation = s)} />{/if}
+		{#if dpsMode && simulation && (!sharedBuild || sharedDps)}<DpsModePanel shared={sharedBuild ? sharedDps : undefined} {loadout} simState={simulation} characterKey={`${region}/${name}`.toLowerCase()} characterName={name} snapshots={snapshotOptions} onsimulate={(s) => (simulation = s)} />{/if}
 		{#if simulation}<Simulator {dpsMode} {onmode} restoreInitial={sharedBuild} initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
 	</div>
 {/if}

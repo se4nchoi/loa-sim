@@ -15,8 +15,11 @@ const CLASS_COLORS: Record<string, string> = {
 /** The meter's colour for a bible class id, or undefined for a class it doesn't list. */
 export const classColor = (classId: string): string | undefined => CLASS_COLORS[className(classId)];
 
-/** The class colour for text on the dark cards: lifted toward white so dark ones (Deadeye, Aeromancer) still read. */
+/** The class colour for text on the dark cards: as is when light enough, dark ones (Deadeye, Aeromancer) lifted toward white. */
 export const classTextColor = (classId: string): string | undefined => {
 	const c = classColor(classId);
-	return c ? `color-mix(in oklab, ${c} 70%, white)` : undefined;
+	if (!c) return undefined;
+	const [r, g, b] = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255);
+	const light = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+	return light >= 0.42 ? c : `color-mix(in oklab, ${c} 65%, white)`;
 };

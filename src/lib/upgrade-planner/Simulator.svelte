@@ -35,6 +35,7 @@
 	import MobileSummaryBar from './sim/MobileSummaryBar.svelte';
 	import SimSummary from './sim/SimSummary.svelte';
 	import ShareSimulation from './ShareSimulation.svelte';
+	import { dpsSelection } from './dps-selection.svelte';
 	import CpBreakdownDialog from './sim/CpBreakdownDialog.svelte';
 	import { cpBreakdown } from './cp-breakdown';
 	import { PartType } from './cp';
@@ -383,7 +384,7 @@
 		onbreakdown={() => breakdownOpen = true}
 	>
 		{#snippet share()}
-			{#if characterKey}<ShareSimulation {characterKey} {loadout} state={sim} />{/if}
+			{#if characterKey}<ShareSimulation {characterKey} {loadout} state={sim} dps={dpsMode ? dpsSelection(characterKey)?.share : undefined} />{/if}
 		{/snippet}
 	</SimSummary>
 {/snippet}

@@ -116,3 +116,32 @@ describe('shared simulations', () => {
 		expect(() => sharedPlan(JSON.stringify({...plan(),characterKey:'na/name/extra'}))).toThrow('unsupported');
 	});
 });
+
+describe('shared DPS builds', () => {
+	const run = {id: 7, start: 1, boss: 'Phaetus An Kragma', difficulty: 'Hard', cleared: false, player: 'Soulshan', duration: 600_000,
+		combatPower: 6000, itemLevel: 1784, spec: null, engravings: ['Grudge'], damage: 6e11, critConversion: false, meterVersion: null,
+		statValues: {runs: 1, encounterIds: [7], statSamples: {critRate: 1}, statRanges: {critRate: {min: 0.1, max: 0.2}}, critRate: 0.15},
+		bossHp: {left: 1e10, max: 1e11}, partyDamage: 3e12, dead: {count: 8, of: 8},
+		skills: [{id: 46430, damage: 6e11, critDamage: 3e11, hits: 10, crits: 5, casts: 2, buffs: {700: 1e11}}]};
+	const dpsPlan = (dps: unknown) => {
+		const state = initSimState(loadout); state.gear.weapon!.honing = 25;
+		return JSON.stringify({version:1,id:'x',name:'DPS',characterKey:'NA/Soulshan',savedAt:0,loadout,state,dps});
+	};
+	const good = () => ({run, baseline: initSimState(loadout), skills: {46430: ['Astaros', 'efg_skill_01_19.png']}, enrage: true});
+
+	it('keeps the run, its baseline and skills through sharing and opening', async () => {
+		const db = fakeRedis();
+		const shared = await createSharedSimulation(sharedPlan(dpsPlan(good())), db.fetchFn, 1000);
+		const opened = await getSharedSimulation(shared.path.split('/').at(-1)!, 'soulshan', db.fetchFn, 2000);
+		expect(opened!.plan.dps!.run.boss).toBe('Phaetus An Kragma');
+		expect(opened!.plan.dps!.skills[46430][0]).toBe('Astaros');
+		expect(opened!.plan.dps!.enrage).toBe(true);
+	});
+
+	it('refuses a tampered run, icon or baseline', () => {
+		expect(() => sharedPlan(dpsPlan({...good(), run: {...run, damage: 'lots'}}))).toThrow();
+		expect(() => sharedPlan(dpsPlan({...good(), skills: {46430: ['Astaros', 'javascript:alert(1)']}}))).toThrow();
+		expect(() => sharedPlan(dpsPlan({...good(), baseline: {gear: 'none'}}))).toThrow();
+		expect(sharedPlan(dpsPlan(undefined)).dps).toBeUndefined();
+	});
+});

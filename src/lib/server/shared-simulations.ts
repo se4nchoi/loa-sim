@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { deflateSync, inflateSync } from 'node:zlib';
 import { normalizeName } from '$lib/bible-data';
 import { parseSimulation, simulationCP, type SavedSimulation } from '$lib/upgrade-planner/saved-simulations';
+import { parseSharedDps, type SharedDps } from '$lib/upgrade-planner/shared-dps';
 
 export const SHARE_TTL = 30 * 24 * 60 * 60;
 export const MAX_SHARE_BYTES = 128 * 1024;
@@ -31,8 +32,17 @@ export function sharedPlan(json: string): SavedSimulation {
 	const parsed = parseSimulation(json);
 	const key = parsed.characterKey.toLowerCase();
 	if (!/^(na|ce)\/[^/?#\s]{1,40}$/u.test(key)) throw new Error('This character region or name is unsupported.');
-	// Only the snapshot and edits are shared, never browser-specific IDs or pinned status.
-	return {version:1,id:'shared',name:parsed.name,characterKey:key,savedAt:Date.now(),loadout:parsed.loadout,state:parsed.state};
+	// Only the snapshot and edits are shared, never browser-specific IDs or pinned status. From DPS mode, also the run.
+	const dps = withDps(parsed);
+	return {version:1,id:'shared',name:parsed.name,characterKey:key,savedAt:Date.now(),loadout:parsed.loadout,state:parsed.state,...(dps ? {dps} : {})};
+}
+
+/** A plan's shared run, checked field by field; its baseline gear passes the same checks as the plan's own state. */
+function withDps(plan: SavedSimulation): SharedDps | null {
+	if (plan.dps === undefined) return null;
+	const dps = parseSharedDps(plan.dps, (state) => parseSimulation(JSON.stringify({...plan, dps: undefined, state})).state);
+	if (!dps) throw new Error('The shared DPS run is not valid.');
+	return dps;
 }
 
 export async function createSharedSimulation(plan: SavedSimulation, fetchFn: typeof fetch, now = Date.now()) {
@@ -60,5 +70,7 @@ export async function getSharedSimulation(id: string, name: string, fetchFn: typ
 	const plan = parseSimulation(JSON.stringify(entry.plan));
  if (!/^(na|ce)\/[^/?#\s]{1,40}$/u.test(plan.characterKey.toLowerCase()) ||
   plan.characterKey.split('/')[1]?.toLowerCase() !== name.toLowerCase()) return null;
- return {...entry, calculatedCp: simulationCP(plan), plan:{...plan,id:`shared:${id}`}};
+ let dps: SharedDps | null = null;
+ try { dps = withDps(plan); } catch { /* the build still opens, without its run */ }
+ return {...entry, calculatedCp: simulationCP(plan), plan:{...plan,id:`shared:${id}`,dps:dps ?? undefined}};
 }

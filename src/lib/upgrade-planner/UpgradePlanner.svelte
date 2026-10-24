@@ -140,7 +140,7 @@
 		<div>
 			<Segmented
 				value={gold.mode}
-				options={dpsMode
+				options={selection
 					? [
 						{ value: 'cp', label: 'Most DPS', title: 'Biggest estimated damage gain first; upgrades without an estimate follow, by CP' },
 						{ value: 'gold', label: 'Per gold', title: 'Least gold per 1% DPS first (enter gold costs on the rows)' }
@@ -158,8 +158,6 @@
 	</div>
 	{#if dpsMode && support}
 		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-surface-400">DPS mode is for damage dealers; supports are ranked by CP.</p>
-	{:else if dpsMode && !selection}
-		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-surface-400">Pick a run in the DPS meter to rank by DPS. Ranked by CP until then.</p>
 	{/if}
 	{#if arkGridOverWillpower(simNow.arkGrid)}
 		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-amber-300" title="An astrogem doesn't fit its core's Willpower, so Ark Grid steps can't be worked out from here">
@@ -235,9 +233,9 @@
 					<span class="text-right whitespace-nowrap tabular-nums {honing ? 'self-end' : ''}">
 						{#if selection}
 							{#if g}
-								<span class="text-sky-300" style:color={meterColor} title={g.atLeast ? 'Estimated damage gain. Part of this upgrade is not valued yet.' : selection.runs.length ? 'Estimated damage gain on the selected attempt' : 'Estimated damage gain from configured combat totals'}>{g.atLeast ? '≥' : '≈'}{formatPct(g.gainPct)}<span class="text-xs">% DPS</span></span>
+								<span class="text-sky-300" style:color={meterColor} title={g.atLeast ? 'Estimated damage gain. Part of this upgrade is not valued yet.' : selection.runs.length ? 'Estimated damage gain on the picked run' : 'Estimated damage gain from configured combat totals'}>{g.atLeast ? '≥' : '≈'}{formatPct(g.gainPct)}<span class="text-xs">% DPS</span></span>
 							{:else}
-								<span class="block text-[11px] font-normal text-surface-400" title="This upgrade changes something the DPS meter doesn’t value yet">DPS not estimated</span>
+								<span class="block text-[11px] font-normal text-surface-400" title="This upgrade changes something the DPS sim doesn’t value yet">DPS not estimated</span>
 							{/if}
 							{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
 							<span class="block text-[10px] text-green-400">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}% CP</span>
