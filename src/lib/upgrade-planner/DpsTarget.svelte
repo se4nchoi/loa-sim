@@ -128,9 +128,10 @@
 				{#if byGold}<span class="text-surface-600" aria-hidden="true">·</span><span class="font-semibold text-yellow-300 tabular-nums">{formatGold(p.gold)} gold</span>{/if}
 			{/if}
 		</p>
-		<ol class="mt-1 grid gap-x-4 gap-y-1 sm:grid-cols-2">
+		<!-- Each step on its own light card, so the steps read apart. -->
+		<ol class="mt-1.5 grid gap-1.5 sm:grid-cols-2">
 			{#each groupSteps(p.steps) as g, i (i)}
-				<li class="grid grid-cols-[1.25rem_1fr_max-content] items-center gap-1.5">
+				<li class="grid grid-cols-[1.25rem_1fr_max-content] items-center gap-1.5 rounded-md border border-surface-700/60 bg-surface-800/60 px-2.5 py-1.5">
 					<span class="text-surface-500 tabular-nums">{i + 1}.</span>
 					{#if g.count === 1}
 						<UpgradeTitle compact u={g.first.upgrade.subject ? g.first.upgrade : { ...g.first.upgrade, subject: CATEGORY_LABELS[g.first.upgrade.category] }} />
