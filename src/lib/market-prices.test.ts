@@ -22,13 +22,18 @@ describe('loa-buddy price conversion', () => {
 		expect(quotes.shards.slug).toBe('destiny-shard-pouch-l');
 		expect(quotes['66112553'].price).toBe(1748);
 	});
-	it('takes the cheapest shard pouch per shard even when a dearer one was seen more recently', () => {
-		const now = Date.now();
-		const { quotes } = normalizeMarketPrices([
-			row('destiny-shard-pouch-l', 600, now / 1000 - 3600), row('destiny-shard-pouch-m', 450), row('destiny-shard-pouch-s', 220)
+	it('takes the cheapest shard pouch per shard within the newest batch, not from an older one', () => {
+		// Same batch, a few minutes apart: the 3k pouch at 600 (0.2) beats the 1k at 220 (0.22) and the 2k at 450.
+		const same = normalizeMarketPrices([
+			row('destiny-shard-pouch-l', 600, now / 1000 - 400), row('destiny-shard-pouch-m', 450), row('destiny-shard-pouch-s', 220)
 		], 'nae', now);
-		expect(quotes.shards.price).toBeCloseTo(0.2);
-		expect(quotes.shards.slug).toBe('destiny-shard-pouch-l');
+		expect(same.quotes.shards.price).toBeCloseTo(0.2);
+		expect(same.quotes.shards.slug).toBe('destiny-shard-pouch-l');
+		// The cheap 3k price is from a batch three hours older: the newest batch's 1k pouch wins.
+		const older = normalizeMarketPrices([
+			row('destiny-shard-pouch-l', 300, now / 1000 - 3 * 3600), row('destiny-shard-pouch-s', 220)
+		], 'nae', now);
+		expect(older.quotes.shards.slug).toBe('destiny-shard-pouch-s');
 	});
 
 	it('uses newer observations before comparing pouch prices and preserves old observation dates', () => {

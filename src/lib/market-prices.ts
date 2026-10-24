@@ -41,6 +41,8 @@ export const marketForCharacter = (key: string): MarketRegion => /^(ce|euc)[/:]/
 export interface MarketQuote { price: number; updatedAt: number; slug: string }
 export interface MarketSnapshot { region: MarketRegion; fetchedAt: number; quotes: Record<string, MarketQuote> }
 export const MARKET_STALE_MS = 24 * 60 * 60 * 1000;
+/** Observations this close together count as one batch (loa-buddy records a region's items together). */
+const SAME_BATCH_MS = 60 * 60 * 1000;
 
 /** Ignore malformed / unlisted rows, never turn unavailable data into a free material. */
 export function normalizeMarketPrices(body: unknown, region: MarketRegion, now = Date.now()): MarketSnapshot {
@@ -55,12 +57,13 @@ export function normalizeMarketPrices(body: unknown, region: MarketRegion, now =
 		const quote = { price: row.price / item.units, updatedAt: row.timestamp * 1000, slug: item.slug };
 		(seen[item.id] ??= []).push(quote);
 	}
-	// The cheapest per unit among observations within a day of the item's newest one: the 3k pouch at 600 (0.2 a shard)
-	// beats a newer 1k pouch at 220 (0.22), while a days-old cheap listing doesn't count.
+	// The cheapest per unit among the item's newest observations: loa-buddy records every item of a region in one batch
+	// (one timestamp), so pouches are compared within the newest batch, give or take an hour. The 3k pouch at 600 (0.2 a
+	// shard) beats the 1k at 220 (0.22) from the same batch; an older batch's price doesn't count.
 	const quotes: Record<string, MarketQuote> = {};
 	for (const [id, list] of Object.entries(seen)) {
 		const newest = Math.max(...list.map((q) => q.updatedAt));
-		quotes[id] = list.filter((q) => q.updatedAt >= newest - MARKET_STALE_MS)
+		quotes[id] = list.filter((q) => q.updatedAt >= newest - SAME_BATCH_MS)
 			.reduce((best, q) => (q.price < best.price || (q.price === best.price && q.updatedAt > best.updatedAt) ? q : best));
 	}
 	if (!Object.keys(quotes).length) throw new Error('No market prices available.');
