@@ -335,7 +335,8 @@
 			</div>
 		</div>
 	{:else if !shared && (!book || importing)}
-		{#if book}<button type="button" class="mb-3 flex items-center gap-1 text-xs text-surface-300 hover:text-surface-50" onclick={() => (importing = false)}>← Cancel re-import</button>{/if}
+		<!-- Where Re-import logs was, so the way back is under the pointer. -->
+		{#if book}<div class="mb-3 flex"><button type="button" class="{btn} ml-auto h-8 px-3" onclick={() => (importing = false)}>Cancel re-import</button></div>{/if}
 		{#key characterKey}<DpsRunsImport {characterKey} {characterName} ondone={() => (importing = false)} />{/key}
 	{:else}
 		<!-- Two tabs: clears, or failed pulls and what they needed. A shared link has its one run. -->
