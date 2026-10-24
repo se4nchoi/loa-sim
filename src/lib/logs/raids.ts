@@ -86,3 +86,9 @@ RAIDS.forEach(([raid, gates], order) =>
 
 /** The raid and gate a boss belongs to, or null for bosses outside the list (guardians, trials, new raids). */
 export const raidGateOf = (boss: string): RaidGate | null => BY_BOSS.get(boss) ?? null;
+
+/** The raids from Aegir (Act 1) on, newest first, as raid lists name them ("Armoche", without "(Act 4)"). */
+export const currentRaids = (): string[] => {
+	const from = RAIDS.findIndex(([raid]) => raid.startsWith('Aegir'));
+	return RAIDS.slice(from).map(([raid]) => raid.replace(/ \(.*\)$/, '')).reverse();
+};

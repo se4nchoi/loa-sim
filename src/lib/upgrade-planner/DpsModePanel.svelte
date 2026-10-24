@@ -1,19 +1,21 @@
 <!--
-	DPS mode on the Simulator: pick a raid and one of its clears, check that the gear being simulated is the gear of that
-	clear, and watch the clear's DPS follow the cards' edits on the meter. One clear at a time: each fight's crits,
-	buffs and rotation are its own. Next Upgrades ranks by the same meter (dps-selection).
+	DPS mode on the Simulator: pick a raid and one of its runs, check that the gear being simulated is the gear of that
+	run, and watch the run's DPS follow the cards' edits on the meter. One run at a time: each fight's crits, buffs and
+	rotation are its own. Next Upgrades ranks by the same meter (dps-selection); Target DPS plans on it.
 -->
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { setDpsSelection } from './dps-selection.svelte';
+	import { setDpsSelection, type DpsSelection } from './dps-selection.svelte';
 	import { loadRuns, runsBooks } from '$lib/logs/runs-store.svelte';
-	import { raidGateOf } from '$lib/logs/raids';
+	import { currentRaids, raidGateOf } from '$lib/logs/raids';
 	import type { RunSummary } from '$lib/logs/protocol';
 	import { bibleSnapshotPage, isSnapshotHash, type ClearSnapshot } from '$lib/bible-data';
 	import { clearSnapshot } from './clear-snapshots';
 	import { setupDiff, sameGear as sameSetupGear } from './setup-diff';
 	import DpsRunsImport from './DpsRunsImport.svelte';
 	import DpsMeter from './sim/DpsMeter.svelte';
+	import DpsTarget from './DpsTarget.svelte';
+	import FoldChip from './sim/FoldChip.svelte';
 	import { classColor } from './class-colors';
 	import { formatDamage } from './dps-comparison';
 	import { raidsOf } from './dps-gates';
@@ -27,12 +29,7 @@
 	import { btn } from './sim/ui';
 	import Segmented from './sim/Segmented.svelte';
 	import { wipeGap, wipeStory } from './dps-wipe';
-	import { requestTarget } from './dps-selection.svelte';
 	import type { Loadout } from './types';
-	import DpsStatContext from './DpsStatContext.svelte';
-	import type { DamageContext } from './dps-stat-engine';
-	import DpsCheckpoint from './DpsCheckpoint.svelte';
-	import { configuredPlanGain } from './dps-configured';
 
 	let { loadout, simState, characterKey, characterName, snapshots = [], onsimulate }: {
 		loadout: Loadout;
@@ -41,7 +38,7 @@
 		characterKey: string;
 		characterName: string;
 		snapshots?: SnapshotOption[];
-		/** Puts a state into the Simulator (the clear's setup). */
+		/** Puts a state into the Simulator (the run's setup, a Target DPS plan). */
 		onsimulate?: (state: SimState) => void;
 	} = $props();
 
@@ -57,23 +54,41 @@
 	const book = $derived(runsBooks.byCharacter[characterKey] ?? null);
 	let importing = $state(false);
 	const base = $derived(initSimState(loadout));
-	let context = $state<DamageContext | null>(null);
 	let confirmed = $state<string | null>(null);
 
-	// The character's own clears; the gear's damage buckets come from the clears played with these engravings.
+	// The panel's own view: folded, and the Beta intro dismissed. Kept for every character.
+	const VIEW_KEY = 'loa-sim:dps-panel';
+	let view = $state<{ folded: boolean; intro: boolean }>({ folded: false, intro: true });
+	$effect(() => {
+		untrack(() => {
+			try {
+				const v = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null');
+				view = { folded: v?.folded === true, intro: v?.intro !== false };
+			} catch { /* defaults */ }
+		});
+	});
+	function setView(next: Partial<typeof view>) {
+		view = { ...view, ...next };
+		try { localStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch { /* this visit only */ }
+	}
+
+	// The character's own runs.
 	const own = $derived(book ? book.runs.filter((r) => r.player.toLowerCase() === characterName.toLowerCase() && r.damage > 0 && r.duration > 0) : []);
 	const allRaids = $derived(raidsOf(own));
-	/** The attempts a use case works on: clears, or wipes with the boss HP recorded. */
-	const fits = (r: RunSummary, use: 'clear' | 'enrage') => (use === 'clear' ? r.cleared !== false : wipeGap(r) !== null);
+	type Use = 'cleared' | 'failed';
+	/** The runs each tab works on: clears, or wipes with the boss HP recorded. */
+	const fits = (r: RunSummary, use: Use) => (use === 'cleared' ? r.cleared !== false : wipeGap(r) !== null);
 	const raids = $derived(allRaids.filter((r) => r.runs.some((x) => fits(x, pick.use))));
 	const mainRaids = $derived(raids.filter((r) => r.kind === 'raid'));
 	const otherRaids = $derived(raids.filter((r) => r.kind === 'other'));
+	/** Current raids with no run on this tab, listed dimmed under the played ones. */
+	const unplayed = $derived(currentRaids().filter((name) => !mainRaids.some((r) => r.name === name)));
 
-	// What's picked: raid and clear. Remembered per character.
+	// What's picked: tab, raid and run. Remembered per character.
 	const storeKey = $derived(`loa-sim:dps-meter:${characterKey}`);
-	// use: improve a clear, or beat an enrage. enrage / notEnrage: pulls the player marked (or unmarked) as enrage wipes.
-	type Pick = { raid: string | null; clear: number | null; use: 'clear' | 'enrage'; enrage: number[]; notEnrage: number[] };
-	const NO_PICK: Pick = { raid: null, clear: null, use: 'clear', enrage: [], notEnrage: [] };
+	// enrage / notEnrage: pulls the player marked (or unmarked) as enrage wipes.
+	type Pick = { raid: string | null; clear: number | null; use: Use; enrage: number[]; notEnrage: number[] };
+	const NO_PICK: Pick = { raid: null, clear: null, use: 'cleared', enrage: [], notEnrage: [] };
 	let pick = $state<Pick>({ ...NO_PICK });
 	$effect(() => {
 		const key = storeKey;
@@ -82,7 +97,7 @@
 				const v = JSON.parse(localStorage.getItem(key) ?? 'null');
 				const ids = (x: unknown) => (Array.isArray(x) ? x.filter((n): n is number => typeof n === 'number') : []);
 				pick = { raid: typeof v?.raid === 'string' ? v.raid : null, clear: typeof v?.clear === 'number' ? v.clear : null,
-					use: v?.use === 'enrage' ? 'enrage' : 'clear', enrage: ids(v?.enrage), notEnrage: ids(v?.notEnrage) };
+					use: v?.use === 'failed' || v?.use === 'enrage' ? 'failed' : 'cleared', enrage: ids(v?.enrage), notEnrage: ids(v?.notEnrage) };
 			} catch {
 				pick = { ...NO_PICK };
 			}
@@ -93,7 +108,7 @@
 		try { localStorage.setItem(storeKey, JSON.stringify(pick)); } catch { /* this visit only */ }
 	}
 
-	/** With nothing picked yet: the raid played most in the two weeks before the newest attempt (then the newest). */
+	/** With nothing picked yet: the raid played most in the two weeks before the newest run (then the newest). */
 	const busiest = $derived.by(() => {
 		const pool = mainRaids.length ? mainRaids : raids;
 		const newest = Math.max(0, ...pool.flatMap((r) => r.runs.map((x) => x.start)));
@@ -107,18 +122,18 @@
 		Math.max(0, ...(raid?.runs ?? []).filter((x) => x.cleared === true && gate(x) === gate(r)).map((x) => x.duration / 1000)));
 	/** An enrage wipe: the player marked it, or the pattern says so and they didn't unmark it. */
 	const isEnrage = (r: RunSummary) => pick.enrage.includes(r.id) || (storyOf(r)?.pattern?.kind === 'time' && !pick.notEnrage.includes(r.id));
-	const clear = $derived(clears.find((r) => r.id === pick.clear) ?? (pick.use === 'enrage' ? clears.find(isEnrage) : null) ?? clears[0] ?? null);
+	const clear = $derived(clears.find((r) => r.id === pick.clear) ?? (pick.use === 'failed' ? clears.find(isEnrage) : null) ?? clears[0] ?? null);
 	function markEnrage(r: RunSummary, on: boolean) {
 		remember({ enrage: on ? [...new Set([...pick.enrage, r.id])] : pick.enrage.filter((x) => x !== r.id),
 			notEnrage: on ? pick.notEnrage.filter((x) => x !== r.id) : [...new Set([...pick.notEnrage, r.id])] });
 	}
 	const runs = $derived<RunSummary[]>(clear ? [clear] : []);
-	// Calibration belongs to the selected attempt. Similar CP/engravings on another run do not prove the same build.
+	// Calibration belongs to the selected run. Similar CP/engravings on another run do not prove the same build.
 	const buildRuns = $derived(runs);
 	// The Simulator's state is reactive (a proxy); the meter works on a plain copy of it.
 	const plain = $derived($state.snapshot(simState) as SimState);
 
-	// Is the gear being simulated the gear of this clear? Its recorded CP against the snapshots' CP.
+	// Is the gear being simulated the gear of this run? Its recorded CP against the snapshots' CP.
 	const clearCp = $derived(clear?.combatPower ?? null);
 	const current = $derived(snapshots.find((s) => s.current) ?? null);
 	const currentCp = $derived(current?.cp ?? loadout.combatPower?.score ?? null);
@@ -126,7 +141,7 @@
 	const matches = $derived(gap !== null && Math.abs(gap) <= 0.5);
 	const better = $derived(matches ? null : matchSnapshot(clearCp, snapshots.filter((s) => !s.current)));
 
-	// The clear's own setup: LOA Logs links each clear to a lostark.bible snapshot of the gear it was played with.
+	// The run's own setup: LOA Logs links each run to a lostark.bible snapshot of the gear it was played with.
 	let setup = $state<{ hash: string; snap: ClearSnapshot | null; error: string | null } | null>(null);
 	$effect(() => {
 		const hash = clear?.loadoutHash;
@@ -145,12 +160,12 @@
 		return () => { live = false; };
 	});
 	const diff = $derived(setup?.snap ? setupDiff(loadout, setup.snap) : null);
-	// The clear's setup as a Simulator state: the meter's baseline, so gear changed since the clear counts with the edits.
+	// The run's setup as a Simulator state: the meter's baseline, so gear changed since the run counts with the edits.
 	const clearSetup = $derived(setup?.snap && setup.hash === clear?.loadoutHash ? clearState(loadout, $state.snapshot(setup.snap) as ClearSnapshot) : null);
 	const baselineKey = $derived(clear ? `${characterKey}:${clear.id}:${clear.start}:${JSON.stringify(base)}` : '');
 	const baselineReady = $derived(!!clearSetup || confirmed === baselineKey);
 	const clearSetupCp = $derived(clearSetup ? simulate(loadout, clearSetup.state, base).cp : null);
-	// Tripod conditions ("With Possession") are checked on the clear's own skills when its snapshot has them.
+	// Tripod conditions ("With Possession") are checked on the run's own skills when its snapshot has them.
 	const clearSkills = $derived(setup?.snap?.raw?.skills as { id: number; tripods?: number[] }[] | undefined);
 	const arkGrid = $derived.by(() => {
 		const model = arkGridModel;
@@ -158,63 +173,116 @@
 		const skills = clearSkills;
 		return skills ? ((l: Loadout, b: SimState, st: SimState, r: RunSummary) => model.orderCoreEffect({ ...l, skills } as Loadout, b, st, r)) as typeof model.orderCoreEffect : model.orderCoreEffect;
 	});
-	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, baselineReady ? plain : clearSetup?.state ?? base, buildRuns, runs, arkGrid, context ?? undefined) : null);
-	const configuredGain = $derived(context && !runs.length ? configuredPlanGain(loadout, base, base, plain, context) : null);
+	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, baselineReady ? plain : clearSetup?.state ?? base, buildRuns, runs, arkGrid) : null);
+	const selection = $derived<DpsSelection | null>(runs.length && baselineReady ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid } : null);
 	// Shared with Next Upgrades, which ranks upgrades on this meter.
 	$effect(() => {
 		const key = characterKey;
-		setDpsSelection(key, runs.length && baselineReady ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid: arkGrid, context: context ?? undefined }
-			: !runs.length && context ? {baseline: base, buildRuns: [], runs: [], context} : null);
+		setDpsSelection(key, selection);
 		return () => setDpsSelection(key, null);
 	});
+	const seconds = $derived(meter ? meter.durationMs / 1000 : 1);
+	const recordedDps = $derived(meter ? meter.before / seconds : 0);
+	const simulatedDps = $derived(meter ? meter.after / seconds : 0);
+	const gainPct = $derived(meter ? (meter.after / meter.before - 1) * 100 : 0);
 
 	const gate = (r: RunSummary) => raidGateOf(r.boss)?.gate;
 	const time = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
-	const outcome = (r: RunSummary) => r.cleared === true ? 'Clear' : r.cleared === false ? 'Failed' : 'Unknown outcome';
-	/** A wipe's boss HP left ("Failed at 3.2%"), so the closest pulls stand out in the menu. */
-	const wipeAt = (r: RunSummary) => { const g = wipeGap(r); return g ? ` at ${g.hpLeftPct < 10 ? g.hpLeftPct.toFixed(1) : Math.round(g.hpLeftPct)}%` : ''; };
-	const clearLabel = (r: RunSummary) => `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${outcome(r)}${wipeAt(r)}${r.cleared === false && isEnrage(r) ? ' · enrage' : ''} · ${time(r.duration)} · ${formatDamage(r.damage / (r.duration / 1000))}`;
-	// The same gate's failed pulls, for the patterns that tell a mechanic from a timer.
+	const hpText = (pct: number) => `${pct < 10 ? pct.toFixed(1) : Math.round(pct)}%`;
+	const runLabel = (r: RunSummary) => {
+		const g = wipeGap(r);
+		const outcome = r.cleared === true ? 'Clear' : r.cleared === false ? `Failed${g ? ` at ${hpText(g.hpLeftPct)}` : ''}${isEnrage(r) ? ' · enrage' : ''}` : 'Unknown';
+		return `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${outcome} · ${time(r.duration)} · ${formatDamage(r.damage / (r.duration / 1000))}`;
+	};
+	/** A run's colour in the menu: failed pulls light red, clears light green. */
+	const runTone = (r: RunSummary) => (r.cleared === false ? 'text-rose-300' : r.cleared === true ? 'text-emerald-200' : 'text-white');
 	const wipe = $derived(clear ? storyOf(clear) : null);
 	const enrage = $derived(clear ? isEnrage(clear) : false);
 	const skillName = (id: number) => book?.skills[id]?.[0] ?? GEM_SKILLS[id]?.[0] ?? `Skill ${id}`;
 	const skillIcon = (id: number) => { const icon = book?.skills[id]?.[1] || GEM_SKILLS[id]?.[1]; return icon ? iconUrl(icon) : undefined; };
 	/** A raid's best recorded DPS, for its chip. */
 	const bestDps = (runs: RunSummary[]) => Math.max(0, ...runs.map((r) => r.damage / Math.max(1, r.duration / 1000)));
-	const select = 'rounded-xs border border-surface-700 bg-surface-800 px-2 py-1 text-xs text-surface-100';
+	/** 1.316b: as the meter's headline. */
+	const dpsText = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(3)}b` : formatDamage(n));
 	/** Menus on the raid banner: dark glass over the art. */
 	const banner = 'w-fit rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-white backdrop-blur-sm hover:border-white/40 [&_option]:bg-surface-900 [&_optgroup]:bg-surface-900';
+
+	// Tag-along: once the panel's numbers scroll away (editing the cards below), a small DPS bar follows the page.
+	let section = $state<HTMLElement | null>(null);
+	let header = $state<HTMLElement | null>(null);
+	let meterBox = $state<HTMLElement | null>(null);
+	// Open, the meter (headline and skill bars) is what has to scroll away; folded, the header.
+	const anchor = $derived(view.folded ? header : meterBox);
+	let away = $state(false);
+	$effect(() => {
+		const el = anchor;
+		if (!el) { away = false; return; }
+		const check = () => (away = el.getBoundingClientRect().bottom < 48);
+		check();
+		window.addEventListener('scroll', check, { passive: true });
+		window.addEventListener('resize', check);
+		return () => { window.removeEventListener('scroll', check); window.removeEventListener('resize', check); };
+	});
+	let target = $state<DpsTarget | null>(null);
 </script>
 
-{#snippet useSwitch()}
-	<!-- Two questions: make a clear faster, or find the DPS an enrage wipe needed. -->
-	<div class="mb-3 flex flex-wrap items-center gap-2">
-		<Segmented label="Use" value={pick.use} options={[{ value: 'clear', label: 'Improve a clear', title: 'Your edits on one of your clears: its DPS with them' }, { value: 'enrage', label: 'Beat an enrage', title: 'A wipe that hit the enrage timer: the DPS that would have killed the boss in time' }]} onselect={(v) => remember({ use: v as 'clear' | 'enrage', clear: null })} size="h-8 px-3 text-sm" />
-	</div>
+{#snippet gainText(cls = '')}
+	<span class="tabular-nums {cls} {Math.abs(gainPct) < 0.0005 ? 'text-surface-400' : gainPct > 0 ? 'text-green-400' : 'text-red-400'}">{Math.abs(gainPct) < 0.0005 ? '±0' : `${formatPct(gainPct)}%`}</span>
 {/snippet}
 
-<section class="mb-3 rounded-xs bg-surface-900 p-3 shadow-sm shadow-neutral-800 sm:p-4" aria-label="DPS meter">
-	{#key characterKey}<DpsStatContext {loadout} base={clearSetup?.state ?? base} {characterKey} oncontext={(c) => { context = c; }} />{/key}
-	{#if context && !runs.length}<p class="mb-3 text-sm text-surface-100">Configured damage change: <strong class="text-sky-300 tabular-nums">{configuredGain === null ? 'Not estimated for these edits' : `${formatPct(configuredGain)}%`}</strong></p>{/if}
+<section bind:this={section} class="mb-3 scroll-mt-16 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800" aria-label="DPS meter">
+	<!-- Header: folds the panel; folded, it still shows the run and its DPS. -->
+	<button type="button" class="group flex w-full flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 text-left sm:px-4" aria-expanded={!view.folded} onclick={() => setView({ folded: !view.folded })} bind:this={header}>
+		<span class="font-semibold text-surface-100">DPS meter</span>
+		<span class="rounded-xs bg-amber-500/15 px-1 text-[10px] font-semibold text-amber-300">BETA</span>
+		{#if meter && raid && clear}
+			<span class="flex min-w-0 items-center gap-1.5 text-xs text-surface-400"><span class="truncate">{raid.name}{gate(clear) ? ` G${gate(clear)}` : ''}</span>
+				<span class="text-surface-300 tabular-nums">{dpsText(recordedDps)} → <span class="font-semibold text-surface-50">{dpsText(simulatedDps)}</span></span>{@render gainText('font-semibold')}</span>
+		{/if}
+		<span class="ml-auto"><FoldChip open={!view.folded} /></span>
+	</button>
+
+	{#if !view.folded}
+	<div class="px-3 pb-3 sm:px-4 sm:pb-4">
+	{#if view.intro}
+		<!-- Beta: how it works, in three steps; hidden once read (remembered). -->
+		<div class="mb-3 rounded-xs border border-amber-500/30 bg-amber-500/5 p-3">
+			<div class="flex items-center gap-2">
+				<span class="rounded-xs bg-amber-500/20 px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-amber-300">BETA</span>
+				<span class="text-sm font-semibold text-surface-100">How the DPS meter works</span>
+				<button type="button" class="ml-auto rounded-xs border border-surface-600 px-2 py-0.5 text-xs text-surface-200 hover:bg-surface-800" onclick={() => setView({ intro: false })}>Got it</button>
+			</div>
+			<ol class="mt-2 grid gap-2 text-xs sm:grid-cols-3">
+				<li class="rounded-xs bg-surface-950/60 p-2"><p class="font-semibold text-surface-100">1 · Import your logs</p><p class="mt-0.5 text-surface-400">LOA Logs' encounters.db, read in this browser. Nothing is uploaded.</p></li>
+				<li class="rounded-xs bg-surface-950/60 p-2"><p class="font-semibold text-surface-100">2 · Pick a run</p><p class="mt-0.5 text-surface-400">Its damage, skill by skill, on the gear it was played with.</p></li>
+				<li class="rounded-xs bg-surface-950/60 p-2"><p class="font-semibold text-surface-100">3 · Edit the cards below</p><p class="mt-0.5 text-surface-400">Each skill's damage follows your gear, gems and Ark Grid edits.</p></li>
+			</ol>
+			<p class="mt-2 text-[11px] text-surface-500">Effects not modelled yet are listed under the meter.</p>
+		</div>
+	{/if}
+
 	{#if !(characterKey in runsBooks.byCharacter)}
 		<!-- Holds the meter's space while this browser's imported logs are read. -->
 		<div class="animate-pulse" aria-hidden="true">
-			<div class="flex gap-2 pt-1 pb-2.5">{#each [0, 1, 2, 3, 4] as i (i)}<div class="h-14 w-40 shrink-0 rounded-xs bg-surface-800"></div>{/each}</div>
-			<div class="mt-1.5 mb-3 h-6 w-48 rounded-xs bg-surface-800"></div>
-			<div class="mb-3 h-16 rounded-xs bg-surface-800/60"></div>
+			<div class="mb-3 h-9 w-72 rounded-xs bg-surface-800"></div>
+			<div class="mb-3 h-28 rounded-xs bg-surface-800/60"></div>
 			<div class="mb-3 h-12 w-56 rounded-xs bg-surface-800"></div>
 			<div class="space-y-1">{#each [100, 98, 97, 85, 67, 38, 13, 7] as w (w)}<div class="h-8 rounded-xs bg-surface-800/70" style:width="{w}%"></div>{/each}</div>
 		</div>
 	{:else if !book || importing}
-		<p class="mb-3 text-sm text-surface-300">Configure combat totals above for per-stat upgrade estimates, or import a clear or failed pull to estimate changes to recorded DPS.</p>
 		{#key characterKey}<DpsRunsImport {characterKey} {characterName} ondone={() => (importing = false)} />{/key}
 		{#if book}<button type="button" class="{btn} mt-3" onclick={() => (importing = false)}>Close</button>{/if}
-	{:else if !raid || !clear}
-		{@render useSwitch()}
-		<p class="text-sm text-surface-300">{pick.use === 'enrage' ? `No wipes of ${characterName} with the boss HP recorded (re-import to read it).` : `No clears of ${characterName} in the imported logs.`} <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
 	{:else}
-		<!-- Two columns on wide screens: the raids on the left (best DPS on each), the picked one on the right. -->
+		<!-- Two tabs: a clear replayed on the simulated gear, or a failed pull and what it needed. -->
+		<div class="mb-3">
+			<Segmented label="Runs" value={pick.use} options={[{ value: 'cleared', label: 'Cleared runs' }, { value: 'failed', label: 'Failed runs' }]} onselect={(v) => remember({ use: v as Use, clear: null })} size="h-8 px-4 text-sm" />
+			<p class="mt-1 text-xs text-surface-400">{pick.use === 'cleared' ? 'The exact run, replayed on your simulated gear.' : 'How the pull ended; for an enrage, the DPS that would have killed the boss.'}</p>
+		</div>
+		{#if !raid || !clear}
+			<p class="text-sm text-surface-300">{pick.use === 'failed' ? `No failed runs of ${characterName} with the boss HP recorded.` : `No cleared runs of ${characterName} in the imported logs.`} <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
+		{:else}
 		{@const art = raidArt(raid.name)}
+		<!-- Two columns on wide screens: the raids on the left (best DPS on each), the picked one on the right. -->
 		<div class="lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:gap-4">
 		<nav class="flex flex-col gap-1.5 max-lg:hidden" aria-label="Raids">
 			{#each mainRaids as r (r.key)}
@@ -226,12 +294,19 @@
 					<span class="absolute inset-x-2 top-1.5 flex items-center gap-1.5"><span class="truncate text-sm font-semibold text-white">{r.name}</span></span>
 					<span class="absolute inset-x-2 bottom-1.5 flex items-center gap-1.5">
 						<span class="rounded-xs px-1 text-[10px] font-semibold {difficultyTone(r.difficulty)}">{r.difficulty || 'Normal'}</span>
-						<span class="ml-auto rounded-xs bg-black/70 px-1 text-[10px] font-semibold text-sky-200 tabular-nums" title="Best recorded DPS of {r.runs.length} {r.runs.length === 1 ? 'attempt' : 'attempts'}">{formatDamage(bestDps(r.runs.filter((x) => fits(x, pick.use))))}</span>
+						<span class="ml-auto rounded-xs bg-black/70 px-1 text-[10px] font-semibold text-sky-200 tabular-nums" title="Best DPS of these runs">{formatDamage(bestDps(r.runs.filter((x) => fits(x, pick.use))))}</span>
 					</span>
 				</button>
 			{/each}
+			{#if unplayed.length}
+				<ul class="mt-1 flex flex-col gap-0.5" aria-label="No runs">
+					{#each unplayed as name (name)}
+						<li class="flex items-center gap-1.5 rounded-xs px-1.5 py-1 text-xs text-surface-500"><span class="truncate">{name}</span><span class="ml-auto text-[10px]">no {pick.use === 'cleared' ? 'clears' : 'wipes'}</span></li>
+					{/each}
+				</ul>
+			{/if}
 			{#if otherRaids.length}
-				<details class="mt-1 group" open={raid.kind === 'other'}>
+				<details class="mt-1" open={raid.kind === 'other'}>
 				<summary class="cursor-pointer text-[11px] font-semibold tracking-wide text-surface-500 uppercase select-none hover:text-surface-300">Other fights ({otherRaids.length})</summary>
 				<div class="mt-1 flex flex-col gap-0.5">
 				{#each otherRaids as r (r.key)}
@@ -246,72 +321,64 @@
 			{/if}
 		</nav>
 		<div class="min-w-0">
-		{@render useSwitch()}
-		<!-- Raid and attempt: one banner in the picked raid's official art, with the menus on it (the raid menu on phones). -->
-		<div class="relative mb-3 overflow-hidden rounded-xs border {raidTone(raid.name)}" aria-label="Raid and attempt">
+		<!-- Raid and run: one banner in the picked raid's official art, with the menus on it (the raid menu on phones). -->
+		<div class="relative mb-3 overflow-hidden rounded-xs border {raidTone(raid.name)}" aria-label="Raid and run">
 			{#if art}<span class="absolute inset-0" style={art} aria-hidden="true"></span>{/if}
 			<span class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/10" aria-hidden="true"></span>
 			<div class="relative flex flex-wrap items-end gap-x-4 gap-y-2 px-3 py-3 sm:min-h-28">
 				<div class="flex min-w-0 flex-col gap-1.5">
 					<span class="flex items-center gap-2">
 						<span class="rounded-xs px-1 text-[10px] font-semibold {difficultyTone(raid.difficulty)}">{raid.difficulty || 'Normal'}</span>
-						<span class="text-[11px] text-white/70">{raid.runs.length} {raid.runs.length === 1 ? 'attempt' : 'attempts'}</span>
+						<span class="text-[11px] text-white/70">{clears.length} {pick.use === 'cleared' ? (clears.length === 1 ? 'clear' : 'clears') : (clears.length === 1 ? 'failed run' : 'failed runs')}</span>
 					</span>
 					<h3 class="text-lg font-semibold text-white max-lg:hidden">{raid.name}</h3>
 					<select class="{banner} max-w-full text-lg font-semibold lg:hidden" aria-label="Raid" value={raid.key} onchange={(e) => remember({ raid: e.currentTarget.value, clear: null })}>
 						<optgroup label="Raids">{#each mainRaids as r (r.key)}<option value={r.key}>{r.name} · {r.difficulty || 'Normal'}</option>{/each}</optgroup>
 						{#if otherRaids.length}<optgroup label="Other fights">{#each otherRaids as r (r.key)}<option value={r.key}>{r.name} · {r.difficulty || 'Normal'}</option>{/each}</optgroup>{/if}
 					</select>
-					<select class="{banner} max-w-full text-xs" aria-label="Attempt" value={clear.id} onchange={(e) => remember({ clear: Number(e.currentTarget.value) })}>
-						{#each clears as r (r.id)}<option value={r.id}>{clearLabel(r)}</option>{/each}
+					<select class="{banner} {runTone(clear)} max-w-full text-xs" aria-label="Run" value={clear.id} onchange={(e) => remember({ clear: Number(e.currentTarget.value) })}>
+						{#each clears as r (r.id)}<option value={r.id} class={runTone(r)}>{runLabel(r)}</option>{/each}
 					</select>
 				</div>
 				<button type="button" class="ml-auto self-start rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm hover:border-white/40 hover:text-white" onclick={() => (importing = true)}>Re-import logs</button>
 			</div>
 		</div>
-		<!-- Beat an enrage: the DPS that would have killed the boss before the timer; other wipes just say how they ended. -->
+
+		<!-- A failed pull: how it ended; for an enrage, the DPS it needed. -->
 		{#if wipe}
-			{@const hpText = `${wipe.hpLeftPct < 10 ? wipe.hpLeftPct.toFixed(1) : Math.round(wipe.hpLeftPct)}%`}
-			{@const target = wipe.youPct !== null ? clear.damage / (clear.duration / 1000) * (1 + wipe.youPct / 100) : null}
+			{@const need = wipe.youPct !== null ? (clear.damage / (clear.duration / 1000)) * (1 + wipe.youPct / 100) : null}
 			<div class="mb-3 rounded-xs border px-3 py-2 text-xs {enrage ? 'border-rose-500/40 bg-rose-950/30 text-rose-100' : 'border-surface-700 bg-surface-950/50 text-surface-200'}">
-				<p><span class="font-semibold">Wiped at {time(clear.duration)}, {clear.boss} at {hpText} HP.</span>{#if wipe.dead?.of}{' '}{wipe.dead.count} of {wipe.dead.of} players down at the end.{/if}</p>
-				{#if wipe.pattern?.kind === 'time'}
-					<p class="mt-0.5 text-surface-300">{wipe.pattern.count} pulls ended around {time(wipe.pattern.at * 1000)} with the boss at different HP: the enrage timer.</p>
-				{:else if wipe.pattern?.kind === 'hp'}
-					<p class="mt-0.5 text-surface-300">{wipe.pattern.count} pulls of this gate ended near {hpText}: a mechanic at that HP.</p>
-				{/if}
-				{#if enrage}
-					<p class="mt-1.5">To kill it before the enrage, the party needed <span class="font-semibold tabular-nums">+{wipe.partyPct.toFixed(1)}%</span> damage{#if wipe.youPct !== null}; on your own, <span class="font-semibold tabular-nums">+{wipe.youPct.toFixed(1)}%</span>: <span class="font-semibold tabular-nums">{formatDamage(target!)}</span> DPS instead of {formatDamage(clear.damage / (clear.duration / 1000))} (you dealt {wipe.sharePct?.toFixed(0)}% of the party's damage){/if}.</p>
-					<p class="mt-1.5 flex flex-wrap items-center gap-2">
-						{#if target !== null}<button type="button" class="rounded-xs border border-rose-400/50 bg-rose-500/15 px-2 py-0.5 font-semibold text-rose-100 hover:bg-rose-500/30" title="Next Upgrades' Target DPS: the cheapest upgrades to reach it" onclick={() => requestTarget(characterKey, `${(target / 1e6).toFixed(1)}m`)}>Plan for {formatDamage(target)} DPS →</button>{/if}
-						<button type="button" class="ml-auto text-rose-200/70 underline hover:text-rose-100" onclick={() => markEnrage(clear, false)}>Not an enrage wipe</button>
-					</p>
-				{:else}
-					<p class="mt-1.5 flex flex-wrap items-center gap-2 text-surface-400">
-						<span>Not an enrage: more damage isn't what this pull needed.</span>
-						<button type="button" class="ml-auto rounded-xs border border-surface-600 px-2 py-0.5 text-surface-200 hover:bg-surface-800" title="The boss enraged (the timer ran out): show the DPS that would have killed it in time" onclick={() => markEnrage(clear, true)}>It was the enrage</button>
-					</p>
-				{/if}
-			</div>
-		{/if}
-		{#if !clearSetup}
-			<div class="mb-3 rounded-xs border border-amber-500/40 px-3 py-2 text-xs text-amber-200">
-				{#if baselineReady}Using the loaded equipment, confirmed for this attempt.
-				{:else}This attempt has no resolved equipment baseline. CP similarity alone does not verify the build.
-				<button type="button" class="ml-2 underline" onclick={() => { confirmed = baselineKey; }}>Use loaded equipment for this attempt</button>{/if}
+				<p class="font-semibold">Wiped at {time(clear.duration)} · {clear.boss} at {hpText(wipe.hpLeftPct)} HP</p>
+				<ul class="mt-1 list-disc space-y-0.5 pl-4 {enrage ? 'text-rose-100/90' : 'text-surface-300'}">
+					{#if wipe.dead?.of}<li>{wipe.dead.count} of {wipe.dead.of} players down</li>{/if}
+					{#if wipe.pattern?.kind === 'time'}<li>Enrage timer: {wipe.pattern.count} pulls ended near {time(wipe.pattern.at * 1000)}, boss HP varied</li>
+					{:else if wipe.pattern?.kind === 'hp'}<li>Mechanic: {wipe.pattern.count} pulls ended near {hpText(wipe.pattern.at)}</li>{/if}
+					{#if enrage}
+						<li>Party: <span class="font-semibold tabular-nums">+{wipe.partyPct.toFixed(1)}%</span> damage to kill it in time</li>
+						{#if need !== null}<li>You alone: <span class="font-semibold tabular-nums">{formatDamage(need)}</span> DPS (<span class="tabular-nums">+{wipe.youPct!.toFixed(1)}%</span>, at your {wipe.sharePct?.toFixed(0)}% share)</li>{/if}
+					{/if}
+				</ul>
+				<p class="mt-1.5 flex flex-wrap items-center gap-2">
+					{#if enrage}
+						{#if need !== null && target}<button type="button" class="rounded-xs border border-rose-400/50 bg-rose-500/15 px-2 py-0.5 font-semibold text-rose-100 hover:bg-rose-500/30" onclick={() => target?.planFor(`${(need / 1e6).toFixed(1)}m`)}>Plan for {formatDamage(need)} DPS</button>{/if}
+						<button type="button" class="ml-auto text-rose-200/70 underline hover:text-rose-100" onclick={() => markEnrage(clear, false)}>Not an enrage</button>
+					{:else}
+						<button type="button" class="ml-auto rounded-xs border border-surface-600 px-2 py-0.5 text-surface-200 hover:bg-surface-800" onclick={() => markEnrage(clear, true)}>Mark as enrage</button>
+					{/if}
+				</p>
 			</div>
 		{/if}
 
-		<!-- Baseline: the clear's own setup (its snapshot). One status line; what else differs folds away. -->
+		<!-- Baseline: the run's own setup (its snapshot). One status line; what else differs folds away. -->
 		{#if setup}
 			{@const recorded = setup.snap?.combatPower?.score ?? null}
 			{@const build = diff ? [...(diff.cores ? ['Ark Grid cores'] : []), ...diff.passives.map((t) => t.tree), ...diff.other] : []}
 			<div class="mb-3 rounded-xs border border-surface-700 bg-surface-950/50 px-3 py-2 text-xs">
 				<p class="flex flex-wrap items-center gap-x-2 text-surface-300">
-					<span class="font-semibold text-surface-100">{clear.cleared === false ? "This pull's setup" : "This clear's setup"}</span>
+					<span class="font-semibold text-surface-100">Run setup</span>
 					{#if recorded}<span class="tabular-nums">CP {recorded.toFixed(2)}</span>{/if}
 					{#if clearSetup && onsimulate}
-						<button type="button" class="ml-auto rounded-xs border border-accent-500/70 bg-accent-700/30 px-2 py-0.5 font-semibold text-accent-100 hover:bg-accent-700/60" title="Load this clear's gear, cores and gems into the Simulator, so your edits start from what you raided with (Undo brings yours back)" onclick={() => onsimulate(structuredClone($state.snapshot(clearSetup.state)) as SimState)}>Simulate from this setup</button>
+						<button type="button" class="ml-auto rounded-xs border border-accent-500/70 bg-accent-700/30 px-2 py-0.5 font-semibold text-accent-100 hover:bg-accent-700/60" title="Load this run's gear, cores and gems into the Simulator (Undo brings yours back)" onclick={() => onsimulate(structuredClone($state.snapshot(clearSetup.state)) as SimState)}>Simulate from this setup</button>
 					{/if}
 					<a class="{clearSetup && onsimulate ? '' : 'ml-auto'} text-sky-300 hover:underline" href={bibleSnapshotPage(setup.hash)} target="_blank" rel="noopener">lostark.bible ↗</a>
 				</p>
@@ -323,11 +390,11 @@
 					{#if sameSetupGear(diff)}
 						<p class="mt-1 text-green-400">● Same gear as now</p>
 					{:else}
-						<p class="mt-1 text-amber-300">● Gear changed since: {[...diff.gear, ...(diff.gems ? ['Gems'] : [])].join(', ')} <span class="text-surface-400">(counted in the meter)</span></p>
+						<p class="mt-1 text-amber-300">● Changed since: {[...diff.gear, ...(diff.gems ? ['Gems'] : [])].join(', ')}</p>
 					{/if}
 					{#if build.length}
 						<details class="mt-0.5 text-surface-400">
-							<summary class="cursor-pointer select-none hover:text-surface-200">Different build: {build.join(', ')} <span class="text-surface-500">(not valued yet)</span></summary>
+							<summary class="cursor-pointer select-none hover:text-surface-200">Different build: {build.join(', ')} <span class="text-surface-500">(not valued)</span></summary>
 							<ul class="mt-1 space-y-0.5 pl-3 text-surface-300">
 								{#each diff.passives as t (t.tree)}
 									<li><span class="text-surface-400">{t.tree}:</span> {t.clear.join(', ') || 'other levels'} <span class="text-surface-500">→ now</span> {t.now.join(', ') || 'other levels'}</li>
@@ -340,22 +407,37 @@
 					{/if}
 				{/if}
 			</div>
-		{:else if gap !== null}
-			{#if matches}
-				<p class="mb-3 text-xs text-surface-400">Similar recorded CP (loaded {currentCp!.toFixed(2)} · attempt {clearCp!.toFixed(2)}); equipment still needs confirmation.</p>
-			{:else}
-				<div class="mb-3 rounded-xs border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-					The gear here is {Math.abs(gap).toFixed(1)}% CP {gap > 0 ? 'above' : 'below'} this clear (CP {currentCp!.toFixed(2)} · clear {clearCp!.toFixed(2)}), so the meter applies your edits to different gear than you raided in.
-					{#if better}<button type="button" class="ml-1 font-semibold text-amber-100 underline hover:text-white" onclick={better.select}>Use {better.label}</button> (CP {better.cp!.toFixed(2)}).{:else} No kept snapshot matches it.{/if}
-				</div>
-			{/if}
 		{:else}
-			{#if !baselineReady}<p class="mb-3 text-xs text-surface-400">This attempt didn't record CP; equipment must be selected or confirmed separately.</p>{/if}
+			<!-- No snapshot for this run: the loaded gear stands in once the player says so. -->
+			<div class="mb-3 rounded-xs border border-amber-500/40 px-3 py-2 text-xs text-amber-200">
+				<p class="flex flex-wrap items-center gap-2">
+					<span>No gear snapshot for this run{#if gap !== null && !matches} · loaded gear is {Math.abs(gap).toFixed(1)}% CP {gap > 0 ? 'above' : 'below'} it{/if}.</span>
+					{#if better}<button type="button" class="font-semibold underline hover:text-white" onclick={better.select}>Use {better.label}</button>{/if}
+					{#if baselineReady}<span class="ml-auto text-surface-400">Using loaded gear</span>
+					{:else}<button type="button" class="ml-auto rounded-xs border border-amber-400/50 px-2 py-0.5 hover:bg-amber-500/10" onclick={() => { confirmed = baselineKey; }}>Use loaded gear</button>{/if}
+				</p>
+			</div>
 		{/if}
 
-		{#if meter}<DpsMeter {meter} {skillName} {skillIcon} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} />{/if}
-		{#key `${characterKey}:${clear.id}:${clear.start}`}<DpsCheckpoint run={clear} {loadout} baseline={clearSetup?.state ?? base} simState={plain} {context} ready={baselineReady} />{/key}
+		{#if meter}<div bind:this={meterBox}><DpsMeter {meter} {skillName} {skillIcon} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>{/if}
+		{#if selection && meter && onsimulate}
+			<div class="mt-3"><DpsTarget bind:this={target} {loadout} simState={plain} {base} {characterKey} {selection} meterDps={simulatedDps} onapply={onsimulate} /></div>
+		{/if}
 		</div>
 		</div>
+		{/if}
+	{/if}
+	</div>
 	{/if}
 </section>
+
+{#if away && meter && raid && clear}
+	<!-- Follows the page while the cards are edited; a click comes back to the meter. -->
+	<button type="button" class="fixed bottom-[4.25rem] left-1/2 z-30 flex max-w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-xs border border-accent-500/50 bg-surface-900/95 px-3 py-1.5 text-xs text-surface-300 shadow-lg shadow-black/60 backdrop-blur lg:bottom-4" onclick={() => section?.scrollIntoView({ block: 'start' })} title="Back to the DPS meter">
+		<span class="truncate">{raid.name}{gate(clear) ? ` G${gate(clear)}` : ''}</span>
+		<span class="tabular-nums">{dpsText(recordedDps)} →</span>
+		<span class="text-sm font-bold text-surface-50 tabular-nums">{dpsText(simulatedDps)}</span>
+		{@render gainText('font-semibold')}
+		<svg viewBox="0 0 16 16" class="size-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
+	</button>
+{/if}

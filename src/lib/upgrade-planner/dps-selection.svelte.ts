@@ -29,11 +29,3 @@ export function setDpsSelection(characterKey: string, selection: DpsSelection | 
 	// Called from DpsModePanel's effect: bumping the counter must not make that effect depend on it.
 	untrack(() => changes.count++);
 }
-
-// A target for Next Upgrades' Target DPS box, set from the DPS panel ("what would have killed this pull"); the counter
-// makes the same text sent twice still arrive.
-const targetRequests = $state<Record<string, { text: string; n: number }>>({});
-export function requestTarget(characterKey: string, text: string) {
-	targetRequests[characterKey] = { text, n: (targetRequests[characterKey]?.n ?? 0) + 1 };
-}
-export const targetRequest = (characterKey: string) => targetRequests[characterKey];
