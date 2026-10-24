@@ -109,6 +109,22 @@ export interface RunSkill {
 	back?: number;
 }
 
+/**
+ * What a support's buffs did, by the stat that scales them: Attack Power buffs (the support's Attack Power and Ally Atk.
+ * Power Enhancement), damage buffs (identity, hyper; Ally Damage Enhancement), brand (Brand Power), and the rest.
+ */
+export type SupportKind = 'attack' | 'damage' | 'brand' | 'other';
+
+/** A support's run: the party damage their buffs added, as LOA Logs attributes it. */
+export interface SupportRun {
+	/** Party damage the buffs added, by kind (LOA Logs' rDPS given, split by its per-effect contribution weights). */
+	kinds: Record<SupportKind, number>;
+	/** Each dealer buffed: class, their damage, and the damage the buffs added to it by kind. Names aren't kept. */
+	dealers: { cls: string; damage: number; kinds: Record<SupportKind, number> }[];
+	/** Buff uptime over the fight (0–1), as LOA Logs measured it; unknown on old logs. */
+	uptime?: { attack: number; brand: number; identity: number; hyper: number };
+}
+
 /** One cleared run of the player, compact enough to keep hundreds in browser storage. */
 export interface RunSummary extends EncounterRow {
 	combatPower: number | null;
@@ -127,6 +143,8 @@ export interface RunSummary extends EncounterRow {
 	dead?: { count: number; of: number };
 	/** The run's log on lostark.bible (lostark.bible/logs/<id>), when LOA Logs synced it. */
 	upstreamId?: string;
+	/** A support's buff contribution; dealers don't have one. */
+	support?: SupportRun;
 	/** All players' damage in the fight, for this player's share of it. */
 	partyDamage?: number;
 	/** Sum of the player's skill damage. */

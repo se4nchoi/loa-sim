@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runSummary } from './run-summary';
+import { runSummary, supportKindOf, supportRunOf } from './run-summary';
 
 const row = { id: 7, start: 1, boss: 'Kazeros', difficulty: 'Hard', cleared: true, player: 'Shanzkii', duration: 60_000 };
 const pair = (a: number, b: number) => ({ damageDoneByStat: a, damageDoneByStatPlusValue: b });
@@ -51,5 +51,29 @@ describe('Ark Grid and identity buffs', () => {
 		expect(r.skills[0].buffs).toEqual({ 3461200: 6, 460501: 4 });
 		expect(r.buffNames?.[460501]).toBe('Deathlord Mode');
 		expect(runSummary(row, { skills: { a: { id: 46430, totalDamage: 10 } } }, null, {})!.skills[0].buffs).toBeUndefined();
+	});
+});
+
+describe('support contribution', () => {
+	// Two dealers credit the support; their per-effect increases overlap (weights), the credited damage is the amount.
+	const misc = { contributionSplits: {
+		0: { name: 'Dealer', partyNumber: 0, damageSplitByName: { Sup: 100, Dealer: 300 },
+			damageIncreaseByEntitySkillGroup: { Sup: { 'attack_power_addend_/$@[16,314184]': 60, 'skill_damage_sub_rate_2_/$@[16,310509]': 30, 'skill_damage_amplify_/$@[16,314260]': 30, 'evolution_damage_/$@[16,2000362]': 30 } } },
+		1: { name: 'Other', partyNumber: 0, damageSplitByName: { Sup: 50, Other: 150 },
+			damageIncreaseByEntitySkillGroup: { Sup: { 'ultimate_awakening_damage_rate_/$@[16,319506]': 10 } } },
+		2: { name: 'Sup', partyNumber: 0, damageSplitByName: { Sup: 5 } },
+		3: { name: 'Boss — encounter bonuses', partyNumber: -1, damageSplitByName: { Sup: 999 } }
+	} };
+	it("splits each dealer's credited damage by kind, in proportion to the effect weights", () => {
+		const s = supportRunOf(misc, 'Sup', (n) => ({ Dealer: 'Souleater', Other: 'Breaker' })[n], { attack: 0.98, brand: 0.99, identity: 0.77, hyper: 0.52 })!;
+		expect(s.dealers).toHaveLength(2);
+		expect(s.dealers[0]).toEqual({ cls: 'Souleater', damage: 400, kinds: { attack: 40, damage: 20, brand: 20, other: 20 } });
+		expect(s.dealers[1].kinds).toEqual({ attack: 0, damage: 50, brand: 0, other: 0 });
+		expect(s.kinds).toEqual({ attack: 40, damage: 70, brand: 20, other: 20 });
+		expect(s.uptime?.identity).toBe(0.77);
+	});
+	it('has nothing without contribution splits', () => {
+		expect(supportRunOf({}, 'Sup', () => undefined)).toBeNull();
+		expect(supportKindOf('physical_defense_break_/$@[16,605100063]')).toBe('other');
 	});
 });

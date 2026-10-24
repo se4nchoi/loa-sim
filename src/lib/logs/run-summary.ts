@@ -1,7 +1,7 @@
 // Turns one logged run into the compact summary the DPS tab keeps in browser storage. Pure, so it can be tested
 // without a database; the worker supplies the decoded columns.
 
-import type { EncounterRow, RunSkill, RunSummary } from './protocol';
+import type { EncounterRow, RunSkill, RunSummary, SupportKind, SupportRun } from './protocol';
 import { averageStatValues, splitOf } from './stat-values';
 
 export interface LoggedRunSkill {
@@ -31,6 +31,47 @@ export interface LoggedEntity {
 	dead?: { count: number; of: number };
 	/** The run's id on lostark.bible when LOA Logs synced it (its sync_logs table). */
 	upstreamId?: unknown;
+	/** A support's contribution (supportRunOf). */
+	support?: SupportRun | null;
+}
+
+/** The LOA Logs effect type a support buff works through ("attack_power_addend_/$@[16,314184]") → what scales it. */
+export function supportKindOf(effect: string): SupportKind {
+	if (effect.startsWith('attack_power_addend')) return 'attack';
+	if (effect.startsWith('skill_damage_sub_rate') || effect.startsWith('ultimate_awakening_damage_rate')) return 'damage';
+	if (effect.startsWith('skill_damage_amplify')) return 'brand';
+	return 'other';
+}
+
+const noKinds = (): Record<SupportKind, number> => ({ attack: 0, damage: 0, brand: 0, other: 0 });
+
+/**
+ * A support's contribution from the encounter's misc: for each dealer (LOA Logs' contribution splits), the damage it
+ * credits to the support, split by kind in proportion to its per-effect increases (they overlap, so they're weights,
+ * not amounts). null without splits (old logs) or when no dealer credits the support.
+ */
+export function supportRunOf(misc: unknown, player: string, classOf: (name: string) => string | undefined, uptime?: SupportRun['uptime']): SupportRun | null {
+	const splits = (misc as { contributionSplits?: Record<string, unknown> } | null)?.contributionSplits;
+	if (!splits || typeof splits !== 'object') return null;
+	const dealers: SupportRun['dealers'] = [];
+	for (const raw of Object.values(splits)) {
+		const v = raw as { name?: string; partyNumber?: number; damageSplitByName?: Record<string, number>; damageIncreaseByEntitySkillGroup?: Record<string, Record<string, number>> };
+		if (!v?.name || v.name === player || !((v.partyNumber ?? -1) >= 0)) continue;
+		const given = num(v.damageSplitByName?.[player]) ?? 0;
+		if (!(given > 0)) continue;
+		const weights = noKinds();
+		for (const [effect, x] of Object.entries(v.damageIncreaseByEntitySkillGroup?.[player] ?? {})) if (num(x) && x > 0) weights[supportKindOf(effect)] += x;
+		const total = weights.attack + weights.damage + weights.brand + weights.other;
+		const kinds = noKinds();
+		if (total > 0) for (const k of Object.keys(kinds) as SupportKind[]) kinds[k] = (given * weights[k]) / total;
+		else kinds.other = given;
+		const damage = Object.values(v.damageSplitByName ?? {}).reduce((sum, x) => sum + (num(x) ?? 0), 0);
+		dealers.push({ cls: classOf(v.name) ?? '', damage, kinds });
+	}
+	if (!dealers.length) return null;
+	const kinds = noKinds();
+	for (const d of dealers) for (const k of Object.keys(kinds) as SupportKind[]) kinds[k] += d.kinds[k];
+	return { kinds, dealers, ...(uptime ? { uptime } : {}) };
 }
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -99,6 +140,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 		...(entity.bossHp && entity.bossHp.max > 0 ? { bossHp: entity.bossHp } : {}),
 		...(entity.partyDamage && entity.partyDamage > 0 ? { partyDamage: entity.partyDamage } : {}),
 		...(entity.dead ? { dead: entity.dead } : {}),
+		...(entity.support ? { support: entity.support } : {}),
 		...(typeof entity.upstreamId === 'string' && /^[A-Za-z0-9_-]{4,32}$/.test(entity.upstreamId) ? { upstreamId: entity.upstreamId } : {}),
 		damage: skills.reduce((sum, s) => sum + s.damage, 0),
 		skills: skills.sort((a, b) => b.damage - a.damage),

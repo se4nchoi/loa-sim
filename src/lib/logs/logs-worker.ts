@@ -10,7 +10,10 @@ import * as VFS from 'wa-sqlite/src/VFS.js';
 import type { LogsRequest, LogsResponse, SkillShare, EncounterRow, StatValues, ReplayRun } from './protocol';
 import { averageStatValues, splitOf } from './stat-values';
 import { replayRun, type LoggedReplaySkill } from './replay-data';
-import { runSummary, type LoggedRunSkill } from './run-summary';
+import { runSummary, supportRunOf, type LoggedRunSkill } from './run-summary';
+
+/** LOA Logs' support classes: their runs also record what their buffs added to the party. */
+const SUPPORT_CLASSES = new Set(['Bard', 'Paladin', 'Artist', 'Valkyrie']);
 
 const DB_NAME = 'encounters.db';
 /** wa-sqlite hands the VFS the name with any URI query ("encounters.db?immutable=1"); compare the bare name. */
@@ -257,7 +260,7 @@ async function runSummaries(player: string, ids: number[]) {
 	const names: Record<number, [string, string]> = {};
 	const runs = [];
 	for (const row of encounters) {
-		const [entity] = await query(`SELECT skills, ${pick('combat_power')}, ${pick('gear_score')}, ${pick('spec')}, ${pick('engravings')}, ${pick('ark_passive_data')}, ${pick('loadout_hash')} FROM entity WHERE encounter_id = ? AND name = ?`, [row.id, player]);
+		const [entity] = await query(`SELECT skills, ${pick('class')}, ${pick('combat_power')}, ${pick('gear_score')}, ${pick('spec')}, ${pick('engravings')}, ${pick('ark_passive_data')}, ${pick('loadout_hash')}, ${pick('support_ap')}, ${pick('support_brand')}, ${pick('support_identity')}, ${pick('support_hyper')} FROM entity WHERE encounter_id = ? AND name = ?`, [row.id, player]);
 		if (!entity) continue;
 		let misc: unknown = null;
 		if (hasMisc) try { misc = await decodeSkills((await query(`SELECT misc FROM encounter WHERE id = ?`, [row.id]))[0]?.misc); } catch { /* old/unreadable misc */ }
@@ -289,6 +292,14 @@ async function runSummaries(player: string, ids: number[]) {
 			const [counts] = await query(`SELECT SUM(is_dead) AS dead, COUNT(*) AS n FROM entity WHERE encounter_id = ? AND entity_type = 'PLAYER'`, [row.id]);
 			if (Number(counts?.n) > 0) dead = { count: Number(counts.dead) || 0, of: Number(counts.n) };
 		} catch { /* old logs */ }
+		// A support: what their buffs added to each dealer (from the contribution splits in misc) and the buffs' uptime.
+		let support: ReturnType<typeof supportRunOf> = null;
+		if (SUPPORT_CLASSES.has(String(entity.class))) try {
+			const classes = new Map((await query(`SELECT name, class FROM entity WHERE encounter_id = ? AND entity_type = 'PLAYER'`, [row.id])).map((r) => [String(r.name), String(r.class)]));
+			const up = [entity.support_ap, entity.support_brand, entity.support_identity, entity.support_hyper].map(Number);
+			support = supportRunOf(misc, player, (name) => classes.get(name),
+				up.every((x) => Number.isFinite(x) && x >= 0 && x <= 1) ? { attack: up[0], brand: up[1], identity: up[2], hyper: up[3] } : undefined);
+		} catch { /* old logs */ }
 		let upstreamId: unknown;
 		if (hasSync) try {
 			upstreamId = (await query(`SELECT upstream_id FROM sync_logs WHERE encounter_id = ? AND failed = 0`, [row.id]))[0]?.upstream_id;
@@ -296,7 +307,7 @@ async function runSummaries(player: string, ids: number[]) {
 		const run = runSummary({ ...row, player }, {
 			skills: await decodeSkills(entity.skills) as Record<string, LoggedRunSkill>,
 			combatPower: entity.combat_power, itemLevel: entity.gear_score, spec: entity.spec, engravings: entity.engravings,
-			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash, keptBuffs, bossHp, partyDamage, dead, upstreamId
+			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash, keptBuffs, bossHp, partyDamage, dead, upstreamId, support
 		}, misc, names);
 		if (run) runs.push(run);
 	}
