@@ -4,7 +4,7 @@
 	import type { SimState } from '../simulate';
 	import ItemIcon from './ItemIcon.svelte';
 	import Stepper from './Stepper.svelte';
-	import { btn, selectClass } from './ui';
+	import { btn, btnAccent, selectClass } from './ui';
 
 	let { sim = $bindable(), base, classId }: { sim: SimState; base: SimState; classId: string } = $props();
 	const stats = $derived(bracerStats(sim.bracer));
@@ -19,23 +19,35 @@
 	}
 </script>
 
-<div class="mt-3.5 grid grid-cols-[2.5rem_minmax(0,1fr)_max-content_max-content] items-center gap-x-4 max-sm:gap-x-2">
-<ItemIcon src={look?.icon} grade={look?.grade} title={look ? `${look.name} +${sim.bracer!.honing}\n${details}` : 'Vambraces · Not equipped'} />
-<span class="min-w-0 text-sm font-semibold text-surface-100" title={sim.bracer ? details : 'Belgardin Vambraces'}>
-	Vambraces
-</span>
-{#if sim.bracer}
-	<Stepper bind:value={sim.bracer.honing} min={BRACER_LIMITS[sim.bracer.grade][0]} max={BRACER_LIMITS[sim.bracer.grade][1]} prefix="+" label="Vambraces honing" width="w-7" {changed} />
-{:else}
-	<span class="text-center text-sm text-surface-500">—</span>
-{/if}
-<select aria-label="Vambraces grade" class="{selectClass(changed)} w-28 min-w-0 max-sm:w-24" value={sim.bracer?.grade ?? 'none'} onchange={(e) => setGrade(e.currentTarget.value)}>
-	<option value="none">None</option>
-	{#each BRACER_GRADES as grade}
-		<option value={grade}>{grade[0].toUpperCase() + grade.slice(1)}</option>
-	{/each}
-</select>
-<div class="col-span-full mt-1.5 flex justify-end gap-1.5">
-	<button type="button" class={btn} aria-label="Reset vambraces" onclick={() => (sim.bracer = base.bracer ? { ...base.bracer } : null)}>Reset</button>
-</div>
+<!-- Same row as the gear above (wraps the same way on phones): icon in the gear frame with Serca gear's blue border, name,
+     honing, grade, Max / Reset. -->
+<div class="flex flex-wrap items-center gap-3 border-t border-surface-800 py-3" role="group" aria-label="Vambraces">
+	<div class="flex min-w-36 flex-1 items-center gap-3">
+		<ItemIcon src={look?.icon} grade={look?.grade} frame="evolution" inherited={!!sim.bracer} title={look ? `${look.name} +${sim.bracer!.honing}
+${details}` : 'Vambraces · Not equipped'} />
+		<span class="min-w-0 text-sm font-semibold text-surface-100" title={sim.bracer ? details : 'Belgardin Vambraces'}>Vambraces</span>
+	</div>
+	<div class="ml-auto flex shrink-0 items-center gap-2">
+		<div class="flex flex-col items-center gap-1">
+			<span class="text-[10px] text-surface-400">Honing</span>
+			{#if sim.bracer}
+				<Stepper bind:value={sim.bracer.honing} min={BRACER_LIMITS[sim.bracer.grade][0]} max={BRACER_LIMITS[sim.bracer.grade][1]} prefix="+" label="Vambraces honing" width="w-7" {changed} />
+			{:else}
+				<span class="flex h-8 w-24 items-center justify-center text-sm text-surface-500">—</span>
+			{/if}
+		</div>
+		<div class="flex flex-col items-center gap-1">
+			<span class="text-[10px] text-surface-400">Grade</span>
+			<select aria-label="Vambraces grade" class="{selectClass(changed)} w-24 min-w-0" value={sim.bracer?.grade ?? 'none'} onchange={(e) => setGrade(e.currentTarget.value)}>
+				<option value="none">None</option>
+				{#each BRACER_GRADES as grade}
+					<option value={grade}>{grade[0].toUpperCase() + grade.slice(1)}</option>
+				{/each}
+			</select>
+		</div>
+		<div class="flex flex-col gap-1">
+			<button type="button" class="{btnAccent} px-2" aria-label="Max vambraces" onclick={() => (sim.bracer = { grade: 'ancient', honing: BRACER_LIMITS.ancient[1] })}>Max</button>
+			<button type="button" class="{btn} px-2" aria-label="Reset vambraces" onclick={() => (sim.bracer = base.bracer ? { ...base.bracer } : null)}>Reset</button>
+		</div>
+	</div>
 </div>
