@@ -123,6 +123,8 @@ export interface RunSummary extends EncounterRow {
 	buffNames?: Record<number, string>;
 	/** The boss's HP at the end (0 on a clear), and its max; unknown on old imports. */
 	bossHp?: { left: number; max: number };
+	/** Players dead at the end, of how many. */
+	dead?: { count: number; of: number };
 	/** All players' damage in the fight, for this player's share of it. */
 	partyDamage?: number;
 	/** Sum of the player's skill damage. */

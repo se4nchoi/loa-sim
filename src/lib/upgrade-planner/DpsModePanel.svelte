@@ -25,7 +25,8 @@
 	import { initSimState, simulate, type SimState } from './simulate';
 	import { clearState } from './clear-state';
 	import { btn } from './sim/ui';
-	import { wipeGap } from './dps-wipe';
+	import Segmented from './sim/Segmented.svelte';
+	import { wipeGap, wipeStory } from './dps-wipe';
 	import { requestTarget } from './dps-selection.svelte';
 	import type { Loadout } from './types';
 	import DpsStatContext from './DpsStatContext.svelte';
@@ -61,21 +62,29 @@
 
 	// The character's own clears; the gear's damage buckets come from the clears played with these engravings.
 	const own = $derived(book ? book.runs.filter((r) => r.player.toLowerCase() === characterName.toLowerCase() && r.damage > 0 && r.duration > 0) : []);
-	const raids = $derived(raidsOf(own));
+	const allRaids = $derived(raidsOf(own));
+	/** The attempts a use case works on: clears, or wipes with the boss HP recorded. */
+	const fits = (r: RunSummary, use: 'clear' | 'enrage') => (use === 'clear' ? r.cleared !== false : wipeGap(r) !== null);
+	const raids = $derived(allRaids.filter((r) => r.runs.some((x) => fits(x, pick.use))));
 	const mainRaids = $derived(raids.filter((r) => r.kind === 'raid'));
 	const otherRaids = $derived(raids.filter((r) => r.kind === 'other'));
 
 	// What's picked: raid and clear. Remembered per character.
 	const storeKey = $derived(`loa-sim:dps-meter:${characterKey}`);
-	let pick = $state<{ raid: string | null; clear: number | null }>({ raid: null, clear: null });
+	// use: improve a clear, or beat an enrage. enrage / notEnrage: pulls the player marked (or unmarked) as enrage wipes.
+	type Pick = { raid: string | null; clear: number | null; use: 'clear' | 'enrage'; enrage: number[]; notEnrage: number[] };
+	const NO_PICK: Pick = { raid: null, clear: null, use: 'clear', enrage: [], notEnrage: [] };
+	let pick = $state<Pick>({ ...NO_PICK });
 	$effect(() => {
 		const key = storeKey;
 		untrack(() => {
 			try {
 				const v = JSON.parse(localStorage.getItem(key) ?? 'null');
-				pick = { raid: typeof v?.raid === 'string' ? v.raid : null, clear: typeof v?.clear === 'number' ? v.clear : null };
+				const ids = (x: unknown) => (Array.isArray(x) ? x.filter((n): n is number => typeof n === 'number') : []);
+				pick = { raid: typeof v?.raid === 'string' ? v.raid : null, clear: typeof v?.clear === 'number' ? v.clear : null,
+					use: v?.use === 'enrage' ? 'enrage' : 'clear', enrage: ids(v?.enrage), notEnrage: ids(v?.notEnrage) };
 			} catch {
-				pick = { raid: null, clear: null };
+				pick = { ...NO_PICK };
 			}
 		});
 	});
@@ -92,8 +101,17 @@
 		return pool.toSorted((a, b) => recent(b) - recent(a) || b.last - a.last)[0] ?? null;
 	});
 	const raid = $derived(raids.find((r) => r.key === pick.raid) ?? busiest);
-	const clears = $derived(raid ? raid.runs.toSorted((a, b) => b.start - a.start) : []);
-	const clear = $derived(clears.find((r) => r.id === pick.clear) ?? clears[0] ?? null);
+	const clears = $derived(raid ? raid.runs.filter((r) => fits(r, pick.use)).toSorted((a, b) => b.start - a.start) : []);
+	/** A wipe's story against its gate's other wipes (a timer shows as pulls ending at one time, boss at different HP). */
+	const storyOf = (r: RunSummary) => wipeStory(r, raid ? raid.runs.filter((x) => x.cleared === false && gate(x) === gate(r)) : [],
+		Math.max(0, ...(raid?.runs ?? []).filter((x) => x.cleared === true && gate(x) === gate(r)).map((x) => x.duration / 1000)));
+	/** An enrage wipe: the player marked it, or the pattern says so and they didn't unmark it. */
+	const isEnrage = (r: RunSummary) => pick.enrage.includes(r.id) || (storyOf(r)?.pattern?.kind === 'time' && !pick.notEnrage.includes(r.id));
+	const clear = $derived(clears.find((r) => r.id === pick.clear) ?? (pick.use === 'enrage' ? clears.find(isEnrage) : null) ?? clears[0] ?? null);
+	function markEnrage(r: RunSummary, on: boolean) {
+		remember({ enrage: on ? [...new Set([...pick.enrage, r.id])] : pick.enrage.filter((x) => x !== r.id),
+			notEnrage: on ? pick.notEnrage.filter((x) => x !== r.id) : [...new Set([...pick.notEnrage, r.id])] });
+	}
 	const runs = $derived<RunSummary[]>(clear ? [clear] : []);
 	// Calibration belongs to the selected attempt. Similar CP/engravings on another run do not prove the same build.
 	const buildRuns = $derived(runs);
@@ -155,8 +173,10 @@
 	const outcome = (r: RunSummary) => r.cleared === true ? 'Clear' : r.cleared === false ? 'Failed' : 'Unknown outcome';
 	/** A wipe's boss HP left ("Failed at 3.2%"), so the closest pulls stand out in the menu. */
 	const wipeAt = (r: RunSummary) => { const g = wipeGap(r); return g ? ` at ${g.hpLeftPct < 10 ? g.hpLeftPct.toFixed(1) : Math.round(g.hpLeftPct)}%` : ''; };
-	const clearLabel = (r: RunSummary) => `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${outcome(r)}${wipeAt(r)} · ${time(r.duration)} · ${formatDamage(r.damage / (r.duration / 1000))}`;
-	const wipe = $derived(clear ? wipeGap(clear) : null);
+	const clearLabel = (r: RunSummary) => `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${outcome(r)}${wipeAt(r)}${r.cleared === false && isEnrage(r) ? ' · enrage' : ''} · ${time(r.duration)} · ${formatDamage(r.damage / (r.duration / 1000))}`;
+	// The same gate's failed pulls, for the patterns that tell a mechanic from a timer.
+	const wipe = $derived(clear ? storyOf(clear) : null);
+	const enrage = $derived(clear ? isEnrage(clear) : false);
 	const skillName = (id: number) => book?.skills[id]?.[0] ?? GEM_SKILLS[id]?.[0] ?? `Skill ${id}`;
 	const skillIcon = (id: number) => { const icon = book?.skills[id]?.[1] || GEM_SKILLS[id]?.[1]; return icon ? iconUrl(icon) : undefined; };
 	/** A raid's best recorded DPS, for its chip. */
@@ -165,6 +185,13 @@
 	/** Menus on the raid banner: dark glass over the art. */
 	const banner = 'w-fit rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-white backdrop-blur-sm hover:border-white/40 [&_option]:bg-surface-900 [&_optgroup]:bg-surface-900';
 </script>
+
+{#snippet useSwitch()}
+	<!-- Two questions: make a clear faster, or find the DPS an enrage wipe needed. -->
+	<div class="mb-3 flex flex-wrap items-center gap-2">
+		<Segmented label="Use" value={pick.use} options={[{ value: 'clear', label: 'Improve a clear', title: 'Your edits on one of your clears: its DPS with them' }, { value: 'enrage', label: 'Beat an enrage', title: 'A wipe that hit the enrage timer: the DPS that would have killed the boss in time' }]} onselect={(v) => remember({ use: v as 'clear' | 'enrage', clear: null })} size="h-8 px-3 text-sm" />
+	</div>
+{/snippet}
 
 <section class="mb-3 rounded-xs bg-surface-900 p-3 shadow-sm shadow-neutral-800 sm:p-4" aria-label="DPS meter">
 	{#key characterKey}<DpsStatContext {loadout} base={clearSetup?.state ?? base} {characterKey} oncontext={(c) => { context = c; }} />{/key}
@@ -183,7 +210,8 @@
 		{#key characterKey}<DpsRunsImport {characterKey} {characterName} ondone={() => (importing = false)} />{/key}
 		{#if book}<button type="button" class="{btn} mt-3" onclick={() => (importing = false)}>Close</button>{/if}
 	{:else if !raid || !clear}
-		<p class="text-sm text-surface-300">No attempts of {characterName} in the imported logs. <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
+		{@render useSwitch()}
+		<p class="text-sm text-surface-300">{pick.use === 'enrage' ? `No wipes of ${characterName} with the boss HP recorded (re-import to read it).` : `No clears of ${characterName} in the imported logs.`} <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
 	{:else}
 		<!-- Two columns on wide screens: the raids on the left (best DPS on each), the picked one on the right. -->
 		{@const art = raidArt(raid.name)}
@@ -198,7 +226,7 @@
 					<span class="absolute inset-x-2 top-1.5 flex items-center gap-1.5"><span class="truncate text-sm font-semibold text-white">{r.name}</span></span>
 					<span class="absolute inset-x-2 bottom-1.5 flex items-center gap-1.5">
 						<span class="rounded-xs px-1 text-[10px] font-semibold {difficultyTone(r.difficulty)}">{r.difficulty || 'Normal'}</span>
-						<span class="ml-auto rounded-xs bg-black/70 px-1 text-[10px] font-semibold text-sky-200 tabular-nums" title="Best recorded DPS of {r.runs.length} {r.runs.length === 1 ? 'attempt' : 'attempts'}">{formatDamage(bestDps(r.runs))}</span>
+						<span class="ml-auto rounded-xs bg-black/70 px-1 text-[10px] font-semibold text-sky-200 tabular-nums" title="Best recorded DPS of {r.runs.length} {r.runs.length === 1 ? 'attempt' : 'attempts'}">{formatDamage(bestDps(r.runs.filter((x) => fits(x, pick.use))))}</span>
 					</span>
 				</button>
 			{/each}
@@ -210,7 +238,7 @@
 					{@const on = r === raid}
 					<button type="button" class="flex items-center gap-1.5 rounded-xs px-1.5 py-1 text-left text-xs transition {on ? 'bg-surface-700 text-surface-50 ring-1 ring-accent-300' : 'text-surface-300 hover:bg-surface-800'}" aria-pressed={on} onclick={() => remember({ raid: r.key, clear: null })}>
 						<span class="min-w-0 truncate">{r.name} <span class="text-surface-500">· {r.difficulty || 'Normal'}</span></span>
-						<span class="ml-auto text-[10px] text-sky-300 tabular-nums">{formatDamage(bestDps(r.runs))}</span>
+						<span class="ml-auto text-[10px] text-sky-300 tabular-nums">{formatDamage(bestDps(r.runs.filter((x) => fits(x, pick.use))))}</span>
 					</button>
 				{/each}
 				</div>
@@ -218,6 +246,7 @@
 			{/if}
 		</nav>
 		<div class="min-w-0">
+		{@render useSwitch()}
 		<!-- Raid and attempt: one banner in the picked raid's official art, with the menus on it (the raid menu on phones). -->
 		<div class="relative mb-3 overflow-hidden rounded-xs border {raidTone(raid.name)}" aria-label="Raid and attempt">
 			{#if art}<span class="absolute inset-0" style={art} aria-hidden="true"></span>{/if}
@@ -240,15 +269,29 @@
 				<button type="button" class="ml-auto self-start rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm hover:border-white/40 hover:text-white" onclick={() => (importing = true)}>Re-import logs</button>
 			</div>
 		</div>
-		<!-- A failed pull: how close it got, and the damage that would have killed the boss in the same time. -->
+		<!-- Beat an enrage: the DPS that would have killed the boss before the timer; other wipes just say how they ended. -->
 		{#if wipe}
-			<div class="mb-3 rounded-xs border border-rose-500/40 bg-rose-950/30 px-3 py-2 text-xs text-rose-100">
-				<p><span class="font-semibold">Wiped at {time(clear.duration)} with {clear.boss} at {wipe.hpLeftPct < 10 ? wipe.hpLeftPct.toFixed(1) : Math.round(wipe.hpLeftPct)}% HP.</span>
-					To kill it by then, the party needed <span class="font-semibold tabular-nums">+{wipe.partyPct.toFixed(1)}%</span> damage{#if wipe.youPct !== null}, or you alone <span class="font-semibold tabular-nums">+{wipe.youPct.toFixed(1)}%</span> (you dealt {wipe.sharePct?.toFixed(0)}% of the party's damage){/if}.</p>
-				<p class="mt-1 flex flex-wrap items-center gap-2 text-rose-200/70">
-					<span>Wipes are often mechanics; this is what damage alone would have taken.</span>
-					{#if wipe.youPct !== null}<button type="button" class="ml-auto rounded-xs border border-rose-400/50 bg-rose-500/15 px-2 py-0.5 font-semibold text-rose-100 hover:bg-rose-500/30" title="Put this in Next Upgrades' Target DPS: the cheapest upgrades to reach it" onclick={() => requestTarget(characterKey, `${(clear.damage / (clear.duration / 1000) * (1 + wipe!.youPct! / 100) / 1e6).toFixed(1)}m`)}>Plan for {formatDamage(clear.damage / (clear.duration / 1000) * (1 + wipe.youPct / 100))} DPS →</button>{/if}
-				</p>
+			{@const hpText = `${wipe.hpLeftPct < 10 ? wipe.hpLeftPct.toFixed(1) : Math.round(wipe.hpLeftPct)}%`}
+			{@const target = wipe.youPct !== null ? clear.damage / (clear.duration / 1000) * (1 + wipe.youPct / 100) : null}
+			<div class="mb-3 rounded-xs border px-3 py-2 text-xs {enrage ? 'border-rose-500/40 bg-rose-950/30 text-rose-100' : 'border-surface-700 bg-surface-950/50 text-surface-200'}">
+				<p><span class="font-semibold">Wiped at {time(clear.duration)}, {clear.boss} at {hpText} HP.</span>{#if wipe.dead?.of}{' '}{wipe.dead.count} of {wipe.dead.of} players down at the end.{/if}</p>
+				{#if wipe.pattern?.kind === 'time'}
+					<p class="mt-0.5 text-surface-300">{wipe.pattern.count} pulls ended around {time(wipe.pattern.at * 1000)} with the boss at different HP: the enrage timer.</p>
+				{:else if wipe.pattern?.kind === 'hp'}
+					<p class="mt-0.5 text-surface-300">{wipe.pattern.count} pulls of this gate ended near {hpText}: a mechanic at that HP.</p>
+				{/if}
+				{#if enrage}
+					<p class="mt-1.5">To kill it before the enrage, the party needed <span class="font-semibold tabular-nums">+{wipe.partyPct.toFixed(1)}%</span> damage{#if wipe.youPct !== null}; on your own, <span class="font-semibold tabular-nums">+{wipe.youPct.toFixed(1)}%</span>: <span class="font-semibold tabular-nums">{formatDamage(target!)}</span> DPS instead of {formatDamage(clear.damage / (clear.duration / 1000))} (you dealt {wipe.sharePct?.toFixed(0)}% of the party's damage){/if}.</p>
+					<p class="mt-1.5 flex flex-wrap items-center gap-2">
+						{#if target !== null}<button type="button" class="rounded-xs border border-rose-400/50 bg-rose-500/15 px-2 py-0.5 font-semibold text-rose-100 hover:bg-rose-500/30" title="Next Upgrades' Target DPS: the cheapest upgrades to reach it" onclick={() => requestTarget(characterKey, `${(target / 1e6).toFixed(1)}m`)}>Plan for {formatDamage(target)} DPS →</button>{/if}
+						<button type="button" class="ml-auto text-rose-200/70 underline hover:text-rose-100" onclick={() => markEnrage(clear, false)}>Not an enrage wipe</button>
+					</p>
+				{:else}
+					<p class="mt-1.5 flex flex-wrap items-center gap-2 text-surface-400">
+						<span>Not an enrage: more damage isn't what this pull needed.</span>
+						<button type="button" class="ml-auto rounded-xs border border-surface-600 px-2 py-0.5 text-surface-200 hover:bg-surface-800" title="The boss enraged (the timer ran out): show the DPS that would have killed it in time" onclick={() => markEnrage(clear, true)}>It was the enrage</button>
+					</p>
+				{/if}
 			</div>
 		{/if}
 		{#if !clearSetup}

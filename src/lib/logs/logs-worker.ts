@@ -281,10 +281,16 @@ async function runSummaries(player: string, ids: number[]) {
 			const [total] = await query(`SELECT total_damage_dealt FROM encounter WHERE id = ?`, [row.id]);
 			if (Number(total?.total_damage_dealt) > 0) partyDamage = Number(total.total_damage_dealt);
 		} catch { /* old logs */ }
+		// How many players were down at the end (a cheap column; reading each death record would slow the import a lot).
+		let dead: { count: number; of: number } | undefined;
+		if (entityColumns.has('is_dead')) try {
+			const [counts] = await query(`SELECT SUM(is_dead) AS dead, COUNT(*) AS n FROM entity WHERE encounter_id = ? AND entity_type = 'PLAYER'`, [row.id]);
+			if (Number(counts?.n) > 0) dead = { count: Number(counts.dead) || 0, of: Number(counts.n) };
+		} catch { /* old logs */ }
 		const run = runSummary({ ...row, player }, {
 			skills: await decodeSkills(entity.skills) as Record<string, LoggedRunSkill>,
 			combatPower: entity.combat_power, itemLevel: entity.gear_score, spec: entity.spec, engravings: entity.engravings,
-			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash, keptBuffs, bossHp, partyDamage
+			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash, keptBuffs, bossHp, partyDamage, dead
 		}, misc, names);
 		if (run) runs.push(run);
 	}

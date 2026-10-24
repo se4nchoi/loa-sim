@@ -28,6 +28,7 @@ export interface LoggedEntity {
 	/** The fight's boss HP at the end and all players' damage, when the import read them. */
 	bossHp?: { left: number; max: number };
 	partyDamage?: number;
+	dead?: { count: number; of: number };
 }
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -95,6 +96,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 		...(entity.keptBuffs ? { buffNames: Object.fromEntries(entity.keptBuffs) } : {}),
 		...(entity.bossHp && entity.bossHp.max > 0 ? { bossHp: entity.bossHp } : {}),
 		...(entity.partyDamage && entity.partyDamage > 0 ? { partyDamage: entity.partyDamage } : {}),
+		...(entity.dead ? { dead: entity.dead } : {}),
 		damage: skills.reduce((sum, s) => sum + s.damage, 0),
 		skills: skills.sort((a, b) => b.damage - a.damage),
 		statValues: averageStatValues([split]),
