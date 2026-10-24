@@ -4,7 +4,7 @@
 	rotation are its own. Next Upgrades ranks by the same meter (dps-selection); Target DPS plans on it.
 -->
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { setDpsSelection, type DpsSelection } from './dps-selection.svelte';
 	import { loadRuns, runsBooks } from '$lib/logs/runs-store.svelte';
 	import { currentRaids, raidGateOf } from '$lib/logs/raids';
@@ -55,6 +55,10 @@
 		if (!shared) loadRuns(characterKey);
 	});
 	const book = $derived(runsBooks.byCharacter[characterKey] ?? null);
+	// Switching to DPS mode puts this panel over the cards: a skeleton for at least half a second, so the change reads
+	// as loading instead of a jump, then the panel.
+	let warm = $state(false);
+	onMount(() => { const t = setTimeout(() => (warm = true), 500); return () => clearTimeout(t); });
 	let importing = $state(false);
 	const base = $derived(initSimState(loadout));
 	let confirmed = $state<string | null>(null);
@@ -311,24 +315,36 @@
 	{#if loadout.battlePoint.isSupport}
 		<!-- A support's own skill damage says little about what they add; the party's damage isn't in their log. -->
 		<p class="text-sm text-surface-300">DPS sim is for damage dealers. Supports: use CP mode.</p>
-	{:else if !shared && !(characterKey in runsBooks.byCharacter)}
-		<!-- Holds the meter's space while this browser's imported logs are read. -->
-		<div class="animate-pulse" aria-hidden="true">
-			<div class="mb-3 h-9 w-72 rounded-xs bg-surface-800"></div>
-			<div class="mb-3 h-28 rounded-xs bg-surface-800/60"></div>
-			<div class="mb-3 h-12 w-56 rounded-xs bg-surface-800"></div>
-			<div class="space-y-1">{#each [100, 98, 97, 85, 67, 38, 13, 7] as w (w)}<div class="h-8 rounded-xs bg-surface-800/70" style:width="{w}%"></div>{/each}</div>
+	{:else if !warm || (!shared && !(characterKey in runsBooks.byCharacter))}
+		<!-- The panel's shape while it opens and this browser's imported logs are read: tabs, raids, banner, run, setup,
+		     Target DPS, meter. -->
+		<div class="animate-pulse" role="status" aria-label="Loading the DPS sim">
+			<div class="mb-3 flex gap-2"><div class="h-8 w-60 rounded-xs bg-surface-800"></div><div class="ml-auto h-8 w-28 rounded-xs bg-surface-800"></div></div>
+			<div class="{shared ? '' : 'lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:gap-4'}">
+				{#if !shared}<div class="flex flex-col gap-1.5 max-lg:hidden">{#each [0, 1, 2, 3, 4, 5] as i (i)}<div class="h-14 rounded-xs bg-surface-800/70"></div>{/each}</div>{/if}
+				<div>
+					<div class="mb-3 h-28 rounded-xs bg-surface-800/60"></div>
+					<div class="mb-3 h-28 rounded-xs bg-surface-800/50"></div>
+					<div class="mb-3 h-20 rounded-xs bg-surface-800/50"></div>
+					<div class="mb-3 h-[7.5rem] rounded-xs bg-surface-800/50"></div>
+					<div class="mb-3 h-14 w-72 rounded-xs bg-surface-800"></div>
+					<div class="space-y-1">{#each [100, 98, 97, 85, 67, 38, 13, 7] as w (w)}<div class="h-8 rounded-xs bg-surface-800/70" style:width="{w}%"></div>{/each}</div>
+					<div class="mt-3 h-4 w-28 rounded-xs bg-surface-800/60"></div>
+					<div class="mt-3 h-4 w-80 rounded-xs bg-surface-800/60"></div>
+				</div>
+			</div>
 		</div>
 	{:else if !shared && (!book || importing)}
 		{#if book}<button type="button" class="mb-3 flex items-center gap-1 text-xs text-surface-300 hover:text-surface-50" onclick={() => (importing = false)}>← Cancel re-import</button>{/if}
 		{#key characterKey}<DpsRunsImport {characterKey} {characterName} ondone={() => (importing = false)} />{/key}
 	{:else}
 		<!-- Two tabs: clears, or failed pulls and what they needed. A shared link has its one run. -->
-		<div class="mb-3" hidden={!!shared}>
+		<div class="mb-3 flex items-center gap-2" hidden={!!shared}>
 			<Segmented label="Runs" value={pick.use} options={[{ value: 'cleared', label: 'Cleared runs' }, { value: 'failed', label: 'Failed runs' }]} onselect={(v) => remember({ use: v as Use, clear: null })} size="h-8 px-4 text-sm" />
+			<button type="button" class="{btn} ml-auto h-8 px-3" onclick={() => (importing = true)}>Re-import logs</button>
 		</div>
 		{#if !raid || !clear}
-			<p class="text-sm text-surface-300">{pick.use === 'failed' ? 'No failed runs with boss HP.' : 'No cleared runs.'} <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
+			<p class="text-sm text-surface-300">{pick.use === 'failed' ? 'No failed runs with boss HP.' : 'No cleared runs.'}</p>
 		{:else}
 		{@const art = raidArt(raid.name, true)}
 		<!-- Two columns on wide screens: the raids on the left (best DPS on each), the picked one on the right. -->
@@ -392,10 +408,7 @@
 				{#if shared}<span class="ml-auto self-start rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm">Shared run · {shared.run.player}</span>
 				{:else}
 					<!-- The run's full log (every player, every hit) on lostark.bible, when LOA Logs synced it. -->
-					<span class="ml-auto flex flex-wrap gap-1.5 self-start">
-						{#if clear.upstreamId}<a class="rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm hover:border-white/40 hover:text-white" href="https://lostark.bible/logs/{clear.upstreamId}" target="_blank" rel="noopener">Log details ↗</a>{/if}
-						<button type="button" class="rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm hover:border-white/40 hover:text-white" onclick={() => (importing = true)}>Re-import logs</button>
-					</span>
+					{#if clear.upstreamId}<a class="ml-auto self-start rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm hover:border-white/40 hover:text-white" href="https://lostark.bible/logs/{clear.upstreamId}" target="_blank" rel="noopener">Log details ↗</a>{/if}
 				{/if}
 			</div>
 		</div>
