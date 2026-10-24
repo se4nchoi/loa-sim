@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RunSummary } from '$lib/logs/protocol';
 import brushann from './fixtures/na-brushann.json';
 import { initSimState } from './simulate';
-import { supportMeter, supportStats } from './support-meter';
+import { supportGain, supportMeter, supportStats } from './support-meter';
 import type { Loadout } from './types';
 
 const loadout = brushann as unknown as Loadout;
@@ -40,6 +40,16 @@ describe('support meter', () => {
 		expect(kind('attack').after).toBeGreaterThan(kind('attack').before);
 		for (const k of ['damage', 'brand', 'other']) expect(kind(k).after).toBeCloseTo(kind(k).before);
 		expect(m.dealers[0].after / m.dealers[0].before).toBeCloseTo(m.dealers[1].after / m.dealers[1].before);
+	});
+
+	it('values a step as its gain in party DPS added, and calls a step it cannot see unknown', () => {
+		const next = structuredClone(base);
+		next.gear.weapon!.honing = Math.min(25, next.gear.weapon!.honing + 1);
+		const m = supportMeter(loadout, base, next, run)!;
+		expect(supportGain(loadout, base, base, next, run)).toBeCloseTo((m.after / m.before - 1) * 100, 9);
+		const karma = structuredClone(base);
+		karma.karma.leap = Math.min(30, (karma.karma.leap ?? 0) + 1);
+		expect(supportGain(loadout, base, base, karma, run)).toBeNull();
 	});
 
 	it("counts a gem's base attack (the support's Attack Power) but lists its cooldown (buff uptime) as not valued", () => {

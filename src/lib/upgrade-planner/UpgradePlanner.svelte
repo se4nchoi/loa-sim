@@ -26,6 +26,7 @@
 	import { dpsMeter, meterGain } from './dps-meter';
 	import { dpsSelection } from './dps-selection.svelte';
 	import { configuredPlanGain } from './dps-configured';
+	import { supportGain } from './support-meter';
 	import { classTextColor } from './class-colors';
 
 	let {
@@ -100,13 +101,26 @@
 	});
 
 	onMount(loadGold);
-	// DPS mode: each upgrade on the meter's picked clear (the same numbers the meter shows after Apply).
+	// DPS mode: each upgrade on the meter's picked clear (the same numbers the meter shows after Apply). A support's is
+	// the party DPS their buffs added on their picked run.
 	const support = $derived(roleOf(loadout).support);
-	const selection = $derived(dpsMode && !support ? dpsSelection(characterKey) : undefined);
+	const selection = $derived.by(() => {
+		const sel = dpsMode ? dpsSelection(characterKey) : undefined;
+		return sel && !!sel.support === support ? sel : undefined;
+	});
 	const dpsGains = $derived.by(() => {
 		const out = new Map<string, { gainPct: number; atLeast: boolean }>();
 		if (!selection) return out;
 		const base = simBase ?? initSimState(loadout);
+		if (selection.support) {
+			for (const u of upgrades) {
+				const next = structuredClone(simNow);
+				if (!applyUpgrade(loadout, next, base, u)) continue;
+				const gainPct = supportGain(loadout, selection.baseline, simNow, next, selection.runs[0]);
+				if (gainPct !== null) out.set(u.key, { gainPct, atLeast: false });
+			}
+			return out;
+		}
 		const now = dpsMeter(loadout, selection.baseline, simNow, selection.buildRuns, selection.runs, selection.arkGrid, selection.context);
 		for (const u of upgrades) {
 			const next = structuredClone(simNow);
@@ -128,6 +142,8 @@
 	const shown = $derived(perGold ? [...priced, ...topDistinct(ranked.filter((u) => !pricedFor(u)), limit - priced.length)] : topDistinct(ranked, limit));
 	const unpriced = $derived(missingPriceCount(goldUpgrades, costs));
 	const unit = $derived(selection ? 'DPS' : 'CP');
+	/** What a DPS gain is of: the dealer's own DPS, or the party DPS a support's buffs add. */
+	const dpsLabel = $derived(selection?.support ? 'party DPS' : 'DPS');
 	/** DPS gains in the class's meter colour, as on the DPS sim's bars. */
 	const meterColor = $derived(classTextColor(loadout.classId));
 
@@ -156,9 +172,6 @@
 			/>
 		</div>
 	</div>
-	{#if dpsMode && support}
-		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-surface-400">Supports: ranked by CP.</p>
-	{/if}
 	{#if arkGridOverWillpower(simNow.arkGrid)}
 		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-amber-300" title="An astrogem doesn't fit its core's Willpower, so Ark Grid steps can't be worked out from here">
 			Ark Grid upgrades are left out: a core needs more Willpower than it has.
@@ -233,9 +246,9 @@
 					<span class="text-right whitespace-nowrap tabular-nums {honing ? 'self-end' : ''}">
 						{#if selection}
 							{#if g}
-								<span class="text-sky-300" style:color={meterColor} title={g.atLeast ? 'Estimated damage gain. Part of this upgrade is not valued yet.' : selection.runs.length ? 'Estimated damage gain on the picked run' : 'Estimated damage gain from configured combat totals'}>{g.atLeast ? '≥' : '≈'}{formatPct(g.gainPct)}<span class="text-xs">% DPS</span></span>
+								<span class="text-sky-300" style:color={meterColor} title={g.atLeast ? 'Estimated damage gain. Part of this upgrade is not valued yet.' : selection.runs.length ? 'Estimated damage gain on the picked run' : 'Estimated damage gain from configured combat totals'}>{g.atLeast ? '≥' : '≈'}{formatPct(g.gainPct)}<span class="text-xs">% {dpsLabel}</span></span>
 							{:else}
-								<span class="block text-[11px] font-normal text-surface-400" title="This upgrade changes something the DPS sim doesn’t value yet">DPS not estimated</span>
+								<span class="block text-[11px] font-normal text-surface-400" title="This upgrade changes something the DPS sim doesn’t value yet">{dpsLabel} not estimated</span>
 							{/if}
 							{#if u.count > 1}<span class="block text-[11px] text-surface-400">each</span>{/if}
 							<span class="block text-[10px] text-green-400">{u.approximate ? '≈' : ''}{formatPct(u.gainPct)}% CP</span>
@@ -271,5 +284,5 @@
 {/if}
 
 {#if dialogOpen}
-	<UpgradeDialog {characterKey} upgrades={ranked} {cp} isSupport={roleOf(loadout).support} skins={simNow.skins} accRolls={rollsFor(characterKey)} onaccrolls={(r) => setAccRolls(characterKey, r)} {auto} {costs} mode={gold.mode} {dpsMode} {dps} dpsRank={!!selection} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => { dialogOpen = false; focusKey = null; if (pricingRequest) onpricingclose?.(); }} />
+	<UpgradeDialog {characterKey} upgrades={ranked} {cp} isSupport={roleOf(loadout).support} skins={simNow.skins} accRolls={rollsFor(characterKey)} onaccrolls={(r) => setAccRolls(characterKey, r)} {auto} {costs} mode={gold.mode} {dpsMode} {dps} {dpsLabel} dpsRank={!!selection} onapply={onapply ? apply : undefined} {flash} {focusKey} onclose={() => { dialogOpen = false; focusKey = null; if (pricingRequest) onpricingclose?.(); }} />
 {/if}

@@ -197,7 +197,9 @@
 		const tripods = clearSkills?.filter((s) => clear.skills.some((x) => x.id === s.id)).map((s) => ({ id: s.id, ...(s.tripods ? { tripods: s.tripods } : {}) }));
 		return { run: shareableRun($state.snapshot(clear) as RunSummary), baseline: $state.snapshot(clearSetup?.state ?? base) as SimState, skills, ...(tripods?.length ? { arkSkills: tripods } : {}), ...(clear.cleared === false && isEnrage(clear) ? { enrage: true } : {}) };
 	});
-	const selection = $derived<DpsSelection | null>(!isSupport && runs.length && baselineReady ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid, share } : null);
+	const selection = $derived<DpsSelection | null>(!runs.length || !baselineReady ? null
+		: isSupport ? (clear?.support ? { baseline: clearSetup?.state ?? base, buildRuns: [], runs, support: true } : null)
+		: { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid, share });
 	// Shared with Next Upgrades, which ranks upgrades on this meter.
 	$effect(() => {
 		const key = characterKey;
@@ -520,7 +522,7 @@
 		{/if}
 
 		<!-- Target DPS above the meter, for clears and wipes alike: the skill list below can be long. -->
-		{#if meter && onsimulate}
+		{#if meter && onsimulate && !isSupport}
 			<!-- Keyed by the run: a plan belongs to the run it was made on, so another raid or run starts clean. -->
 			{#key `${clear.id}:${clear.start}`}<div class="mb-3"><DpsTarget bind:this={target} {loadout} simState={plain} {base} {characterKey} {selection} meterDps={simulatedDps} onapply={onsimulate} /></div>{/key}
 		{/if}

@@ -95,3 +95,14 @@ export function supportMeter(loadout: Loadout, baseline: SimState, state: SimSta
 		notInMeter: (Object.keys(state) as (keyof SimState)[]).filter((k) => !VALUED.has(k) && !same(state[k], baseline[k])).map((k) => LABELS[k] ?? k)
 	};
 }
+
+/**
+ * One step's gain in party DPS added, percent (Next Upgrades for a support). null when the step only touches what the
+ * meter doesn't value (it moves nothing there): unknown, not zero.
+ */
+export function supportGain(loadout: Loadout, baseline: SimState, from: SimState, to: SimState, run: RunSummary): number | null {
+	const a = supportMeter(loadout, baseline, from, run), b = supportMeter(loadout, baseline, to, run);
+	if (!a || !b || !(a.after > 0)) return null;
+	const gain = (b.after / a.after - 1) * 100;
+	return Math.abs(gain) < 1e-6 && !same(from, to) ? null : gain;
+}

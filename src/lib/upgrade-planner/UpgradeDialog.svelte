@@ -17,6 +17,7 @@
 
 	let {
 		dpsMode = false,
+		dpsLabel = 'DPS',
 		dps = new Map<string, number>(),
 		dpsRank = false,
 		upgrades,
@@ -35,6 +36,8 @@
 		isSupport = false
 	}: {
 		dpsMode?: boolean;
+		/** "DPS", or "party DPS" for a support. */
+		dpsLabel?: string;
 		dps?: Map<string, number>;
 		dpsRank?: boolean;
 		upgrades: Upgrade[];
@@ -161,7 +164,7 @@
 {/snippet}
 
 {#snippet cpAfter(u: Upgrade)}
-	{#if dpsMode}<span class="block text-xs text-sky-300 tabular-nums">{dps.has(u.key) ? 'DPS ≈' + formatPct(dps.get(u.key)!) + '%' : 'DPS unestimated'}</span>{/if}
+	{#if dpsMode}<span class="block text-xs text-sky-300 tabular-nums">{dps.has(u.key) ? `${dpsLabel} ≈${formatPct(dps.get(u.key)!)}%` : `${dpsLabel} unestimated`}</span>{/if}
 	<span class="block text-xs text-surface-100 tabular-nums">{formatCp(cp * (1 + u.gainPct / 100))} <span class={u.gainPct < 0 ? 'text-red-400' : 'text-green-400'}>({formatPct(cp * u.gainPct / 100)})</span></span>
 {/snippet}
 

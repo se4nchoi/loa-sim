@@ -16,6 +16,8 @@ export interface DpsSelection {
 	context?: DamageContext;
 	/** What a share link carries from DPS mode: the run and its baseline. */
 	share?: SharedDps;
+	/** A support's run: Next Upgrades ranks by the party DPS their buffs added (support-meter.ts), not their own. */
+	support?: boolean;
 }
 
 const selections = new Map<string, DpsSelection>();
