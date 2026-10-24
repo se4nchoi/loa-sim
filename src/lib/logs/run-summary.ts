@@ -25,6 +25,9 @@ export interface LoggedEntity {
 	loadoutHash?: unknown;
 	/** The encounter's Ark Grid and identity buffs by id, with their names; their damage per skill is kept. */
 	keptBuffs?: Map<number, string>;
+	/** The fight's boss HP at the end and all players' damage, when the import read them. */
+	bossHp?: { left: number; max: number };
+	partyDamage?: number;
 }
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -90,6 +93,8 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 		...(Object.keys(arkGridOrder).length ? { arkGridOrder } : {}),
 		...(typeof entity.loadoutHash === 'string' && entity.loadoutHash ? { loadoutHash: entity.loadoutHash } : {}),
 		...(entity.keptBuffs ? { buffNames: Object.fromEntries(entity.keptBuffs) } : {}),
+		...(entity.bossHp && entity.bossHp.max > 0 ? { bossHp: entity.bossHp } : {}),
+		...(entity.partyDamage && entity.partyDamage > 0 ? { partyDamage: entity.partyDamage } : {}),
 		damage: skills.reduce((sum, s) => sum + s.damage, 0),
 		skills: skills.sort((a, b) => b.damage - a.damage),
 		statValues: averageStatValues([split]),

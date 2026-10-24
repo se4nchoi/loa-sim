@@ -25,6 +25,8 @@
 	import { initSimState, simulate, type SimState } from './simulate';
 	import { clearState } from './clear-state';
 	import { btn } from './sim/ui';
+	import { wipeGap } from './dps-wipe';
+	import { requestTarget } from './dps-selection.svelte';
 	import type { Loadout } from './types';
 	import DpsStatContext from './DpsStatContext.svelte';
 	import type { DamageContext } from './dps-stat-engine';
@@ -82,7 +84,14 @@
 		try { localStorage.setItem(storeKey, JSON.stringify(pick)); } catch { /* this visit only */ }
 	}
 
-	const raid = $derived(raids.find((r) => r.key === pick.raid) ?? mainRaids[0] ?? raids[0] ?? null);
+	/** With nothing picked yet: the raid played most in the two weeks before the newest attempt (then the newest). */
+	const busiest = $derived.by(() => {
+		const pool = mainRaids.length ? mainRaids : raids;
+		const newest = Math.max(0, ...pool.flatMap((r) => r.runs.map((x) => x.start)));
+		const recent = (r: (typeof pool)[number]) => r.runs.filter((x) => x.start >= newest - 14 * 86_400_000).length;
+		return pool.toSorted((a, b) => recent(b) - recent(a) || b.last - a.last)[0] ?? null;
+	});
+	const raid = $derived(raids.find((r) => r.key === pick.raid) ?? busiest);
 	const clears = $derived(raid ? raid.runs.toSorted((a, b) => b.start - a.start) : []);
 	const clear = $derived(clears.find((r) => r.id === pick.clear) ?? clears[0] ?? null);
 	const runs = $derived<RunSummary[]>(clear ? [clear] : []);
@@ -144,7 +153,10 @@
 	const gate = (r: RunSummary) => raidGateOf(r.boss)?.gate;
 	const time = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 	const outcome = (r: RunSummary) => r.cleared === true ? 'Clear' : r.cleared === false ? 'Failed' : 'Unknown outcome';
-	const clearLabel = (r: RunSummary) => `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${outcome(r)} · ${time(r.duration)} · ${formatDamage(r.damage / (r.duration / 1000))}`;
+	/** A wipe's boss HP left ("Failed at 3.2%"), so the closest pulls stand out in the menu. */
+	const wipeAt = (r: RunSummary) => { const g = wipeGap(r); return g ? ` at ${g.hpLeftPct < 10 ? g.hpLeftPct.toFixed(1) : Math.round(g.hpLeftPct)}%` : ''; };
+	const clearLabel = (r: RunSummary) => `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${outcome(r)}${wipeAt(r)} · ${time(r.duration)} · ${formatDamage(r.damage / (r.duration / 1000))}`;
+	const wipe = $derived(clear ? wipeGap(clear) : null);
 	const skillName = (id: number) => book?.skills[id]?.[0] ?? GEM_SKILLS[id]?.[0] ?? `Skill ${id}`;
 	const skillIcon = (id: number) => { const icon = book?.skills[id]?.[1] || GEM_SKILLS[id]?.[1]; return icon ? iconUrl(icon) : undefined; };
 	/** A raid's best recorded DPS, for its chip. */
@@ -191,7 +203,9 @@
 				</button>
 			{/each}
 			{#if otherRaids.length}
-				<p class="mt-1 text-[11px] font-semibold tracking-wide text-surface-500 uppercase">Other fights</p>
+				<details class="mt-1 group" open={raid.kind === 'other'}>
+				<summary class="cursor-pointer text-[11px] font-semibold tracking-wide text-surface-500 uppercase select-none hover:text-surface-300">Other fights ({otherRaids.length})</summary>
+				<div class="mt-1 flex flex-col gap-0.5">
 				{#each otherRaids as r (r.key)}
 					{@const on = r === raid}
 					<button type="button" class="flex items-center gap-1.5 rounded-xs px-1.5 py-1 text-left text-xs transition {on ? 'bg-surface-700 text-surface-50 ring-1 ring-accent-300' : 'text-surface-300 hover:bg-surface-800'}" aria-pressed={on} onclick={() => remember({ raid: r.key, clear: null })}>
@@ -199,6 +213,8 @@
 						<span class="ml-auto text-[10px] text-sky-300 tabular-nums">{formatDamage(bestDps(r.runs))}</span>
 					</button>
 				{/each}
+				</div>
+				</details>
 			{/if}
 		</nav>
 		<div class="min-w-0">
@@ -224,6 +240,17 @@
 				<button type="button" class="ml-auto self-start rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm hover:border-white/40 hover:text-white" onclick={() => (importing = true)}>Re-import logs</button>
 			</div>
 		</div>
+		<!-- A failed pull: how close it got, and the damage that would have killed the boss in the same time. -->
+		{#if wipe}
+			<div class="mb-3 rounded-xs border border-rose-500/40 bg-rose-950/30 px-3 py-2 text-xs text-rose-100">
+				<p><span class="font-semibold">Wiped at {time(clear.duration)} with {clear.boss} at {wipe.hpLeftPct < 10 ? wipe.hpLeftPct.toFixed(1) : Math.round(wipe.hpLeftPct)}% HP.</span>
+					To kill it by then, the party needed <span class="font-semibold tabular-nums">+{wipe.partyPct.toFixed(1)}%</span> damage{#if wipe.youPct !== null}, or you alone <span class="font-semibold tabular-nums">+{wipe.youPct.toFixed(1)}%</span> (you dealt {wipe.sharePct?.toFixed(0)}% of the party's damage){/if}.</p>
+				<p class="mt-1 flex flex-wrap items-center gap-2 text-rose-200/70">
+					<span>Wipes are often mechanics; this is what damage alone would have taken.</span>
+					{#if wipe.youPct !== null}<button type="button" class="ml-auto rounded-xs border border-rose-400/50 bg-rose-500/15 px-2 py-0.5 font-semibold text-rose-100 hover:bg-rose-500/30" title="Put this in Next Upgrades' Target DPS: the cheapest upgrades to reach it" onclick={() => requestTarget(characterKey, `${(clear.damage / (clear.duration / 1000) * (1 + wipe!.youPct! / 100) / 1e6).toFixed(1)}m`)}>Plan for {formatDamage(clear.damage / (clear.duration / 1000) * (1 + wipe.youPct / 100))} DPS →</button>{/if}
+				</p>
+			</div>
+		{/if}
 		{#if !clearSetup}
 			<div class="mb-3 rounded-xs border border-amber-500/40 px-3 py-2 text-xs text-amber-200">
 				{#if baselineReady}Using the loaded equipment, confirmed for this attempt.
@@ -238,7 +265,7 @@
 			{@const build = diff ? [...(diff.cores ? ['Ark Grid cores'] : []), ...diff.passives.map((t) => t.tree), ...diff.other] : []}
 			<div class="mb-3 rounded-xs border border-surface-700 bg-surface-950/50 px-3 py-2 text-xs">
 				<p class="flex flex-wrap items-center gap-x-2 text-surface-300">
-					<span class="font-semibold text-surface-100">This clear's setup</span>
+					<span class="font-semibold text-surface-100">{clear.cleared === false ? "This pull's setup" : "This clear's setup"}</span>
 					{#if recorded}<span class="tabular-nums">CP {recorded.toFixed(2)}</span>{/if}
 					{#if clearSetup && onsimulate}
 						<button type="button" class="ml-auto rounded-xs border border-accent-500/70 bg-accent-700/30 px-2 py-0.5 font-semibold text-accent-100 hover:bg-accent-700/60" title="Load this clear's gear, cores and gems into the Simulator, so your edits start from what you raided with (Undo brings yours back)" onclick={() => onsimulate(structuredClone($state.snapshot(clearSetup.state)) as SimState)}>Simulate from this setup</button>

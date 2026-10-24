@@ -249,6 +249,7 @@ async function runSummaries(player: string, ids: number[]) {
 	const encounters = (await listEncounters()).filter(r => wanted.has(r.id));
 	const columns = new Set((await query(`SELECT name FROM pragma_table_info('entity')`)).map(r => r.name));
 	const pick = (name: string) => columns.has(name) ? name : `NULL AS ${name}`;
+	const entityColumns = columns;
 	const encounterColumns = new Set((await query(`SELECT name FROM pragma_table_info('encounter')`)).map(r => r.name));
 	const hasMisc = encounterColumns.has('misc'), hasBuffs = encounterColumns.has('buffs');
 	const names: Record<number, [string, string]> = {};
@@ -268,10 +269,22 @@ async function runSummaries(player: string, ids: number[]) {
 				((b?.buffCategory === 'classskill' || b?.buffCategory === 'arkpassive') && b.target !== 'PARTY');
 			keptBuffs = new Map(Object.entries(buffs).filter(([, b]) => kept(b)).map(([id, b]) => [Number(id), b.source?.name ?? '']));
 		} catch { /* old/unreadable buffs */ }
+		// How far the fight got: the boss's HP at the end, and every player's damage (for this player's share of it).
+		let bossHp: { left: number; max: number } | undefined;
+		let partyDamage: number | undefined;
+		if (entityColumns.has('max_hp') && entityColumns.has('current_hp')) try {
+			const [boss] = await query(`SELECT current_hp, max_hp FROM entity WHERE encounter_id = ? AND name = ? AND entity_type = 'BOSS'`, [row.id, row.boss]);
+			if (boss && Number(boss.max_hp) > 0) bossHp = { left: Math.max(0, Number(boss.current_hp) || 0), max: Number(boss.max_hp) };
+		} catch { /* old logs */ }
+		// The encounter's total_damage_dealt is every player's damage summed (checked against their damage_stats).
+		if (encounterColumns.has('total_damage_dealt')) try {
+			const [total] = await query(`SELECT total_damage_dealt FROM encounter WHERE id = ?`, [row.id]);
+			if (Number(total?.total_damage_dealt) > 0) partyDamage = Number(total.total_damage_dealt);
+		} catch { /* old logs */ }
 		const run = runSummary({ ...row, player }, {
 			skills: await decodeSkills(entity.skills) as Record<string, LoggedRunSkill>,
 			combatPower: entity.combat_power, itemLevel: entity.gear_score, spec: entity.spec, engravings: entity.engravings,
-			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash, keptBuffs
+			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash, keptBuffs, bossHp, partyDamage
 		}, misc, names);
 		if (run) runs.push(run);
 	}

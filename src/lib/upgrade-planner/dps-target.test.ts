@@ -3,7 +3,7 @@ import type { RunSummary } from '$lib/logs/protocol';
 import soulshan from './fixtures/na-soulshan.json';
 import { engravingNames } from './dps-loadout';
 import { liveUpgrades } from './live-upgrades';
-import { parseTargetDps, planToTarget } from './dps-target';
+import { groupSteps, parseTargetDps, planToTarget } from './dps-target';
 import { initSimState } from './simulate';
 import type { Loadout } from './types';
 
@@ -54,5 +54,15 @@ describe('target DPS', () => {
 		const plan = planToTarget({ ...options(startDps * 10, false), maxSteps: 3 })!;
 		expect(plan.reached).toBe(false);
 		expect(plan.steps.length).toBeLessThanOrEqual(3);
+	});
+});
+
+describe('plan steps grouped', () => {
+	it('puts consecutive steps on one item on one line, gains compounded and gold added', () => {
+		const step = (subject: string, gainPct: number, gold: number | null) => ({ upgrade: { subject, category: 'honing', title: subject } as never, gainPct, gold, dps: 1 });
+		const groups = groupSteps([step('Weapon', 1, 100), step('Vambraces', 1, 10), step('Vambraces', 1, 20), step('Weapon', 2, null)]);
+		expect(groups.map((g) => g.count)).toEqual([1, 2, 1]);
+		expect(groups[1].gainPct).toBeCloseTo(2.01);
+		expect(groups[1].gold).toBe(30);
 	});
 });

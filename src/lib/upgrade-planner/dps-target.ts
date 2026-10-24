@@ -29,6 +29,10 @@ export interface TargetPlan {
 	gold: number;
 	/** Upgrades left out because they have no gold cost (ranking by gold). */
 	unpriced: number;
+	/** Stopped at the step limit with upgrades still helping: planning can go on from `end`. */
+	capped: boolean;
+	/** The state after the last step. */
+	end: SimState;
 }
 
 export interface TargetOptions {
@@ -54,9 +58,10 @@ export function planToTarget(o: TargetOptions): TargetPlan | null {
 	let state = structuredClone(o.start);
 	let meter = meterOf(state);
 	if (!meter || !sel.runs.length) return null;
-	const plan: TargetPlan = { startDps: dpsOf(meter), endDps: dpsOf(meter), steps: [], reached: dpsOf(meter) >= o.targetDps, gold: 0, unpriced: 0 };
+	const plan: TargetPlan = { startDps: dpsOf(meter), endDps: dpsOf(meter), steps: [], reached: dpsOf(meter) >= o.targetDps, gold: 0, unpriced: 0, capped: false, end: state };
 	const unpriced = new Set<string>();
 
+	let exhausted = false;
 	for (let i = 0; i < (o.maxSteps ?? 15) && !plan.reached; i++) {
 		const now = dpsOf(meter);
 		const options: { u: Upgrade; next: SimState; gain: number; gold: number | null }[] = [];
@@ -70,7 +75,7 @@ export function planToTarget(o: TargetOptions): TargetPlan | null {
 			if (g.gainPct === null || !(g.gainPct > 0.001)) continue;
 			options.push({ u, next, gain: g.gainPct, gold });
 		}
-		if (!options.length) break;
+		if (!options.length) { exhausted = true; break; }
 		const cost = (x: (typeof options)[number]) => (o.byGold ? x.gold! : x.gain);
 		const best = options.reduce((a, b) => {
 			if (!o.byGold) return b.gain > a.gain ? b : a;
@@ -89,7 +94,36 @@ export function planToTarget(o: TargetOptions): TargetPlan | null {
 		plan.reached = plan.endDps >= o.targetDps;
 	}
 	plan.unpriced = unpriced.size;
+	plan.end = state;
+	plan.capped = !plan.reached && !exhausted;
 	return plan;
+}
+
+export interface StepGroup {
+	/** First and last step of a run of steps on one item ("Vambraces"), or the one step. */
+	first: TargetStep;
+	last: TargetStep;
+	count: number;
+	/** Their DPS gain together, percent. */
+	gainPct: number;
+	/** Their gold together; null when one of them has none. */
+	gold: number | null;
+}
+
+/** Consecutive steps on the same item as one line: 27 Vambraces honing steps read as one. */
+export function groupSteps(steps: TargetStep[]): StepGroup[] {
+	const out: StepGroup[] = [];
+	for (const step of steps) {
+		const prev = out.at(-1);
+		const subject = step.upgrade.subject ?? step.upgrade.category;
+		if (prev && (prev.last.upgrade.subject ?? prev.last.upgrade.category) === subject && step.upgrade.category === prev.last.upgrade.category) {
+			prev.last = step;
+			prev.count++;
+			prev.gainPct = ((1 + prev.gainPct / 100) * (1 + step.gainPct / 100) - 1) * 100;
+			prev.gold = prev.gold === null || step.gold === null ? null : prev.gold + step.gold;
+		} else out.push({ first: step, last: step, count: 1, gainPct: step.gainPct, gold: step.gold });
+	}
+	return out;
 }
 
 /** "1.4b", "1400m", "1,400,000k" → DPS; "+5%" → the current DPS × 1.05. */

@@ -24,10 +24,11 @@
 	import { CATEGORY_LABELS, topDistinct, type Upgrade } from './upgrades';
 	import { applyUpgrade } from './apply-upgrade';
 	import { dpsMeter, meterGain } from './dps-meter';
-	import { dpsSelection } from './dps-selection.svelte';
+	import { dpsSelection, targetRequest } from './dps-selection.svelte';
+	import { untrack } from 'svelte';
 	import { configuredPlanGain } from './dps-configured';
 	import { formatDamage } from './dps-comparison';
-	import { parseTargetDps, planToTarget, type TargetPlan } from './dps-target';
+	import { groupSteps, parseTargetDps, planToTarget, type TargetPlan } from './dps-target';
 
 	let {
 		dpsMode = false,
@@ -140,6 +141,32 @@
 		return m ? m.after / (m.durationMs / 1000) : null;
 	});
 	let targetText = $state('');
+	let targetOpen = $state(false);
+	let targetBox = $state<HTMLElement | null>(null);
+	// A target sent from the DPS panel ("what would have killed this pull") fills the box and opens it; the copy of this
+	// card on screen (there's one per layout) scrolls to it and plans right away.
+	$effect(() => {
+		const request = targetRequest(characterKey);
+		if (!request) return;
+		untrack(() => {
+			targetText = request.text;
+			targetOpen = true;
+			targetPlan = null;
+			setTimeout(() => {
+				if (!targetBox?.offsetParent) return;
+				// Scroll the sidebar column that holds the card (it scrolls on its own), not the page under it.
+				const column = targetBox.closest('[class*="overflow-y-auto"]') as HTMLElement | null;
+				if (column) column.scrollTo({ top: targetBox.getBoundingClientRect().top - column.getBoundingClientRect().top + column.scrollTop - 8 });
+				// Still off screen (the column sits below the DPS panel): bring the page to it, as the player asked for this plan.
+				// Planning blocks the page for a moment, so it starts once the scroll is done.
+				setTimeout(() => {
+					const r = targetBox?.getBoundingClientRect();
+					if (r && (r.top < 0 || r.top > innerHeight - 80)) targetBox!.scrollIntoView({ block: 'center' });
+					setTimeout(planTarget, 600);
+				}, 350);
+			}, 50);
+		});
+	});
 	let targetPlan = $state<TargetPlan | null>(null);
 	let planning = $state(false);
 	let targetError = $state<string | null>(null);
@@ -162,13 +189,15 @@
 		const sel = selection, from = simNow, byGold = perGold;
 		// Let the button show "Planning…" before the work (a few hundred ms per step).
 		setTimeout(() => {
+			try {
 			targetPlan = planToTarget({
 				loadout, base: simBase ?? initSimState(loadout), start: from, selection: sel, targetDps: target, byGold,
 				upgradesFor: (st) => liveUpgrades(loadout, st, simBase ?? initSimState(loadout), rollsFor(characterKey), true),
 				goldFor
 			});
 			if (!targetPlan) targetError = 'The meter needs a picked attempt to plan from.';
-			planning = false;
+			} catch { targetError = "Couldn't plan from here."; }
+			finally { planning = false; }
 		}, 20);
 	}
 	// A plan is for the state it was made from: edits (or Apply all) retire it.
@@ -179,6 +208,27 @@
 		if (targetPlan && !plannedFrom) plannedFrom = now;
 		if (!targetPlan) plannedFrom = '';
 	});
+	/** Go on from where a capped plan stopped, adding its steps. */
+	function continuePlan() {
+		const previous = targetPlan;
+		const target = meterDps === null ? null : parseTargetDps(targetText, meterDps);
+		if (!previous || !selection || target === null) return;
+		planning = true;
+		const sel = selection, byGold = perGold;
+		// The plan is reactive state: its end state goes in as a plain copy.
+		const start = $state.snapshot(previous.end) as SimState;
+		setTimeout(() => {
+			try {
+				const more = planToTarget({
+					loadout, base: simBase ?? initSimState(loadout), start, selection: sel, targetDps: target, byGold,
+					upgradesFor: (st) => liveUpgrades(loadout, st, simBase ?? initSimState(loadout), rollsFor(characterKey), true),
+					goldFor
+				});
+				if (more) targetPlan = { ...more, startDps: previous.startDps, steps: [...$state.snapshot(previous.steps) as typeof more.steps, ...more.steps], gold: previous.gold + more.gold, unpriced: Math.max(previous.unpriced, more.unpriced) };
+			} catch { targetError = "Couldn't plan further from here."; }
+			finally { planning = false; }
+		}, 20);
+	}
 	function applyPlan() {
 		const steps = targetPlan?.steps ?? [];
 		for (const st of steps) if (!(onapply?.(st.upgrade) ?? false)) break;
@@ -219,7 +269,7 @@
 		</p>
 	{/if}
 	{#if canTarget}
-		<details class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs">
+		<details class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs" bind:open={targetOpen} bind:this={targetBox}>
 			<summary class="cursor-pointer font-semibold text-surface-200">Target DPS{#if meterDps}<span class="font-normal text-surface-400"> · now {dpsText(meterDps)}</span>{/if}</summary>
 			<form class="mt-1.5 flex gap-1.5" onsubmit={(e) => { e.preventDefault(); planTarget(); }}>
 				<input class="h-7 min-w-0 flex-1 rounded-xs border border-surface-700 bg-surface-950 px-2 text-xs text-surface-100" placeholder="1.4b, 1400m or +5%" bind:value={targetText} aria-label="Target DPS" />
@@ -235,16 +285,24 @@
 					{:else}{dpsText(p.startDps)} → {dpsText(p.endDps)} in {p.steps.length} step{p.steps.length === 1 ? '' : 's'}{#if perGold} · {formatGold(p.gold)} gold{/if}{#if !p.reached} · target not reached{/if}{/if}
 				</p>
 				<ol class="mt-1 space-y-1">
-					{#each p.steps as st, i (i)}
+					{#each groupSteps(p.steps) as g, i (i)}
 						<li class="grid grid-cols-[1.25rem_1fr_max-content] items-center gap-1.5">
 							<span class="text-surface-500 tabular-nums">{i + 1}.</span>
-							<UpgradeTitle compact u={st.upgrade.subject ? st.upgrade : { ...st.upgrade, subject: CATEGORY_LABELS[st.upgrade.category] }} />
-							<span class="text-right tabular-nums"><span class="text-sky-300">{formatPct(st.gainPct)}%</span>
-								<span class="block text-[10px] text-surface-400">{dpsText(st.dps)}{#if st.gold !== null && perGold} · {st.gold ? formatGold(st.gold) : 'free'}{/if}</span></span>
+							{#if g.count === 1}
+								<UpgradeTitle compact u={g.first.upgrade.subject ? g.first.upgrade : { ...g.first.upgrade, subject: CATEGORY_LABELS[g.first.upgrade.category] }} />
+							{:else}
+								<!-- A run of steps on one item: its name, how many, from the first to the last. -->
+								<span class="min-w-0">
+									<span class="block truncate text-[11px] text-surface-400">{g.first.upgrade.subject ?? CATEGORY_LABELS[g.first.upgrade.category]} · {g.count} steps</span>
+									<span class="block truncate text-surface-100">{g.first.upgrade.title} … {g.last.upgrade.title}</span>
+								</span>
+							{/if}
+							<span class="text-right tabular-nums"><span class="text-sky-300">{formatPct(g.gainPct)}%</span>
+								<span class="block text-[10px] text-surface-400">{dpsText(g.last.dps)}{#if g.gold !== null && perGold} · {g.gold ? formatGold(g.gold) : 'free'}{/if}</span></span>
 						</li>
 					{/each}
 				</ol>
-				{#if !p.reached}<p class="mt-1 text-[11px] text-surface-400">{p.steps.length ? 'No further one-step upgrade the meter can value gets closer.' : 'No upgrade the meter can value raises DPS from here.'}{#if p.unpriced} {p.unpriced} unpriced upgrade{p.unpriced === 1 ? ' was' : 's were'} left out.{/if}</p>{:else if p.unpriced}<p class="mt-1 text-[11px] text-surface-400">{p.unpriced} upgrade{p.unpriced === 1 ? '' : 's'} without a gold cost {p.unpriced === 1 ? 'was' : 'were'} left out.</p>{/if}
+				{#if p.capped}<p class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-surface-400"><span>Stopped after {p.steps.length} steps, {dpsText(parseTargetDps(targetText, meterDps ?? 0)! - p.endDps)} short.</span><button type="button" class="{btn} h-6 px-2" disabled={planning} onclick={continuePlan}>{planning ? 'Planning…' : 'Keep planning'}</button></p>{:else if !p.reached}<p class="mt-1 text-[11px] text-surface-400">{p.steps.length ? 'No further one-step upgrade the meter can value gets closer.' : 'No upgrade the meter can value raises DPS from here.'}{#if p.unpriced} {p.unpriced} unpriced upgrade{p.unpriced === 1 ? ' was' : 's were'} left out.{/if}</p>{:else if p.unpriced}<p class="mt-1 text-[11px] text-surface-400">{p.unpriced} upgrade{p.unpriced === 1 ? '' : 's'} without a gold cost {p.unpriced === 1 ? 'was' : 'were'} left out.</p>{/if}
 				{#if p.steps.length}<button type="button" class="{btn} mt-1.5 h-7 w-full" onclick={applyPlan}>Apply all {p.steps.length}</button>{/if}
 			{/if}
 		</details>

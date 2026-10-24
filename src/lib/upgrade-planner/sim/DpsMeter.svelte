@@ -85,8 +85,13 @@
 		<button type="button" class="self-start text-xs text-sky-300 hover:underline" onclick={() => (all = !all)}>{all ? 'Show top skills' : `Show all ${meter.skills.length} skills`}</button>
 	{/if}
 
-	{#if meter.notInMeter.length}
-		<p class="text-xs text-amber-300/90">※ Not in the meter yet: {meter.notInMeter.join(', ')}. Those edits still count toward CP.</p>
+	{#if meter.notInMeter.length || meter.notes.length}
+		<details class="text-xs text-amber-300/90">
+			<summary class="cursor-pointer select-none hover:text-amber-200">※ Not counted yet: {meter.notInMeter.length ? meter.notInMeter.join(', ') : 'some effects'}{meter.notes.length ? ` · ${meter.notes.length} note${meter.notes.length > 1 ? 's' : ''}` : ''}</summary>
+			<ul class="mt-1 space-y-0.5 pl-4 text-amber-200/80">
+				{#if meter.notInMeter.length}<li>These edits still count toward CP, but not toward this DPS.</li>{/if}
+				{#each meter.notes as note (note)}<li>{note}</li>{/each}
+			</ul>
+		</details>
 	{/if}
-	{#each meter.notes as note}<p class="text-xs text-amber-300/90">※ {note}</p>{/each}
 </div>
