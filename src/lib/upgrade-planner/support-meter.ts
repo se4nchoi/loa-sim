@@ -1,18 +1,21 @@
 // The support side of the DPS sim: a support's recorded run, re-scaled by their gear edits. LOA Logs credits each dealer's
-// damage to the buffs that raised it (support-run in run-summary.ts); each kind of buff scales with one of the support's
-// stats, so a gear change moves that kind by the stat's ratio:
+// damage to the buffs that raised it, buff by buff (support-run in run-summary.ts), and each buff's added damage is linear
+// in its strength (the dealer's damage with it minus without), so a change moves each buff by its strength's ratio:
 //   - Attack Power buffs: the support's Attack Power × (1 + Ally Atk. Power Enhancement);
-//   - damage buffs (identity, hyper): 1 + Ally Damage Enhancement;
+//   - damage buffs (identity, hyper, skill buffs): 1 + Ally Damage Enhancement;
 //   - brand: 1 + Brand Power;
 //   - the rest (evolution damage, set and bracelet effects): fixed.
-// A buff's added damage is linear in its strength (dealer damage with it minus without), so the ratio carries straight
-// through. Uptime stays as recorded: gems and cores that would change it aren't valued yet.
+// Enhancement comes from accessories, the bracelet, astrogem options and Order core lines. A core line can name one skill
+// ("Paint: Dragon Engraving's Party Damage Enhancement +27%"): it moves that skill's buffs only. It can need a Destiny
+// effect: it counts for the share of the run that effect was up (the support's own damage under it), and is unknown for a
+// Destiny this run never had. Uptime otherwise stays as recorded: gems count for their base attack (the support's Attack
+// Power) only, since a cooldown gem reshapes the whole rotation, which one run can't show.
 import type { RunSummary, SupportKind } from '$lib/logs/protocol';
 import { bracerStats } from './bracer';
 import { baseAttackOf } from './dps-explain';
 import { braceletEffects, braceletStats, optionLevel, simCorePoints, simulate, type SimState } from './simulate';
 import { decodeCore } from './tables';
-import { SUPPORT_ASTROGEM_VALUES, SUPPORT_CORE_LINES } from './support-buffs';
+import { SUPPORT_ASTROGEM_VALUES, SUPPORT_CORE_LINES, type SupportCoreLine } from './support-buffs';
 import { SUPPORT_ACCESSORY_LINES, swappedCoreId } from './support';
 import { SUPPORT_BRACELET_EFFECTS } from './support-data';
 import type { Loadout } from './types';
@@ -20,10 +23,12 @@ import type { Loadout } from './types';
 export interface SupportStats {
 	/** The support's Attack Power (its buffs' base). */
 	attackPower: number;
-	/** Ally Atk. Power Enhancement, Ally Damage Enhancement, Brand Power: percent. */
+	/** Ally Atk. Power Enhancement, Ally Damage Enhancement, Brand Power from gear and astrogems: percent. */
 	allyAtk: number;
 	allyDmg: number;
 	brand: number;
+	/** The Order core lines in effect at the cores' points. */
+	coreLines: SupportCoreLine[];
 }
 
 /** A line's percent: accessory values are in hundredths of a percent (800 = 8%). */
@@ -43,46 +48,70 @@ const astrogemPct = (state: SimState, id: number) => {
 	const level = optionLevel(state.arkGrid, id);
 	return level > 0 ? (SUPPORT_ASTROGEM_VALUES[id]?.[Math.min(level, 120) - 1] ?? 0) / 100 : 0;
 };
-/**
- * Order cores' unconditional Ally Atk. Power / Ally Damage Enhancement lines at the core's points: the core the clear had
- * in the slot (`as`), at the slot's grade, as the dealer model reads it.
- */
-function coreEnhancement(loadout: Loadout, state: SimState, base: SimState): { allyAtk: number; allyDmg: number } {
-	const out = { allyAtk: 0, allyDmg: 0 };
+const braceletPct = (state: SimState, type: number) =>
+	braceletStats(state.bracelet).reduce((sum, s) => sum + (s.type === type ? s.value / 100 : 0), 0);
+
+/** The Order core lines in effect: each core the clear had in its slot (`as`), at the slot's grade and the core's points. */
+function coreLinesOf(loadout: Loadout, state: SimState, base: SimState): SupportCoreLine[] {
+	const out: SupportCoreLine[] = [];
 	for (const core of state.arkGrid) {
 		const id = core.as ?? core.id;
 		const info = decodeCore(id), slot = decodeCore(core.id);
 		if (!info || !slot || info.attr !== 'order') continue;
 		const grade = core.grade ?? slot.grade;
 		const points = simCorePoints(loadout, state, base, core.id);
-		for (const [need, atk, dmg] of SUPPORT_CORE_LINES[grade !== info.grade ? swappedCoreId(id, grade) : id] ?? [])
-			if (points >= need) { out.allyAtk += atk; out.allyDmg += dmg; }
+		for (const line of SUPPORT_CORE_LINES[grade !== info.grade ? swappedCoreId(id, grade) : id] ?? []) if (points >= line.points) out.push(line);
 	}
 	return out;
 }
-const braceletPct = (state: SimState, type: number) =>
-	braceletStats(state.bracelet).reduce((sum, s) => sum + (s.type === type ? s.value / 100 : 0), 0);
 
 export function supportStats(loadout: Loadout, state: SimState, base: SimState): SupportStats {
 	const r = simulate(loadout, state, base);
 	const flat = bracerStats(state.bracer).attackFlat;
-	const cores = coreEnhancement(loadout, state, base);
 	return {
 		attackPower: (Math.sqrt((r.mainStat * r.weaponPower) / 6) + flat) * (1 + baseAttackOf(loadout, state) / 100),
-		allyAtk: linePct('s_ally_atk', state) + braceletPct(state, 54) + effectPct(state, 'Ally Atk\\. Power Enhancement') + astrogemPct(state, 2013) + cores.allyAtk,
-		allyDmg: linePct('s_ally_dmg', state) + braceletPct(state, 59) + astrogemPct(state, 2011) + cores.allyDmg,
-		brand: linePct('s_brand', state) + astrogemPct(state, 2012)
+		allyAtk: linePct('s_ally_atk', state) + braceletPct(state, 54) + effectPct(state, 'Ally Atk\\. Power Enhancement') + astrogemPct(state, 2013),
+		allyDmg: linePct('s_ally_dmg', state) + braceletPct(state, 59) + astrogemPct(state, 2011),
+		brand: linePct('s_brand', state) + astrogemPct(state, 2012),
+		coreLines: coreLinesOf(loadout, state, base)
 	};
 }
 
-/** How much each kind of buff grows from `from` to `to` (1 = unchanged). */
-export function supportFactors(a: SupportStats, b: SupportStats): Record<SupportKind, number> {
-	return {
-		attack: (b.attackPower * (1 + b.allyAtk / 100)) / (a.attackPower * (1 + a.allyAtk / 100)),
-		damage: (1 + b.allyDmg / 100) / (1 + a.allyDmg / 100),
-		brand: (1 + b.brand / 100) / (1 + a.brand / 100),
-		other: 1
-	};
+/**
+ * How much of the run each Destiny effect was up, by name: the support's own skills' damage under it (casts-weighted per
+ * skill, so one big Hyper Awakening hit doesn't decide it). Only Destiny effects the logs kept for this run.
+ */
+export function destinyUptime(run: RunSummary): Record<string, number> {
+	const out: Record<string, number> = {};
+	const names = run.buffNames ?? {};
+	const skills = run.skills.filter((s) => s.buffs && !s.hyper && s.damage > 0 && s.casts > 0);
+	const casts = skills.reduce((sum, s) => sum + s.casts, 0);
+	if (!casts) return out;
+	for (const [id, name] of Object.entries(names)) {
+		if (!name.startsWith('Destiny: ')) continue;
+		out[name] = Math.min(1, skills.reduce((sum, s) => sum + s.casts * ((s.buffs?.[Number(id)] ?? 0) / s.damage), 0) / casts);
+	}
+	return out;
+}
+
+/** A skill a core line names against a buff's source skill ("Aria" / "Aria", "Paint: Dragon Engraving" / "Paint: Dragon Engraving"). */
+const sameSkill = (line: string, source: string | undefined) => !!source && (source === line || source.includes(line) || line.includes(source));
+
+/**
+ * A buff's strength under `stats`, for its kind and source skill. Destiny lines count at their uptime in the run; one this
+ * run never had makes the strength unknown (null), as does nothing else.
+ */
+export function buffStrength(stats: SupportStats, kind: SupportKind, skill: string | undefined, destiny: Record<string, number>): number | null {
+	if (kind === 'other') return 1;
+	if (kind === 'brand') return 1 + stats.brand / 100;
+	const stat = kind === 'attack' ? 'atk' : 'dmg';
+	let extra = 0;
+	for (const line of stats.coreLines) {
+		if (line.stat !== stat || (line.skill && !sameSkill(line.skill, skill))) continue;
+		if (line.destiny && destiny[line.destiny] === undefined) return null;
+		extra += line.pct * (line.destiny ? destiny[line.destiny] : 1);
+	}
+	return kind === 'attack' ? stats.attackPower * (1 + (stats.allyAtk + extra) / 100) : 1 + (stats.allyDmg + extra) / 100;
 }
 
 export interface SupportMeter {
@@ -91,42 +120,74 @@ export interface SupportMeter {
 	before: number;
 	after: number;
 	kinds: { kind: SupportKind; before: number; after: number }[];
-	dealers: { cls: string; damage: number; before: number; after: number }[];
+	dealers: { cls: string; damage: number; before: number; after: number; uptime?: NonNullable<RunSummary['support']>['uptime'] }[];
 	uptime: NonNullable<RunSummary['support']>['uptime'];
-	/** Edited parts that don't move the buffs here (engravings, Karma, Ark Grid, Paradise; a gem's uptime, though its base attack counts). */
+	/** Edited parts that don't move the buffs here, or that move them in ways this run can't show. */
 	notInMeter: string[];
 }
 
 const KINDS: SupportKind[] = ['attack', 'damage', 'brand', 'other'];
 /** The parts whose effect on the buffs is the stats above (or nothing for them); the rest is listed, not valued. */
-const VALUED = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet', 'skillShares', 'skillCooldownUse']);
-const LABELS: Partial<Record<keyof SimState, string>> = { arkGrid: 'Ark Grid', karma: 'Karma', engravings: 'Engravings', paradise: 'Paradise', gems: 'Gem cooldowns' };
+const VALUED = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet', 'skillShares', 'skillCooldownUse', 'arkGrid', 'gems']);
+const LABELS: Partial<Record<keyof SimState, string>> = { karma: 'Karma', engravings: 'Engravings', paradise: 'Paradise' };
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-/** The Ark Grid without what the stats above value (the support options' levels, the gems' points and willpower): which cores, grades and other options. */
+/** Astrogem options besides the support ones (Attack Power, Additional Damage, Boss Damage): not part of the buffs. */
 const SUPPORT_OPTIONS = new Set([2011, 2012, 2013]);
-const gridRest = (s: SimState) => s.arkGrid.map((c) => ({ id: c.id, as: c.as, grade: c.grade, gems: c.gems.map((g) => g.opts.filter((o) => !SUPPORT_OPTIONS.has(o.id))) }));
+const otherOptions = (s: SimState) => s.arkGrid.map((c) => c.gems.map((g) => g.opts.filter((o) => !SUPPORT_OPTIONS.has(o.id))));
 
 /** The run's support contribution with `state`'s gear, against `baseline` (the gear it was played with). */
 export function supportMeter(loadout: Loadout, baseline: SimState, state: SimState, run: RunSummary): SupportMeter | null {
 	const s = run.support;
 	if (!s) return null;
-	const f = supportFactors(supportStats(loadout, baseline, baseline), supportStats(loadout, state, baseline));
-	const scale = (k: Record<SupportKind, number>) => KINDS.reduce((sum, kind) => sum + k[kind] * f[kind], 0);
-	const total = (k: Record<SupportKind, number>) => KINDS.reduce((sum, kind) => sum + k[kind], 0);
+	const a = supportStats(loadout, baseline, baseline), b = supportStats(loadout, state, baseline);
+	const destiny = destinyUptime(run);
+	const notInMeter: string[] = (Object.keys(state) as (keyof SimState)[]).filter((k) => !VALUED.has(k) && !same(state[k], baseline[k])).map((k) => LABELS[k] ?? k);
+	if (!same(otherOptions(state), otherOptions(baseline))) notInMeter.push('Other astrogem options');
+	if (!same(state.gems, baseline.gems)) notInMeter.push('Gem cooldowns (their base attack counts)');
+
+	/** A buff's factor from the baseline to the edits; 1 (left as recorded) when either side is unknown. */
+	let unknownDestiny = false;
+	const factor = (kind: SupportKind, skill: string | undefined) => {
+		const x = buffStrength(a, kind, skill, destiny), y = buffStrength(b, kind, skill, destiny);
+		if (x === null || y === null || !(x > 0)) { unknownDestiny ||= x !== y; return 1; }
+		return y / x;
+	};
+	const kindsBefore = { attack: 0, damage: 0, brand: 0, other: 0 } as Record<SupportKind, number>;
+	const kindsAfter = { ...kindsBefore };
+	const dealers = s.dealers.map((d) => {
+		// By buff when the import kept it (a core line can name one skill); by kind on older imports.
+		const parts: [SupportKind, string | undefined, number][] = d.buffs && s.sources
+			? Object.entries(d.buffs).map(([id, x]) => [s.sources![Number(id)]?.kind ?? 'other', s.sources![Number(id)]?.skill, x])
+			: KINDS.map((k) => [k, undefined, d.kinds[k]]);
+		let before = 0, after = 0;
+		for (const [kind, skill, x] of parts) {
+			const y = x * factor(kind, skill);
+			before += x; after += y;
+			kindsBefore[kind] += x; kindsAfter[kind] += y;
+		}
+		return { cls: d.cls, damage: d.damage, before, after, ...(d.uptime ? { uptime: d.uptime } : {}) };
+	});
+	if (unknownDestiny) notInMeter.push("Destiny effects this run didn't have");
 	return {
 		durationMs: run.duration,
-		before: total(s.kinds),
-		after: scale(s.kinds),
-		kinds: KINDS.map((kind) => ({ kind, before: s.kinds[kind], after: s.kinds[kind] * f[kind] })),
-		dealers: s.dealers.map((d) => ({ cls: d.cls, damage: d.damage, before: total(d.kinds), after: scale(d.kinds) })),
+		before: dealers.reduce((sum, d) => sum + d.before, 0),
+		after: dealers.reduce((sum, d) => sum + d.after, 0),
+		kinds: KINDS.map((kind) => ({ kind, before: kindsBefore[kind], after: kindsAfter[kind] })),
+		dealers,
 		uptime: s.uptime,
-		notInMeter: (Object.keys(state) as (keyof SimState)[]).filter((k) => !VALUED.has(k) && (k === 'arkGrid' ? !same(gridRest(state), gridRest(baseline)) : !same(state[k], baseline[k]))).map((k) => LABELS[k] ?? k)
+		notInMeter
 	};
 }
 
+/** How much each kind of buff grows from `a` to `b`, for every buff of the kind (no skill named; Destiny lines left out). */
+export function supportFactors(a: SupportStats, b: SupportStats): Record<SupportKind, number> {
+	const f = (k: SupportKind) => (buffStrength(b, k, undefined, {}) ?? 1) / (buffStrength(a, k, undefined, {}) ?? 1);
+	return { attack: f('attack'), damage: f('damage'), brand: f('brand'), other: 1 };
+}
+
 /**
- * One step's gain in party DPS added, percent (Next Upgrades for a support). null when the step only touches what the
- * meter doesn't value (it moves nothing there): unknown, not zero.
+ * One step's gain in party DPS added, percent (Next Upgrades for a support). null when the step moves nothing: it only
+ * touches what the meter doesn't value. Unknown, not zero.
  */
 export function supportGain(loadout: Loadout, baseline: SimState, from: SimState, to: SimState, run: RunSummary): number | null {
 	const a = supportMeter(loadout, baseline, from, run), b = supportMeter(loadout, baseline, to, run);

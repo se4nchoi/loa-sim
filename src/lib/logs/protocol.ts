@@ -115,14 +115,22 @@ export interface RunSkill {
  */
 export type SupportKind = 'attack' | 'damage' | 'brand' | 'other';
 
+/** Support buff uptime (0–1): Attack Power buff, brand, identity, hyper awakening. */
+export interface SupportUptime { attack: number; brand: number; identity: number; hyper: number }
+
 /** A support's run: the party damage their buffs added, as LOA Logs attributes it. */
 export interface SupportRun {
 	/** Party damage the buffs added, by kind (LOA Logs' rDPS given, split by its per-effect contribution weights). */
 	kinds: Record<SupportKind, number>;
-	/** Each dealer buffed: class, their damage, and the damage the buffs added to it by kind. Names aren't kept. */
-	dealers: { cls: string; damage: number; kinds: Record<SupportKind, number> }[];
-	/** Buff uptime over the fight (0–1), as LOA Logs measured it; unknown on old logs. */
-	uptime?: { attack: number; brand: number; identity: number; hyper: number };
+	/**
+	 * Each dealer buffed: class, their damage, the damage the buffs added to it by kind and by buff id, and their uptime
+	 * on the support's buffs (their damage under each). Names aren't kept.
+	 */
+	dealers: { cls: string; damage: number; kinds: Record<SupportKind, number>; buffs?: Record<number, number>; uptime?: SupportUptime }[];
+	/** Each buff's kind and the skill it comes from, by buff id (for core lines that name a skill). */
+	sources?: Record<number, { kind: SupportKind; skill?: string }>;
+	/** Buff uptime over the fight, as LOA Logs measured it for the party; unknown on old logs. */
+	uptime?: SupportUptime;
 }
 
 /** One cleared run of the player, compact enough to keep hundreds in browser storage. */

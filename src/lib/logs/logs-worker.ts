@@ -295,10 +295,25 @@ async function runSummaries(player: string, ids: number[]) {
 		// A support: what their buffs added to each dealer (from the contribution splits in misc) and the buffs' uptime.
 		let support: ReturnType<typeof supportRunOf> = null;
 		if (SUPPORT_CLASSES.has(String(entity.class))) try {
-			const classes = new Map((await query(`SELECT name, class FROM entity WHERE encounter_id = ? AND entity_type = 'PLAYER'`, [row.id])).map((r) => [String(r.name), String(r.class)]));
+			const players = await query(`SELECT name, class, ${pick('damage_stats')} FROM entity WHERE encounter_id = ? AND entity_type = 'PLAYER'`, [row.id]);
+			const classes = new Map(players.map((r) => [String(r.name), String(r.class)]));
+			// Each dealer's uptime on the support's buffs: their damage under them (LOA Logs' buffedBySupport, …) over all of it.
+			const uptimes = new Map<string, { attack: number; brand: number; identity: number; hyper: number }>();
+			for (const r of players) try {
+				const d = await decodeSkills(r.damage_stats) as unknown as Record<string, number>;
+				const of = (x: unknown) => Math.min(1, Math.max(0, Number(x) / Number(d.damageDealt)));
+				if (Number(d?.damageDealt) > 0) uptimes.set(String(r.name), { attack: of(d.buffedBySupport), brand: of(d.debuffedBySupport), identity: of(d.buffedByIdentity), hyper: of(d.buffedByHat) });
+			} catch { /* old logs */ }
+			// Each buff's source skill, for core lines that name one ("Paint: Dragon Engraving"); brand is a debuff.
+			const skills = new Map<number, string>();
+			for (const column of ['buffs', 'debuffs']) if (encounterColumns.has(column)) try {
+				const table = await decodeSkills((await query(`SELECT ${column} FROM encounter WHERE id = ?`, [row.id]))[0]?.[column]) as unknown as Record<string, { source?: { skill?: { name?: string } } }>;
+				for (const [id, b] of Object.entries(table ?? {})) if (b?.source?.skill?.name) skills.set(Number(id), b.source.skill.name);
+			} catch { /* old logs */ }
 			const up = [entity.support_ap, entity.support_brand, entity.support_identity, entity.support_hyper].map(Number);
 			support = supportRunOf(misc, player, (name) => classes.get(name),
-				up.every((x) => Number.isFinite(x) && x >= 0 && x <= 1) ? { attack: up[0], brand: up[1], identity: up[2], hyper: up[3] } : undefined);
+				up.every((x) => Number.isFinite(x) && x >= 0 && x <= 1) ? { attack: up[0], brand: up[1], identity: up[2], hyper: up[3] } : undefined,
+				{ skillOf: (id) => skills.get(id), uptimeOf: (name) => uptimes.get(name) });
 		} catch { /* old logs */ }
 		let upstreamId: unknown;
 		if (hasSync) try {

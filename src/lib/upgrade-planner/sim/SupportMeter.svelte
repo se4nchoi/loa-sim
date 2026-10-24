@@ -32,6 +32,7 @@
 	const topDealer = $derived(Math.max(1, ...meter.dealers.map((d) => Math.max(d.before, d.after))));
 	const gainOf = (a: number, b: number) => (a > 0 ? (b / a - 1) * 100 : 0);
 	const up = $derived(meter.uptime);
+	const pctOf = (x: number) => `${Math.round(x * 100)}%`;
 </script>
 
 {#snippet bar(label: string, sub: string, b: number, a: number, max: number, fill: string, share: string)}
@@ -82,7 +83,8 @@
 
 	<ul class="flex flex-col gap-1" aria-label="By dealer">
 		{#each meter.dealers as d, i (i)}
-			{@render bar(d.cls || 'Dealer', `${((d.before / Math.max(1, d.damage)) * 100).toFixed(1)}% of their damage`, d.before, d.after, topDealer, classColorByName(d.cls) ?? color, '')}
+			{@const dealerUp = d.uptime ? ` · uptime Atk ${pctOf(d.uptime.attack)} · Brand ${pctOf(d.uptime.brand)} · Identity ${pctOf(d.uptime.identity)} · Hyper ${pctOf(d.uptime.hyper)}` : ''}
+			{@render bar(d.cls || 'Dealer', `${((d.before / Math.max(1, d.damage)) * 100).toFixed(1)}% of their damage${dealerUp}`, d.before, d.after, topDealer, classColorByName(d.cls) ?? color, '')}
 		{/each}
 	</ul>
 

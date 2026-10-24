@@ -65,9 +65,14 @@ describe('support contribution', () => {
 		3: { name: 'Boss — encounter bonuses', partyNumber: -1, damageSplitByName: { Sup: 999 } }
 	} };
 	it("splits each dealer's credited damage by kind, in proportion to the effect weights", () => {
-		const s = supportRunOf(misc, 'Sup', (n) => ({ Dealer: 'Souleater', Other: 'Breaker' })[n], { attack: 0.98, brand: 0.99, identity: 0.77, hyper: 0.52 })!;
+		const s = supportRunOf(misc, 'Sup', (n) => ({ Dealer: 'Souleater', Other: 'Breaker' })[n], { attack: 0.98, brand: 0.99, identity: 0.77, hyper: 0.52 },
+			{ skillOf: (id) => (id === 314184 ? 'Paint: Sun Well' : undefined), uptimeOf: (n) => (n === 'Dealer' ? { attack: 0.9, brand: 0.99, identity: 0.8, hyper: 0.5 } : undefined) })!;
 		expect(s.dealers).toHaveLength(2);
-		expect(s.dealers[0]).toEqual({ cls: 'Souleater', damage: 400, kinds: { attack: 40, damage: 20, brand: 20, other: 20 } });
+		expect(s.dealers[0]).toMatchObject({ cls: 'Souleater', damage: 400, kinds: { attack: 40, damage: 20, brand: 20, other: 20 } });
+		// By buff too: the effect's buff id gets its share of the credited damage, and the buff's source skill is kept.
+		expect(s.dealers[0].buffs).toEqual({ 314184: 40, 310509: 20, 314260: 20, 2000362: 20 });
+		expect(s.sources?.[314184]).toEqual({ kind: 'attack', skill: 'Paint: Sun Well' });
+		expect(s.dealers[0].uptime?.brand).toBe(0.99);
 		expect(s.dealers[1].kinds).toEqual({ attack: 0, damage: 50, brand: 0, other: 0 });
 		expect(s.kinds).toEqual({ attack: 40, damage: 70, brand: 20, other: 20 });
 		expect(s.uptime?.identity).toBe(0.77);

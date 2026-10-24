@@ -1,7 +1,7 @@
 // Turns one logged run into the compact summary the DPS tab keeps in browser storage. Pure, so it can be tested
 // without a database; the worker supplies the decoded columns.
 
-import type { EncounterRow, RunSkill, RunSummary, SupportKind, SupportRun } from './protocol';
+import type { EncounterRow, RunSkill, RunSummary, SupportKind, SupportRun, SupportUptime } from './protocol';
 import { averageStatValues, splitOf } from './stat-values';
 
 export interface LoggedRunSkill {
@@ -50,28 +50,42 @@ const noKinds = (): Record<SupportKind, number> => ({ attack: 0, damage: 0, bran
  * credits to the support, split by kind in proportion to its per-effect increases (they overlap, so they're weights,
  * not amounts). null without splits (old logs) or when no dealer credits the support.
  */
-export function supportRunOf(misc: unknown, player: string, classOf: (name: string) => string | undefined, uptime?: SupportRun['uptime']): SupportRun | null {
+export function supportRunOf(misc: unknown, player: string, classOf: (name: string) => string | undefined, uptime?: SupportUptime,
+	more: { skillOf?: (buffId: number) => string | undefined; uptimeOf?: (name: string) => SupportUptime | undefined } = {}): SupportRun | null {
 	const splits = (misc as { contributionSplits?: Record<string, unknown> } | null)?.contributionSplits;
 	if (!splits || typeof splits !== 'object') return null;
 	const dealers: SupportRun['dealers'] = [];
+	const sources: NonNullable<SupportRun['sources']> = {};
 	for (const raw of Object.values(splits)) {
 		const v = raw as { name?: string; partyNumber?: number; damageSplitByName?: Record<string, number>; damageIncreaseByEntitySkillGroup?: Record<string, Record<string, number>> };
 		if (!v?.name || v.name === player || !((v.partyNumber ?? -1) >= 0)) continue;
 		const given = num(v.damageSplitByName?.[player]) ?? 0;
 		if (!(given > 0)) continue;
+		// Each effect names its buff ("attack_power_addend_/$@[16,314184]": buff 314184); its increase is that buff's weight.
 		const weights = noKinds();
-		for (const [effect, x] of Object.entries(v.damageIncreaseByEntitySkillGroup?.[player] ?? {})) if (num(x) && x > 0) weights[supportKindOf(effect)] += x;
+		const byBuff: Record<number, number> = {};
+		for (const [effect, x] of Object.entries(v.damageIncreaseByEntitySkillGroup?.[player] ?? {})) {
+			if (!num(x) || !(x > 0)) continue;
+			const kind = supportKindOf(effect);
+			weights[kind] += x;
+			const id = Number([...effect.matchAll(/\[16,(\d+)\]/g)].at(-1)?.[1]);
+			if (!Number.isFinite(id)) continue;
+			byBuff[id] = (byBuff[id] ?? 0) + x;
+			sources[id] ??= { kind, ...(more.skillOf?.(id) ? { skill: more.skillOf(id) } : {}) };
+		}
 		const total = weights.attack + weights.damage + weights.brand + weights.other;
 		const kinds = noKinds();
 		if (total > 0) for (const k of Object.keys(kinds) as SupportKind[]) kinds[k] = (given * weights[k]) / total;
 		else kinds.other = given;
+		const buffs = total > 0 ? Object.fromEntries(Object.entries(byBuff).map(([id, x]) => [id, (given * x) / total])) : undefined;
 		const damage = Object.values(v.damageSplitByName ?? {}).reduce((sum, x) => sum + (num(x) ?? 0), 0);
-		dealers.push({ cls: classOf(v.name) ?? '', damage, kinds });
+		const dealerUptime = more.uptimeOf?.(v.name);
+		dealers.push({ cls: classOf(v.name) ?? '', damage, kinds, ...(buffs ? { buffs } : {}), ...(dealerUptime ? { uptime: dealerUptime } : {}) });
 	}
 	if (!dealers.length) return null;
 	const kinds = noKinds();
 	for (const d of dealers) for (const k of Object.keys(kinds) as SupportKind[]) kinds[k] += d.kinds[k];
-	return { kinds, dealers, ...(uptime ? { uptime } : {}) };
+	return { kinds, dealers, ...(Object.keys(sources).length ? { sources } : {}), ...(uptime ? { uptime } : {}) };
 }
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
