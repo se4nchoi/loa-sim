@@ -200,8 +200,11 @@
 	const enrage = $derived(clear ? isEnrage(clear) : false);
 	const skillName = (id: number) => book?.skills[id]?.[0] ?? GEM_SKILLS[id]?.[0] ?? `Skill ${id}`;
 	const skillIcon = (id: number) => { const icon = book?.skills[id]?.[1] || GEM_SKILLS[id]?.[1]; return icon ? iconUrl(icon) : undefined; };
-	/** A raid's best recorded DPS, for its chip. */
-	const bestDps = (runs: RunSummary[]) => Math.max(0, ...runs.map((r) => r.damage / Math.max(1, r.duration / 1000)));
+	/** A raid's chip: how many runs the tab has of it ("3 clears"). */
+	const runCount = (runs: RunSummary[]) => {
+		const n = runs.filter((x) => fits(x, pick.use)).length;
+		return `${n} ${pick.use === 'cleared' ? (n === 1 ? 'clear' : 'clears') : (n === 1 ? 'wipe' : 'wipes')}`;
+	};
 	/** 1.316b: as the meter's headline. */
 	const dpsText = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(3)}b` : formatDamage(n));
 	/** Menus on the raid banner: dark glass over the art. */
@@ -223,6 +226,11 @@
 		window.addEventListener('resize', check);
 		return () => { window.removeEventListener('scroll', check); window.removeEventListener('resize', check); };
 	});
+	// The bar shown or gone: the Simulator re-measures its sticky offset on resize.
+	$effect(() => {
+		void away;
+		dispatchEvent(new Event('resize'));
+	});
 	let target = $state<DpsTarget | null>(null);
 </script>
 
@@ -230,17 +238,20 @@
 	<span class="tabular-nums {cls} {Math.abs(gainPct) < 0.0005 ? 'text-surface-400' : gainPct > 0 ? 'text-green-400' : 'text-red-400'}">{Math.abs(gainPct) < 0.0005 ? '±0' : `${formatPct(gainPct)}%`}</span>
 {/snippet}
 
-<section bind:this={section} class="mb-3 scroll-mt-16 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800" aria-label="DPS meter">
+<section bind:this={section} class="mb-3 scroll-mt-16 rounded-xs bg-surface-900 shadow-sm shadow-neutral-800" aria-label="DPS sim">
 	<!-- Header: folds the panel; folded, it still shows the run and its DPS. -->
-	<button type="button" class="group flex w-full flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 text-left sm:px-4" aria-expanded={!view.folded} onclick={() => setView({ folded: !view.folded })} bind:this={header}>
-		<span class="font-semibold text-surface-100">DPS meter</span>
-		<span class="rounded-xs bg-amber-500/15 px-1 text-[10px] font-semibold text-amber-300">BETA</span>
+	<div class="flex items-center gap-2 px-3 py-2 sm:px-4" bind:this={header}>
+	<span class="font-semibold text-surface-100">DPS sim</span>
+	<span class="rounded-xs bg-amber-500/15 px-1 text-[10px] font-semibold text-amber-300">BETA</span>
+	<button type="button" class="flex size-5 items-center justify-center rounded-full border text-[11px] font-bold transition {view.intro && !view.folded ? 'border-amber-400/60 bg-amber-500/15 text-amber-200' : 'border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-100'}" title="How the DPS sim works" aria-label="How the DPS sim works" aria-pressed={view.intro && !view.folded} onclick={() => setView({ intro: !(view.intro && !view.folded), folded: false })}>?</button>
+	<button type="button" class="group flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-left" aria-expanded={!view.folded} aria-label={view.folded ? 'Show the DPS sim' : 'Hide the DPS sim'} onclick={() => setView({ folded: !view.folded })}>
 		{#if meter && raid && clear}
-			<span class="flex min-w-0 items-center gap-1.5 text-xs text-surface-400"><span class="truncate">{raid.name}{gate(clear) ? ` G${gate(clear)}` : ''}</span>
+			<span class="flex min-w-0 items-center gap-1.5 text-xs text-surface-400 {view.folded ? '' : 'max-sm:hidden'}"><span class="truncate">{raid.name}{gate(clear) ? ` G${gate(clear)}` : ''}</span>
 				<span class="text-surface-300 tabular-nums">{dpsText(recordedDps)} → <span class="font-semibold text-surface-50">{dpsText(simulatedDps)}</span></span>{@render gainText('font-semibold')}</span>
 		{/if}
 		<span class="ml-auto"><FoldChip open={!view.folded} /></span>
 	</button>
+	</div>
 
 	{#if !view.folded}
 	<div class="px-3 pb-3 sm:px-4 sm:pb-4">
@@ -249,7 +260,7 @@
 		<div class="mb-3 rounded-xs border border-amber-500/30 bg-amber-500/5 p-3">
 			<div class="flex items-center gap-2">
 				<span class="rounded-xs bg-amber-500/20 px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-amber-300">BETA</span>
-				<span class="text-sm font-semibold text-surface-100">How the DPS meter works</span>
+				<span class="text-sm font-semibold text-surface-100">How the DPS sim works</span>
 				<button type="button" class="ml-auto rounded-xs border border-surface-600 px-2 py-0.5 text-xs text-surface-200 hover:bg-surface-800" onclick={() => setView({ intro: false })}>Got it</button>
 			</div>
 			<ol class="mt-2 grid gap-2 text-xs sm:grid-cols-3">
@@ -270,13 +281,12 @@
 			<div class="space-y-1">{#each [100, 98, 97, 85, 67, 38, 13, 7] as w (w)}<div class="h-8 rounded-xs bg-surface-800/70" style:width="{w}%"></div>{/each}</div>
 		</div>
 	{:else if !book || importing}
+		{#if book}<button type="button" class="mb-3 flex items-center gap-1 text-xs text-surface-300 hover:text-surface-50" onclick={() => (importing = false)}>← Cancel re-import</button>{/if}
 		{#key characterKey}<DpsRunsImport {characterKey} {characterName} ondone={() => (importing = false)} />{/key}
-		{#if book}<button type="button" class="{btn} mt-3" onclick={() => (importing = false)}>Close</button>{/if}
 	{:else}
-		<!-- Two tabs: a clear replayed on the simulated gear, or a failed pull and what it needed. -->
+		<!-- Two tabs: clears, or failed pulls and what they needed. -->
 		<div class="mb-3">
 			<Segmented label="Runs" value={pick.use} options={[{ value: 'cleared', label: 'Cleared runs' }, { value: 'failed', label: 'Failed runs' }]} onselect={(v) => remember({ use: v as Use, clear: null })} size="h-8 px-4 text-sm" />
-			<p class="mt-1 text-xs text-surface-400">{pick.use === 'cleared' ? 'The exact run, replayed on your simulated gear.' : 'How the pull ended; for an enrage, the DPS that would have killed the boss.'}</p>
 		</div>
 		{#if !raid || !clear}
 			<p class="text-sm text-surface-300">{pick.use === 'failed' ? `No failed runs of ${characterName} with the boss HP recorded.` : `No cleared runs of ${characterName} in the imported logs.`} <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
@@ -294,7 +304,7 @@
 					<span class="absolute inset-x-2 top-1.5 flex items-center gap-1.5"><span class="truncate text-sm font-semibold text-white">{r.name}</span></span>
 					<span class="absolute inset-x-2 bottom-1.5 flex items-center gap-1.5">
 						<span class="rounded-xs px-1 text-[10px] font-semibold {difficultyTone(r.difficulty)}">{r.difficulty || 'Normal'}</span>
-						<span class="ml-auto rounded-xs bg-black/70 px-1 text-[10px] font-semibold text-sky-200 tabular-nums" title="Best DPS of these runs">{formatDamage(bestDps(r.runs.filter((x) => fits(x, pick.use))))}</span>
+						<span class="ml-auto rounded-xs bg-black/70 px-1 text-[10px] font-semibold tabular-nums {pick.use === 'failed' ? 'text-rose-200' : 'text-emerald-200'}">{runCount(r.runs)}</span>
 					</span>
 				</button>
 			{/each}
@@ -313,7 +323,7 @@
 					{@const on = r === raid}
 					<button type="button" class="flex items-center gap-1.5 rounded-xs px-1.5 py-1 text-left text-xs transition {on ? 'bg-surface-700 text-surface-50 ring-1 ring-accent-300' : 'text-surface-300 hover:bg-surface-800'}" aria-pressed={on} onclick={() => remember({ raid: r.key, clear: null })}>
 						<span class="min-w-0 truncate">{r.name} <span class="text-surface-500">· {r.difficulty || 'Normal'}</span></span>
-						<span class="ml-auto text-[10px] text-sky-300 tabular-nums">{formatDamage(bestDps(r.runs.filter((x) => fits(x, pick.use))))}</span>
+						<span class="ml-auto text-[10px] text-surface-400 tabular-nums">{runCount(r.runs)}</span>
 					</button>
 				{/each}
 				</div>
@@ -347,25 +357,24 @@
 		<!-- A failed pull: how it ended; for an enrage, the DPS it needed. -->
 		{#if wipe}
 			{@const need = wipe.youPct !== null ? (clear.damage / (clear.duration / 1000)) * (1 + wipe.youPct / 100) : null}
-			<div class="mb-3 rounded-xs border px-3 py-2 text-xs {enrage ? 'border-rose-500/40 bg-rose-950/30 text-rose-100' : 'border-surface-700 bg-surface-950/50 text-surface-200'}">
-				<p class="font-semibold">Wiped at {time(clear.duration)} · {clear.boss} at {hpText(wipe.hpLeftPct)} HP</p>
-				<ul class="mt-1 list-disc space-y-0.5 pl-4 {enrage ? 'text-rose-100/90' : 'text-surface-300'}">
-					{#if wipe.dead?.of}<li>{wipe.dead.count} of {wipe.dead.of} players down</li>{/if}
-					{#if wipe.pattern?.kind === 'time'}<li>Enrage timer: {wipe.pattern.count} pulls ended near {time(wipe.pattern.at * 1000)}, boss HP varied</li>
-					{:else if wipe.pattern?.kind === 'hp'}<li>Mechanic: {wipe.pattern.count} pulls ended near {hpText(wipe.pattern.at)}</li>{/if}
-					{#if enrage}
-						<li>Party: <span class="font-semibold tabular-nums">+{wipe.partyPct.toFixed(1)}%</span> damage to kill it in time</li>
-						{#if need !== null}<li>You alone: <span class="font-semibold tabular-nums">{formatDamage(need)}</span> DPS (<span class="tabular-nums">+{wipe.youPct!.toFixed(1)}%</span>, at your {wipe.sharePct?.toFixed(0)}% share)</li>{/if}
-					{/if}
-				</ul>
-				<p class="mt-1.5 flex flex-wrap items-center gap-2">
-					{#if enrage}
-						{#if need !== null && target}<button type="button" class="rounded-xs border border-rose-400/50 bg-rose-500/15 px-2 py-0.5 font-semibold text-rose-100 hover:bg-rose-500/30" onclick={() => target?.planFor(`${(need / 1e6).toFixed(1)}m`)}>Plan for {formatDamage(need)} DPS</button>{/if}
-						<button type="button" class="ml-auto text-rose-200/70 underline hover:text-rose-100" onclick={() => markEnrage(clear, false)}>Not an enrage</button>
-					{:else}
-						<button type="button" class="ml-auto rounded-xs border border-surface-600 px-2 py-0.5 text-surface-200 hover:bg-surface-800" onclick={() => markEnrage(clear, true)}>Mark as enrage</button>
-					{/if}
-				</p>
+			{@const hint = wipe.pattern?.kind === 'time' ? `${wipe.pattern.count} pulls ended near ${time(wipe.pattern.at * 1000)} with the boss at different HP` : wipe.pattern?.kind === 'hp' ? `${wipe.pattern.count} pulls ended near ${hpText(wipe.pattern.at)} HP` : undefined}
+			<div class="mb-3 rounded-xs border px-3 py-2 text-xs {enrage ? 'border-rose-500/40 bg-rose-950/30' : 'border-surface-700 bg-surface-950/50'}">
+				<dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-surface-300">
+					<dt>Wiped at</dt><dd class="font-semibold text-surface-50 tabular-nums">{time(clear.duration)}</dd>
+					<dt class="truncate">{clear.boss}</dt><dd class="font-semibold text-rose-200 tabular-nums">{hpText(wipe.hpLeftPct)} HP</dd>
+					{#if wipe.dead?.of}<dt>Players dead</dt><dd class="font-semibold text-surface-50 tabular-nums">{wipe.dead.count} of {wipe.dead.of}</dd>{/if}
+					<dt class="self-center">Cause</dt>
+					<dd class="flex items-center gap-2" title={hint}>
+						<Segmented label="Cause" value={enrage ? 'enrage' : 'mech'} options={[{ value: 'enrage', label: 'Enrage', color: 'var(--color-rose-700)' }, { value: 'mech', label: 'Mech fail' }]} onselect={(v) => markEnrage(clear, v === 'enrage')} size="h-6 px-2 text-xs" />
+						{#if hint}<span class="text-[11px] text-surface-500">{hint}</span>{/if}
+					</dd>
+				</dl>
+				{#if enrage && need !== null}
+					<p class="mt-2 flex flex-wrap items-center gap-2 text-rose-100">
+						<span>You needed <span class="font-semibold tabular-nums">{formatDamage(need)}</span> DPS <span class="text-rose-200/70 tabular-nums">(+{wipe.youPct!.toFixed(1)}%)</span></span>
+						{#if target}<button type="button" class="ml-auto rounded-xs border border-rose-400/50 bg-rose-500/15 px-2 py-0.5 font-semibold hover:bg-rose-500/30" onclick={() => target?.planFor(`${(need / 1e6).toFixed(1)}m`)}>Plan for it</button>{/if}
+					</p>
+				{/if}
 			</div>
 		{/if}
 
@@ -432,12 +441,37 @@
 </section>
 
 {#if away && meter && raid && clear}
-	<!-- Follows the page while the cards are edited; a click comes back to the meter. -->
-	<button type="button" class="fixed bottom-[4.25rem] left-1/2 z-30 flex max-w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-xs border border-accent-500/50 bg-surface-900/95 px-3 py-1.5 text-xs text-surface-300 shadow-lg shadow-black/60 backdrop-blur lg:bottom-4" onclick={() => section?.scrollIntoView({ block: 'start' })} title="Back to the DPS meter">
-		<span class="truncate">{raid.name}{gate(clear) ? ` G${gate(clear)}` : ''}</span>
-		<span class="tabular-nums">{dpsText(recordedDps)} →</span>
-		<span class="text-sm font-bold text-surface-50 tabular-nums">{dpsText(simulatedDps)}</span>
-		{@render gainText('font-semibold')}
-		<svg viewBox="0 0 16 16" class="size-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
+	{@const gap = wipeGap(clear)}
+	{@const outcome = clear.cleared === false ? `Failed at ${gap ? hpText(gap.hpLeftPct) : '?'}` : clear.cleared ? 'Clear' : 'Unknown'}
+	{@const tint = Math.abs(gainPct) < 0.0005 ? 'border-surface-600 text-surface-300' : gainPct > 0 ? 'border-green-500/50 bg-green-500/15 text-green-300' : 'border-red-500/50 bg-red-500/15 text-red-300'}
+	<!-- Follows the page while the cards below are edited: under the site header on wide screens, above Next Upgrades on
+	     phones. The Simulator's sticky card headers sit under it (data-dps-bar). A click comes back to the sim. -->
+	<div data-dps-bar class="fixed inset-x-0 top-12 z-40 border-b border-surface-800 bg-surface-950/90 shadow-md shadow-black/40 backdrop-blur max-lg:hidden">
+		<div class="mx-auto flex h-11 max-w-[1680px] items-center gap-3 px-4 text-xs text-surface-400">
+			<span class="h-6 w-1 shrink-0 rounded-full" style:background={classColor(loadout.classId) ?? 'var(--color-accent-500)'}></span>
+			<span class="font-semibold text-surface-100">DPS sim</span>
+			<span class="rounded-xs px-1 text-[10px] font-semibold {difficultyTone(raid.difficulty)}">{raid.difficulty || 'Normal'}</span>
+			<span class="truncate text-surface-200">{raid.name}{gate(clear) ? ` G${gate(clear)}` : ''}</span>
+			<span class="shrink-0 {runTone(clear)}">{outcome} · {time(clear.duration)}</span>
+			<span class="ml-auto shrink-0">Recorded <span class="font-semibold text-surface-200 tabular-nums">{dpsText(recordedDps)}</span></span>
+			<span aria-hidden="true">→</span>
+			<span class="shrink-0">Simulated <span class="text-base font-bold text-surface-50 tabular-nums">{dpsText(simulatedDps)}</span></span>
+			<span class="shrink-0 rounded-xs border px-1.5 py-0.5 font-semibold tabular-nums {tint}">{Math.abs(gainPct) < 0.0005 ? '±0' : `${simulatedDps >= recordedDps ? '+' : ''}${formatDamage(simulatedDps - recordedDps)} (${formatPct(gainPct)}%)`}</span>
+			{#if meter.notInMeter.length}<span class="shrink-0 text-amber-300" title="Edits that still count toward CP, not DPS: {meter.notInMeter.join(', ')}">※ {meter.notInMeter.length} not counted</span>{/if}
+			<button type="button" class="shrink-0 rounded-xs border border-surface-600 px-2 py-1 text-surface-200 hover:border-surface-400 hover:text-surface-50" onclick={() => section?.scrollIntoView({ block: 'start' })}>↑ Back to sim</button>
+		</div>
+	</div>
+	<button type="button" class="fixed inset-x-3 bottom-[4.25rem] z-30 flex flex-col gap-0.5 rounded-xs border bg-surface-900/95 px-3 py-1.5 text-left text-xs shadow-lg shadow-black/60 backdrop-blur lg:hidden {tint.split(' ')[0]}" onclick={() => section?.scrollIntoView({ block: 'start' })} aria-label="Back to the DPS sim">
+		<span class="flex w-full items-center gap-2 text-surface-400">
+			<span class="h-3 w-1 shrink-0 rounded-full" style:background={classColor(loadout.classId) ?? 'var(--color-accent-500)'}></span>
+			<span class="truncate text-surface-200">{raid.name}{gate(clear) ? ` G${gate(clear)}` : ''}</span>
+			<span class="shrink-0 {runTone(clear)}">{outcome}</span>
+			{#if meter.notInMeter.length}<span class="ml-auto shrink-0 text-amber-300">※ {meter.notInMeter.length}</span>{/if}
+		</span>
+		<span class="flex w-full items-center gap-2">
+			<span class="text-surface-400 tabular-nums">{dpsText(recordedDps)} →</span>
+			<span class="text-sm font-bold text-surface-50 tabular-nums">{dpsText(simulatedDps)}</span>
+			<span class="ml-auto rounded-xs border px-1.5 font-semibold tabular-nums {tint}">{Math.abs(gainPct) < 0.0005 ? '±0' : `${formatPct(gainPct)}%`}</span>
+		</span>
 	</button>
 {/if}

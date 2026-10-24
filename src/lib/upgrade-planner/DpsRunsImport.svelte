@@ -70,10 +70,9 @@
 
 <div class="space-y-3 text-sm">
 	<label class="block">
-		<span class="text-surface-300">Your LOA Logs <code class="text-surface-100">encounters.db</code></span>
+		<span class="text-surface-300">Upload <code class="text-surface-100">encounters.db</code></span>
 		<input type="file" accept=".db" class="mt-1 block w-full text-xs text-surface-300 file:mr-3 file:rounded-xs file:border-0 file:bg-accent-700 file:px-3 file:py-1.5 file:text-white" onchange={open} />
 	</label>
-	<p class="text-xs text-surface-400">Usually in the LOA Logs install folder. Close LOA Logs first. The file is read here in your browser; nothing is uploaded.</p>
 	{#if encounters}
 		<div class="flex flex-wrap items-center gap-3">
 			<label class="flex items-center gap-2">Recorded as

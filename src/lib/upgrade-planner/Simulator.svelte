@@ -83,10 +83,13 @@
 	$effect(() => {
 		const bar = document.querySelector<HTMLElement>('[data-cp-bar]');
 		const root = document.documentElement;
-		// Where sticky things end: card headers stick there, and the scroll spy reads sections against it.
-		const stickyTop = () => 48 + (bar?.offsetHeight ?? 0);
-		const sync = () => root.style.setProperty('--sim-sticky-top', `${stickyTop()}px`);
+		// Where sticky things end: card headers stick there, and the scroll spy reads sections against it. DPS mode's bar
+		// (data-dps-bar) comes and goes with the scroll, so it's measured on each one.
+		const stickyTop = () => 48 + (bar?.offsetHeight ?? 0) + (document.querySelector<HTMLElement>('[data-dps-bar]')?.offsetHeight ?? 0);
+		let top = '';
+		const sync = () => { const next = `${stickyTop()}px`; if (next !== top) root.style.setProperty('--sim-sticky-top', (top = next)); };
 		const spy = () => {
+			sync();
 			const line = stickyTop() + 12;
 			let current: string | null = null;
 			for (const title of SECTION_TITLES) {
@@ -415,7 +418,7 @@
 		<section id="sim-ark-grid" aria-label="Ark Grid" class="scroll-mt-28 max-lg:scroll-mt-32"><SimArkGrid bind:sim {base} {cores} {loadout} {preview} delta={sections.arkGrid} /></section>
 	</div>
 	<!-- Keep CP visible while the lower sidebar can scroll on shorter screens. -->
-	<div class="flex flex-col gap-2 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start">
+	<div class="flex flex-col gap-2 lg:sticky lg:top-[calc(var(--sim-sticky-top,48px)+1rem)] lg:max-h-[calc(100vh-var(--sim-sticky-top,48px)-2rem)] lg:self-start lg:transition-[top]">
 		<div class="shrink-0 max-lg:hidden">{@render summary()}</div>
 		<div class="flex min-h-0 flex-1 flex-col gap-2 lg:overflow-y-auto">
 		<!-- Same card shape as Next Upgrades: a fixed header strip, the links fold away beneath it. -->

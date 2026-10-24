@@ -26,6 +26,7 @@
 	import { dpsMeter, meterGain } from './dps-meter';
 	import { dpsSelection } from './dps-selection.svelte';
 	import { configuredPlanGain } from './dps-configured';
+	import { classColor } from './class-colors';
 
 	let {
 		dpsMode = false,
@@ -127,6 +128,9 @@
 	const shown = $derived(perGold ? [...priced, ...topDistinct(ranked.filter((u) => !pricedFor(u)), limit - priced.length)] : topDistinct(ranked, limit));
 	const unpriced = $derived(missingPriceCount(goldUpgrades, costs));
 	const unit = $derived(selection ? 'DPS' : 'CP');
+	/** DPS gains in the class's meter colour, as on the DPS sim's bars. */
+	// Lifted toward white so dark ones (Deadeye, Aeromancer) still read as text.
+	const meterColor = $derived.by(() => { const c = classColor(loadout.classId); return c ? `color-mix(in oklab, ${c} 70%, white)` : undefined; });
 
 </script>
 
@@ -232,7 +236,7 @@
 					<span class="text-right whitespace-nowrap tabular-nums {honing ? 'self-end' : ''}">
 						{#if selection}
 							{#if g}
-								<span class="text-sky-300" title={g.atLeast ? 'Estimated damage gain. Part of this upgrade is not valued yet.' : selection.runs.length ? 'Estimated damage gain on the selected attempt' : 'Estimated damage gain from configured combat totals'}>{g.atLeast ? '≥' : '≈'}{formatPct(g.gainPct)}<span class="text-xs">% DPS</span></span>
+								<span class="text-sky-300" style:color={meterColor} title={g.atLeast ? 'Estimated damage gain. Part of this upgrade is not valued yet.' : selection.runs.length ? 'Estimated damage gain on the selected attempt' : 'Estimated damage gain from configured combat totals'}>{g.atLeast ? '≥' : '≈'}{formatPct(g.gainPct)}<span class="text-xs">% DPS</span></span>
 							{:else}
 								<span class="block text-[11px] font-normal text-surface-400" title="This upgrade changes something the DPS meter doesn’t value yet">DPS not estimated</span>
 							{/if}
