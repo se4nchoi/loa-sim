@@ -494,7 +494,8 @@
 
 		<!-- Target DPS above the meter, for clears and wipes alike: the skill list below can be long. -->
 		{#if meter && onsimulate}
-			<div class="mb-3"><DpsTarget bind:this={target} {loadout} simState={plain} {base} {characterKey} {selection} meterDps={simulatedDps} onapply={onsimulate} /></div>
+			<!-- Keyed by the run: a plan belongs to the run it was made on, so another raid or run starts clean. -->
+			{#key `${clear.id}:${clear.start}`}<div class="mb-3"><DpsTarget bind:this={target} {loadout} simState={plain} {base} {characterKey} {selection} meterDps={simulatedDps} onapply={onsimulate} /></div>{/key}
 		{/if}
 		{#if meter}<div bind:this={meterBox}><DpsMeter {meter} {skillName} {skillIcon} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>{/if}
 		</div>
