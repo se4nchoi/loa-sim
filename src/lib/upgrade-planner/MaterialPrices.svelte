@@ -4,6 +4,8 @@
 -->
 <script lang="ts">
 	import ModalClose from './sim/ModalClose.svelte';
+	import { formatDateTime } from './format';
+	import { marketPricesEnabled } from '$lib/market-flag';
 	import DrawerHandle from './sim/DrawerHandle.svelte';
 	import { HONING_BOOKS } from './honing-books-data';
 	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
@@ -78,7 +80,7 @@
 	function priceSource(id: string) {
 		const quote = source?.quotes[id];
 		if (!quote || prices[id] !== quote.price) return 'Manually entered price';
-		return `loa-buddy · ${quote.slug} · ${new Date(quote.updatedAt).toLocaleString()}`;
+		return `loa-buddy · ${quote.slug} · ${formatDateTime(quote.updatedAt)}`;
 	}
 	let clearedInventory = $state<ClearedMaterialInventory | null>(null);
 	let clearedPrices = $state<MaterialPrices | null>(null);
@@ -136,9 +138,7 @@
 		if (v !== null) setMaterialPrice(id, v / unit(id), characterKey);
 	}
 	const changed = $derived(
-		gold.pricesAt
-			? new Date(gold.pricesAt).toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-			: '—'
+		gold.pricesAt ? formatDateTime(gold.pricesAt) : '—'
 	);
 </script>
 
@@ -170,7 +170,7 @@
 			<ModalClose close={() => dialog.close()} label="Close" />
 		</div>
 		<div class="flex max-h-[70vh] flex-col gap-3 overflow-y-auto px-4 py-3 text-sm max-sm:max-h-[min(70vh,calc(var(--visible,100vh)-4.5rem))]">
-			<div class="space-y-1.5 rounded-xs border border-surface-700 bg-surface-950/40 p-2.5">
+			{#if marketPricesEnabled()}<div class="space-y-1.5 rounded-xs border border-surface-700 bg-surface-950/40 p-2.5">
 				<div class="flex flex-wrap items-center justify-between gap-2">
 					<span class="text-xs font-semibold text-surface-200" title="Selected from this character’s region">Market · {MARKET_NAMES[market]}</span>
 					<div class="flex flex-wrap items-center gap-1.5">
@@ -178,14 +178,14 @@
 						{#if marketUndo}<button type="button" class={btn} onclick={undoImport}>Undo import</button>{/if}
 					</div>
 				</div>
-				<p class="text-xs text-surface-400">Loads honing materials and relic engraving books. Replaces returned prices for this region.</p>
+				<p class="text-xs text-surface-400">Prices from <a href="https://loa-buddy.pages.dev/market" target="_blank" rel="noopener" class="underline hover:text-surface-100">loa-buddy</a>. Loads honing materials and relic engraving books. Replaces returned prices for this region.</p>
 				{#if marketNote}<p role="status" class="text-xs text-green-400">{marketNote}</p>{/if}
 				{#if marketError}<p role="alert" class="text-xs text-red-300">{marketError}</p>{/if}
 				{#if observedAt}
-					<p class="text-xs text-surface-400">Price from {priceDate(observedAt)} <a href="https://loa-buddy.pages.dev/market" target="_blank" rel="noopener" class="ml-1 underline hover:text-surface-100">loa-buddy</a></p>
+					<p class="text-xs text-surface-400">Price from {priceDate(observedAt)}</p>
 					<p class="text-xs {stale ? 'text-amber-300' : 'text-surface-400'}">({hoursAgo} {hoursAgo === 1 ? 'hour' : 'hours'} ago)</p>
 				{/if}
-			</div>
+			</div>{/if}
 			<details bind:open={instructionsOpen} class="text-xs">
 				<summary class="cursor-pointer font-semibold text-surface-300 select-none hover:text-surface-100">How pricing works</summary>
 				<ul class="mt-2 list-disc pl-5 text-surface-100">

@@ -27,6 +27,11 @@ export const MARKET_ITEMS = [
 	{ id: '66112552', slug: 'tailoring-hellfire-15-18', units: 1 },
 	{ id: '66112553', slug: 'metallurgy-hellfire-19-20', units: 1 },
 	{ id: '66112554', slug: 'tailoring-hellfire-19-20', units: 1 },
+	// Serca's Tremor books, keyed by name until game ids are published; unlisted slugs just get no quote.
+	{ id: 'tremor:weapon:12-15', slug: 'metallurgy-tremor-12-15', units: 1 },
+	{ id: 'tremor:armor:12-15', slug: 'tailoring-tremor-12-15', units: 1 },
+	{ id: 'tremor:weapon:16-19', slug: 'metallurgy-tremor-16-19', units: 1 },
+	{ id: 'tremor:armor:16-19', slug: 'tailoring-tremor-16-19', units: 1 },
 	...MARKET_BOOKS
 ] as const;
 
