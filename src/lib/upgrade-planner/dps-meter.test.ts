@@ -147,3 +147,33 @@ describe('clear baseline', () => {
 		expect(matchSnapshot(null, snaps)).toBeNull();
 	});
 });
+
+describe('chaos cores and astrogem options', async () => {
+	const { orderCoreEffect } = await import('./ark-grid-dps');
+	const { gridStats } = await import('./dealer-grid-stats');
+	const r = run(1, { skills: [{ id: gemSkill, damage: 600, critDamage: 300, hits: 1, crits: 1, casts: 1 }, { id: 99999, damage: 400, critDamage: 0, hits: 1, crits: 0, casts: 1 }] });
+	it("reads the chaos cores' lines at their points, and the astrogem options", () => {
+		const g = gridStats(loadout, base);
+		expect(g.damage).toBeGreaterThan(0); // Flashy Attack / Absorbing Strike: Damage to foes
+		expect(g.atkFlat).toBeGreaterThan(0); // the Attack star
+		expect(g.addDmg).toBeGreaterThan(0); // Additional Damage astrogems
+	});
+	it('a chaos core losing points loses its damage, more on the skill that crits (On Crit Hit damage)', () => {
+		const state = structuredClone(base);
+		const flashy = state.arkGrid.find((c) => String(c.as ?? c.id).startsWith('6731000'));
+		expect(flashy).toBeDefined();
+		flashy!.gems.find((g) => !g.removed)!.removed = true;
+		const m = dpsMeter(loadout, base, state, [r], [r], orderCoreEffect)!;
+		expect(m.after).toBeLessThan(m.before);
+		expect(m.notInMeter).toEqual([]);
+		const crit = m.skills.find((s) => s.id === gemSkill)!, none = m.skills.find((s) => s.id === 99999)!;
+		expect(crit.after / crit.before).toBeLessThan(none.after / none.before);
+	});
+	it('an Additional Damage astrogem level counts as Additional Damage', () => {
+		const state = structuredClone(base);
+		const opt = state.arkGrid.flatMap((c) => c.gems).flatMap((g) => g.opts).find((o) => o.id === 2002 && o.level < 5)!;
+		opt.level += 1;
+		const g = meterGain(loadout, base, base, state, [r], [r], orderCoreEffect);
+		expect(g.gainPct).toBeGreaterThan(0);
+	});
+});

@@ -13,7 +13,7 @@
 import type { RunSummary, SupportKind } from '$lib/logs/protocol';
 import { bracerStats } from './bracer';
 import { baseAttackOf } from './dps-explain';
-import { braceletEffects, braceletStats, optionLevel, simCorePoints, simulate, type SimState } from './simulate';
+import { braceletEffects, braceletStats, initSimState, optionLevel, simCorePoints, simulate, type SimState } from './simulate';
 import { decodeCore } from './tables';
 import { SUPPORT_ASTROGEM_VALUES, SUPPORT_CORE_LINES, type SupportCoreLine } from './support-buffs';
 import { SUPPORT_ACCESSORY_LINES, swappedCoreId } from './support';
@@ -65,7 +65,12 @@ function coreLinesOf(loadout: Loadout, state: SimState, base: SimState): Support
 	return out;
 }
 
-export function supportStats(loadout: Loadout, state: SimState, base: SimState): SupportStats {
+/** The loadout's own state: what simulate and core points measure edits against (not the run's baseline). */
+const anchors = new WeakMap<Loadout, SimState>();
+const anchorOf = (l: Loadout) => anchors.get(l) ?? (anchors.set(l, initSimState(l)), anchors.get(l)!);
+
+export function supportStats(loadout: Loadout, state: SimState, _base?: SimState): SupportStats {
+	const base = anchorOf(loadout);
 	const r = simulate(loadout, state, base);
 	const flat = bracerStats(state.bracer).attackFlat;
 	return {

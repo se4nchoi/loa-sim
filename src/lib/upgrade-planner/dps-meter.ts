@@ -14,8 +14,8 @@ import { modelGain } from './dps-model';
 import { gateSample } from './dps-gates';
 import { statDeltasAtLeast } from './dps-stats';
 import type { orderCoreEffect } from './ark-grid-dps';
-import type { SimGem, SimState } from './simulate';
-import { decodeCore } from './tables';
+import { simulate, type SimGem, type SimState } from './simulate';
+import { gridStats } from './dealer-grid-stats';
 import type { Loadout } from './types';
 import { statGain, type DamageContext } from './dps-stat-engine';
 
@@ -46,17 +46,17 @@ const LABELS: Partial<Record<keyof SimState, string>> = { arkGrid: 'Ark Grid', k
 const DROPPED_EDITS = 'Some gear edits';
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
-/** The Ark Grid without what the order core model values (which order core, its grade, its points). */
-const arkGridRest = (s: SimState) =>
-	s.arkGrid.map((c) => (decodeCore(c.as ?? c.id)?.attr === 'order' ? c.gems.map((g) => (g.removed ? null : g.opts)) : c));
-
-/** The parts of `state` that differ from `base` and that the meter doesn't value ("Karma", "Chaos cores and astrogem options"). */
-function unvaluedParts(base: SimState, state: SimState, hasArkGrid: boolean): string[] {
+/**
+ * The parts of `state` that differ from `base` and that the meter doesn't value ("Karma"). On the Ark Grid, Order cores
+ * (ark-grid-dps.ts), chaos cores and astrogem options (dealer-grid-stats.ts) are valued; only chaos lines with no damage
+ * stat (Atk. Speed, Skill Cooldown, Burn, Weak Point) aren't.
+ */
+function unvaluedParts(loadout: Loadout, base: SimState, state: SimState, hasArkGrid: boolean): string[] {
 	const out: string[] = [];
 	for (const key of Object.keys(state) as (keyof SimState)[]) {
 		if (STAT_KEYS.has(key) || key === 'gems' || same(state[key], base[key])) continue;
 		if (key !== 'arkGrid' || !hasArkGrid) out.push(LABELS[key] ?? key);
-		else if (!same(arkGridRest(state), arkGridRest(base))) out.push('Chaos cores and astrogem options');
+		else if (!same(gridStats(loadout, state).unvalued, gridStats(loadout, base).unvalued)) out.push('Chaos core speed, cooldown and Burn lines');
 	}
 	return out;
 }
@@ -68,7 +68,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 
 	// Stat part: the edits on the cards the stat model covers; everything else put back to the snapshot.
 	const statState = structuredClone(state);
-	notInMeter.push(...unvaluedParts(base, state, !!arkGrid));
+	notInMeter.push(...unvaluedParts(loadout, base, state, !!arkGrid));
 	for (const key of Object.keys(state) as (keyof SimState)[])
 		if (!STAT_KEYS.has(key) && !same(state[key], base[key])) (statState as unknown as Record<string, unknown>)[key] = structuredClone(base[key]);
 	const change = statDeltasAtLeast(loadout, base, statState, base);
@@ -111,6 +111,22 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	const gemBaseAttack = baseAttackOf(loadout, state) - baseAttackOf(loadout, base);
 	const delta = change ? { ...change.delta } : { mainStat: 0, weaponPower: 0, additionalDamage: 0, critRate: 0, critDamage: 0, attackPowerPct: 0, attackPower: 0 };
 	if (gemBaseAttack) delta.baseAttackPct = (delta.baseAttackPct ?? 0) + gemBaseAttack;
+	// Chaos cores and astrogem options: their stat lines join the stat part (percent Weapon Power as flat, on the build's
+	// Weapon Power); Damage to foes and to Boss scale all damage, On Crit Hit damage the crit share of each skill.
+	const [gridA, gridB] = arkGrid ? [gridStats(loadout, base), gridStats(loadout, state)] : [null, null];
+	if (gridA && gridB) {
+		delta.attackPower += gridB.atkFlat - gridA.atkFlat;
+		delta.attackPowerPct += gridB.atkPct - gridA.atkPct;
+		delta.critRate += gridB.critRate - gridA.critRate;
+		delta.critDamage += gridB.critDamage - gridA.critDamage;
+		delta.additionalDamage += gridB.addDmg - gridA.addDmg;
+		delta.weaponPower += gridB.wpFlat - gridA.wpFlat + ((gridB.wpPct - gridA.wpPct) / 100) * simulate(loadout, state).weaponPower;
+	}
+	const ratio = (b: number, a: number) => (1 + b / 100) / (1 + a / 100);
+	const gridDamage = gridA && gridB ? ratio(gridB.damage, gridA.damage) * ratio(gridB.boss, gridA.boss) : 1;
+	const gridCrit = gridA && gridB ? ratio(gridB.critHit, gridA.critHit) - 1 : 0;
+	/** A skill's chaos / astrogem multiplier: all damage by Damage to foes and Boss, its crits by On Crit Hit damage. */
+	const gridOf = (skill: { damage: number; critDamage: number }) => gridDamage * (1 + (skill.damage > 0 ? skill.critDamage / skill.damage : 0) * gridCrit);
 	const hasStats = Object.values(delta).some((v) => v);
 
 	// Each clear on its own: the gear's buckets from the build's clears, Crit Rate from this clear (or the pooled one).
@@ -126,7 +142,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 		if (gain === null) statKnown = false;
 		const stat = 1 + (gain ?? 0) / 100;
 		statWeighted += Math.max(0, run.damage - run.skills.filter((s) => s.hyper).reduce((sum, s) => sum + s.damage, 0)) * (gain ?? 0);
-		outsideDamage += Math.max(0, run.damage - run.skills.reduce((sum, s) => sum + s.damage, 0)) * stat;
+		outsideDamage += Math.max(0, run.damage - run.skills.reduce((sum, s) => sum + s.damage, 0)) * stat * gridDamage;
 		durationMs += run.duration;
 		const cores = arkGrid && !same(state.arkGrid, base.arkGrid) ? arkGrid(loadout, base, state, run) : null;
 		for (const u of cores?.unvalued ?? []) unvalued.add(u);
@@ -134,7 +150,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 			const gems = gemEffects.reduce((m, g) => (g.skills.has(skill.id) ? m * (1 + g.pct / 100) : m), 1) * (cores?.factor(skill) ?? 1);
 			const row = bySkill.get(skill.id) ?? { id: skill.id, before: 0, after: 0 };
 			row.before += skill.damage;
-			row.after += skill.damage * (skill.hyper ? 1 : stat * gems);
+			row.after += skill.damage * (skill.hyper ? 1 : stat * gems * gridOf(skill));
 			bySkill.set(skill.id, row);
 		}
 		before += run.damage;
@@ -169,7 +185,7 @@ export function meterGain(loadout: Loadout, baseline: SimState, from: SimState, 
 	// A step the meter can't see moves nothing: an astrogem option, Karma (even when the clear's baseline already differed
 	// there, so no new "not counted" shows), a core whose effect isn't parsed or was swapped since the clear. A real change
 	// that moves nothing is unknown, not zero; one that moves something but touches an unvalued part is a floor.
-	const unvalued = unvaluedParts(from, to, !!arkGrid).length > 0;
+	const unvalued = unvaluedParts(loadout, from, to, !!arkGrid).length > 0;
 	if (Math.abs(gainPct) < 1e-6 && !same(from, to)) return { gainPct: null, atLeast: false };
 	return { gainPct, atLeast: newNotes.length > 0 || unvalued };
 }
