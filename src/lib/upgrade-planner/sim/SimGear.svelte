@@ -60,7 +60,7 @@
 				<div class="ml-auto flex shrink-0 items-center gap-2">
 					<div class="flex flex-col items-center gap-1">
 						<span class="text-[10px] text-surface-400">Honing</span>
-						<Stepper bind:value={g.honing} min={0} max={25} prefix="+" changed={g.honing !== b.honing} label={`${LABELS[slot]} honing`} width="w-7" />
+						<Stepper bind:value={g.honing} min={0} max={25} changed={g.honing !== b.honing} label={`${LABELS[slot]} honing`} width="w-7" />
 					</div>
 					{#if g.set === 'aegir'}
 						<div class="flex flex-col items-center gap-1">

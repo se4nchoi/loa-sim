@@ -31,7 +31,7 @@ ${details}` : 'Vambraces · Not equipped'} />
 		<div class="flex flex-col items-center gap-1">
 			<span class="text-[10px] text-surface-400">Honing</span>
 			{#if sim.bracer}
-				<Stepper bind:value={sim.bracer.honing} min={BRACER_LIMITS[sim.bracer.grade][0]} max={BRACER_LIMITS[sim.bracer.grade][1]} prefix="+" label="Vambraces honing" width="w-7" {changed} />
+				<Stepper bind:value={sim.bracer.honing} min={BRACER_LIMITS[sim.bracer.grade][0]} max={BRACER_LIMITS[sim.bracer.grade][1]} label="Vambraces honing" width="w-7" {changed} />
 			{:else}
 				<span class="flex h-8 w-24 items-center justify-center text-sm text-surface-500">—</span>
 			{/if}
