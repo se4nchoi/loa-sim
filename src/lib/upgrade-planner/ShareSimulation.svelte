@@ -38,11 +38,18 @@
 </script>
 
 <div class="mt-2 space-y-1">
+	<!-- A DPS link carries log data: said plainly before it's made, not in the fine print. -->
+	{#if dps}
+		<div class="rounded-xs border border-amber-400/50 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-100">
+			<p class="font-semibold">Includes your log data: {runName} run</p>
+			<p class="mt-0.5 text-amber-100/80">Your skill damage, gear and the fight's outcome. No other players.</p>
+		</div>
+	{/if}
 	<button type="button" class="{btnAccent} w-full gap-1.5 disabled:opacity-40" disabled={busy || !characterKey} onclick={share} title="Share this build with your changes. Link expires in 30 days.">
 		<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m9 10.5 6-4m-6 7 6 4"/></svg>
 		{busy ? 'Creating link…' : currentLink ? 'Copy share link' : dps ? 'Share DPS simulation' : 'Share simulation'}
 	</button>
-	<p class="text-xs text-surface-400">{dps ? `With your ${runName} run · ` : ''}Link expires in 30 days</p>
+	<p class="text-xs text-surface-400">Link expires in 30 days</p>
 	{#if currentLink}
 		<input class="w-full min-w-0 rounded-xs border border-surface-600 bg-surface-950 px-2 py-1 text-xs text-surface-200" aria-label="Simulation share link" value={currentLink} readonly onclick={(event) => event.currentTarget.select()} />
 		<p role="status" class="flex items-center gap-1 text-xs {copied ? 'text-green-400' : 'text-surface-300'}">
