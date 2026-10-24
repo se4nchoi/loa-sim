@@ -58,11 +58,11 @@ const idMapLike = (x: unknown) => record(x) && numbers(x, 3);
 
 /**
  * A run as a share link carries it: only what the meter reads. Left out: the party's damage and deaths (other players'
- * part), the public log's id (it names the whole party), the local log's id, the fight's time of day (the date stays,
+ * part, and a support's per-dealer split), the public log's id (it names the whole party), the local log's id, the fight's time of day (the date stays,
  * at noon UTC), the meter version and the lostark.bible snapshot hash.
  */
 export function shareableRun(run: RunSummary): RunSummary {
-	const { partyDamage: _party, dead: _dead, loadoutHash: _hash, upstreamId: _log, ...rest } = run;
+	const { partyDamage: _party, dead: _dead, loadoutHash: _hash, upstreamId: _log, support: _support, ...rest } = run;
 	return { ...rest, id: 0, start: Math.floor(run.start / 86_400_000) * 86_400_000 + 43_200_000, meterVersion: null };
 }
 

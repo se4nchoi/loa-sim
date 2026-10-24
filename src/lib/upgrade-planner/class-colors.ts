@@ -23,3 +23,6 @@ export const classTextColor = (classId: string): string | undefined => {
 	const light = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 	return light >= 0.42 ? c : `color-mix(in oklab, ${c} 65%, white)`;
 };
+
+/** The meter's colour for a class by its NA name, as LOA Logs records it ("Souleater"). */
+export const classColorByName = (name: string): string | undefined => CLASS_COLORS[name];

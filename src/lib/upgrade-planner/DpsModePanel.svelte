@@ -15,6 +15,8 @@
 	import DpsRunsImport from './DpsRunsImport.svelte';
 	import DpsMeter from './sim/DpsMeter.svelte';
 	import DpsTarget from './DpsTarget.svelte';
+	import SupportMeterView from './sim/SupportMeter.svelte';
+	import { supportMeter } from './support-meter';
 	import FoldChip from './sim/FoldChip.svelte';
 	import { classColor } from './class-colors';
 	import { formatDamage } from './dps-comparison';
@@ -185,25 +187,31 @@
 		const skills = clearSkills;
 		return skills ? ((l: Loadout, b: SimState, st: SimState, r: RunSummary) => model.orderCoreEffect({ ...l, skills } as Loadout, b, st, r)) as typeof model.orderCoreEffect : model.orderCoreEffect;
 	});
-	const meter = $derived(runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, baselineReady ? plain : clearSetup?.state ?? base, buildRuns, runs, arkGrid) : null);
+	// A support's sim is the party damage their buffs added (support-meter.ts); a dealer's, their own skills' damage.
+	const isSupport = $derived(loadout.battlePoint.isSupport);
+	const meter = $derived(!isSupport && runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, baselineReady ? plain : clearSetup?.state ?? base, buildRuns, runs, arkGrid) : null);
 	// What a share link carries from here: this run, its baseline, its skills' names and icons (shared-dps.ts).
 	const share = $derived.by<SharedDps | undefined>(() => {
-		if (!clear || !baselineReady) return undefined;
+		if (!clear || !baselineReady || isSupport) return undefined;
 		const skills = Object.fromEntries(clear.skills.map((s) => [s.id, [skillName(s.id), skillsBook?.[s.id]?.[1] || GEM_SKILLS[s.id]?.[1] || '']])) as SharedDps['skills'];
 		const tripods = clearSkills?.filter((s) => clear.skills.some((x) => x.id === s.id)).map((s) => ({ id: s.id, ...(s.tripods ? { tripods: s.tripods } : {}) }));
 		return { run: shareableRun($state.snapshot(clear) as RunSummary), baseline: $state.snapshot(clearSetup?.state ?? base) as SimState, skills, ...(tripods?.length ? { arkSkills: tripods } : {}), ...(clear.cleared === false && isEnrage(clear) ? { enrage: true } : {}) };
 	});
-	const selection = $derived<DpsSelection | null>(runs.length && baselineReady ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid, share } : null);
+	const selection = $derived<DpsSelection | null>(!isSupport && runs.length && baselineReady ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid, share } : null);
 	// Shared with Next Upgrades, which ranks upgrades on this meter.
 	$effect(() => {
 		const key = characterKey;
 		setDpsSelection(key, selection);
 		return () => setDpsSelection(key, null);
 	});
-	const seconds = $derived(meter ? meter.durationMs / 1000 : 1);
-	const recordedDps = $derived(meter ? meter.before / seconds : 0);
-	const simulatedDps = $derived(meter ? meter.after / seconds : 0);
-	const gainPct = $derived(meter ? (meter.after / meter.before - 1) * 100 : 0);
+	const supMeter = $derived(isSupport && clear?.support ? supportMeter(loadout, clearSetup?.state ?? base, baselineReady ? plain : clearSetup?.state ?? base, clear) : null);
+	/** The headline numbers from whichever meter this character has: the dealer's own DPS, or the party DPS a support added. */
+	const head = $derived(meter ? { before: meter.before, after: meter.after, ms: meter.durationMs, notIn: meter.notInMeter }
+		: supMeter ? { before: supMeter.before, after: supMeter.after, ms: supMeter.durationMs, notIn: supMeter.notInMeter } : null);
+	const seconds = $derived(head ? head.ms / 1000 : 1);
+	const recordedDps = $derived(head ? head.before / seconds : 0);
+	const simulatedDps = $derived(head ? head.after / seconds : 0);
+	const gainPct = $derived(head && head.before > 0 ? (head.after / head.before - 1) * 100 : 0);
 
 	const gate = (r: RunSummary) => raidGateOf(r.boss)?.gate;
 	const time = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
@@ -211,7 +219,9 @@
 	const runLabel = (r: RunSummary) => {
 		const g = wipeGap(r);
 		const outcome = r.cleared === true ? 'Clear' : r.cleared === false ? `Failed${g ? ` at ${hpText(g.hpLeftPct)}` : ''}${isEnrage(r) ? ' · enrage' : ''}` : 'Unknown';
-		return `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${outcome} · ${time(r.duration)} · ${formatDamage(r.damage / (r.duration / 1000))}`;
+		// A support's run reads as the party DPS their buffs added; a dealer's, their own.
+		const damage = r.support ? Object.values(r.support.kinds).reduce((x, y) => x + y, 0) : r.damage;
+		return `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${outcome} · ${time(r.duration)} · ${formatDamage(damage / (r.duration / 1000))}`;
 	};
 	/** A run's colour in the menu: failed pulls light red, clears light green. */
 	const runTone = (r: RunSummary) => (r.cleared === false ? 'text-rose-300' : r.cleared === true ? 'text-emerald-200' : 'text-white');
@@ -265,7 +275,7 @@
 	<span class="rounded-xs bg-amber-500/15 px-1 text-[10px] font-semibold text-amber-300">BETA</span>
 	<button type="button" class="flex size-5 items-center justify-center rounded-full border text-[11px] font-bold transition {view.intro && !view.folded ? 'border-amber-400/60 bg-amber-500/15 text-amber-200' : 'border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-100'}" title="How the DPS sim works" aria-label="How the DPS sim works" aria-pressed={view.intro && !view.folded} onclick={() => setView({ intro: !(view.intro && !view.folded), folded: false })}>?</button>
 	<button type="button" class="group flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-left" aria-expanded={!view.folded} aria-label={view.folded ? 'Show the DPS sim' : 'Hide the DPS sim'} onclick={() => setView({ folded: !view.folded })}>
-		{#if meter && raid && clear}
+		{#if head && raid && clear}
 			<span class="flex min-w-0 items-center gap-1.5 text-xs text-surface-400 {view.folded ? '' : 'max-sm:hidden'}"><span class="truncate">{raid.name}{gate(clear) ? ` G${gate(clear)}` : ''}</span>
 				<span class="text-surface-300 tabular-nums">{dpsText(recordedDps)} → <span class="font-semibold text-surface-50">{dpsText(simulatedDps)}</span></span>{@render gainText('font-semibold')}</span>
 		{/if}
@@ -285,8 +295,8 @@
 			</div>
 			<ol class="mt-2 grid gap-2 text-xs sm:grid-cols-3" hidden={!!shared}>
 				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">1 · Import your logs</p><p class="mt-0.5 text-surface-400">LOA Logs' encounters.db, read in this browser. Nothing is uploaded.</p></li>
-				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">2 · Pick a run</p><p class="mt-0.5 text-surface-400">Its damage, skill by skill, on the gear it was played with.</p></li>
-				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">3 · Edit the cards below</p><p class="mt-0.5 text-surface-400">Each skill's damage follows your gear, gems and Ark Grid edits.</p></li>
+				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">2 · Pick a run</p><p class="mt-0.5 text-surface-400">{#if isSupport}What your buffs added to each dealer, on the gear it was played with.{:else}Its damage, skill by skill, on the gear it was played with.{/if}</p></li>
+				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">3 · Edit the cards below</p><p class="mt-0.5 text-surface-400">{#if isSupport}Each buff follows the stat behind it: Attack Power, ally enhancement, Brand Power.{:else}Each skill's damage follows your gear, gems and Ark Grid edits.{/if}</p></li>
 			</ol>
 			<div class="mt-2 grid gap-2 text-xs sm:grid-cols-2">
 				<div class="rounded-xs bg-surface-950/60 p-2">
@@ -295,7 +305,7 @@
 					<p class="mt-1 text-sm font-semibold text-surface-50">If you played it exactly like this again, how much DPS would this change add?</p>
 					<ul class="mt-1 list-disc space-y-0.5 pl-4 text-surface-400">
 						<li>Kept as recorded: casts, rotation, crits, buffs and fight length.</li>
-						<li>Scaled: each skill's damage, by the stat, gem and Ark Grid changes.</li>
+						<li>{#if isSupport}Scaled: each buff, by its stat.{:else}Scaled: each skill's damage, by the stat, gem and Ark Grid changes.{/if}</li>
 						<li>Not counted yet: listed under the meter.</li>
 					</ul>
 				</div>
@@ -312,10 +322,7 @@
 		</div>
 	{/if}
 
-	{#if loadout.battlePoint.isSupport}
-		<!-- A support's own skill damage says little about what they add; the party's damage isn't in their log. -->
-		<p class="text-sm text-surface-300">DPS sim is for damage dealers. Supports: use CP mode.</p>
-	{:else if !warm || (!shared && !(characterKey in runsBooks.byCharacter))}
+	{#if !warm || (!shared && !(characterKey in runsBooks.byCharacter))}
 		<!-- The panel's shape while it opens and this browser's imported logs are read: tabs, raids, banner, run, setup,
 		     Target DPS, meter. -->
 		<div class="animate-pulse" role="status" aria-label="Loading the DPS sim">
@@ -420,6 +427,8 @@
 		{#if clear}
 		{@const yours = clear.damage / (clear.duration / 1000)}
 		{@const sharePct = clear.partyDamage ? Math.min(100, (clear.damage / clear.partyDamage) * 100) : null}
+		<!-- A support's part of the run: the party damage their buffs added, and how much of the party's damage that was. -->
+		{@const added = clear.support ? Object.values(clear.support.kinds).reduce((a, b) => a + b, 0) : 0}
 		{@const need = wipe ? yours * (1 + wipe.partyPct / 100) : 0}
 		{@const hint = wipe?.pattern?.kind === 'time' ? `${wipe.pattern.count} pulls ended near ${time(wipe.pattern.at * 1000)}, boss HP varied` : wipe?.pattern?.kind === 'hp' ? `${wipe.pattern.count} pulls ended near ${hpText(wipe.pattern.at)} HP` : undefined}
 		<div class="mb-3 grid gap-x-6 gap-y-2 rounded-xs border px-3 py-2 text-sm sm:grid-cols-2 {wipe && enrage ? 'border-rose-500/40 bg-rose-950/30' : 'border-surface-700 bg-surface-950/50'}">
@@ -435,7 +444,11 @@
 				</dd>
 			</dl>
 			<dl class="grid grid-cols-[max-content_minmax(0,1fr)] content-start gap-x-3 gap-y-0.5 text-surface-300">
-				{#if wipe && enrage}
+				{#if isSupport}
+					<dt>Party DPS added</dt><dd class="font-semibold text-surface-50 tabular-nums">{added ? formatDamage(added / (clear.duration / 1000)) : '—'}</dd>
+					<dt>Of party damage</dt><dd class="font-semibold text-surface-50 tabular-nums">{added && clear.partyDamage ? `${((added / clear.partyDamage) * 100).toFixed(1)}%` : '—'}</dd>
+					{#if wipe && enrage}<dt>Party short</dt><dd class="font-semibold text-rose-100 tabular-nums">+{wipe.partyPct.toFixed(1)}% damage</dd>{/if}
+				{:else if wipe && enrage}
 					<dt>Party short</dt><dd class="font-semibold text-rose-100 tabular-nums">+{wipe.partyPct.toFixed(1)}% damage</dd>
 					<dt>Your part</dt><dd class="text-rose-100 tabular-nums">{formatDamage(yours)} → <span class="font-semibold">{formatDamage(need)}</span> DPS</dd>
 					<dt>Short by</dt><dd class="font-semibold text-rose-100 tabular-nums">{formatDamage(need - yours)}</dd>
@@ -498,7 +511,7 @@
 			<div class="mb-3 rounded-xs border border-amber-500/40 px-3 py-2 text-xs text-amber-200">
 				<p class="flex flex-wrap items-center gap-2">
 					<span class="text-sm font-semibold text-surface-100">Run setup</span>
-					<span>No LOA Logs snapshot · loaded gear stands in{#if gap !== null && !matches} ({Math.abs(gap).toFixed(1)}% CP {gap > 0 ? 'above' : 'below'} the run){/if}</span>
+					<span>No LOA Logs snapshot · loaded gear stands in{#if gap !== null && !matches}{' '}({Math.abs(gap).toFixed(1)}% CP {gap > 0 ? 'above' : 'below'} the run){/if}</span>
 					{#if better}<button type="button" class="font-semibold underline hover:text-white" onclick={better.select}>Use {better.label}</button>{/if}
 					{#if baselineReady}<span class="ml-auto text-surface-400">Using loaded gear</span>
 					{:else}<button type="button" class="ml-auto rounded-xs border border-amber-400/50 px-2 py-0.5 hover:bg-amber-500/10" onclick={() => { confirmed = baselineKey; }}>Use loaded gear</button>{/if}
@@ -511,7 +524,9 @@
 			<!-- Keyed by the run: a plan belongs to the run it was made on, so another raid or run starts clean. -->
 			{#key `${clear.id}:${clear.start}`}<div class="mb-3"><DpsTarget bind:this={target} {loadout} simState={plain} {base} {characterKey} {selection} meterDps={simulatedDps} onapply={onsimulate} /></div>{/key}
 		{/if}
-		{#if meter}<div bind:this={meterBox}><DpsMeter {meter} {skillName} {skillIcon} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>{/if}
+		{#if meter}<div bind:this={meterBox}><DpsMeter {meter} {skillName} {skillIcon} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>
+		{:else if supMeter}<div bind:this={meterBox}><SupportMeterView meter={supMeter} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>
+		{:else if isSupport}<p class="text-sm text-surface-300">No buff data for this run. Re-import to read it; LOA Logs records it on newer runs.</p>{/if}
 		</div>
 		</div>
 		{/if}
@@ -520,7 +535,7 @@
 	{/if}
 </section>
 
-{#if away && meter && raid && clear}
+{#if away && head && raid && clear}
 	{@const gap = wipeGap(clear)}
 	{@const outcome = clear.cleared === false ? `Failed at ${gap ? hpText(gap.hpLeftPct) : '?'}` : clear.cleared ? 'Clear' : 'Unknown'}
 	{@const tint = Math.abs(gainPct) < 0.0005 ? 'border-surface-600 text-surface-300' : gainPct > 0 ? 'border-green-500/50 bg-green-500/15 text-green-300' : 'border-red-500/50 bg-red-500/15 text-red-300'}
@@ -537,7 +552,7 @@
 			<span aria-hidden="true">→</span>
 			<span class="shrink-0">Simulated <span class="text-base font-bold text-surface-50 tabular-nums">{dpsText(simulatedDps)}</span></span>
 			<span class="shrink-0 rounded-xs border px-1.5 py-0.5 font-semibold tabular-nums {tint}">{Math.abs(gainPct) < 0.0005 ? '±0' : `${simulatedDps >= recordedDps ? '+' : ''}${formatDamage(simulatedDps - recordedDps)} (${formatPct(gainPct)}%)`}</span>
-			{#if meter.notInMeter.length}<span class="shrink-0 text-amber-300" title="Edits that still count toward CP, not DPS: {meter.notInMeter.join(', ')}">※ {meter.notInMeter.length} not counted</span>{/if}
+			{#if head.notIn.length}<span class="shrink-0 text-amber-300" title="Edits that still count toward CP, not DPS: {head.notIn.join(', ')}">※ {head.notIn.length} not counted</span>{/if}
 			<button type="button" class="shrink-0 rounded-xs border border-surface-600 px-2 py-1 text-surface-200 hover:border-surface-400 hover:text-surface-50" onclick={() => section?.scrollIntoView({ block: 'start' })}>↑ DPS sim</button>
 		</div>
 	</div>
@@ -546,7 +561,7 @@
 			<span class="h-3 w-1 shrink-0 rounded-full" style:background={classColor(loadout.classId) ?? 'var(--color-accent-500)'}></span>
 			<span class="truncate text-surface-200">{raid.name}{gate(clear) ? ` G${gate(clear)}` : ''}</span>
 			<span class="shrink-0 {runTone(clear)}">{outcome}</span>
-			{#if meter.notInMeter.length}<span class="ml-auto shrink-0 text-amber-300">※ {meter.notInMeter.length}</span>{/if}
+			{#if head.notIn.length}<span class="ml-auto shrink-0 text-amber-300">※ {head.notIn.length}</span>{/if}
 		</span>
 		<span class="flex w-full items-center gap-2">
 			<span class="text-surface-400 tabular-nums">{dpsText(recordedDps)} →</span>
