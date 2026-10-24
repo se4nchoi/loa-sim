@@ -35,6 +35,12 @@ describe('run summary', () => {
 		const old = runSummary(row, { skills: { a: { id: 1, totalDamage: 5 } }, arkPassiveData: '{broken' }, null, {})!;
 		expect(old.arkGridOrder).toBeUndefined();
 	});
+	it('keeps the id LOA Logs synced the run under on lostark.bible, when it is one', () => {
+		const skills = { a: { id: 1, totalDamage: 5 } };
+		expect(runSummary(row, { skills, upstreamId: 'RpaQ0M8' }, null, {})!.upstreamId).toBe('RpaQ0M8');
+		expect(runSummary(row, { skills, upstreamId: '../evil?x=1' }, null, {})!.upstreamId).toBeUndefined();
+		expect(runSummary(row, { skills }, null, {})!.upstreamId).toBeUndefined();
+	});
 });
 
 describe('Ark Grid and identity buffs', () => {

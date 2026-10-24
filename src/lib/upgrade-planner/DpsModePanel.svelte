@@ -30,7 +30,7 @@
 	import Segmented from './sim/Segmented.svelte';
 	import { wipeGap, wipeStory } from './dps-wipe';
 	import type { Loadout } from './types';
-	import type { SharedDps } from './shared-dps';
+	import { shareableRun, type SharedDps } from './shared-dps';
 
 	let { loadout, simState, characterKey, characterName, snapshots = [], onsimulate, shared }: {
 		loadout: Loadout;
@@ -187,7 +187,7 @@
 		if (!clear || !baselineReady) return undefined;
 		const skills = Object.fromEntries(clear.skills.map((s) => [s.id, [skillName(s.id), skillsBook?.[s.id]?.[1] || GEM_SKILLS[s.id]?.[1] || '']])) as SharedDps['skills'];
 		const tripods = clearSkills?.filter((s) => clear.skills.some((x) => x.id === s.id)).map((s) => ({ id: s.id, ...(s.tripods ? { tripods: s.tripods } : {}) }));
-		return { run: $state.snapshot(clear) as RunSummary, baseline: $state.snapshot(clearSetup?.state ?? base) as SimState, skills, ...(tripods?.length ? { arkSkills: tripods } : {}), ...(clear.cleared === false && isEnrage(clear) ? { enrage: true } : {}) };
+		return { run: shareableRun($state.snapshot(clear) as RunSummary), baseline: $state.snapshot(clearSetup?.state ?? base) as SimState, skills, ...(tripods?.length ? { arkSkills: tripods } : {}), ...(clear.cleared === false && isEnrage(clear) ? { enrage: true } : {}) };
 	});
 	const selection = $derived<DpsSelection | null>(runs.length && baselineReady ? { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid, share } : null);
 	// Shared with Next Upgrades, which ranks upgrades on this meter.
@@ -390,7 +390,13 @@
 					</select>
 				</div>
 				{#if shared}<span class="ml-auto self-start rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm">Shared run · {shared.run.player}</span>
-				{:else}<button type="button" class="ml-auto self-start rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm hover:border-white/40 hover:text-white" onclick={() => (importing = true)}>Re-import logs</button>{/if}
+				{:else}
+					<!-- The run's full log (every player, every hit) on lostark.bible, when LOA Logs synced it. -->
+					<span class="ml-auto flex flex-wrap gap-1.5 self-start">
+						{#if clear.upstreamId}<a class="rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm hover:border-white/40 hover:text-white" href="https://lostark.bible/logs/{clear.upstreamId}" target="_blank" rel="noopener">Log details ↗</a>{/if}
+						<button type="button" class="rounded-xs border border-white/20 bg-black/55 px-2 py-1 text-xs text-white/90 backdrop-blur-sm hover:border-white/40 hover:text-white" onclick={() => (importing = true)}>Re-import logs</button>
+					</span>
+				{/if}
 			</div>
 		</div>
 

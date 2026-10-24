@@ -125,6 +125,8 @@ export interface RunSummary extends EncounterRow {
 	bossHp?: { left: number; max: number };
 	/** Players dead at the end, of how many. */
 	dead?: { count: number; of: number };
+	/** The run's log on lostark.bible (lostark.bible/logs/<id>), when LOA Logs synced it. */
+	upstreamId?: string;
 	/** All players' damage in the fight, for this player's share of it. */
 	partyDamage?: number;
 	/** Sum of the player's skill damage. */

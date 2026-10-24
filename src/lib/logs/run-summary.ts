@@ -29,6 +29,8 @@ export interface LoggedEntity {
 	bossHp?: { left: number; max: number };
 	partyDamage?: number;
 	dead?: { count: number; of: number };
+	/** The run's id on lostark.bible when LOA Logs synced it (its sync_logs table). */
+	upstreamId?: unknown;
 }
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -97,6 +99,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 		...(entity.bossHp && entity.bossHp.max > 0 ? { bossHp: entity.bossHp } : {}),
 		...(entity.partyDamage && entity.partyDamage > 0 ? { partyDamage: entity.partyDamage } : {}),
 		...(entity.dead ? { dead: entity.dead } : {}),
+		...(typeof entity.upstreamId === 'string' && /^[A-Za-z0-9_-]{4,32}$/.test(entity.upstreamId) ? { upstreamId: entity.upstreamId } : {}),
 		damage: skills.reduce((sum, s) => sum + s.damage, 0),
 		skills: skills.sort((a, b) => b.damage - a.damage),
 		statValues: averageStatValues([split]),

@@ -57,7 +57,17 @@ const numbers = (x: unknown, depth: number): boolean => finite(x) || (depth > 0 
 const idMapLike = (x: unknown) => record(x) && numbers(x, 3);
 
 /**
- * A shared run from untrusted JSON, or null when it isn't one. `checkBaseline` validates the baseline gear (the shared
+ * A run as a share link carries it: only what the meter reads. Left out: the party's damage and deaths (other players'
+ * part), the public log's id (it names the whole party), the local log's id, the fight's time of day (the date stays,
+ * at noon UTC), the meter version and the lostark.bible snapshot hash.
+ */
+export function shareableRun(run: RunSummary): RunSummary {
+	const { partyDamage: _party, dead: _dead, loadoutHash: _hash, upstreamId: _log, ...rest } = run;
+	return { ...rest, id: 0, start: Math.floor(run.start / 86_400_000) * 86_400_000 + 43_200_000, meterVersion: null };
+}
+
+/**
+ * A shared run from untrusted JSON, or null when it isn't one. Its run is cut down to `shareableRun`, whatever was sent. `checkBaseline` validates the baseline gear (the shared
  * simulation's own parser does it on the server) and returns it normalized.
  */
 export function parseSharedDps(x: unknown, checkBaseline: (state: unknown) => SimState): SharedDps | null {
@@ -68,5 +78,5 @@ export function parseSharedDps(x: unknown, checkBaseline: (state: unknown) => Si
 	if (x.enrage !== undefined && typeof x.enrage !== 'boolean') return null;
 	let baseline: SimState;
 	try { baseline = checkBaseline(x.baseline); } catch { return null; }
-	return { run: x.run, baseline, skills: x.skills as SharedDps['skills'], ...(x.arkSkills ? { arkSkills: x.arkSkills as SharedDps['arkSkills'] } : {}), ...(x.enrage ? { enrage: true } : {}) };
+	return { run: shareableRun(x.run), baseline, skills: x.skills as SharedDps['skills'], ...(x.arkSkills ? { arkSkills: x.arkSkills as SharedDps['arkSkills'] } : {}), ...(x.enrage ? { enrage: true } : {}) };
 }

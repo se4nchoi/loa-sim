@@ -252,6 +252,8 @@ async function runSummaries(player: string, ids: number[]) {
 	const entityColumns = columns;
 	const encounterColumns = new Set((await query(`SELECT name FROM pragma_table_info('encounter')`)).map(r => r.name));
 	const hasMisc = encounterColumns.has('misc'), hasBuffs = encounterColumns.has('buffs');
+	// Runs LOA Logs synced to lostark.bible keep their id there; older databases have no sync table.
+	const hasSync = (await query(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sync_logs'`)).length > 0;
 	const names: Record<number, [string, string]> = {};
 	const runs = [];
 	for (const row of encounters) {
@@ -287,10 +289,14 @@ async function runSummaries(player: string, ids: number[]) {
 			const [counts] = await query(`SELECT SUM(is_dead) AS dead, COUNT(*) AS n FROM entity WHERE encounter_id = ? AND entity_type = 'PLAYER'`, [row.id]);
 			if (Number(counts?.n) > 0) dead = { count: Number(counts.dead) || 0, of: Number(counts.n) };
 		} catch { /* old logs */ }
+		let upstreamId: unknown;
+		if (hasSync) try {
+			upstreamId = (await query(`SELECT upstream_id FROM sync_logs WHERE encounter_id = ? AND failed = 0`, [row.id]))[0]?.upstream_id;
+		} catch { /* an older sync table */ }
 		const run = runSummary({ ...row, player }, {
 			skills: await decodeSkills(entity.skills) as Record<string, LoggedRunSkill>,
 			combatPower: entity.combat_power, itemLevel: entity.gear_score, spec: entity.spec, engravings: entity.engravings,
-			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash, keptBuffs, bossHp, partyDamage, dead
+			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash, keptBuffs, bossHp, partyDamage, dead, upstreamId
 		}, misc, names);
 		if (run) runs.push(run);
 	}

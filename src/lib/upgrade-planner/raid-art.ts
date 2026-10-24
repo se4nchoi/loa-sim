@@ -59,12 +59,18 @@ export function raidTone(name: string): string {
 	return TONES[h % TONES.length];
 }
 
-/** Difficulty badge colors, like lostark.bible's. */
+/**
+ * Difficulty badge colors, as LOA Logs colours them: The First dark purple, Extreme / Nightmare light purple, Level 3
+ * light red, Level 2 / Hard yellow, Level 1 / Normal white, Matching light green, Solo teal.
+ */
 export function difficultyTone(difficulty: string): string {
 	// A solid dark chip, so the label reads on any raid art.
 	const chip = 'bg-black/80 ring-1';
-	if (/nightmare/i.test(difficulty)) return `${chip} text-fuchsia-300 ring-fuchsia-400/50`;
-	if (/hard|extreme/i.test(difficulty)) return `${chip} text-amber-300 ring-amber-400/50`;
+	if (/the first/i.test(difficulty)) return `${chip} text-violet-400 ring-violet-500/60`;
+	if (/extreme|nightmare/i.test(difficulty)) return `${chip} text-purple-300 ring-purple-300/50`;
 	if (/level 3/i.test(difficulty)) return `${chip} text-red-300 ring-red-400/50`;
-	return `${chip} text-surface-200 ring-surface-400/40`;
+	if (/level 2|hard/i.test(difficulty)) return `${chip} text-yellow-300 ring-yellow-400/50`;
+	if (/match/i.test(difficulty)) return `${chip} text-green-300 ring-green-400/50`;
+	if (/solo/i.test(difficulty)) return `${chip} text-teal-300 ring-teal-400/50`;
+	return `${chip} text-surface-100 ring-surface-400/40`;
 }
