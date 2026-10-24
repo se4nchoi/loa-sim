@@ -45,16 +45,23 @@ export const MARKET_STALE_MS = 24 * 60 * 60 * 1000;
 /** Ignore malformed / unlisted rows, never turn unavailable data into a free material. */
 export function normalizeMarketPrices(body: unknown, region: MarketRegion, now = Date.now()): MarketSnapshot {
 	if (!Array.isArray(body)) throw new Error('Invalid market response.');
-	const quotes: Record<string, MarketQuote> = {};
+	// Every usable observation per item; shard pouches (1k / 2k / 3k) are one item, priced per shard.
+	const seen: Record<string, MarketQuote[]> = {};
 	for (const row of body) {
 		if (!row || typeof row !== 'object' || typeof row.price !== 'number' || !Number.isFinite(row.price) || row.price <= 0
 			|| typeof row.timestamp !== 'number' || !Number.isFinite(row.timestamp) || row.timestamp <= 0 || row.timestamp * 1000 > now + 300_000) continue;
 		const item = MARKET_ITEMS.find(item => item.slug === row.item_slug);
 		if (!item) continue;
 		const quote = { price: row.price / item.units, updatedAt: row.timestamp * 1000, slug: item.slug };
-		const previous = quotes[item.id];
-		// Newest observation first; among equally recent shard pouches choose the cheapest per shard.
-		if (!previous || quote.updatedAt > previous.updatedAt || (quote.updatedAt === previous.updatedAt && quote.price < previous.price)) quotes[item.id] = quote;
+		(seen[item.id] ??= []).push(quote);
+	}
+	// The cheapest per unit among observations within a day of the item's newest one: the 3k pouch at 600 (0.2 a shard)
+	// beats a newer 1k pouch at 220 (0.22), while a days-old cheap listing doesn't count.
+	const quotes: Record<string, MarketQuote> = {};
+	for (const [id, list] of Object.entries(seen)) {
+		const newest = Math.max(...list.map((q) => q.updatedAt));
+		quotes[id] = list.filter((q) => q.updatedAt >= newest - MARKET_STALE_MS)
+			.reduce((best, q) => (q.price < best.price || (q.price === best.price && q.updatedAt > best.updatedAt) ? q : best));
 	}
 	if (!Object.keys(quotes).length) throw new Error('No market prices available.');
 	return { region, fetchedAt: now, quotes };

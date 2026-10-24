@@ -22,6 +22,15 @@ describe('loa-buddy price conversion', () => {
 		expect(quotes.shards.slug).toBe('destiny-shard-pouch-l');
 		expect(quotes['66112553'].price).toBe(1748);
 	});
+	it('takes the cheapest shard pouch per shard even when a dearer one was seen more recently', () => {
+		const now = Date.now();
+		const { quotes } = normalizeMarketPrices([
+			row('destiny-shard-pouch-l', 600, now / 1000 - 3600), row('destiny-shard-pouch-m', 450), row('destiny-shard-pouch-s', 220)
+		], 'nae', now);
+		expect(quotes.shards.price).toBeCloseTo(0.2);
+		expect(quotes.shards.slug).toBe('destiny-shard-pouch-l');
+	});
+
 	it('uses newer observations before comparing pouch prices and preserves old observation dates', () => {
 		const { quotes } = normalizeMarketPrices([
 			row('destiny-shard-pouch-s', 10, now / 1000 - 100_000), row('destiny-shard-pouch-l', 600),
