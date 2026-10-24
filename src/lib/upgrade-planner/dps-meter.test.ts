@@ -65,6 +65,19 @@ describe('DPS meter', () => {
 		expect(gem.after / gem.before).toBeGreaterThan(other.after / other.before);
 		expect(other.after).toBeGreaterThanOrEqual(other.before);
 	});
+	it("pairs gems by skill, not position: a clear's snapshot can list them in another order", () => {
+		// The clear's baseline has the same gems, reversed; the loadout's damage gem then levels up.
+		const clear = structuredClone(base);
+		clear.gems.reverse();
+		const state = structuredClone(base);
+		state.gems[damageGem].level += 1;
+		const m = dpsMeter(loadout, clear, state, [run(1)], [run(1)])!;
+		expect(m.notInMeter).not.toContain('Gem swaps');
+		const gem = m.skills.find((s) => s.id === gemSkill)!, other = m.skills.find((s) => s.id === 99999)!;
+		expect(gem.after / gem.before).toBeGreaterThan(other.after / other.before);
+		// Unchanged gems in another order are no change at all.
+		expect(dpsMeter(loadout, clear, base, [run(1)], [run(1)])!.notInMeter).toEqual([]);
+	});
 	it('a cooldown gem adds casts as far as its skill sat on cooldown', () => {
 		const index = base.gems.findIndex((g) => g.kind === 'cooldown' && g.skill !== null && g.level < 10);
 		if (index < 0) return;
@@ -110,6 +123,13 @@ describe('meter gain (Next Upgrades in DPS mode)', () => {
 		if (to.karma.evolution !== null) to.karma.evolution = Math.min(30, to.karma.evolution + 1);
 		else to.karma.leap = (to.karma.leap ?? 0) + 1;
 		expect(meterGain(loadout, base, base, to, [run(1)], [run(1)]).gainPct).toBeNull();
+	});
+	it('is unknown too when the clear already differed there (its Karma), not +0.00%', () => {
+		const clear = structuredClone(base);
+		clear.karma.leap = Math.max(0, (clear.karma.leap ?? 1) - 1);
+		const to = structuredClone(base);
+		to.karma.leap = Math.min(30, (to.karma.leap ?? 0) + 1);
+		expect(meterGain(loadout, clear, base, to, [run(1)], [run(1)]).gainPct).toBeNull();
 	});
 	it("is unknown for a stat edit when no clear has the meter's stat values", () => {
 		const to = structuredClone(base);

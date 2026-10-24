@@ -14,7 +14,7 @@ import { modelGain } from './dps-model';
 import { gateSample } from './dps-gates';
 import { statDeltasAtLeast } from './dps-stats';
 import type { orderCoreEffect } from './ark-grid-dps';
-import type { SimState } from './simulate';
+import type { SimGem, SimState } from './simulate';
 import { decodeCore } from './tables';
 import type { Loadout } from './types';
 import { statGain, type DamageContext } from './dps-stat-engine';
@@ -50,6 +50,17 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stri
 const arkGridRest = (s: SimState) =>
 	s.arkGrid.map((c) => (decodeCore(c.as ?? c.id)?.attr === 'order' ? c.gems.map((g) => (g.removed ? null : g.opts)) : c));
 
+/** The parts of `state` that differ from `base` and that the meter doesn't value ("Karma", "Chaos cores and astrogem options"). */
+function unvaluedParts(base: SimState, state: SimState, hasArkGrid: boolean): string[] {
+	const out: string[] = [];
+	for (const key of Object.keys(state) as (keyof SimState)[]) {
+		if (STAT_KEYS.has(key) || key === 'gems' || same(state[key], base[key])) continue;
+		if (key !== 'arkGrid' || !hasArkGrid) out.push(LABELS[key] ?? key);
+		else if (!same(arkGridRest(state), arkGridRest(base))) out.push('Chaos cores and astrogem options');
+	}
+	return out;
+}
+
 export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buildRuns: RunSummary[], runs: RunSummary[], arkGrid?: typeof orderCoreEffect, context?: DamageContext): Meter | null {
 	if (!runs.length) return null;
 	const notes: string[] = [];
@@ -57,15 +68,9 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 
 	// Stat part: the edits on the cards the stat model covers; everything else put back to the snapshot.
 	const statState = structuredClone(state);
-	for (const key of Object.keys(state) as (keyof SimState)[]) {
-		if (STAT_KEYS.has(key)) continue;
-		if (!same(state[key], base[key])) {
-			if (key === 'arkGrid' && arkGrid) {
-				if (!same(arkGridRest(state), arkGridRest(base))) notInMeter.push('Chaos cores and astrogem options');
-			} else if (key !== 'gems') notInMeter.push(LABELS[key] ?? key);
-			(statState as unknown as Record<string, unknown>)[key] = structuredClone(base[key]);
-		}
-	}
+	notInMeter.push(...unvaluedParts(base, state, !!arkGrid));
+	for (const key of Object.keys(state) as (keyof SimState)[])
+		if (!STAT_KEYS.has(key) && !same(state[key], base[key])) (statState as unknown as Record<string, unknown>)[key] = structuredClone(base[key]);
 	const change = statDeltasAtLeast(loadout, base, statState, base);
 	if (!change && !same(statState, base)) notes.push(`${DROPPED_EDITS} remove a damage line the model can't value, so they're left out.`);
 	if (change?.unvalued.length) notes.push(`${change.unvalued.join(', ')} isn't valued yet: the real gain is a little higher.`);
@@ -75,10 +80,24 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	const gemEffects: { skills: Set<number>; pct: number }[] = [];
 	const cooldownUse = gateSample(runs).skillCooldownUse;
 	let cooldownGems = 0;
+	// Each gem against the baseline's gem on the same skill and kind: a clear's snapshot can list its gems in another order
+	// than the loadout, so pairing by position would read every gem as a swap. Same position first, then any free one.
+	const used = new Set<number>();
+	const pairs: (SimGem | undefined)[] = state.gems.map((gem, index) => {
+		const b = base.gems[index];
+		if (b && b.skill === gem.skill && b.kind === gem.kind) { used.add(index); return b; }
+		return undefined;
+	});
 	state.gems.forEach((gem, index) => {
-		const was = base.gems[index];
-		if (!was || same(gem, was)) return;
-		if (gem.skill === null || gem.skill !== was.skill || gem.kind !== was.kind || gem.tier !== was.tier) {
+		if (pairs[index] || gem.skill === null) return;
+		const j = base.gems.findIndex((b, k) => !used.has(k) && b.skill === gem.skill && b.kind === gem.kind);
+		if (j >= 0) { used.add(j); pairs[index] = base.gems[j]; }
+	});
+	state.gems.forEach((gem, index) => {
+		const was = pairs[index];
+		if (was && same(gem, was)) return;
+		if (!was && same(gem, base.gems[index])) return;
+		if (!was || gem.skill === null || gem.tier !== was.tier) {
 			notInMeter.push('Gem swaps');
 			return;
 		}
@@ -147,9 +166,12 @@ export function meterGain(loadout: Loadout, baseline: SimState, from: SimState, 
 	const newNotes = added(a.notes, b.notes);
 	if (newNotes.some((n) => n.startsWith(DROPPED_EDITS))) return { gainPct: null, atLeast: false };
 	const gainPct = (b.after / a.after - 1) * 100;
-	// A core grade whose effect isn't parsed moves nothing: unknown, not zero.
-	if (newNotes.length && Math.abs(gainPct) < 1e-6) return { gainPct: null, atLeast: false };
-	return { gainPct, atLeast: newNotes.length > 0 };
+	// A step the meter can't see moves nothing: an astrogem option, Karma (even when the clear's baseline already differed
+	// there, so no new "not counted" shows), a core whose effect isn't parsed or was swapped since the clear. A real change
+	// that moves nothing is unknown, not zero; one that moves something but touches an unvalued part is a floor.
+	const unvalued = unvaluedParts(from, to, !!arkGrid).length > 0;
+	if (Math.abs(gainPct) < 1e-6 && !same(from, to)) return { gainPct: null, atLeast: false };
+	return { gainPct, atLeast: newNotes.length > 0 || unvalued };
 }
 
 /** A snapshot the Simulator can switch to, for matching a clear's gear. */
