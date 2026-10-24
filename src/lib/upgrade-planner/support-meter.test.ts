@@ -52,6 +52,20 @@ describe('support meter', () => {
 		expect(supportGain(loadout, base, base, karma, run)).toBeNull();
 	});
 
+	it('values support astrogem options: Ally Damage Enhancement raises only the damage buffs', () => {
+		const state = structuredClone(base);
+		const gem = state.arkGrid.flatMap((c) => c.gems).find((g) => !g.removed && g.opts.some((o) => o.id === 2011));
+		expect(gem).toBeDefined();
+		if (!gem) return;
+		const opt = gem.opts.find((o) => o.id === 2011)!;
+		opt.level = Math.min(5, opt.level + 1);
+		const m = supportMeter(loadout, base, state, run)!;
+		const kind = (k: string) => m.kinds.find((x) => x.kind === k)!;
+		expect(m.notInMeter).not.toContain('Ark Grid');
+		expect(kind('damage').after).toBeGreaterThan(kind('damage').before);
+		expect(kind('attack').after).toBeCloseTo(kind('attack').before);
+	});
+
 	it("counts a gem's base attack (the support's Attack Power) but lists its cooldown (buff uptime) as not valued", () => {
 		const state = structuredClone(base);
 		state.gems[0].level = Math.max(1, state.gems[0].level - 1);

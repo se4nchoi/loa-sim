@@ -10,7 +10,8 @@
 import type { RunSummary, SupportKind } from '$lib/logs/protocol';
 import { bracerStats } from './bracer';
 import { baseAttackOf } from './dps-explain';
-import { braceletEffects, braceletStats, simulate, type SimState } from './simulate';
+import { braceletEffects, braceletStats, optionLevel, simulate, type SimState } from './simulate';
+import { SUPPORT_ASTROGEM_VALUES } from './support-astrogems';
 import { SUPPORT_ACCESSORY_LINES } from './support';
 import { SUPPORT_BRACELET_EFFECTS } from './support-data';
 import type { Loadout } from './types';
@@ -36,6 +37,11 @@ const effectPct = (state: SimState, name: string) =>
 		const m = SUPPORT_BRACELET_EFFECTS.find((e) => e.key === key)?.text.match(new RegExp(`${name} \\+([\\d.]+)%`));
 		return sum + (m ? Number(m[1]) : 0);
 	}, 0);
+/** An astrogem option's percent at its total level across the grid (2011 Ally Dmg, 2012 Brand, 2013 Ally Atk.). */
+const astrogemPct = (state: SimState, id: number) => {
+	const level = optionLevel(state.arkGrid, id);
+	return level > 0 ? (SUPPORT_ASTROGEM_VALUES[id]?.[Math.min(level, 120) - 1] ?? 0) / 100 : 0;
+};
 const braceletPct = (state: SimState, type: number) =>
 	braceletStats(state.bracelet).reduce((sum, s) => sum + (s.type === type ? s.value / 100 : 0), 0);
 
@@ -44,9 +50,9 @@ export function supportStats(loadout: Loadout, state: SimState, base: SimState):
 	const flat = bracerStats(state.bracer).attackFlat;
 	return {
 		attackPower: (Math.sqrt((r.mainStat * r.weaponPower) / 6) + flat) * (1 + baseAttackOf(loadout, state) / 100),
-		allyAtk: linePct('s_ally_atk', state) + braceletPct(state, 54) + effectPct(state, 'Ally Atk\\. Power Enhancement'),
-		allyDmg: linePct('s_ally_dmg', state) + braceletPct(state, 59),
-		brand: linePct('s_brand', state)
+		allyAtk: linePct('s_ally_atk', state) + braceletPct(state, 54) + effectPct(state, 'Ally Atk\\. Power Enhancement') + astrogemPct(state, 2013),
+		allyDmg: linePct('s_ally_dmg', state) + braceletPct(state, 59) + astrogemPct(state, 2011),
+		brand: linePct('s_brand', state) + astrogemPct(state, 2012)
 	};
 }
 
@@ -77,6 +83,9 @@ const KINDS: SupportKind[] = ['attack', 'damage', 'brand', 'other'];
 const VALUED = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet', 'skillShares', 'skillCooldownUse']);
 const LABELS: Partial<Record<keyof SimState, string>> = { arkGrid: 'Ark Grid', karma: 'Karma', engravings: 'Engravings', paradise: 'Paradise', gems: 'Gem cooldowns' };
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+/** The Ark Grid without the support astrogem options' levels, which the stats above value; the rest (cores, points) isn't. */
+const SUPPORT_OPTIONS = new Set([2011, 2012, 2013]);
+const gridRest = (s: SimState) => s.arkGrid.map((c) => ({ ...c, gems: c.gems.map((g) => ({ ...g, opts: g.opts.filter((o) => !SUPPORT_OPTIONS.has(o.id)) })) }));
 
 /** The run's support contribution with `state`'s gear, against `baseline` (the gear it was played with). */
 export function supportMeter(loadout: Loadout, baseline: SimState, state: SimState, run: RunSummary): SupportMeter | null {
@@ -92,7 +101,7 @@ export function supportMeter(loadout: Loadout, baseline: SimState, state: SimSta
 		kinds: KINDS.map((kind) => ({ kind, before: s.kinds[kind], after: s.kinds[kind] * f[kind] })),
 		dealers: s.dealers.map((d) => ({ cls: d.cls, damage: d.damage, before: total(d.kinds), after: scale(d.kinds) })),
 		uptime: s.uptime,
-		notInMeter: (Object.keys(state) as (keyof SimState)[]).filter((k) => !VALUED.has(k) && !same(state[k], baseline[k])).map((k) => LABELS[k] ?? k)
+		notInMeter: (Object.keys(state) as (keyof SimState)[]).filter((k) => !VALUED.has(k) && (k === 'arkGrid' ? !same(gridRest(state), gridRest(baseline)) : !same(state[k], baseline[k]))).map((k) => LABELS[k] ?? k)
 	};
 }
 
