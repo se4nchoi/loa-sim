@@ -271,7 +271,8 @@
 			<div class="mt-2 grid gap-2 text-xs sm:grid-cols-2">
 				<div class="rounded-xs bg-surface-950/60 p-2">
 					<p class="font-semibold text-surface-100">What it simulates</p>
-					<p class="mt-0.5 text-surface-300">The same run, played the same way: <span class="text-surface-100">if you played it exactly like this again, how much DPS would this change add?</span></p>
+					<p class="mt-0.5 text-surface-400">The same run, played the same way:</p>
+					<p class="mt-1 text-sm font-semibold text-surface-50">If you played it exactly like this again, how much DPS would this change add?</p>
 					<ul class="mt-1 list-disc space-y-0.5 pl-4 text-surface-400">
 						<li>Kept as recorded: casts, rotation, crits, buffs and fight length.</li>
 						<li>Scaled: each skill's damage, by the stat, gem and Ark Grid changes.</li>
@@ -280,7 +281,12 @@
 				</div>
 				<div class="rounded-xs border border-green-500/30 bg-green-500/5 p-2">
 					<p class="font-semibold text-green-200">Before spending gold</p>
-					<p class="mt-0.5 text-surface-300">Gear moves DPS by a few percent. Uptime, positionals and staying alive usually move it far more, for free. Use this to see what an upgrade is worth, not as a shopping list.</p>
+					<ul class="mt-1 list-disc space-y-0.5 pl-4 text-surface-300">
+						<li>Gear changes tend to move DPS by only a few percent.</li>
+						<li>Uptime, positionals and staying alive can matter more, and they're free.</li>
+						<li>These are estimates from one run; real runs will vary.</li>
+						<li>Best used to compare options, not as a list of things to buy.</li>
+					</ul>
 				</div>
 			</div>
 		</div>
