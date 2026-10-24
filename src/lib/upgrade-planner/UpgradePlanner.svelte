@@ -26,7 +26,7 @@
 	import { dpsMeter, meterGain } from './dps-meter';
 	import { dpsSelection } from './dps-selection.svelte';
 	import { configuredPlanGain } from './dps-configured';
-	import { classColor } from './class-colors';
+	import { classTextColor } from './class-colors';
 
 	let {
 		dpsMode = false,
@@ -129,8 +129,7 @@
 	const unpriced = $derived(missingPriceCount(goldUpgrades, costs));
 	const unit = $derived(selection ? 'DPS' : 'CP');
 	/** DPS gains in the class's meter colour, as on the DPS sim's bars. */
-	// Lifted toward white so dark ones (Deadeye, Aeromancer) still read as text.
-	const meterColor = $derived.by(() => { const c = classColor(loadout.classId); return c ? `color-mix(in oklab, ${c} 70%, white)` : undefined; });
+	const meterColor = $derived(classTextColor(loadout.classId));
 
 </script>
 

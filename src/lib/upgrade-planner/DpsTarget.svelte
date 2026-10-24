@@ -13,6 +13,7 @@
 	import type { DpsSelection } from './dps-selection.svelte';
 	import { formatDamage } from './dps-comparison';
 	import { formatPct } from './format';
+	import { classTextColor } from './class-colors';
 	import { CATEGORY_LABELS, type Upgrade } from './upgrades';
 	import UpgradeTitle from './UpgradeTitle.svelte';
 	import Segmented from './sim/Segmented.svelte';
@@ -129,7 +130,7 @@
 							<span class="block truncate text-surface-100">{g.first.upgrade.title} … {g.last.upgrade.title}</span>
 						</span>
 					{/if}
-					<span class="text-right tabular-nums"><span class="text-sky-300">{formatPct(g.gainPct)}%</span>
+					<span class="text-right tabular-nums"><span class="text-sky-300" style:color={classTextColor(loadout.classId)}>{formatPct(g.gainPct)}%</span>
 						<span class="block text-[10px] text-surface-400">{dpsText(g.last.dps)}{#if g.gold !== null && byGold} · {g.gold ? formatGold(g.gold) : 'free'}{/if}</span></span>
 				</li>
 			{/each}
