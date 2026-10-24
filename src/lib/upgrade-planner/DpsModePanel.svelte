@@ -310,7 +310,7 @@
 
 	{#if loadout.battlePoint.isSupport}
 		<!-- A support's own skill damage says little about what they add; the party's damage isn't in their log. -->
-		<p class="text-sm text-surface-300">The DPS sim is for damage dealers. A support's value is in the party's damage, which their own log doesn't measure; use CP mode.</p>
+		<p class="text-sm text-surface-300">DPS sim is for damage dealers. Supports: use CP mode.</p>
 	{:else if !shared && !(characterKey in runsBooks.byCharacter)}
 		<!-- Holds the meter's space while this browser's imported logs are read. -->
 		<div class="animate-pulse" aria-hidden="true">
@@ -328,7 +328,7 @@
 			<Segmented label="Runs" value={pick.use} options={[{ value: 'cleared', label: 'Cleared runs' }, { value: 'failed', label: 'Failed runs' }]} onselect={(v) => remember({ use: v as Use, clear: null })} size="h-8 px-4 text-sm" />
 		</div>
 		{#if !raid || !clear}
-			<p class="text-sm text-surface-300">{pick.use === 'failed' ? `No failed runs of ${characterName} with the boss HP recorded.` : `No cleared runs of ${characterName} in the imported logs.`} <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
+			<p class="text-sm text-surface-300">{pick.use === 'failed' ? 'No failed runs with boss HP.' : 'No cleared runs.'} <button type="button" class="text-sky-300 hover:underline" onclick={() => (importing = true)}>Import again</button></p>
 		{:else}
 		{@const art = raidArt(raid.name)}
 		<!-- Two columns on wide screens: the raids on the left (best DPS on each), the picked one on the right. -->
@@ -431,7 +431,6 @@
 			<div class="mb-3 flex flex-wrap items-center gap-x-2 rounded-xs border border-surface-700 bg-surface-950/50 px-3 py-2 text-xs text-surface-300">
 				<span class="text-sm font-semibold text-surface-100">Run setup</span>
 				<span class="tabular-nums">CP {simulate(loadout, shared.baseline, base).cp.toFixed(2)}</span>
-				<span>The gear this run was played with, as shared.</span>
 				{#if onsimulate}<button type="button" class="ml-auto rounded-xs border border-accent-500/70 bg-accent-700/30 px-2 py-0.5 font-semibold text-accent-100 hover:bg-accent-700/60" title="Load the run's gear into the Simulator (Undo brings the shared edits back)" onclick={() => onsimulate(structuredClone($state.snapshot(shared.baseline)) as SimState)}>Simulate from this setup</button>{/if}
 			</div>
 		{:else if setup}
@@ -441,7 +440,7 @@
 				<p class="flex flex-wrap items-center gap-x-2 text-surface-300">
 					<span class="text-sm font-semibold text-surface-100">Run setup</span>
 					{#if recorded}<span class="tabular-nums">CP {recorded.toFixed(2)}</span>{/if}
-					<span class="text-surface-400" title="LOA Logs saves a lostark.bible snapshot of your gear with each fight; the meter starts from it, so only your edits count">· saved by LOA Logs with this fight</span>
+					<span class="text-surface-400" title="LOA Logs saves a lostark.bible snapshot of your gear with each fight; the meter starts from it, so only your edits count">· LOA Logs snapshot</span>
 					{#if clearSetup && onsimulate}
 						<button type="button" class="ml-auto rounded-xs border border-accent-500/70 bg-accent-700/30 px-2 py-0.5 font-semibold text-accent-100 hover:bg-accent-700/60" title="Load this run's gear, cores and gems into the Simulator (Undo brings yours back)" onclick={() => onsimulate(structuredClone($state.snapshot(clearSetup.state)) as SimState)}>Simulate from this setup</button>
 					{/if}
@@ -477,7 +476,7 @@
 			<div class="mb-3 rounded-xs border border-amber-500/40 px-3 py-2 text-xs text-amber-200">
 				<p class="flex flex-wrap items-center gap-2">
 					<span class="text-sm font-semibold text-surface-100">Run setup</span>
-					<span>LOA Logs didn't save this run's gear, so the meter starts from your loaded gear{#if gap !== null && !matches}, {Math.abs(gap).toFixed(1)}% CP {gap > 0 ? 'above' : 'below'} the run's{:else if matches}, at the run's CP{/if}.</span>
+					<span>No LOA Logs snapshot · loaded gear stands in{#if gap !== null && !matches} ({Math.abs(gap).toFixed(1)}% CP {gap > 0 ? 'above' : 'below'} the run){/if}</span>
 					{#if better}<button type="button" class="font-semibold underline hover:text-white" onclick={better.select}>Use {better.label}</button>{/if}
 					{#if baselineReady}<span class="ml-auto text-surface-400">Using loaded gear</span>
 					{:else}<button type="button" class="ml-auto rounded-xs border border-amber-400/50 px-2 py-0.5 hover:bg-amber-500/10" onclick={() => { confirmed = baselineKey; }}>Use loaded gear</button>{/if}

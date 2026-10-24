@@ -89,7 +89,7 @@
 			<label class="flex items-center gap-2">Newest <select class="rounded-xs border border-surface-600 bg-surface-800 px-2 py-1" bind:value={maxRuns}>{#each [10, 25, 50, 100, 200] as count}<option value={count}>{count} runs</option>{/each}</select></label>
 			<button class="h-7 rounded-xs bg-accent-700 px-2.5 text-xs font-semibold text-white hover:bg-accent-600 disabled:opacity-50" disabled={!clears.length || !!busy} onclick={importRuns}>Import {clears.length} {clears.length === 1 ? 'run' : 'runs'}</button>
 		</div>
-		{#if player && player.toLowerCase() !== characterName.toLowerCase()}<p class="text-xs text-amber-300">{player} isn't {characterName}. Its skill shares won't match this character's gems.</p>{/if}
+		{#if player && player.toLowerCase() !== characterName.toLowerCase()}<p class="text-xs text-amber-300">{player} isn't {characterName}.</p>{/if}
 	{/if}
 	{#if busy}<p class="text-xs text-sky-300">{busy}</p>{/if}
 	{#if error}<p class="text-xs text-red-400">{error}</p>{/if}

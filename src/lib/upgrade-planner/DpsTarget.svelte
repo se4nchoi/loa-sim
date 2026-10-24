@@ -139,12 +139,10 @@
 	{#if plan && goal?.ceiling}
 		<!-- Out of reach with gear: said once, plainly, with what gear can do. -->
 		<p class="mt-2.5 rounded-xs border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-xs text-amber-100">
-			{dpsText(goal.target!)} is out of reach with gear on this run: maxed honing, Vambraces and gems come to about
-			<span class="font-semibold tabular-nums">{dpsText(goal.ceiling)}</span> <span class="tabular-nums">({formatPct((goal.ceiling / plan.startDps - 1) * 100)}%)</span>.
-			The rest would come from how the fight is played. Below are the most effective upgrades.
+			{dpsText(goal.target!)} is out of reach with gear: about <span class="font-semibold tabular-nums">{dpsText(goal.ceiling)}</span> <span class="tabular-nums">({formatPct((goal.ceiling / plan.startDps - 1) * 100)}%)</span> at most.
 		</p>
 	{/if}
-	{#if byGold && unsetPrices}<p class="mt-1.5 text-amber-300">No material prices yet: honing counts as free.</p>{/if}
+	{#if byGold && unsetPrices}<p class="mt-1.5 text-amber-300">No material prices: honing counted as free.</p>{/if}
 	{#if error}<p class="mt-1.5 text-amber-300">{error}</p>{/if}
 	{#if plan}
 		{@const p = plan}
@@ -186,8 +184,7 @@
 			{#if p.steps.length}<button type="button" class="{btn} h-7 px-3" onclick={applyAll}>Apply all {p.steps.length}</button>{/if}
 			{#if p.capped && listing}<button type="button" class="{btn} h-7 px-2" disabled={planning} onclick={more}>{planning ? 'Planning…' : 'More upgrades'}</button>
 			{:else if p.capped}<span>{dpsText(goal!.target! - p.endDps)} short after {p.steps.length} steps.</span><button type="button" class="{btn} h-7 px-2" disabled={planning} onclick={more}>{planning ? 'Planning…' : 'Keep planning'}</button>
-			{:else if !p.reached && !listing}<span>No further upgrade the meter can value gets closer.</span>
-			{:else if listing && p.steps.length}<span>That's every upgrade the meter can value.</span>{/if}
+			{:else if !p.reached && !listing}<span>Nothing gets closer.</span>{/if}
 			{#if p.unpriced && byGold}<span>{p.unpriced} unpriced left out.</span>{/if}
 		</div>
 	{/if}
