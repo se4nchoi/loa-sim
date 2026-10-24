@@ -10,9 +10,10 @@
 import type { RunSummary, SupportKind } from '$lib/logs/protocol';
 import { bracerStats } from './bracer';
 import { baseAttackOf } from './dps-explain';
-import { braceletEffects, braceletStats, optionLevel, simulate, type SimState } from './simulate';
-import { SUPPORT_ASTROGEM_VALUES } from './support-astrogems';
-import { SUPPORT_ACCESSORY_LINES } from './support';
+import { braceletEffects, braceletStats, optionLevel, simCorePoints, simulate, type SimState } from './simulate';
+import { decodeCore } from './tables';
+import { SUPPORT_ASTROGEM_VALUES, SUPPORT_CORE_LINES } from './support-buffs';
+import { SUPPORT_ACCESSORY_LINES, swappedCoreId } from './support';
 import { SUPPORT_BRACELET_EFFECTS } from './support-data';
 import type { Loadout } from './types';
 
@@ -42,16 +43,34 @@ const astrogemPct = (state: SimState, id: number) => {
 	const level = optionLevel(state.arkGrid, id);
 	return level > 0 ? (SUPPORT_ASTROGEM_VALUES[id]?.[Math.min(level, 120) - 1] ?? 0) / 100 : 0;
 };
+/**
+ * Order cores' unconditional Ally Atk. Power / Ally Damage Enhancement lines at the core's points: the core the clear had
+ * in the slot (`as`), at the slot's grade, as the dealer model reads it.
+ */
+function coreEnhancement(loadout: Loadout, state: SimState, base: SimState): { allyAtk: number; allyDmg: number } {
+	const out = { allyAtk: 0, allyDmg: 0 };
+	for (const core of state.arkGrid) {
+		const id = core.as ?? core.id;
+		const info = decodeCore(id), slot = decodeCore(core.id);
+		if (!info || !slot || info.attr !== 'order') continue;
+		const grade = core.grade ?? slot.grade;
+		const points = simCorePoints(loadout, state, base, core.id);
+		for (const [need, atk, dmg] of SUPPORT_CORE_LINES[grade !== info.grade ? swappedCoreId(id, grade) : id] ?? [])
+			if (points >= need) { out.allyAtk += atk; out.allyDmg += dmg; }
+	}
+	return out;
+}
 const braceletPct = (state: SimState, type: number) =>
 	braceletStats(state.bracelet).reduce((sum, s) => sum + (s.type === type ? s.value / 100 : 0), 0);
 
 export function supportStats(loadout: Loadout, state: SimState, base: SimState): SupportStats {
 	const r = simulate(loadout, state, base);
 	const flat = bracerStats(state.bracer).attackFlat;
+	const cores = coreEnhancement(loadout, state, base);
 	return {
 		attackPower: (Math.sqrt((r.mainStat * r.weaponPower) / 6) + flat) * (1 + baseAttackOf(loadout, state) / 100),
-		allyAtk: linePct('s_ally_atk', state) + braceletPct(state, 54) + effectPct(state, 'Ally Atk\\. Power Enhancement') + astrogemPct(state, 2013),
-		allyDmg: linePct('s_ally_dmg', state) + braceletPct(state, 59) + astrogemPct(state, 2011),
+		allyAtk: linePct('s_ally_atk', state) + braceletPct(state, 54) + effectPct(state, 'Ally Atk\\. Power Enhancement') + astrogemPct(state, 2013) + cores.allyAtk,
+		allyDmg: linePct('s_ally_dmg', state) + braceletPct(state, 59) + astrogemPct(state, 2011) + cores.allyDmg,
 		brand: linePct('s_brand', state) + astrogemPct(state, 2012)
 	};
 }
@@ -83,9 +102,9 @@ const KINDS: SupportKind[] = ['attack', 'damage', 'brand', 'other'];
 const VALUED = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet', 'skillShares', 'skillCooldownUse']);
 const LABELS: Partial<Record<keyof SimState, string>> = { arkGrid: 'Ark Grid', karma: 'Karma', engravings: 'Engravings', paradise: 'Paradise', gems: 'Gem cooldowns' };
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-/** The Ark Grid without the support astrogem options' levels, which the stats above value; the rest (cores, points) isn't. */
+/** The Ark Grid without what the stats above value (the support options' levels, the gems' points and willpower): which cores, grades and other options. */
 const SUPPORT_OPTIONS = new Set([2011, 2012, 2013]);
-const gridRest = (s: SimState) => s.arkGrid.map((c) => ({ ...c, gems: c.gems.map((g) => ({ ...g, opts: g.opts.filter((o) => !SUPPORT_OPTIONS.has(o.id)) })) }));
+const gridRest = (s: SimState) => s.arkGrid.map((c) => ({ id: c.id, as: c.as, grade: c.grade, gems: c.gems.map((g) => g.opts.filter((o) => !SUPPORT_OPTIONS.has(o.id))) }));
 
 /** The run's support contribution with `state`'s gear, against `baseline` (the gear it was played with). */
 export function supportMeter(loadout: Loadout, baseline: SimState, state: SimState, run: RunSummary): SupportMeter | null {
