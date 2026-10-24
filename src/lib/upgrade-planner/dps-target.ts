@@ -4,6 +4,7 @@
 // 1% DPS when ranking by gold (unpriced upgrades are left out), the biggest gain otherwise. When the best-value step
 // would reach the target, the cheapest (or smallest) step that does ends the path instead of overshooting.
 import { applyUpgrade } from './apply-upgrade';
+import { maxEquipment } from './sim-max';
 import { dpsMeter, meterGain } from './dps-meter';
 import type { DpsSelection } from './dps-selection.svelte';
 import type { SimState } from './simulate';
@@ -135,4 +136,17 @@ export function parseTargetDps(text: string, current: number): number | null {
 	if (!m || !Number.isFinite(Number(m[1]))) return null;
 	const v = Number(m[1]) * ({ k: 1e3, m: 1e6, b: 1e9, '': 1 } as Record<string, number>)[m[2]];
 	return v > 0 ? v : null;
+}
+
+/**
+ * About the most gear does on this run: equipment and Vambraces maxed, every gem at level 10, measured on the meter in
+ * one go. Accessories, the bracelet and Ark Grid can add a little on top; a target well above this is out of reach
+ * with gear, so the plan lists the best upgrades instead of chasing it.
+ */
+export function gearCeiling(loadout: Loadout, start: SimState, selection: DpsSelection): number | null {
+	const s = structuredClone(start);
+	maxEquipment(s);
+	for (const g of s.gems) g.level = 10;
+	const m = dpsMeter(loadout, selection.baseline, s, selection.buildRuns, selection.runs, selection.arkGrid, selection.context);
+	return m ? dpsOf(m) : null;
 }

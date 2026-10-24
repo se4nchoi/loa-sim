@@ -3,7 +3,7 @@ import type { RunSummary } from '$lib/logs/protocol';
 import soulshan from './fixtures/na-soulshan.json';
 import { engravingNames } from './dps-loadout';
 import { liveUpgrades } from './live-upgrades';
-import { groupSteps, parseTargetDps, planToTarget } from './dps-target';
+import { gearCeiling, groupSteps, parseTargetDps, planToTarget } from './dps-target';
 import { initSimState } from './simulate';
 import type { Loadout } from './types';
 
@@ -48,6 +48,13 @@ describe('target DPS', () => {
 		expect(plan.steps.every((s) => s.gold !== null && ['honing', 'gem'].includes(s.upgrade.category))).toBe(true);
 		expect(plan.gold).toBe(plan.steps.reduce((t, s) => t + (s.gold ?? 0), 0));
 		expect(plan.unpriced).toBeGreaterThan(0);
+	});
+
+	it('knows about how far gear goes: maxed equipment and gems, above now and above where the plan starts out', () => {
+		const ceiling = gearCeiling(loadout, base, selection)!;
+		expect(ceiling).toBeGreaterThan(startDps);
+		const plan = planToTarget({ ...options(startDps * 10, false), maxSteps: 3 })!;
+		expect(plan.endDps).toBeLessThan(ceiling);
 	});
 
 	it('stops when nothing more helps, without reaching an impossible target', () => {

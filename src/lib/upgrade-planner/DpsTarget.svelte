@@ -9,7 +9,7 @@
 	import { liveUpgrades } from './live-upgrades';
 	import { rollsFor } from './acc-rolls.svelte';
 	import { applyUpgrade } from './apply-upgrade';
-	import { groupSteps, parseTargetDps, planToTarget, type TargetPlan } from './dps-target';
+	import { gearCeiling, groupSteps, parseTargetDps, planToTarget, type TargetPlan } from './dps-target';
 	import type { DpsSelection } from './dps-selection.svelte';
 	import { formatDamage } from './dps-comparison';
 	import { formatPct } from './format';
@@ -38,6 +38,10 @@
 	let text = $state('');
 	let byGold = $state(false);
 	let plan = $state<TargetPlan | null>(null);
+	// What the plan aims at. target null: none typed, so the best upgrades. ceiling: the target is out of reach with gear,
+	// which tops out around this DPS on the run; the plan then lists the best upgrades instead of chasing it.
+	let goal = $state<{ target: number | null; ceiling: number | null } | null>(null);
+	const listing = $derived(!goal || goal.target === null || goal.ceiling !== null);
 	let planning = $state(false);
 	// Planning holds the page for a moment; clicks made meanwhile arrive after it. Those (made before it ended) are dropped.
 	let plannedAt = 0;
@@ -59,9 +63,7 @@
 	}
 	const dpsText = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(3)}b` : formatDamage(n));
 
-	function run(start: SimState, done: (p: TargetPlan | null) => void) {
-		const target = parseTargetDps(text, meterDps);
-		if (target === null) { error = 'Enter a DPS like 1.4b or 1400m, or +5%.'; return; }
+	function run(start: SimState, target: number, done: (p: TargetPlan | null) => void) {
 		if (planning) return;
 		error = null;
 		planning = true;
@@ -75,7 +77,17 @@
 			finally { planning = false; plannedAt = performance.now(); }
 		}, 20);
 	}
-	const planNow = () => { plan = null; run(simState, (p) => (plan = p)); };
+	function planNow() {
+		const typed = text.trim();
+		const target = typed ? parseTargetDps(typed, meterDps) : null;
+		if (typed && target === null) { error = 'Enter a DPS like 1.4b or 1400m, or +5%, or leave it empty.'; return; }
+		const ceiling = target !== null && target > meterDps ? gearCeiling(loadout, simState, selection) : null;
+		// A little room over the measured ceiling: accessories, the bracelet and Ark Grid can add some.
+		const out = target !== null && ceiling !== null && target > ceiling * 1.05;
+		goal = { target, ceiling: out ? ceiling : null };
+		plan = null;
+		run(simState, target !== null && !out ? target : Infinity, (p) => (plan = p));
+	}
 	/** Fills the box with a target and plans it (from a failed pull's card). */
 	export function planFor(target: string) {
 		text = target;
@@ -86,7 +98,8 @@
 	function more() {
 		const previous = plan;
 		if (!previous) return;
-		run($state.snapshot(previous.end) as SimState, (p) => {
+		const aim = goal && goal.target !== null && goal.ceiling === null ? goal.target : Infinity;
+		run($state.snapshot(previous.end) as SimState, aim, (p) => {
 			if (p) plan = { ...p, startDps: previous.startDps, steps: [...($state.snapshot(previous.steps) as typeof p.steps), ...p.steps], gold: previous.gold + p.gold, unpriced: Math.max(previous.unpriced, p.unpriced) };
 		});
 	}
@@ -119,24 +132,34 @@
 		{#if planning}<span class="absolute inset-0 flex items-center justify-center" role="status" aria-label="Planning">{@render spinner('size-4 text-accent-300')}</span>{/if}
 		</div>
 		<div class="flex gap-1.5">
-			<input disabled={planning} class="h-8 min-w-0 flex-1 disabled:opacity-60 rounded-xs border border-surface-700 bg-surface-950 px-2 text-sm text-surface-100 tabular-nums" placeholder="1.4b, 1400m or +5%" bind:value={text} aria-label="Target DPS" />
+			<input disabled={planning} class="h-8 min-w-0 flex-1 disabled:opacity-60 rounded-xs border border-surface-700 bg-surface-950 px-2 text-sm text-surface-100 tabular-nums" placeholder="1.4b, +5%, or empty: best upgrades" bind:value={text} aria-label="Target DPS" />
 			<button type="submit" class="{btn} h-8 gap-1.5 px-4" disabled={planning}>{#if planning}{@render spinner('size-3.5')}Planning…{:else}Plan{/if}</button>
 		</div>
 	</form>
+	{#if plan && goal?.ceiling}
+		<!-- Out of reach with gear: said once, plainly, with what gear can do. -->
+		<p class="mt-2.5 rounded-xs border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-xs text-amber-100">
+			{dpsText(goal.target!)} is out of reach with gear on this run: maxed honing, Vambraces and gems come to about
+			<span class="font-semibold tabular-nums">{dpsText(goal.ceiling)}</span> <span class="tabular-nums">({formatPct((goal.ceiling / plan.startDps - 1) * 100)}%)</span>.
+			The rest would come from how the fight is played. Below are the most effective upgrades.
+		</p>
+	{/if}
 	{#if byGold && unsetPrices}<p class="mt-1.5 text-amber-300">No material prices yet: honing counts as free.</p>{/if}
 	{#if error}<p class="mt-1.5 text-amber-300">{error}</p>{/if}
 	{#if plan}
 		{@const p = plan}
 		<!-- Each figure its own colour: DPS before and after, steps, gold. -->
 		<p class="mt-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+			{#if listing}<span class="font-semibold text-surface-100">Best {p.steps.length} upgrades</span><span class="text-surface-600" aria-hidden="true">·</span>{/if}
 			{#if !p.steps.length && p.reached}<span class="font-semibold text-green-400">Already there: {dpsText(p.startDps)}</span>
 			{:else}
 				<span class="text-surface-400 tabular-nums">{dpsText(p.startDps)}</span>
 				<span class="text-surface-500" aria-hidden="true">→</span>
-				<span class="font-bold tabular-nums {p.reached ? 'text-green-400' : 'text-amber-300'}">{dpsText(p.endDps)}</span>
-				{#if !p.reached}<span class="text-xs text-amber-300">not reached</span>{/if}
-				<span class="text-surface-600" aria-hidden="true">·</span>
-				<span class="text-surface-100">{p.steps.length} step{p.steps.length === 1 ? '' : 's'}</span>
+				<span class="font-bold tabular-nums {listing ? 'text-surface-50' : p.reached ? 'text-green-400' : 'text-amber-300'}">{dpsText(p.endDps)}</span>
+				<span class="text-xs text-surface-400 tabular-nums">({formatPct((p.endDps / p.startDps - 1) * 100)}%)</span>
+				{#if !listing && !p.reached}<span class="text-xs text-amber-300">not reached</span>{/if}
+				{#if !listing}<span class="text-surface-600" aria-hidden="true">·</span>
+				<span class="text-surface-100">{p.steps.length} step{p.steps.length === 1 ? '' : 's'}</span>{/if}
 				{#if byGold}<span class="text-surface-600" aria-hidden="true">·</span><span class="font-semibold text-yellow-300 tabular-nums">{formatGold(p.gold)} gold</span>{/if}
 			{/if}
 		</p>
@@ -161,8 +184,10 @@
 		</ol>
 		<div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-surface-400">
 			{#if p.steps.length}<button type="button" class="{btn} h-7 px-3" onclick={applyAll}>Apply all {p.steps.length}</button>{/if}
-			{#if p.capped}<span>{dpsText(parseTargetDps(text, meterDps)! - p.endDps)} short after {p.steps.length} steps.</span><button type="button" class="{btn} h-7 px-2" disabled={planning} onclick={more}>{planning ? 'Planning…' : 'Keep planning'}</button>
-			{:else if !p.reached}<span>No further upgrade the meter can value gets closer.</span>{/if}
+			{#if p.capped && listing}<button type="button" class="{btn} h-7 px-2" disabled={planning} onclick={more}>{planning ? 'Planning…' : 'More upgrades'}</button>
+			{:else if p.capped}<span>{dpsText(goal!.target! - p.endDps)} short after {p.steps.length} steps.</span><button type="button" class="{btn} h-7 px-2" disabled={planning} onclick={more}>{planning ? 'Planning…' : 'Keep planning'}</button>
+			{:else if !p.reached && !listing}<span>No further upgrade the meter can value gets closer.</span>
+			{:else if listing && p.steps.length}<span>That's every upgrade the meter can value.</span>{/if}
 			{#if p.unpriced && byGold}<span>{p.unpriced} unpriced left out.</span>{/if}
 		</div>
 	{/if}

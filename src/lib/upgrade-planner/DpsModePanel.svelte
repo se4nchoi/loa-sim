@@ -441,6 +441,7 @@
 				<p class="flex flex-wrap items-center gap-x-2 text-surface-300">
 					<span class="text-sm font-semibold text-surface-100">Run setup</span>
 					{#if recorded}<span class="tabular-nums">CP {recorded.toFixed(2)}</span>{/if}
+					<span class="text-surface-400" title="LOA Logs saves a lostark.bible snapshot of your gear with each fight; the meter starts from it, so only your edits count">· saved by LOA Logs with this fight</span>
 					{#if clearSetup && onsimulate}
 						<button type="button" class="ml-auto rounded-xs border border-accent-500/70 bg-accent-700/30 px-2 py-0.5 font-semibold text-accent-100 hover:bg-accent-700/60" title="Load this run's gear, cores and gems into the Simulator (Undo brings yours back)" onclick={() => onsimulate(structuredClone($state.snapshot(clearSetup.state)) as SimState)}>Simulate from this setup</button>
 					{/if}
@@ -472,10 +473,11 @@
 				{/if}
 			</div>
 		{:else}
-			<!-- No snapshot for this run: the loaded gear stands in once the player says so. -->
+			<!-- No snapshot for this run: the loaded gear stands in once the player says so, as close as its CP is. -->
 			<div class="mb-3 rounded-xs border border-amber-500/40 px-3 py-2 text-xs text-amber-200">
 				<p class="flex flex-wrap items-center gap-2">
-					<span>No gear snapshot for this run{#if gap !== null && !matches} · loaded gear is {Math.abs(gap).toFixed(1)}% CP {gap > 0 ? 'above' : 'below'} it{/if}.</span>
+					<span class="text-sm font-semibold text-surface-100">Run setup</span>
+					<span>LOA Logs didn't save this run's gear, so the meter starts from your loaded gear{#if gap !== null && !matches}, {Math.abs(gap).toFixed(1)}% CP {gap > 0 ? 'above' : 'below'} the run's{:else if matches}, at the run's CP{/if}.</span>
 					{#if better}<button type="button" class="font-semibold underline hover:text-white" onclick={better.select}>Use {better.label}</button>{/if}
 					{#if baselineReady}<span class="ml-auto text-surface-400">Using loaded gear</span>
 					{:else}<button type="button" class="ml-auto rounded-xs border border-amber-400/50 px-2 py-0.5 hover:bg-amber-500/10" onclick={() => { confirmed = baselineKey; }}>Use loaded gear</button>{/if}
