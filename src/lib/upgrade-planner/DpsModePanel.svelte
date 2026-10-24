@@ -264,13 +264,13 @@
 				<button type="button" class="ml-auto rounded-xs border border-surface-600 px-2 py-0.5 text-xs text-surface-200 hover:bg-surface-800" onclick={() => setView({ intro: false })}>Got it</button>
 			</div>
 			<ol class="mt-2 grid gap-2 text-xs sm:grid-cols-3">
-				<li class="rounded-xs bg-surface-950/60 p-2"><p class="font-semibold text-surface-100">1 · Import your logs</p><p class="mt-0.5 text-surface-400">LOA Logs' encounters.db, read in this browser. Nothing is uploaded.</p></li>
-				<li class="rounded-xs bg-surface-950/60 p-2"><p class="font-semibold text-surface-100">2 · Pick a run</p><p class="mt-0.5 text-surface-400">Its damage, skill by skill, on the gear it was played with.</p></li>
-				<li class="rounded-xs bg-surface-950/60 p-2"><p class="font-semibold text-surface-100">3 · Edit the cards below</p><p class="mt-0.5 text-surface-400">Each skill's damage follows your gear, gems and Ark Grid edits.</p></li>
+				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">1 · Import your logs</p><p class="mt-0.5 text-surface-400">LOA Logs' encounters.db, read in this browser. Nothing is uploaded.</p></li>
+				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">2 · Pick a run</p><p class="mt-0.5 text-surface-400">Its damage, skill by skill, on the gear it was played with.</p></li>
+				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">3 · Edit the cards below</p><p class="mt-0.5 text-surface-400">Each skill's damage follows your gear, gems and Ark Grid edits.</p></li>
 			</ol>
 			<div class="mt-2 grid gap-2 text-xs sm:grid-cols-2">
 				<div class="rounded-xs bg-surface-950/60 p-2">
-					<p class="font-semibold text-surface-100">What it simulates</p>
+					<p class="text-sm font-semibold text-surface-100">What it simulates</p>
 					<p class="mt-0.5 text-surface-400">The same run, played the same way:</p>
 					<p class="mt-1 text-sm font-semibold text-surface-50">If you played it exactly like this again, how much DPS would this change add?</p>
 					<ul class="mt-1 list-disc space-y-0.5 pl-4 text-surface-400">
@@ -280,7 +280,7 @@
 					</ul>
 				</div>
 				<div class="rounded-xs border border-green-500/30 bg-green-500/5 p-2">
-					<p class="font-semibold text-green-200">Before spending gold</p>
+					<p class="text-sm font-semibold text-green-200">Before spending gold</p>
 					<ul class="mt-1 list-disc space-y-0.5 pl-4 text-surface-300">
 						<li>Gear changes tend to move DPS by only a few percent.</li>
 						<li>Uptime, positionals and staying alive can matter more, and they're free.</li>
@@ -331,19 +331,19 @@
 			{#if unplayed.length}
 				<ul class="mt-1 flex flex-col gap-0.5" aria-label="No runs">
 					{#each unplayed as name (name)}
-						<li class="flex items-center gap-1.5 rounded-xs px-1.5 py-1 text-xs text-surface-500"><span class="truncate">{name}</span><span class="ml-auto text-[10px]">no {pick.use === 'cleared' ? 'clears' : 'wipes'}</span></li>
+						<li class="flex items-center gap-1.5 rounded-xs px-1.5 py-1 text-xs text-surface-500"><span class="truncate">{name}</span><span class="ml-auto">no {pick.use === 'cleared' ? 'clears' : 'wipes'}</span></li>
 					{/each}
 				</ul>
 			{/if}
 			{#if otherRaids.length}
 				<details class="mt-1" open={raid.kind === 'other'}>
-				<summary class="cursor-pointer text-[11px] font-semibold tracking-wide text-surface-500 uppercase select-none hover:text-surface-300">Other fights ({otherRaids.length})</summary>
+				<summary class="cursor-pointer text-xs font-semibold tracking-wide text-surface-500 uppercase select-none hover:text-surface-300">Other fights ({otherRaids.length})</summary>
 				<div class="mt-1 flex flex-col gap-0.5">
 				{#each otherRaids as r (r.key)}
 					{@const on = r === raid}
 					<button type="button" class="flex items-center gap-1.5 rounded-xs px-1.5 py-1 text-left text-xs transition {on ? 'bg-surface-700 text-surface-50 ring-1 ring-accent-300' : 'text-surface-300 hover:bg-surface-800'}" aria-pressed={on} onclick={() => remember({ raid: r.key, clear: null })}>
 						<span class="min-w-0 truncate">{r.name} <span class="text-surface-500">· {r.difficulty || 'Normal'}</span></span>
-						<span class="ml-auto text-[10px] text-surface-400 tabular-nums">{runCount(r.runs)}</span>
+						<span class="ml-auto text-xs text-surface-400 tabular-nums">{runCount(r.runs)}</span>
 					</button>
 				{/each}
 				</div>
@@ -359,7 +359,7 @@
 				<div class="flex min-w-0 flex-col gap-1.5">
 					<span class="flex items-center gap-2">
 						<span class="rounded-xs px-1 text-[10px] font-semibold {difficultyTone(raid.difficulty)}">{raid.difficulty || 'Normal'}</span>
-						<span class="text-[11px] text-white/70">{clears.length} {pick.use === 'cleared' ? (clears.length === 1 ? 'clear' : 'clears') : (clears.length === 1 ? 'failed run' : 'failed runs')}</span>
+						<span class="text-xs text-white/70">{clears.length} {pick.use === 'cleared' ? (clears.length === 1 ? 'clear' : 'clears') : (clears.length === 1 ? 'failed run' : 'failed runs')}</span>
 					</span>
 					<h3 class="text-lg font-semibold text-white max-lg:hidden">{raid.name}</h3>
 					<select class="{banner} max-w-full text-lg font-semibold lg:hidden" aria-label="Raid" value={raid.key} onchange={(e) => remember({ raid: e.currentTarget.value, clear: null })}>
@@ -380,14 +380,14 @@
 			{@const yours = clear.damage / (clear.duration / 1000)}
 			{@const need = yours * (1 + wipe.partyPct / 100)}
 			{@const hint = wipe.pattern?.kind === 'time' ? `${wipe.pattern.count} pulls ended near ${time(wipe.pattern.at * 1000)} with the boss at different HP` : wipe.pattern?.kind === 'hp' ? `${wipe.pattern.count} pulls ended near ${hpText(wipe.pattern.at)} HP` : undefined}
-			<div class="mb-3 rounded-xs border px-3 py-2 text-xs {enrage ? 'border-rose-500/40 bg-rose-950/30' : 'border-surface-700 bg-surface-950/50'}">
+			<div class="mb-3 rounded-xs border px-3 py-2 text-sm {enrage ? 'border-rose-500/40 bg-rose-950/30' : 'border-surface-700 bg-surface-950/50'}">
 				<dl class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-surface-300">
 					<dt>Wiped at</dt><dd class="font-semibold text-surface-50 tabular-nums">{time(clear.duration)}</dd>
 					<dt class="truncate">{clear.boss}</dt><dd class="font-semibold text-rose-200 tabular-nums">{hpText(wipe.hpLeftPct)} HP</dd>
 					{#if wipe.dead?.of}<dt>Players dead</dt><dd class="font-semibold text-surface-50 tabular-nums">{wipe.dead.count} of {wipe.dead.of}</dd>{/if}
 					<dd class="col-span-2 mt-1 flex items-center gap-2" title={hint}>
 						<Segmented label="Cause" value={enrage ? 'enrage' : 'mech'} options={[{ value: 'enrage', label: 'Enrage', color: 'var(--color-rose-700)' }, { value: 'mech', label: 'Mech fail' }]} onselect={(v) => markEnrage(clear, v === 'enrage')} size="h-6 px-2 text-xs" />
-						{#if hint}<span class="text-[11px] text-surface-500">{hint}</span>{/if}
+						{#if hint}<span class="text-xs text-surface-500">{hint}</span>{/if}
 					</dd>
 				</dl>
 				{#if enrage}
@@ -406,7 +406,7 @@
 			{@const build = diff ? [...(diff.cores ? ['Ark Grid cores'] : []), ...diff.passives.map((t) => t.tree), ...diff.other] : []}
 			<div class="mb-3 rounded-xs border border-surface-700 bg-surface-950/50 px-3 py-2 text-xs">
 				<p class="flex flex-wrap items-center gap-x-2 text-surface-300">
-					<span class="font-semibold text-surface-100">Run setup</span>
+					<span class="text-sm font-semibold text-surface-100">Run setup</span>
 					{#if recorded}<span class="tabular-nums">CP {recorded.toFixed(2)}</span>{/if}
 					{#if clearSetup && onsimulate}
 						<button type="button" class="ml-auto rounded-xs border border-accent-500/70 bg-accent-700/30 px-2 py-0.5 font-semibold text-accent-100 hover:bg-accent-700/60" title="Load this run's gear, cores and gems into the Simulator (Undo brings yours back)" onclick={() => onsimulate(structuredClone($state.snapshot(clearSetup.state)) as SimState)}>Simulate from this setup</button>

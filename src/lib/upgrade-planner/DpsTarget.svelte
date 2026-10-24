@@ -101,7 +101,7 @@
 	});
 </script>
 
-<div class="rounded-xs border border-surface-700 bg-surface-950/50 p-3 text-xs" bind:this={box}>
+<div class="rounded-xs border border-surface-700 bg-surface-950/50 p-3 text-sm" bind:this={box}>
 	<p class="text-sm font-semibold text-surface-100">Target DPS</p>
 	<!-- One control: how to plan, then what to plan for. Switching the method re-plans a plan already shown. -->
 	<form class="mt-1.5 flex w-full max-w-sm flex-col gap-1.5" onsubmit={(e) => { e.preventDefault(); planNow(); }}>
@@ -131,23 +131,23 @@
 		<!-- Each step on its own light card, so the steps read apart. -->
 		<ol class="mt-1.5 grid gap-1.5 sm:grid-cols-2">
 			{#each groupSteps(p.steps) as g, i (i)}
-				<li class="grid grid-cols-[1.25rem_1fr_max-content] items-center gap-1.5 rounded-md border border-surface-700/60 bg-surface-800/60 px-2.5 py-1.5">
-					<span class="text-surface-500 tabular-nums">{i + 1}.</span>
+				<li class="grid grid-cols-[1.5rem_1fr_max-content] items-center gap-2 rounded-md border border-surface-700/60 bg-surface-800/60 px-2.5 py-1.5">
+					<span class="flex size-6 items-center justify-center rounded-full bg-accent-700/70 text-xs font-bold text-white tabular-nums">{i + 1}</span>
 					{#if g.count === 1}
 						<UpgradeTitle compact u={g.first.upgrade.subject ? g.first.upgrade : { ...g.first.upgrade, subject: CATEGORY_LABELS[g.first.upgrade.category] }} />
 					{:else}
 						<span class="min-w-0">
-							<span class="block truncate text-[11px] text-surface-400">{g.first.upgrade.subject ?? CATEGORY_LABELS[g.first.upgrade.category]} · {g.count} steps</span>
+							<span class="block truncate text-xs text-surface-400">{g.first.upgrade.subject ?? CATEGORY_LABELS[g.first.upgrade.category]} · {g.count} steps</span>
 							<span class="block truncate text-surface-100">{g.first.upgrade.title} … {g.last.upgrade.title}</span>
 						</span>
 					{/if}
 					<span class="text-right tabular-nums"><span class="font-semibold" style:color={classTextColor(loadout.classId)}>{formatPct(g.gainPct)}%</span>
 						<span class="block text-sm font-semibold text-surface-50">{dpsText(g.last.dps)}</span>
-						{#if g.gold !== null && byGold}<span class="block text-[11px] text-yellow-300/90">{g.gold ? `${formatGold(g.gold)} gold` : 'free'}</span>{/if}</span>
+						{#if g.gold !== null && byGold}<span class="block text-xs text-yellow-300/90">{g.gold ? `${formatGold(g.gold)} gold` : 'free'}</span>{/if}</span>
 				</li>
 			{/each}
 		</ol>
-		<div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-surface-400">
+		<div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-surface-400">
 			{#if p.steps.length}<button type="button" class="{btn} h-7 px-3" onclick={applyAll}>Apply all {p.steps.length}</button>{/if}
 			{#if p.capped}<span>{dpsText(parseTargetDps(text, meterDps)! - p.endDps)} short after {p.steps.length} steps.</span><button type="button" class="{btn} h-7 px-2" disabled={planning} onclick={more}>{planning ? 'Planning…' : 'Keep planning'}</button>
 			{:else if !p.reached}<span>No further upgrade the meter can value gets closer.</span>{/if}
