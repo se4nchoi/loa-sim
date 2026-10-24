@@ -31,6 +31,12 @@ export function loadRuns(characterKey: string, force = false): RunsBook | null {
 	return book;
 }
 
+/** Whether this browser has runs for the character, without reading them (the DPS sim's loading skeleton). */
+export function hasStoredRuns(characterKey: string): boolean {
+	if (characterKey in runsBooks.byCharacter) return !!runsBooks.byCharacter[characterKey];
+	try { return localStorage.getItem(PREFIX + characterKey) !== null; } catch { return false; }
+}
+
 /** Saves (or with null, forgets) a character's runs. Returns false when storage refused them. */
 export function saveRuns(characterKey: string, book: RunsBook | null): boolean {
 	runsBooks.byCharacter[characterKey] = book;

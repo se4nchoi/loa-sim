@@ -6,7 +6,7 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import { setDpsSelection, type DpsSelection } from './dps-selection.svelte';
-	import { loadRuns, runsBooks } from '$lib/logs/runs-store.svelte';
+	import { hasStoredRuns, loadRuns, runsBooks } from '$lib/logs/runs-store.svelte';
 	import { currentRaids, raidGateOf } from '$lib/logs/raids';
 	import type { RunSummary } from '$lib/logs/protocol';
 	import { bibleSnapshotPage, isSnapshotHash, type ClearSnapshot } from '$lib/bible-data';
@@ -57,10 +57,12 @@
 		if (!shared) loadRuns(characterKey);
 	});
 	const book = $derived(runsBooks.byCharacter[characterKey] ?? null);
-	// Switching to DPS mode puts this panel over the cards: a skeleton for at least half a second, so the change reads
-	// as loading instead of a jump, then the panel.
+	// Switching to DPS mode puts this panel over the cards: a skeleton for at least a second, so the change reads as
+	// loading instead of a jump, then the panel. Shaped like what comes next: the panel when this browser has runs, the
+	// import card when it doesn't.
 	let warm = $state(false);
-	onMount(() => { const t = setTimeout(() => (warm = true), 500); return () => clearTimeout(t); });
+	onMount(() => { const t = setTimeout(() => (warm = true), 1000); return () => clearTimeout(t); });
+	const hasRuns = $derived(!!shared || hasStoredRuns(characterKey));
 	let importing = $state(false);
 	const base = $derived(initSimState(loadout));
 	let confirmed = $state<string | null>(null);
@@ -324,7 +326,13 @@
 		</div>
 	{/if}
 
-	{#if !warm || (!shared && !(characterKey in runsBooks.byCharacter))}
+	{#if (!warm || (!shared && !(characterKey in runsBooks.byCharacter))) && !hasRuns}
+		<!-- No runs in this browser yet: the import card's shape (its label and file picker). -->
+		<div class="animate-pulse" role="status" aria-label="Loading the DPS sim">
+			<div class="h-5 w-40 rounded-xs bg-surface-800"></div>
+			<div class="mt-1 h-7 w-full max-w-md rounded-xs bg-surface-800/70"></div>
+		</div>
+	{:else if !warm || (!shared && !(characterKey in runsBooks.byCharacter))}
 		<!-- The panel's shape while it opens and this browser's imported logs are read: tabs, raids, banner, run, setup,
 		     Target DPS, meter. -->
 		<div class="animate-pulse" role="status" aria-label="Loading the DPS sim">
