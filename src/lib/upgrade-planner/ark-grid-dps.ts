@@ -41,7 +41,9 @@ const splitKey = (key: string) => { const i = key.lastIndexOf('#'); return { whe
 const levelKey = (e: OrderCoreEffect) => `${e.buff ?? ''}|${e.feature}`;
 /** A logged buff's name for a state: the same name, or for a mode/stance its word in the buff ("Hype Mode" → "Level 3 Hype"). */
 export const buffMatches = (buff: string, state: string) =>
-	buff === state || (/ (Mode|Stance)$/.test(state) && buff.split(' ').includes(state.replace(/ (Mode|Stance)$/, '')));
+	buff === state || buff === STATE_BUFFS[state] || (/ (Mode|Stance)$/.test(state) && buff.split(' ').includes(state.replace(/ (Mode|Stance)$/, '')));
+/** States the logs record under another buff name (the buff's source skill is the state's). */
+const STATE_BUFFS: Record<string, string> = { 'Phantom Beast Awakening': 'Phantom Beast Spirit' };
 
 interface Active {
 	/** Valued effects by where they apply. */
@@ -162,7 +164,10 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 	const idsOf = (key: string): number[] => {
 		const ids = Object.keys(run.buffNames ?? {}).map(Number);
 		if (key.startsWith('buff:')) return ids.filter((id) => `buff:${Math.floor(id / 100)}` === key);
-		return ids.filter((id) => buffMatches(run.buffNames![id], key.slice(6)));
+		const state = key.slice(6);
+		const exact = ids.filter((id) => buffMatches(run.buffNames![id], state));
+		// A Destiny buff the core's text names short of what the logs record ("Destiny: Final" is "Destiny: Final Words").
+		return exact.length || !state.startsWith('Destiny: ') ? exact : ids.filter((id) => run.buffNames![id].startsWith(`${state} `));
 	};
 	const share = (s: RunSkill, ids: number[]) => (s.damage ? Math.min(1, Math.max(0, ...ids.map((id) => s.buffs?.[id] ?? 0)) / s.damage) : 0);
 

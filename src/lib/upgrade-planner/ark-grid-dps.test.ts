@@ -102,6 +102,15 @@ describe('order core effects', () => {
 		expect(buffMatches('Brawl King Stance', 'Brawl King Stance')).toBe(true);
 		expect(buffMatches('Destiny: Decimation', 'Destiny: Decimation')).toBe(true);
 		expect(buffMatches('Deathlord Mode', 'Possession')).toBe(false);
+		expect(buffMatches('Phantom Beast Spirit', 'Phantom Beast Awakening')).toBe(true); // Wildsoul: the buff of that skill
+	});
+
+	it('finds a Destiny buff the logs name longer than the core text ("Destiny: Final" → "Destiny: Final Words")', () => {
+		const r = run([skill(ASTAROS, 1000, { 3461200: 655 })], { 3461200: 'Destiny: Footsteps of the Dead Extended' });
+		const e = orderCoreEffect(loadout, withFootsteps(), withFootsteps('ancient'), r);
+		expect(e.factor(r.skills[0])).toBeCloseTo(1 + 0.655 * (1.64 / 1.54 - 1), 9);
+		const exact = run([skill(ASTAROS, 1000, { 3461200: 655, 3461300: 1000 })], { 3461200: 'Destiny: Footsteps of the Dead', 3461300: 'Destiny: Footsteps of the Dead Extended' });
+		expect(orderCoreEffect(loadout, withFootsteps(), withFootsteps('ancient'), exact).factor(exact.skills[0])).toBeCloseTo(1 + 0.655 * (1.64 / 1.54 - 1), 9);
 	});
 
 	it('no core change, no effect', () => {
