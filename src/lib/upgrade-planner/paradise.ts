@@ -68,3 +68,11 @@ export function parsePower(text: string): number | null {
 	if (!m) return null;
 	return Math.round(Number(m[1]) * (m[2] === 'm' ? 1e6 : m[2] === 'k' ? 1e3 : 1));
 }
+
+/**
+ * Paradise orb procs by their skill id in the logs → the orb (checked on real runs: Broadwave on a Rhythmic Tide clear,
+ * Thunder Charge on Spreading Mist, Sunlight Fragrance on Blazing Sun). A snapshot doesn't name the orb; the proc does.
+ */
+export const PROC_ORBS: Record<number, number> = { 170000706: 657820001, 171000907: 657830001, 171001001: 657830002 };
+/** The orb a run had, from its proc; null when it shows none (no proc hit, or one not in the table). */
+export const orbOfRun = (skills: { id: number }[]) => skills.map((s) => PROC_ORBS[s.id]).find((o) => o !== undefined) ?? null;

@@ -5,7 +5,7 @@
 // spent, not which nodes, so a different build (Full Moon Harvester vs Night's Edge) doesn't move CP here.
 import type { ClearSnapshot } from '$lib/bible-data';
 import { GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
-import { orbChoices, orbName } from './paradise';
+import { orbChoices, orbName, orbOfRun } from './paradise';
 import { coreVariant, GEM_EFFECT_TYPE, initSimState, simulate, type SimCore, type SimState } from './simulate';
 import { decodeCore } from './tables';
 import { STONE_LEVEL_NODES } from './stones';
@@ -22,7 +22,8 @@ export interface ClearState {
 const books = (e: { grade?: string; progress?: number }) =>
 	e.grade === 'engrave_grade05' ? 4 : Math.max(0, Math.min(4, Math.floor((e.progress || 0) / 5)));
 
-export function clearState(loadout: Loadout, snap: ClearSnapshot): ClearState {
+/** `runSkills`: the run's logged skills, when known (its Paradise orb proc names the orb). */
+export function clearState(loadout: Loadout, snap: ClearSnapshot, runSkills?: { id: number }[]): ClearState {
 	const notes: string[] = [];
 	const base = initSimState(loadout);
 	// Item- and core-based parts: read straight from a loadout carrying the snapshot's items, cores and karma.
@@ -81,7 +82,15 @@ export function clearState(loadout: Loadout, snap: ClearSnapshot): ClearState {
 	// over is taken (a raid orb such as Blazing Sun, against a CP setup's Spreading Mist).
 	let orb: number | null = null;
 	const recorded = snap.combatPower?.score;
-	if (base.paradise && !base.paradise.flat && recorded) {
+	// The run's own orb proc names it exactly (Sunlight Fragrance is Blazing Sun's): no guess needed.
+	const procOrb = orbOfRun(runSkills ?? []);
+	if (base.paradise && !base.paradise.flat && procOrb) {
+		if (procOrb !== base.paradise.orb) {
+			orb = procOrb;
+			state.paradise = { ...base.paradise, orb: procOrb };
+			notes.push(`Paradise orb: ${orbName(procOrb)}, from the run's orb proc.`);
+		}
+	} else if (base.paradise && !base.paradise.flat && recorded) {
 		const fit = orbChoices(base.paradise)
 			.map((id) => ({ id, over: simulate(loadout, { ...state, paradise: { ...base.paradise!, orb: id } }, base).cp / recorded - 1 }))
 			.filter((o) => o.over >= -0.0005 && o.over <= 0.01)

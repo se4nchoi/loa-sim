@@ -62,4 +62,13 @@ describe('the clear\'s Paradise orb', () => {
 		expect(cp(state) / snap.combatPower.score - 1).toBeLessThanOrEqual(0.01);
 		expect(clearState(loadout, asSnapshot(loadout)).orb).toBeNull();
 	});
+	it("is the run's own when its orb proc is in the logs (Sunlight Fragrance → Blazing Sun), whatever the CP says", () => {
+		const base = initSimState(loadout);
+		if (!base.paradise || base.paradise.flat) return;
+		const BLAZING_SUN = 657830002;
+		const { orb, state, notes } = clearState(loadout, asSnapshot(loadout), [{ id: 46430 }, { id: 171001001 }]);
+		expect(orb).toBe(base.paradise.orb === BLAZING_SUN ? null : BLAZING_SUN);
+		expect(state.paradise!.orb).toBe(BLAZING_SUN);
+		if (orb) expect(notes.some((n) => n.includes("run's orb proc"))).toBe(true);
+	});
 });

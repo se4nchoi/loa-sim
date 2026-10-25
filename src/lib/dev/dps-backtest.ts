@@ -55,7 +55,7 @@ export async function coverage(file: File, player: string, loadout: Loadout, new
 			progress.__progress = `snapshot ${i + 1}/${hashes.length}`;
 			try {
 				const snap = await Promise.race([clearSnapshot(hash), new Promise<never>((_, no) => setTimeout(() => no(new Error('timeout')), 20_000))]);
-				states.set(hash, clearState(loadout, snap).state);
+				states.set(hash, clearState(loadout, snap, runs.find((r) => r.loadoutHash === hash)?.skills).state);
 				cores.set(hash, orderCoreKey((snap.arkGridCores ?? []).map((c) => c.id)));
 			} catch { states.set(hash, null); }
 		}

@@ -206,7 +206,7 @@
 	});
 	const diff = $derived(setup?.snap ? setupDiff(loadout, setup.snap) : null);
 	// The run's setup as a Simulator state: the meter's baseline, so gear changed since the run counts with the edits.
-	const clearSetup = $derived(shared ? { state: shared.baseline, notes: [] as string[] } : setup?.snap && setup.hash === clear?.loadoutHash ? clearState(loadout, $state.snapshot(setup.snap) as ClearSnapshot) : null);
+	const clearSetup = $derived(shared ? { state: shared.baseline, notes: [] as string[] } : setup?.snap && setup.hash === clear?.loadoutHash ? clearState(loadout, $state.snapshot(setup.snap) as ClearSnapshot, clear?.skills) : null);
 	const baselineKey = $derived(clear ? `${characterKey}:${clear.id}:${clear.start}:${JSON.stringify(base)}` : '');
 	const baselineReady = $derived(!!clearSetup || confirmed === baselineKey);
 	const clearSetupCp = $derived(clearSetup ? simulate(loadout, clearSetup.state, base).cp : null);

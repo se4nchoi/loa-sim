@@ -71,7 +71,7 @@ export function parseCharacterInput(input: string, fallbackRegion: Region): { re
 }
 
 /** SvelteKit serializes page data with devalue's flat format: values reference each other by index. */
-function unflatten(values: unknown[]): unknown {
+export function unflatten(values: unknown[]): unknown {
 	const hydrated: unknown[] = new Array(values.length);
 	const done = new Set<number>();
 	const special: Record<number, unknown> = { [-1]: undefined, [-3]: NaN, [-4]: Infinity, [-5]: -Infinity, [-6]: -0 };
