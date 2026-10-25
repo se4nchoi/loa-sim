@@ -21,7 +21,7 @@ import { SKILL_GROUPS } from '$lib/upgrade-planner/skill-groups';
 import type { Loadout } from '$lib/upgrade-planner/types';
 import soulshan from '$lib/upgrade-planner/fixtures/na-soulshan.json';
 import brushann from '$lib/upgrade-planner/fixtures/na-brushann.json';
-import { supportGain, supportMeter } from '$lib/upgrade-planner/support-meter';
+import { destinyUptime, supportGain, supportMeter, supportStats } from '$lib/upgrade-planner/support-meter';
 
 const LOG = process.env.LOG, PLAYER = process.env.PLAYER;
 const DEV = process.env.DEV_SERVER ?? 'http://localhost:5173';
@@ -82,6 +82,13 @@ it.skipIf(!LOG || !PLAYER)('public log audit', { timeout: 120_000 }, async () =>
 
 	const out: string[] = [`${e.name} · ${e.class} (${cls}) · ${run.boss} ${run.difficulty} · ${Math.round(run.duration / 1000)}s · ${isSupport ? 'support' : 'dealer'}`];
 	out.push(`gear snapshot: ${setup.notes.length ? setup.notes.join(' / ') : 'read'}; LOA Logs stat values: ${run.statValues ? 'yes' : 'no'}${isSupport ? `; support split: ${run.support ? `${run.support.dealers.length} dealers` : 'none'}` : ''}`);
+	if (run.support) {
+		const k = run.support.kinds, total = k.attack + k.damage + k.brand + k.other;
+		const p = (x: number) => `${((100 * x) / total).toFixed(1)}%`;
+		out.push(`support split: attack ${p(k.attack)}, damage ${p(k.damage)}, brand ${p(k.brand)}, other ${p(k.other)} (not valued) over ${run.support.dealers.length} dealers`);
+		const named = Object.values(run.support.sources ?? {}).filter((x) => x.kind !== 'other').map((x) => x.skill).filter(Boolean);
+		out.push(`  buffs by skill: ${[...new Set(named)].join(', ') || 'none named'}`);
+	}
 	const dmg = run.skills.reduce((s, k) => s + k.damage, 0);
 	const share = (f: (id: number) => boolean) => ((100 * run.skills.filter((k) => f(k.id)).reduce((s, k) => s + k.damage, 0)) / dmg).toFixed(1);
 	out.push(`skills: ${share((id) => !!SKILL_GROUPS[cls]?.[id])}% of damage in a skill group, ${share((id) => !!GEM_SKILLS[id])}% on gem skills`);
@@ -125,6 +132,17 @@ it.skipIf(!LOG || !PLAYER)('public log audit', { timeout: 120_000 }, async () =>
 			out.push(`    ${x.stat ?? 'damage'} ${pct((x.pct ?? 0) * 100)} on ${x.groups === null ? 'every skill' : [...(x.groups ?? []), ...(x.skills ?? []).map((i) => names[i]?.[0] ?? i)].join(', ')}${x.tripod ? ` (tripod ${x.tripod})` : ''}${key.startsWith('#') ? '' : ` while ${key.slice(0, key.lastIndexOf('#')).replace(/^state:/, '')}`}: ${((100 * on) / dmg).toFixed(1)}% of damage`);
 		}
 		for (const t of fx.other) out.push(`    unread: ${t.slice(0, 120)}`);
+	}
+
+	// A support's core lines (support-buffs): each with the buff skill it names and its Destiny uptime in the run.
+	if (isSupport) {
+		const lines = supportStats(loadout, base).coreLines, destiny = destinyUptime(run);
+		const sources = [...new Set(Object.values(run.support?.sources ?? {}).map((x) => x.skill).filter(Boolean))] as string[];
+		out.push('support core lines:');
+		for (const l of lines) {
+			const skill = l.skill ? (sources.some((s) => s === l.skill || s.includes(l.skill!) || l.skill!.includes(s)) ? `${l.skill} ✓` : `${l.skill} ✗ no buff from it`) : 'every buff';
+			out.push(`  ${l.stat === 'atk' ? 'Ally Atk.' : 'Ally Dmg'} +${l.pct}% on ${skill}${l.destiny ? ` while ${l.destiny} (${destiny[l.destiny] === undefined ? '✗ not in the run' : `${(100 * destiny[l.destiny]).toFixed(0)}% uptime`})` : ''} @${l.points}P`);
+		}
 	}
 
 	const report = out.join('\n');
