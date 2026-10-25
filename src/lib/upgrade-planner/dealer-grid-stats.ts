@@ -2,6 +2,7 @@
 // core the clear had in the slot, at the slot's grade, as Order cores are read) and the astrogem options at their grid
 // totals (Atk. Power %, Additional Damage, Damage to Boss).
 import { CHAOS_CORE_LINES, DEALER_ASTROGEM_VALUES } from './dealer-grid';
+import { orbPower, orbValue } from './paradise';
 import { initSimState, optionLevel, simCorePoints, type SimState } from './simulate';
 import { swappedCoreId } from './support';
 import { decodeCore } from './tables';
@@ -46,3 +47,19 @@ export function gridStats(loadout: Loadout, state: SimState): GridStats {
 	out.unvalued.sort();
 	return out;
 }
+
+/**
+ * The Paradise orb's proc (Thunder Charge, Broadwave, Sunlight Fragrance, …: its own skill in the logs, a few percent of
+ * the damage) from `base` to `state`: its damage grows with Paradise power as the orb's value does,
+ * k × (power / 1M + 2.5). Another orb is another proc the run never had: null (not valued).
+ */
+export function paradiseFactor(base: SimState, state: SimState): number | null {
+	const a = base.paradise, b = state.paradise;
+	if (!a || !b) return a === b ? 1 : null;
+	if (a.orb !== b.orb) return null;
+	const pa = Math.max(0, Number(orbPower(a)) || 0), pb = Math.max(0, Number(orbPower(b)) || 0);
+	return orbValue(1, pb) / orbValue(1, pa);
+}
+
+/** Paradise orb procs in the logs: skill ids from 170,000,000 (Broadwave 170000706, Thunder Charge 171000907). */
+export const isParadiseProc = (skillId: number) => skillId >= 170_000_000 && skillId < 172_000_000;

@@ -134,7 +134,8 @@ export interface SupportMeter {
 const KINDS: SupportKind[] = ['attack', 'damage', 'brand', 'other'];
 /** The parts whose effect on the buffs is the stats above (or nothing for them); the rest is listed, not valued. */
 // Karma: Enlightenment's Weapon Power reaches Attack Power through the simulator; Evolution and Leap are a CP bonus only.
-const VALUED = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet', 'skillShares', 'skillCooldownUse', 'arkGrid', 'gems', 'karma']);
+// Paradise: a support's orb adds no buff strength (a flat CP value), so it moves nothing here.
+const VALUED = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet', 'skillShares', 'skillCooldownUse', 'arkGrid', 'gems', 'karma', 'paradise']);
 const LABELS: Partial<Record<keyof SimState, string>> = { karma: 'Karma', engravings: 'Engravings', paradise: 'Paradise' };
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 /** Astrogem options besides the support ones (Attack Power, Additional Damage, Boss Damage): not part of the buffs. */

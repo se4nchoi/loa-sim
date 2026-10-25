@@ -124,6 +124,21 @@ describe('meter gain (Next Upgrades in DPS mode)', () => {
 		else to.karma.leap = (to.karma.leap ?? 0) + 1;
 		expect(meterGain(loadout, base, base, to, [run(1)], [run(1)]).gainPct).toBeNull();
 	});
+	it("values Paradise power on the orb's proc (Thunder Charge, its own skill), and lists an orb swap", () => {
+		expect(base.paradise).not.toBeNull();
+		// A proc dealing 3% of the damage.
+		const r = run(1, { damage: 1000, skills: [{ id: gemSkill, damage: 970, critDamage: 0, hits: 1, crits: 0, casts: 1 }, { id: 171000907, damage: 30, critDamage: 0, hits: 1, crits: 0, casts: 1 }] });
+		const up = structuredClone(base);
+		for (const season of Object.keys(up.paradise!.powers)) up.paradise!.powers[Number(season)] += 1_000_000;
+		const m = dpsMeter(loadout, base, up, [r], [r])!;
+		expect(m.notInMeter).toEqual([]);
+		const proc = m.skills.find((s) => s.id === 171000907)!, other = m.skills.find((s) => s.id === gemSkill)!;
+		expect(proc.after).toBeGreaterThan(proc.before);
+		expect(other.after).toBeCloseTo(other.before);
+		const swap = structuredClone(base);
+		swap.paradise!.orb = swap.paradise!.orb + 1;
+		expect(dpsMeter(loadout, base, swap, [r], [r])!.notInMeter).toContain('Paradise orb swap');
+	});
 	it("values Enlightenment Karma (Weapon Power) but not Evolution / Leap Karma's CP bonus", () => {
 		expect(base.karma.enlightenment).not.toBeNull();
 		const up = structuredClone(base);
