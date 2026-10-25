@@ -37,6 +37,17 @@ for (const [id, k] of Object.entries(skillTable)) {
 const usedTripodSkills = new Set();
 
 const strip = (s) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+/**
+ * A skill's ids by the name an effect gives it: exactly, ignoring case ("Esoteric skill: Azure Dragon Supreme Fist"), or
+ * as the end of one skill's "<kind>: <name>" ("A.C.T" is "Barrage: A.C.T").
+ */
+const skillByName = (cls, name) => {
+	const all = skillIds[cls] ?? {};
+	if (all[name]) return all[name];
+	const lower = name.toLowerCase();
+	const found = Object.keys(all).filter((n) => n.toLowerCase() === lower || n.toLowerCase().endsWith(`: ${lower}`));
+	return found.length === 1 ? all[found[0]] : undefined;
+};
 // What an effect names, part by part ("Ghast Skill and Deathlord Skill", "Rending Finisher and Exploding Finisher",
 // "Phantom Beast Skills"): each part is one of the class's groups (scripts/skill-group-map.mjs) or a skill by name.
 // → { groups, skills }; undefined when a part is neither.
@@ -46,7 +57,7 @@ const targetOf = (target, cls) => {
 	// "Charge-type skill" is the Charge group; "Esoteric Skill: Azure Dragon Supreme Fist" is that skill when the game
 	// data names it without the prefix (some Esoteric skills keep it).
 	target = target.replace(/-type [Ss]kills?\b/g, ' Skill');
-	if (/^Esoteric Skill: /.test(target) && !skillIds[cls]?.[target]) target = target.replace(/^Esoteric Skill: /, '');
+	if (/^Esoteric Skill: /.test(target) && !skillByName(cls, target)) target = target.replace(/^Esoteric Skill: /, '');
 	const names = groupNames(cls);
 	const groups = [], skillList = [];
 	const parts = target.split(/, and |, or |, | and | or |\//).map((p) => p.trim());
@@ -57,8 +68,8 @@ const targetOf = (target, cls) => {
 		const group = part.match(/^(.+?) Skills?$/)?.[1];
 		if (group && names.includes(group)) { groups.push(group); continue; }
 		// "Emperor Card": Arcanist's card skill of that name.
-		const name = SKILL_ALIASES[cls]?.[part] ?? (skillIds[cls]?.[part] ? part : part.replace(/ Card$/, ''));
-		const ids = skillIds[cls]?.[name] ?? (group ? skillIds[cls]?.[group] : undefined);
+		const name = SKILL_ALIASES[cls]?.[part] ?? (skillByName(cls, part) ? part : part.replace(/ Card$/, ''));
+		const ids = skillByName(cls, name) ?? (group ? skillByName(cls, group) : undefined);
 		if (!ids) return undefined;
 		skillList.push(...ids);
 	}
@@ -76,7 +87,7 @@ function effectsOf(option, cls) {
 	const feature = option.stats.find((s) => s.type === 28);
 	const out = [];
 	let inBuff = false, sticky, stickyTripod, buffName, prev = '';
-	const desc = strip(option.desc.replace(/<br>|\n/gi, '\n')).replace(/\s*\((?:Max|Up to) [^)]*\)/gi, '').replace(/%\.(?=[A-Z])/g, '%. ');
+	const desc = strip(option.desc.replace(/<br>|\n/gi, '\n')).replace(/\s*\((?:Max|Up to) [^)]*\)/gi, '').replace(/%\.(?=[A-Z])/g, '%. ').replace(/([+-]) (?=\d)/g, '$1'); // "Damage + 15.0%"
 	for (const line of desc.split(/(?<=\.)\s+(?=[A-Z])/)) {
 		let s = line.trim();
 		if (!s) continue;
@@ -107,7 +118,7 @@ function effectsOf(option, cls) {
 		if (tripod) {
 			s = tripod[3];
 			needs = stickyTripod = tripod[2];
-			if (/^Damage ?[+-] ?[\d.]+%/.test(s) && skillIds[cls]?.[tripod[1]]) s = s.replace(/^Damage/, tripod[1] + ' Damage');
+			if (/^Damage ?[+-] ?[\d.]+%/.test(s) && skillByName(cls, tripod[1])) s = s.replace(/^Damage/, tripod[1] + ' Damage');
 		}
 		const classTripod = !destiny && !tripod && s.match(/^With ([A-Z][\w' ]+), (.*)$/);
 		if (classTripod && tripodNames[cls]?.has(classTripod[1])) { needs = stickyTripod = classTripod[1]; s = classTripod[2]; }
@@ -120,11 +131,14 @@ function effectsOf(option, cls) {
 			for (const item of list.split(/, and |, | and /).map((x) => x.trim()).filter(Boolean)) {
 				if (/Hyper Awakening Technique/i.test(item)) except.push(...(hyper[cls] ?? []));
 				else if (/^Awakening Skills?$/i.test(item)) except.push(...(awakening[cls] ?? []));
-				else if (skillIds[cls]?.[item]) except.push(...skillIds[cls][item]);
+				else if (skillByName(cls, item)) except.push(...skillByName(cls, item));
 				else exceptUnknown = true;
 			}
 			return '';
 		});
+		// "Lightning Tiger Strike Damage +10.5% when it hits as a Back Attack": that skill's back attack damage.
+		let hitPosition;
+		s = s.replace(/ (?:when it hits|if it lands) as a (Back|Frontal) Attack/, (_, p) => { hitPosition = p === 'Back' ? 'back' : 'front'; return ''; });
 		// A Destiny sentence whose damage is its last clause ("When Shock Skill ends, Shock Energy +100 and Shock Skill
 		// Damage +0.5%."): the buff's uptime stands for the condition, so the clause is the effect.
 		const whole = s.replace(/\.$/, '');
@@ -134,16 +148,18 @@ function effectsOf(option, cls) {
 			head = whole.slice(0, whole.length - last.length);
 			s = last;
 		}
-		// A damage clause next to a speed change ("Charged Shot Casting Speed +15% and Damage +10.0%", "Attack Speed and Move
-		// Speed +10.0% and Manifestation Skill Damage +57.0%", "Call of the Wind God Damage +15.0% and Casting Speed +15.0%"):
-		// the damage is valued, the speed kept as text. A cooldown or skill tree trade changes the rotation: left as text.
+		// A damage clause next to a side change with no damage stat (speed, a meter's gain, Stagger, MP recovery): "Charged
+		// Shot Casting Speed +15% and Damage +10.0%", "Attack Speed and Move Speed +10.0% and Manifestation Skill Damage
+		// +57.0%", "Sonic Vibration Damage +35.0% and Serenade Meter gained on hit +30.0%". The damage is valued, the side kept
+		// as text. A cooldown or skill tree trade changes the rotation: left as text.
 		let speed = '';
 		if (!head && !/cooldown|Skill Tree/i.test(whole)) {
-			const SPEED = String.raw`(?:(?:Casting|Charge|Attack|Atk\.|Move)(?: Speed and (?:Move|Attack))? Speed|Atk\./Move Speed) [+-] ?[\d.]+%`;
-			const DAMAGE = String.raw`(?:.* )?Damage(?: to foes)? ?[+-] ?[\d.]+%`;
+			const SPEED = String.raw`(?:(?:(?:Casting|Charge|Attack|Atk\.|Move)(?: Speed and (?:Move|Attack))? Speed|Atk\./Move Speed|Serenade Meter gained(?: on hit)?|Stagger Damage|MP Recovery Speed) [+-] ?[\d.]+%)`;
+			const DAMAGE = String.raw`(?:.* )?(?:Damage(?: to foes)?|Crit (?:Damage|Rate)) ?[+-] ?[\d.]+%`;
 			const first = whole.match(new RegExp(`^(.*?)\\s*(${SPEED}) and (${DAMAGE})$`));
 			const after = whole.match(new RegExp(`^(${DAMAGE}) and (${SPEED})$`));
-			if (first && (/^Damage/.test(first[3]) || !first[1])) { speed = first[2]; s = /^Damage/.test(first[3]) && first[1] ? `${first[1]} ${first[3]}` : first[3]; }
+			const bareFirst = first && /^(?:Damage|Crit )/.test(first[3]);
+			if (first && (bareFirst || !first[1])) { speed = first[2]; s = bareFirst && first[1] ? `${first[1]} ${first[3]}` : first[3]; }
 			else if (after) { speed = after[2]; s = after[1]; }
 		}
 		// Crit Rate / Crit Damage of skills ("Hurricane Sword Crit Damage +60.0%", "Overdrive Crit Rate +10.0%"): valued
@@ -181,7 +197,7 @@ function effectsOf(option, cls) {
 		const perStack = /per stack/i.test(tail);
 		const plain = !destiny && !perStack && (tail === '' || when);
 		if (target !== undefined && !exceptUnknown && Number.isFinite(pct) && (plain || (destiny && (feature || (inBuff && buffName)) && !perStack))) {
-			out.push({ pct, ...target, ...(except.length ? { except: [...new Set(except)] } : {}), ...(destiny ? { ...(feature ? { feature: feature.index, level: feature.value } : {}), ...(inBuff && buffName ? { buff: buffName } : {}) } : {}), ...(when ? { when } : {}), ...(crit ? { crit: true } : {}), ...(needs ? { tripod: needs } : {}), ...(stat ? { stat } : {}), ...(position ? { position: position[1] === 'Back' ? 'back' : 'front' } : {}) });
+			out.push({ pct, ...target, ...(except.length ? { except: [...new Set(except)] } : {}), ...(destiny ? { ...(feature ? { feature: feature.index, level: feature.value } : {}), ...(inBuff && buffName ? { buff: buffName } : {}) } : {}), ...(when ? { when } : {}), ...(crit ? { crit: true } : {}), ...(needs ? { tripod: needs } : {}), ...(stat ? { stat } : {}), ...(position ? { position: position[1] === 'Back' ? 'back' : 'front' } : hitPosition ? { position: hitPosition } : {}) });
 			if (speed) out.push({ text: speed });
 		} else out.push({ text: line.trim() });
 		prev = line;
