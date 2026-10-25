@@ -11,7 +11,6 @@
 	import { track } from '$lib/stats';
 	import { untrack } from 'svelte';
 	import { formatDateTime } from '$lib/upgrade-planner/format';
-	import ModeSwitch from '$lib/upgrade-planner/sim/ModeSwitch.svelte';
 
 	/** CP or DPS: the same simulator, DPS adds a clear from the player's logs and its meter. Kept in the address. */
 	const mode = $derived(page.url.searchParams.get('mode') === 'dps' ? 'dps' : 'cp');
@@ -133,7 +132,6 @@
  {#if build}<div class="mb-3 flex flex-wrap items-center gap-3 text-sm"><span class="font-semibold text-accent-200">Build: {build.name}</span><a class="text-surface-300 underline" href={`/sim?c=${encodeURIComponent(characterKey(saved))}`}>Back to character</a></div>
  {:else if buildId}<p class="mb-3 text-sm text-surface-300">This saved build is no longer available. Showing your character.</p>{/if}
 	<CharacterSwitcher current={characterKey(saved)} dpsMode={mode === 'dps'} />
-	<div class="mb-3 w-56 lg:hidden"><ModeSwitch dpsMode={mode === 'dps'} onmode={setMode} /></div>
 	{#key `${saved.region}/${saved.name}:${build?.id ?? "character"}`}
 		<CharacterView dpsMode={mode === 'dps'} onmode={setMode} initialBuild={build} name={saved.name} region={saved.region} {subtitle} itemLevel={build ? build.loadout.itemLevel : saved.header?.ilvl} loadout={saved.loadout}
 			cpDistribution={build ? null : saved.cpDistribution}

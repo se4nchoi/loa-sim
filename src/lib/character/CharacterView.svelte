@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Simulator } from '$lib/upgrade-planner';
+	import ModeSwitch from '$lib/upgrade-planner/sim/ModeSwitch.svelte';
 	import { untrack } from 'svelte';
 	import { initSimState, type SimState } from '$lib/upgrade-planner/simulate';
 	import SavedSimulations from '$lib/upgrade-planner/SavedSimulations.svelte';
@@ -198,7 +199,9 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<div class="mb-4 flex flex-col gap-1">
+<!-- The character on the left; CP / DPS on the right, up here so opening the DPS sim below never moves it. -->
+<div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+<div class="flex min-w-0 flex-col gap-1">
 	<div class="flex flex-row gap-1 text-xs">
 		<span class="rounded-xs bg-surface-900 px-2 py-0.5">{region === 'NA' ? 'North America' : region}</span>
 		{#if loadout}<span class="rounded-xs bg-surface-900 px-2 py-0.5">{className(loadout.classId)}</span>{/if}
@@ -246,7 +249,8 @@
 		</div>
 	{/if}
 </div>
-
+	{#if onmode && loadout}<div class="w-56 max-sm:w-full"><ModeSwitch {dpsMode} {onmode} /></div>{/if}
+</div>
 {#if !loadout}
 	<p class="text-surface-300">This character has no Ark Passive loadout with combat power data yet.</p>
 {:else}

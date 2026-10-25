@@ -39,7 +39,6 @@
 	import CpBreakdownDialog from './sim/CpBreakdownDialog.svelte';
 	import { cpBreakdown } from './cp-breakdown';
 	import { PartType } from './cp';
-	import ModeSwitch from './sim/ModeSwitch.svelte';
 	import { SECTIONS, type PreviewEdit, type SectionDelta, type SimSection } from './sim/ui';
 	import { gemParts, initSimState, itemLevel, mainStatIndex, simulate, type SimState } from './simulate';
 	import type { Loadout } from './types';
@@ -357,13 +356,8 @@
 	</div>
 {/snippet}
 
-{#snippet modeSwitch()}
-	<ModeSwitch {dpsMode} onmode={onmode!} />
-{/snippet}
-
 {#snippet summary()}
 	<SimSummary
-		mode={onmode ? modeSwitch : undefined}
 		{current}
 		{simulated}
 		ilvlBefore={itemLevel(base)}
