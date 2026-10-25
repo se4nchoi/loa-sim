@@ -71,12 +71,15 @@ it.skipIf(!LOG || !PLAYER)('public log audit', { timeout: 120_000 }, async () =>
 	// character page: their run's gear goes on a stand-in character of the same role (the Soulshan / Brushann fixtures),
 	// which is all the edits and cores need; only "run setup → current gear" is skipped.
 	const REGION = process.env.REGION ?? (/^(CE|EU)/i.test(String(misc?.region ?? '')) ? 'CE' : 'NA');
-	const anonymous = /#d+$/.test(e.name);
+	const anonymous = /#\d+$/.test(e.name);
 	const char = anonymous ? null : ((await (await fetch(`${DEV}/api/character/${REGION}/${encodeURIComponent(e.name)}`)).json()) as CharacterData);
-	const snap = (await (await fetch(`${DEV}/api/snapshot/${e.loadoutHash}`)).json()) as ClearSnapshot;
+	// Older uploads keep no gear snapshot: then the character's current gear stands for the run's (said in the report).
+	const snap = e.loadoutHash ? ((await (await fetch(`${DEV}/api/snapshot/${e.loadoutHash}`)).json()) as ClearSnapshot) : null;
 	const standIn = !char?.loadout;
-	const loadout = char?.loadout ?? ({ ...(SUPPORTS.has(e.class) ? brushann : soulshan), classId: snap.classId } as unknown as Loadout);
-	const setup = clearState(loadout, snap, run.skills), base = setup.state, now = initSimState(loadout);
+	if (standIn && !snap) throw new Error(`${e.name}: no character page and no gear snapshot in this log`);
+	const loadout = char?.loadout ?? ({ ...(SUPPORTS.has(e.class) ? brushann : soulshan), classId: snap!.classId } as unknown as Loadout);
+	const setup = snap ? clearState(loadout, snap, run.skills) : { state: initSimState(loadout), notes: ["none in this log: the character's current gear"], orb: null };
+	const base = setup.state, now = initSimState(loadout);
 	const isSupport = !!loadout.battlePoint.isSupport;
 	const cls = Object.values(ORDER_CORES).find((c) => base.arkGrid.some((g) => ORDER_CORES[g.as ?? g.id] === c))?.cls ?? '';
 
