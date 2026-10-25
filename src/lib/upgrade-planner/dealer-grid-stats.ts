@@ -2,7 +2,7 @@
 // core the clear had in the slot, at the slot's grade, as Order cores are read) and the astrogem options at their grid
 // totals (Atk. Power %, Additional Damage, Damage to Boss).
 import { CHAOS_CORE_LINES, DEALER_ASTROGEM_VALUES } from './dealer-grid';
-import { orbPower, orbValue } from './paradise';
+import { orbSeason, orbValue } from './paradise';
 import { initSimState, optionLevel, simCorePoints, type SimState } from './simulate';
 import { swappedCoreId } from './support';
 import { decodeCore } from './tables';
@@ -49,17 +49,23 @@ export function gridStats(loadout: Loadout, state: SimState): GridStats {
 }
 
 /**
- * The Paradise orb's proc (Thunder Charge, Broadwave, Sunlight Fragrance, …: its own skill in the logs, a few percent of
- * the damage) from `base` to `state`: its damage grows with Paradise power as the orb's value does,
- * k × (power / 1M + 2.5). Another orb is another proc the run never had: null (not valued).
+ * A Paradise orb's proc (Thunder Charge, Broadwave, Sunlight Fragrance, …: its own skill in the logs, a few percent of
+ * the damage) from `base` to `state`. It hits for a fixed amount set by its orb and the Paradise power of the orb's
+ * season, so only that season's power moves it (assumed as the orb's CP value does, k × (power / 1M + 2.5)); a run on a
+ * past season's orb keeps its hit whatever this season's power. `season`: the proc's (procSeason), else the orb's.
+ * Another orb is another proc the run never had: null (not valued).
  */
-export function paradiseFactor(base: SimState, state: SimState): number | null {
+export function paradiseFactor(base: SimState, state: SimState, season?: number): number | null {
 	const a = base.paradise, b = state.paradise;
 	if (!a || !b) return a === b ? 1 : null;
 	if (a.orb !== b.orb) return null;
-	const pa = Math.max(0, Number(orbPower(a)) || 0), pb = Math.max(0, Number(orbPower(b)) || 0);
+	const s = season ?? orbSeason(a.orb) ?? 0;
+	const pa = Math.max(0, Number(a.powers[s]) || 0), pb = Math.max(0, Number(b.powers[s]) || 0);
 	return orbValue(1, pb) / orbValue(1, pa);
 }
+
+/** A proc's season from its skill id: 170… Season 3 (Broadwave, Greenward), 171… Season 4 (Thunder Charge, Sunlight Fragrance). */
+export const procSeason = (skillId: number) => Math.floor(skillId / 1e6) - 167;
 
 /** Paradise orb procs in the logs: skill ids from 170,000,000 (Broadwave 170000706, Thunder Charge 171000907). */
 export const isParadiseProc = (skillId: number) => skillId >= 170_000_000 && skillId < 172_000_000;

@@ -6,6 +6,7 @@ import { initSimState } from './simulate';
 import { engravingNames } from './dps-loadout';
 import { gemMembers } from './dps-explain';
 import { dpsMeter, matchSnapshot, meterGain } from './dps-meter';
+import { orbSeason } from './paradise';
 
 const loadout = soulshan as unknown as Loadout;
 const base = initSimState(loadout);
@@ -138,6 +139,20 @@ describe('meter gain (Next Upgrades in DPS mode)', () => {
 		const swap = structuredClone(base);
 		swap.paradise!.orb = swap.paradise!.orb + 1;
 		expect(dpsMeter(loadout, base, swap, [r], [r])!.notInMeter).toContain('Paradise orb swap');
+	});
+	it("moves a proc only with its own season's power: a Season 3 orb's Broadwave keeps its hit", () => {
+		const season = orbSeason(base.paradise!.orb)!;
+		const broadwave = 170000706, thunder = 171000907;
+		const r = (proc: number) => run(1, { damage: 1000, skills: [{ id: gemSkill, damage: 970, critDamage: 0, hits: 1, crits: 0, casts: 1 }, { id: proc, damage: 30, critDamage: 0, hits: 1, crits: 0, casts: 1 }] });
+		const s4 = structuredClone(base);
+		s4.paradise!.powers[4] += 1_000_000;
+		const old = dpsMeter(loadout, base, s4, [r(broadwave)], [r(broadwave)])!;
+		expect(old.skills.find((s) => s.id === broadwave)!.after).toBeCloseTo(30);
+		if (season === 4) expect(old.notes).toContain('Paradise power: this run was on another orb.');
+		const s3 = structuredClone(base);
+		s3.paradise!.powers[3] += 1_000_000;
+		expect(dpsMeter(loadout, base, s3, [r(thunder)], [r(thunder)])!.skills.find((s) => s.id === thunder)!.after).toBeCloseTo(30);
+		expect(dpsMeter(loadout, base, s3, [r(broadwave)], [r(broadwave)])!.skills.find((s) => s.id === broadwave)!.after).toBeGreaterThan(30);
 	});
 	it("values Enlightenment Karma (Weapon Power) but not Evolution / Leap Karma's CP bonus", () => {
 		expect(base.karma.enlightenment).not.toBeNull();

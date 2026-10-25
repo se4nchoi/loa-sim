@@ -15,7 +15,8 @@ import { gateSample } from './dps-gates';
 import { statDeltasAtLeast } from './dps-stats';
 import type { orderCoreEffect } from './ark-grid-dps';
 import { simulate, type SimGem, type SimState } from './simulate';
-import { gridStats, isParadiseProc, paradiseFactor } from './dealer-grid-stats';
+import { gridStats, isParadiseProc, paradiseFactor, procSeason } from './dealer-grid-stats';
+import { orbSeason } from './paradise';
 import { KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL } from './tables';
 import type { Loadout } from './types';
 import { statGain, type DamageContext } from './dps-stat-engine';
@@ -131,9 +132,12 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	if (enlightenment) delta.weaponPower += ((enlightenment * KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL) / 100) * simulate(loadout, state).weaponPower;
 	const ratio = (b: number, a: number) => (1 + b / 100) / (1 + a / 100);
 	const gridDamage = gridA && gridB ? ratio(gridB.damage, gridA.damage) * ratio(gridB.boss, gridA.boss) : 1;
-	// The Paradise orb's proc (its own skill, a few percent of the damage) grows with Paradise power. Checked on the logs: a
-	// character's proc hit is the same on every run and at any CP, and rises only as their Paradise power does.
-	const paradise = paradiseFactor(base, state) ?? 1;
+	// The Paradise orb's proc (its own skill, a few percent of the damage) grows with its season's Paradise power. Checked
+	// on the logs: a character's proc hit is the same on every run and at any CP, and rises only as that power does (a
+	// Season 3 orb's hit stays put in Season 4).
+	const paradise = (skillId: number) => paradiseFactor(base, state, procSeason(skillId)) ?? 1;
+	const orbNow = state.paradise ? orbSeason(state.paradise.orb) : null;
+	const powerMoved = !!orbNow && !!base.paradise && state.paradise!.orb === base.paradise.orb && state.paradise!.powers[orbNow] !== base.paradise.powers[orbNow];
 	const gridCrit = gridA && gridB ? ratio(gridB.critHit, gridA.critHit) - 1 : 0;
 	/** A skill's chaos / astrogem multiplier: all damage by Damage to foes and Boss, its crits by On Crit Hit damage. */
 	const gridOf = (skill: { damage: number; critDamage: number }) => gridDamage * (1 + (skill.damage > 0 ? skill.critDamage / skill.damage : 0) * gridCrit);
@@ -156,12 +160,13 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 		durationMs += run.duration;
 		const cores = arkGrid && !same(state.arkGrid, base.arkGrid) ? arkGrid(loadout, base, state, run) : null;
 		for (const u of cores?.unvalued ?? []) unvalued.add(u);
+		if (powerMoved && run.skills.some((s) => isParadiseProc(s.id) && procSeason(s.id) !== orbNow)) unvalued.add('Paradise power: this run was on another orb.');
 		for (const skill of run.skills) {
 			const gems = gemEffects.reduce((m, g) => (g.skills.has(skill.id) ? m * (1 + g.pct / 100) : m), 1) * (cores?.factor(skill) ?? 1);
 			const row = bySkill.get(skill.id) ?? { id: skill.id, before: 0, after: 0 };
 			row.before += skill.damage;
 			// A Paradise orb's proc hits for a fixed amount (no crits, the same at any gear): only Paradise power moves it.
-			row.after += skill.damage * (isParadiseProc(skill.id) ? paradise : skill.hyper ? 1 : stat * gems * gridOf(skill));
+			row.after += skill.damage * (isParadiseProc(skill.id) ? paradise(skill.id) : skill.hyper ? 1 : stat * gems * gridOf(skill));
 			bySkill.set(skill.id, row);
 		}
 		before += run.damage;
