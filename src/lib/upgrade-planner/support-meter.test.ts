@@ -24,6 +24,30 @@ describe('support meter', () => {
 		expect(s.allyAtk + s.allyDmg + s.brand).toBeGreaterThan(0);
 	});
 
+	it("reads support chaos cores (Brushann's Faith Enhancement and Echoing Brand) into the buff stats", () => {
+		const s = supportStats(loadout, base, base);
+		expect(s.takenDmg).toBeGreaterThan(0); // Echoing Brand: "target takes +x% Damage"
+		const bare = structuredClone(base);
+		bare.arkGrid = bare.arkGrid.filter((c) => !/^6731/.test(String(c.id)));
+		const without = supportStats(loadout, bare, base);
+		expect(s.allyDmg).toBeGreaterThan(without.allyDmg); // Faith Enhancement
+		expect(s.brand).toBeGreaterThan(without.brand); // Echoing Brand
+	});
+
+	it("scales the bracelet's Corrosion buff by its roll (Defense -2.5% → -1.8%), and Echoing Brand's by the core", () => {
+		const CORROSION = 605100061, ECHOING = 608243000;
+		const r = { ...run, support: { kinds: { attack: 0, damage: 0, brand: 0, other: 200 }, sources: { [CORROSION]: { kind: 'other' }, [ECHOING]: { kind: 'other' } },
+			dealers: [{ cls: 'Souleater', damage: 5000, kinds: { attack: 0, damage: 0, brand: 0, other: 200 }, buffs: { [CORROSION]: 100, [ECHOING]: 100 } }] } } as unknown as RunSummary;
+		const withEffect = (key: string) => { const s = structuredClone(base); s.bracelet = { lines: [...(s.bracelet?.lines ?? []), { kind: 'effect', key }] }; return s; };
+		const from = withEffect('3:11061'), to = withEffect('3:11063');
+		const m = supportMeter(loadout, from, to, r)!;
+		expect(m.after).toBeCloseTo(100 * (1.8 / 2.5) + 100, 6);
+		// Echoing Brand taken off: its debuff is gone.
+		const noEcho = structuredClone(from);
+		noEcho.arkGrid = noEcho.arkGrid.filter((c) => (c.as ?? c.id) !== 673113005);
+		expect(supportMeter(loadout, from, noEcho, r)!.after).toBeCloseTo(100, 6);
+	});
+
 	it('shows the recorded run unchanged without edits', () => {
 		const m = supportMeter(loadout, base, base, run)!;
 		expect(m.after).toBeCloseTo(m.before);
@@ -78,7 +102,7 @@ describe('support meter', () => {
 });
 
 describe('support core lines, buff by buff', () => {
-	const stats = { attackPower: 100, allyAtk: 10, allyDmg: 10, brand: 5, coreLines: [
+	const stats = { attackPower: 100, allyAtk: 10, allyDmg: 10, brand: 5, takenDmg: 0, debuffs: {}, coreLines: [
 		{ points: 10, stat: 'dmg' as const, pct: 1.5 },
 		{ points: 17, stat: 'dmg' as const, pct: 27, skill: 'Paint: Dragon Engraving' },
 		{ points: 17, stat: 'atk' as const, pct: 5.6, destiny: "Destiny: Sun's Embrace" }

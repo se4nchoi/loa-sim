@@ -15,7 +15,7 @@ import { bracerStats } from './bracer';
 import { baseAttackOf } from './dps-explain';
 import { braceletEffects, braceletStats, initSimState, optionLevel, simCorePoints, simulate, type SimState } from './simulate';
 import { decodeCore } from './tables';
-import { SUPPORT_ASTROGEM_VALUES, SUPPORT_CORE_LINES, type SupportCoreLine } from './support-buffs';
+import { SUPPORT_ASTROGEM_VALUES, SUPPORT_CHAOS_LINES, SUPPORT_CORE_LINES, type SupportChaosLine, type SupportCoreLine } from './support-buffs';
 import { SUPPORT_ACCESSORY_LINES, swappedCoreId } from './support';
 import { SUPPORT_BRACELET_EFFECTS } from './support-data';
 import type { Loadout } from './types';
@@ -29,6 +29,10 @@ export interface SupportStats {
 	brand: number;
 	/** The Order core lines in effect at the cores' points. */
 	coreLines: SupportCoreLine[];
+	/** Echoing Brand's "target takes +x% Damage" (percent), and the bracelet's target debuffs by effect family (1106
+	 *  Corrosion: Defense, 1107 Crit Resistance, 1109 Detachment: crit damage), percent: the logs keep these as buffs. */
+	takenDmg: number;
+	debuffs: Record<number, number>;
 }
 
 /** A line's percent: accessory values are in hundredths of a percent (800 = 8%). */
@@ -65,6 +69,31 @@ function coreLinesOf(loadout: Loadout, state: SimState, base: SimState): Support
 	return out;
 }
 
+/** The chaos core lines in effect (Faith / Fortitude Enhancement, Echoing Brand): as coreLinesOf, for chaos cores. */
+function chaosLinesOf(loadout: Loadout, state: SimState, base: SimState): SupportChaosLine[] {
+	const out: SupportChaosLine[] = [];
+	for (const core of state.arkGrid) {
+		const id = core.as ?? core.id;
+		const info = decodeCore(id), slot = decodeCore(core.id);
+		if (!info || !slot || info.attr !== 'chaos') continue;
+		const grade = core.grade ?? slot.grade;
+		const points = simCorePoints(loadout, state, base, core.id);
+		for (const line of SUPPORT_CHAOS_LINES[grade !== info.grade ? swappedCoreId(id, grade) : id] ?? []) if (points >= line.points) out.push(line);
+	}
+	return out;
+}
+
+/** The bracelet's target debuffs ("On hit, target's Defense -2.5%"), percent by effect family. */
+function braceletDebuffs(state: SimState): Record<number, number> {
+	const out: Record<number, number> = {};
+	for (const key of braceletEffects(state.bracelet)) {
+		const family = Number(key.match(/^3:(110[6-9])\d$/)?.[1] ?? 0);
+		const pct = family ? Number(SUPPORT_BRACELET_EFFECTS.find((e) => e.key === key)?.text.match(/target's [^.]*?-([\d.]+)%/)?.[1] ?? 0) : 0;
+		if (pct) out[family] = (out[family] ?? 0) + pct;
+	}
+	return out;
+}
+
 /** The loadout's own state: what simulate and core points measure edits against (not the run's baseline). */
 const anchors = new WeakMap<Loadout, SimState>();
 const anchorOf = (l: Loadout) => anchors.get(l) ?? (anchors.set(l, initSimState(l)), anchors.get(l)!);
@@ -73,12 +102,16 @@ export function supportStats(loadout: Loadout, state: SimState, _base?: SimState
 	const base = anchorOf(loadout);
 	const r = simulate(loadout, state, base);
 	const flat = bracerStats(state.bracer).attackFlat;
+	const chaos = chaosLinesOf(loadout, state, base);
+	const sum = (k: 'allyAtk' | 'allyDmg' | 'brand' | 'takenDmg') => chaos.reduce((t, l) => t + (l[k] ?? 0), 0);
 	return {
 		attackPower: (Math.sqrt((r.mainStat * r.weaponPower) / 6) + flat) * (1 + baseAttackOf(loadout, state) / 100),
-		allyAtk: linePct('s_ally_atk', state) + braceletPct(state, 54) + effectPct(state, 'Ally Atk\\. Power Enhancement') + astrogemPct(state, 2013),
-		allyDmg: linePct('s_ally_dmg', state) + braceletPct(state, 59) + astrogemPct(state, 2011),
-		brand: linePct('s_brand', state) + astrogemPct(state, 2012),
-		coreLines: coreLinesOf(loadout, state, base)
+		allyAtk: linePct('s_ally_atk', state) + braceletPct(state, 54) + effectPct(state, 'Ally Atk\\. Power Enhancement') + astrogemPct(state, 2013) + sum('allyAtk'),
+		allyDmg: linePct('s_ally_dmg', state) + braceletPct(state, 59) + astrogemPct(state, 2011) + sum('allyDmg'),
+		brand: linePct('s_brand', state) + astrogemPct(state, 2012) + sum('brand'),
+		coreLines: coreLinesOf(loadout, state, base),
+		takenDmg: sum('takenDmg'),
+		debuffs: braceletDebuffs(state)
 	};
 }
 
@@ -119,6 +152,20 @@ export function buffStrength(stats: SupportStats, kind: SupportKind, skill: stri
 	return kind === 'attack' ? stats.attackPower * (1 + (stats.allyAtk + extra) / 100) : 1 + (stats.allyDmg + extra) / 100;
 }
 
+/**
+ * A logged "other" buff that is the support's own gear, from `a` to `b`: Echoing Brand's damage-taken debuff (buff ids
+ * 60824xxxx) by the core's total, the bracelet's Corrosion / Detachment (6051000FR: effect family 11FF, roll R) by the
+ * bracelet's effect of that family (0 when it's gone). Raid buffs and the rest: 1, as recorded.
+ */
+function gearDebuffFactor(a: SupportStats, b: SupportStats, id: number): number {
+	if (Math.floor(id / 10_000) === 60_824) return a.takenDmg > 0 ? b.takenDmg / a.takenDmg : 1;
+	if (id >= 605_100_000 && id < 605_101_000) {
+		const family = 1100 + Math.floor((id - 605_100_000) / 10);
+		return (a.debuffs[family] ?? 0) > 0 ? (b.debuffs[family] ?? 0) / a.debuffs[family] : 1;
+	}
+	return 1;
+}
+
 export interface SupportMeter {
 	durationMs: number;
 	/** Party damage the buffs added, recorded and with the edits. */
@@ -155,7 +202,8 @@ export function supportMeter(loadout: Loadout, baseline: SimState, state: SimSta
 
 	/** A buff's factor from the baseline to the edits; 1 (left as recorded) when either side is unknown. */
 	let unknownDestiny = false;
-	const factor = (kind: SupportKind, skill: string | undefined) => {
+	const factor = (kind: SupportKind, skill: string | undefined, id?: number) => {
+		if (kind === 'other') return id === undefined ? 1 : gearDebuffFactor(a, b, id);
 		const x = buffStrength(a, kind, skill, destiny), y = buffStrength(b, kind, skill, destiny);
 		if (x === null || y === null || !(x > 0)) { unknownDestiny ||= x !== y; return 1; }
 		return y / x;
@@ -164,12 +212,12 @@ export function supportMeter(loadout: Loadout, baseline: SimState, state: SimSta
 	const kindsAfter = { ...kindsBefore };
 	const dealers = s.dealers.map((d) => {
 		// By buff when the import kept it (a core line can name one skill); by kind on older imports.
-		const parts: [SupportKind, string | undefined, number][] = d.buffs && s.sources
-			? Object.entries(d.buffs).map(([id, x]) => [s.sources![Number(id)]?.kind ?? 'other', s.sources![Number(id)]?.skill, x])
-			: KINDS.map((k) => [k, undefined, d.kinds[k]]);
+		const parts: [SupportKind, string | undefined, number, number | undefined][] = d.buffs && s.sources
+			? Object.entries(d.buffs).map(([id, x]) => [s.sources![Number(id)]?.kind ?? 'other', s.sources![Number(id)]?.skill, x, Number(id)])
+			: KINDS.map((k) => [k, undefined, d.kinds[k], undefined]);
 		let before = 0, after = 0;
-		for (const [kind, skill, x] of parts) {
-			const y = x * factor(kind, skill);
+		for (const [kind, skill, x, id] of parts) {
+			const y = x * factor(kind, skill, id);
 			before += x; after += y;
 			kindsBefore[kind] += x; kindsAfter[kind] += y;
 		}
