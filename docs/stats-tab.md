@@ -2,6 +2,8 @@
 
 Branch: `codex/stats-tab`, based on `origin/main`. The DPS branch is independent.
 
+Public dashboard release is deferred until enough data is collected. Production receives the collection-only changes on `codex/stats-collection`; the new navigation tab, dashboard, and public reporting endpoint remain on this preview branch. CSV export has been removed.
+
 ## Included
 
 - A public Stats navigation tab that loads automatically without a key. `/api/stats/public` publishes an explicit allowlist of aggregate counters; the original `/api/stats` endpoint retains key-protected diagnostics.
@@ -29,7 +31,7 @@ Branch: `codex/stats-tab`, based on `origin/main`. The DPS branch is independent
 - Existing infrastructure storage errors and request-rate limits are signaled by HTTP responses. A durable operations-health history is a later stage.
 - Redis duplicate receipts expire after seven days; the browser retry window is much shorter. A future journal replaces this temporary per-event receipt design at larger scale.
 - Public responses use a one-minute browser/instance cache and five-minute CDN cache. Supported ranges are limited to four values, and concurrent instance cache misses share one read. Private API responses remain no-store.
-- The chart supports hover/touch selection and arrow-key navigation. One observed day remains one point. CSV export includes fixed daily aggregate columns only.
+- The chart supports hover/touch selection and arrow-key navigation. One observed day remains one point.
 - Unit tests exercise storage behavior through a Redis REST test double. The Lua script also requires a real Redis/Upstash integration check before production rollout; no production database is used for tests.
 
 ## Validation

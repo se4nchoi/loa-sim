@@ -3,7 +3,6 @@
 	import { CATEGORY_LABELS, type UpgradeCategory } from '$lib/upgrade-planner/upgrades';
 	import { onMount } from 'svelte';
 	import StatsTimeline from '$lib/StatsTimeline.svelte';
-	import { statsCsv } from '$lib/stats-chart';
 	import { CP_BUCKETS, LEVEL_BUCKETS } from '$lib/plan-stats';
 	let days = $state('30');
 	let report = $state<StatsReport | null>(null);
@@ -30,13 +29,6 @@
 	const field = 'h-10 rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm text-surface-100 focus:border-accent-500 focus:outline-none';
 
 	onMount(() => { void load(); });
-	function exportCsv() {
-		if (!report) return;
-		const url = URL.createObjectURL(new Blob([statsCsv(report.days)], {type:'text/csv;charset=utf-8'}));
-		const link = document.createElement('a');
-		link.href = url; link.download = `loa-sim-stats-${report.from}-${report.to}.csv`; link.click();
-		setTimeout(() => URL.revokeObjectURL(url), 1_000);
-	}
 	async function load() {
 		if (busy) return;
 		busy = true;
@@ -64,7 +56,6 @@
 			{#if report}<p class="text-xs text-surface-400 tabular-nums">{report.from} — {report.to} <span class="ml-2">UTC · today partial</span></p>{/if}
 		</div>
 		<div class="flex flex-wrap gap-2">
-			{#if report}<button type="button" onclick={exportCsv} class="{field} hover:border-surface-500">Export CSV</button>{/if}
 			<select aria-label="Date range" bind:value={days} class={field} onchange={() => load()} disabled={busy}>
 				<option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option><option value="all">All time</option>
 			</select>

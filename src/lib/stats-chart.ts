@@ -1,5 +1,3 @@
-import { ACTIVITY_EVENTS, EXPLORATION_EVENTS, type StatsDay } from './stats-model';
-
 export function chartGeometry(values: number[]) {
 	const safe = values.map(n => Number.isFinite(n) ? Math.max(0, n) : 0);
 	const ceiling = Math.max(1, ...safe);
@@ -9,9 +7,3 @@ export function chartGeometry(values: number[]) {
 	return {ceiling, points, line, area};
 }
 
-export function statsCsv(days: StatsDay[]) {
-	const events = [...ACTIVITY_EVENTS, ...EXPLORATION_EVENTS];
-	const rows = [['UTC date', 'Estimated characters', ...events.map(([, label]) => label)],
-		...days.map(day => [day.date, day.distinctCharacters, ...events.map(([key]) => day.counts[key] ?? 0)])];
-	return rows.map(row => row.map(cell => `"${String(cell).replaceAll('"', '""')}"`).join(',')).join('\r\n');
-}

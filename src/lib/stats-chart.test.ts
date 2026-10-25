@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chartGeometry, statsCsv } from './stats-chart';
+import { chartGeometry } from './stats-chart';
 
 describe('activity chart', () => {
 	it.each([[],[0],[0,0],[NaN,Infinity,-1],[100,120,20]].map(values=>[values]))('keeps empty/short series finite: %j', values => {
@@ -9,11 +9,5 @@ describe('activity chart', () => {
 	});
 	it('centers a single day instead of inventing a multi-day trend',()=>{
 		expect(chartGeometry([4]).points[0].x).toBe(500);
-	});
-	it('exports only the defined aggregate columns, including exploration',()=>{
-		const csv = statsCsv([{date:'2026-10-25',distinctCharacters:3,counts:{lookup:5,budget_opened:2,'private:diagnostic':999}}]);
-		expect(csv).toContain('"Budgets opened"');
-		expect(csv).toContain('"2026-10-25","3","5"');
-		expect(csv).not.toMatch(/private|999/);
 	});
 });
