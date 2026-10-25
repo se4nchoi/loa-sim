@@ -60,7 +60,7 @@
 		</nav>
 	</header>
 	<div role="status" aria-live="polite" aria-atomic="true" class="pointer-events-none fixed top-14 left-1/2 z-[60] -translate-x-1/2">
-		{#if loadHint}<p class="whitespace-nowrap rounded-sm border border-neutral-700 bg-surface-900 px-4 py-2 text-sm text-surface-200 shadow-lg shadow-black/30">Load a char first</p>{/if}
+		{#if loadHint}<p class="whitespace-nowrap rounded-sm border border-neutral-700 bg-surface-900 px-4 py-2 text-sm text-surface-200 shadow-lg shadow-black/30">Load a character first to simulate !</p>{/if}
 	</div>
 
 	<main class="mx-auto w-full max-w-[1680px] flex-1 px-4 py-6">
