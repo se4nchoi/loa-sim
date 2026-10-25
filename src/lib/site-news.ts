@@ -19,10 +19,10 @@ export const UPDATES: SiteUpdate[] = [
 		kind: 'new',
 		title: 'DPS mode (Beta)',
 		points: [
-			"Switch the Simulator to DPS to replay one of your own LOA Logs clears or failed pulls, and see each edit's effect on its damage.",
-			'Import encounters.db on the PC where LOA Logs runs; it is read in your browser and nothing is uploaded.',
-			"Each clear starts from the gear and Ark Grid you raided with; Next Upgrades can rank by DPS or gold per 1% DPS.",
-			'Beta: gear, gems and Order core changes are counted; engravings, karma, Paradise and chaos cores are not yet. Ark Grid effects are checked on Souleater, Breaker, Soulfist and Guardian Knight clears.'
+			'Replay your own LOA Logs runs and see what each edit does to their damage.',
+			'encounters.db is read in your browser; nothing is uploaded.',
+			'Supports see the party DPS their buffs add.',
+			'Next Upgrades ranks by DPS or gold per 1% DPS.'
 		]
 	},
 	{
