@@ -10,6 +10,5 @@
 	value={dpsMode ? 'dps' : 'cp'}
 	options={[{ value: 'cp', label: 'CP' }, { value: 'dps', label: 'DPS', badge: 'Beta', title: 'Replay one of your own clears from LOA Logs with your edits' }]}
 	onselect={onmode}
-	full
-	size="h-8 px-3 text-sm"
+	size="h-8 min-w-14 px-3 text-sm"
 />

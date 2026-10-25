@@ -249,7 +249,7 @@
 		</div>
 	{/if}
 </div>
-	{#if onmode && loadout}<div class="w-56 max-sm:w-full"><ModeSwitch {dpsMode} {onmode} /></div>{/if}
+	{#if onmode && loadout}<div class="shrink-0"><ModeSwitch {dpsMode} {onmode} /></div>{/if}
 </div>
 {#if !loadout}
 	<p class="text-surface-300">This character has no Ark Passive loadout with combat power data yet.</p>
