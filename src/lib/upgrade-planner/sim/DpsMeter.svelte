@@ -86,8 +86,9 @@
 	{/if}
 
 	{#if meter.notInMeter.length || meter.notes.length}
+		{@const notes = meter.notes.length ? `${meter.notes.length} note${meter.notes.length > 1 ? 's' : ''}` : ''}
 		<details class="text-xs text-amber-300/90">
-			<summary class="cursor-pointer select-none hover:text-amber-200">※ Not counted yet: {meter.notInMeter.length ? meter.notInMeter.join(', ') : 'some effects'}{meter.notes.length ? ` · ${meter.notes.length} note${meter.notes.length > 1 ? 's' : ''}` : ''}</summary>
+			<summary class="cursor-pointer select-none hover:text-amber-200">※ {meter.notInMeter.length ? `Not counted yet: ${meter.notInMeter.join(', ')}${notes ? ` · ${notes}` : ''}` : notes}</summary>
 			<ul class="mt-1 space-y-0.5 pl-4 text-amber-200/80">
 				{#if meter.notInMeter.length}<li>Counted in CP, not in DPS.</li>{/if}
 				{#each meter.notes as note (note)}<li>{note}</li>{/each}
