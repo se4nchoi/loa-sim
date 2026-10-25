@@ -41,10 +41,19 @@ const strip = (s) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 // "Phantom Beast Skills"): each part is one of the class's groups (scripts/skill-group-map.mjs) or a skill by name.
 // → { groups, skills }; undefined when a part is neither.
 const targetOf = (target, cls) => {
+	// "Skill Damage +1.5%": every skill.
+	if (/^Skills?$/.test(target)) return { groups: null };
+	// "Charge-type skill" is the Charge group; "Esoteric Skill: Azure Dragon Supreme Fist" is that skill when the game
+	// data names it without the prefix (some Esoteric skills keep it).
+	target = target.replace(/-type [Ss]kills?\b/g, ' Skill');
+	if (/^Esoteric Skill: /.test(target) && !skillIds[cls]?.[target]) target = target.replace(/^Esoteric Skill: /, '');
 	const names = groupNames(cls);
 	const groups = [], skillList = [];
-	for (const raw of target.split(/, and |, or |, | and | or /)) {
-		const part = raw.trim();
+	const parts = target.split(/, and |, or |, | and | or /).map((p) => p.trim());
+	// "Normal and Encroachment Skill": the last part's "Skill" names the groups before it too.
+	const shared = / Skills?$/.test(parts.at(-1));
+	for (const part of parts) {
+		if (shared && names.includes(part)) { groups.push(part); continue; }
 		const group = part.match(/^(.+?) Skills?$/)?.[1];
 		if (group && names.includes(group)) { groups.push(group); continue; }
 		const ids = skillIds[cls]?.[part] ?? (group ? skillIds[cls]?.[group] : undefined);
@@ -84,10 +93,11 @@ function effectsOf(option, cls) {
 		// A state the effect needs ("In Deathlord Mode, ...", "With Possession, ..."): valued on the damage dealt in it.
 		let when = sticky;
 		sticky = undefined;
-		const onCrit = s.match(/^On (.+?) Crit Hit, (Damage(?: to foes)? [+-][\d.]+%\.?)$/);
+		const onCrit = s.match(/^On (?:(.+?) )?Crit Hit, (Damage(?: to foes)? [+-][\d.]+%\.?)$/);
 		let crit = false;
-		// "On Rifle Skill Crit Hit, Damage to foes +6.5%": the crits of those skills, not every skill's.
-		if (onCrit) { s = onCrit[1] + ' ' + onCrit[2].replace(/^Damage to foes/, 'Damage'); crit = true; }
+		// "On Rifle Skill Crit Hit, Damage to foes +6.5%": the crits of those skills, not every skill's; "On Crit Hit,
+		// Damage +2.0%": every skill's crits.
+		if (onCrit) { s = onCrit[1] ? onCrit[1] + ' ' + onCrit[2].replace(/^Damage to foes/, 'Damage') : onCrit[2].replace(/^Damage(?! to foes)/, 'Damage to foes'); crit = true; }
 		// "With Exploding Finisher's Blue Heart, ..." / "With Possession, ...": a tripod, checked against the character's skills.
 		let needs = stickyTripod;
 		stickyTripod = undefined;
@@ -122,13 +132,26 @@ function effectsOf(option, cls) {
 			head = whole.slice(0, whole.length - last.length);
 			s = last;
 		}
+		// A damage clause next to a speed change ("Charged Shot Casting Speed +15% and Damage +10.0%", "Attack Speed and Move
+		// Speed +10.0% and Manifestation Skill Damage +57.0%", "Call of the Wind God Damage +15.0% and Casting Speed +15.0%"):
+		// the damage is valued, the speed kept as text. A cooldown or skill tree trade changes the rotation: left as text.
+		let speed = '';
+		if (!head && !/cooldown|Skill Tree/i.test(whole)) {
+			const SPEED = String.raw`(?:(?:Casting|Charge|Attack|Atk\.|Move)(?: Speed and (?:Move|Attack))? Speed|Atk\./Move Speed) [+-] ?[\d.]+%`;
+			const DAMAGE = String.raw`(?:.* )?Damage(?: to foes)? ?[+-] ?[\d.]+%`;
+			const first = whole.match(new RegExp(`^(.*?)\\s*(${SPEED}) and (${DAMAGE})$`));
+			const after = whole.match(new RegExp(`^(${DAMAGE}) and (${SPEED})$`));
+			if (first && (/^Damage/.test(first[3]) || !first[1])) { speed = first[2]; s = /^Damage/.test(first[3]) && first[1] ? `${first[1]} ${first[3]}` : first[3]; }
+			else if (after) { speed = after[2]; s = after[1]; }
+		}
 		// Crit Rate / Crit Damage of skills ("Hurricane Sword Crit Damage +60.0%", "Overdrive Crit Rate +10.0%"): valued
 		// with each skill's logged crit rate and crit multiplier. Read as a damage line, marked by `stat`.
 		let stat;
 		const critStat = s.match(/^(?:(.+?) )?Crit (Damage|Rate) ([+-]) ?([\d.]+)%(.*)$/);
 		if (critStat && !/^On /.test(s)) {
 			stat = critStat[2] === 'Rate' ? 'critRate' : 'critDamage';
-			s = `${critStat[1] ? critStat[1] + ' ' : ''}Damage ${critStat[3]}${critStat[4]}%${critStat[5]}`;
+			// No skill named ("Crit Damage +10.0%"): every skill's.
+			s = `${critStat[1] ? critStat[1] + ' Damage' : 'Damage to foes'} ${critStat[3]}${critStat[4]}%${critStat[5]}`;
 		}
 		// A bare "Damage +13.0%." continues the sentence before it (one Korean sentence split in two): the skills named
 		// there ("While using World Decimation, all incoming Damage -30.0%. Damage + 13.0%.").
@@ -157,6 +180,7 @@ function effectsOf(option, cls) {
 		const plain = !destiny && !perStack && (tail === '' || when);
 		if (target !== undefined && !exceptUnknown && Number.isFinite(pct) && (plain || (destiny && (feature || (inBuff && buffName)) && !perStack))) {
 			out.push({ pct, ...target, ...(except.length ? { except: [...new Set(except)] } : {}), ...(destiny ? { ...(feature ? { feature: feature.index, level: feature.value } : {}), ...(inBuff && buffName ? { buff: buffName } : {}) } : {}), ...(when ? { when } : {}), ...(crit ? { crit: true } : {}), ...(needs ? { tripod: needs } : {}), ...(stat ? { stat } : {}), ...(position ? { position: position[1] === 'Back' ? 'back' : 'front' } : {}) });
+			if (speed) out.push({ text: speed });
 		} else out.push({ text: line.trim() });
 		prev = line;
 	}
