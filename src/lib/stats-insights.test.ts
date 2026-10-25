@@ -31,9 +31,10 @@ describe('insight collection',()=>{
 		expect(completeUpgradeCost(honing,{[honing.key]:10},auto,{stone:0})).toBe(10);
 		expect(completeUpgradeCost(honing,{[honing.key]:10},{},{})).toBeUndefined();
 	});
-	it('retains non-gold requirements on affordable offers even when a standard upgrade has best value',()=>{
+	it('retains non-gold requirements on selected free raid upgrades',()=>{
 		const raid={...upgrade('raid','honing',3),knownCost:0};
-		expect(opportunitySample(cohort,[{...acc,gainPct:4},raid],{acc:0,raid:0},{},{})).toMatchObject({best:'accessory',assumption:'non-gold-materials'});
+		expect(opportunitySample(cohort,[acc,raid],{acc:0,raid:0},{},{})).toMatchObject({best:'honing',assumption:'non-gold-materials'});
+		expect(opportunitySample(cohort,[{...acc,gainPct:4},raid],{acc:0,raid:0},{},{})).toMatchObject({best:'accessory',assumption:'standard'});
 		const paidRaid={...raid,knownCost:100000};
 		expect(opportunitySample(cohort,[acc,paidRaid],{acc:0,raid:100000},{},{})).toMatchObject({best:'accessory',assumption:'standard'});
 	});
