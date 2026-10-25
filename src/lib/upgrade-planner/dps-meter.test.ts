@@ -199,3 +199,15 @@ describe('chaos cores and astrogem options', async () => {
 		expect(g.gainPct).toBeGreaterThan(0);
 	});
 });
+
+describe('Paradise orb proc', () => {
+	it('stays put under gear edits: it hits for a fixed amount', () => {
+		const r = run(1, { damage: 1000, skills: [{ id: gemSkill, damage: 970, critDamage: 0, hits: 1, crits: 0, casts: 1 }, { id: 171000907, damage: 30, critDamage: 0, hits: 1, crits: 0, casts: 1 }] });
+		const state = structuredClone(base);
+		state.gear.weapon!.honing += 1;
+		const m = dpsMeter(loadout, base, state, [r], [r])!;
+		const proc = m.skills.find((s) => s.id === 171000907)!, other = m.skills.find((s) => s.id === gemSkill)!;
+		expect(other.after).toBeGreaterThan(other.before);
+		expect(proc.after).toBe(proc.before);
+	});
+});
