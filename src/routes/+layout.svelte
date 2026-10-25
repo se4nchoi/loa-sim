@@ -15,7 +15,8 @@
 
 	const tabs = [
 		{ href: '/', label: 'Characters', active: (p: string) => p === '/' },
-		{ href: '/sim', label: 'Simulator', active: (p: string) => p.startsWith('/sim') || p.startsWith('/character') || p.startsWith('/s/') }
+		{ href: '/sim', label: 'Simulator', active: (p: string) => p.startsWith('/sim') || p.startsWith('/character') || p.startsWith('/s/') },
+		{ href: '/stats', label: 'Stats', active: (p: string) => p === '/stats' }
 	];
 </script>
 
@@ -33,13 +34,13 @@
 <div class="flex min-h-screen flex-col">
 	<!-- Fixed height: the phone CP bar docks right under it (top-12). -->
 	<header class="sticky top-0 z-50 h-12 bg-neutral-900/80 shadow-sm shadow-neutral-800 backdrop-blur">
-		<nav class="mx-auto flex h-full max-w-[1680px] items-stretch gap-1 px-4 text-sm font-semibold">
-			<a href="/" class="mr-4 flex items-center text-base whitespace-nowrap hover:opacity-80">loa-sim</a>
+		<nav class="mx-auto flex h-full max-w-[1680px] items-stretch gap-1 px-3 text-sm font-semibold sm:px-4">
+			<a href="/" class="mr-1 flex items-center text-base whitespace-nowrap hover:opacity-80 sm:mr-4">loa-sim</a>
 			{#each tabs as t (t.href)}
 				{@const on = t.active(page.url.pathname)}
 				<a
 					href={t.href}
-					class="flex items-center border-b-2 px-3 transition {on ? 'border-accent-500 text-surface-50' : 'border-transparent text-surface-300 hover:text-surface-50'}"
+					class="flex items-center border-b-2 px-2 transition sm:px-3 {on ? 'border-accent-500 text-surface-50' : 'border-transparent text-surface-300 hover:text-surface-50'}"
 					aria-current={on ? 'page' : undefined}
 				>
 					{t.label}

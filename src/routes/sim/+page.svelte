@@ -45,7 +45,6 @@
 		if (!saved) return;
 		const key = characterKey(saved);
 		rememberViewed(key);
-		track({ event: 'sim_open' }, `sim:${key}`);
 		if (build) { older = []; return; }
 		recordSnapshots(key, saved, saved.savedAt);
 		// The chosen snapshot can be folded into a copy of the same gear: go back to bible's loadout then.
@@ -56,6 +55,21 @@
 		// Same gear as one of bible's two (re-snapshotted unchanged) isn't listed twice.
 		const listed = new Set((['current', 'estimated'] as const).flatMap((k) => (saved.loadouts?.[k] ? [gearKey(saved.loadouts[k]!)] : [])));
 		older = listSnapshots(key).filter((s) => !listed.has(gearOf(s)) || s.id === saved.snapshotId);
+	});
+	// Once per character per page visit, when visible. Returning through navigation creates a new visit.
+	const viewed = new Set<string>();
+	$effect(() => {
+		if (!saved) return;
+		const key = characterKey(saved);
+		const observe = () => {
+			if (document.visibilityState === 'visible' && !viewed.has(key)) {
+				viewed.add(key);
+				track({ event: 'sim_open' });
+			}
+		};
+		observe();
+		document.addEventListener('visibilitychange', observe);
+		return () => document.removeEventListener('visibilitychange', observe);
 	});
 
 	let loadingCharacter = $state(false);

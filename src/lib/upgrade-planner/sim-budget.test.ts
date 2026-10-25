@@ -9,6 +9,15 @@ import { setSkinPart, skinPriceKey } from './skins';
 
 const loadout = soulshan as unknown as Loadout;
 describe('current changes budget', () => {
+	it('does not omit Paradise edits or removed gems from price coverage',()=>{
+		const base=initSimState(loadout),target=structuredClone(base);
+		target.gems.pop();
+		const paradise=base.paradise??{orb:0,powers:{0:0},k:1,flat:false};
+		target.paradise={...paradise,powers:Object.fromEntries(Object.entries(paradise.powers).map(([season,power])=>[season,power+100000]))};
+		const rows=budgetChanges(loadout,base,target);
+		expect(rows).toContainEqual(expect.objectContaining({section:'Gems',status:'excluded'}));
+		expect(rows).toContainEqual(expect.objectContaining({section:'Paradise',status:'unavailable'}));
+	});
 	it('prices changed skin pieces as market purchases by slot and target grade', () => {
 		const base = initSimState(loadout), target = structuredClone(base);
 		base.skins = { bonus: 4, currentBonus: null, parts: [1, 1, 1, 1] };

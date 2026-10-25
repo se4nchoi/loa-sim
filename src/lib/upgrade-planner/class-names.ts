@@ -38,6 +38,13 @@ const NA_NAMES: Record<string, string> = {
 export const classKeyFromName = (name: string) =>
 	Object.entries(NA_NAMES).find(([, na]) => na.toLowerCase() === name.replaceAll(' ', '').toLowerCase())?.[0];
 
+/** Canonical internal ID from either an upstream ID or a display name. */
+export function resolveClass(value: unknown): string | undefined {
+	if (typeof value !== 'string') return undefined;
+	const compact = value.trim().replaceAll('_', '').replaceAll(' ', '').toLowerCase();
+	return NA_NAMES[compact] ? compact : classKeyFromName(value.trim());
+}
+
 /** NA class name for a bible class id; unknown ids fall back to a readable form of the id. */
 export const className = (classId: string) =>
 	NA_NAMES[classId.replaceAll('_', '').toLowerCase()] ??

@@ -8,6 +8,9 @@
 	import { setContext, untrack, type Snippet, tick } from 'svelte';
 	import { className as classNameOf } from './class-names';
 	import { applyUpgrade } from './apply-upgrade';
+	import { track } from '$lib/stats';
+	import type { PlanContext } from '$lib/plan-stats';
+	import { insightCohort, type InsightScope } from '$lib/stats-insights';
 	import { autosaveSimulation, loadAutosave } from './saved-simulations';
 	import { roleOf, simulationBaseline } from './roles';
 	import { formatCp } from './format';
@@ -37,12 +40,13 @@
 	import { cpBreakdown } from './cp-breakdown';
 	import { PartType } from './cp';
 	import { SECTIONS, type PreviewEdit, type SectionDelta, type SimSection } from './sim/ui';
-	import { gemParts, initSimState, itemLevel, mainStatIndex, simulate, type SimState } from './simulate';
+	import { arkGridOverWillpower, gemParts, initSimState, itemLevel, mainStatIndex, simulate, type SimState } from './simulate';
 	import type { Loadout } from './types';
 	import { coreStates, type Upgrade } from './upgrades';
 
 	let {
 		loadout,
+		planStats = $bindable(null),
 		initialState,
 		restoreInitial = false,
 		workspaceKey,
@@ -54,6 +58,7 @@
 		edited = $bindable(false)
 	}: {
 		loadout: Loadout;
+		planStats?: PlanContext | null;
 		initialState?: SimState;
 		restoreInitial?: boolean;
 		workspaceKey?: string;
@@ -195,6 +200,12 @@
 	const current = $derived(startingScore.cp);
 	// A consistent snapshot keeps its in-game score; inconsistent gear uses its calculated baseline.
 	const simulated = $derived(current * (result.cp / baseline.cp));
+	$effect(() => {
+		const c=insightCohort(loadout.classId,characterKey,loadout.itemLevel,loadout.battlePoint.isSupport);
+		planStats = { state: calculated, baselineCp: current, targetCp: simulated,
+			targetIlvl: itemLevel(calculated), consistent: !startingScore.mismatch && !arkGridOverWillpower(calculated.arkGrid),
+			support: loadout.battlePoint.isSupport,base,startIlvl:loadout.itemLevel,contributions:sections,classId:c?.classId,region:c?.region };
+	});
 
 	/** Each section's effect on its own: only that section's edits applied to the starting state. */
 	const sections = $derived.by(() => {
@@ -219,6 +230,21 @@
 	setContext('loa-sim:cp', () => simulated);
 	// Dealer or support battle point tables, for the cards (which lines / options / effects score).
 	setContext('loa-sim:role', () => roleOf(loadout));
+	const sampledOpportunities = new WeakMap<Loadout,Set<string>>();
+	const cohort = () => startingScore.mismatch || arkGridOverWillpower(calculated.arkGrid) ? undefined
+		: insightCohort(loadout.classId,characterKey,loadout.itemLevel,loadout.battlePoint.isSupport);
+	setContext<InsightScope>('loa-sim:insights',{
+		cohort,
+		opportunityReady:()=>!edited && !!cohort() && (sampledOpportunities.get(loadout)?.size??0)<2,
+		opportunity:sample=>{
+			if(edited || !cohort()) return;
+			const seen=sampledOpportunities.get(loadout)??new Set<string>();
+			if(seen.has(sample.coverage))return;
+			seen.add(sample.coverage);sampledOpportunities.set(loadout,seen);
+			track({event:'opportunity_sampled',insight:sample});
+		},
+		emit:sample=>{if(cohort())track({event:`${sample.kind}_sampled`,insight:sample});}
+	});
 
 	// Standing among the class: the character's own 10-level bracket until the player picks another range.
 	const own = $derived(ownRange(loadout.itemLevel));
@@ -241,8 +267,14 @@
 	function applySuggestion(u: Upgrade) {
 		const s = snapshot();
 		if (!applyUpgrade(loadout, s, base, u)) return false;
+		const changed = JSON.stringify(s) !== JSON.stringify(snapshot());
 		sim = s;
-		return true;
+		if (changed) track({ event: 'upgrade_applied', category: u.category });
+		return changed;
+	}
+	function openBudget() {
+		if (!budgetOpen) track({ event: 'budget_opened' });
+		budgetOpen = true;
 	}
 
 	function reset() {
@@ -355,7 +387,7 @@
 		onredo={redo}
 		canUndo={past.length > 0}
 		canRedo={future.length > 0}
-		onbudget={() => budgetOpen = true}
+		onbudget={openBudget}
 		onbreakdown={() => breakdownOpen = true}
 	>
 		{#snippet share()}
@@ -372,7 +404,7 @@
 		Simulation uses the supplied gear's CP. Choose another snapshot for a matching gear and score.
 	</p>
 {/if}
-<MobileSummaryBar {current} {simulated} nav={jumpChips} onbudget={() => budgetOpen = true}>{@render summary()}</MobileSummaryBar>
+<MobileSummaryBar {current} {simulated} nav={jumpChips} onbudget={openBudget}>{@render summary()}</MobileSummaryBar>
 <div class="grid grid-cols-[1fr_320px] items-start gap-2 max-lg:grid-cols-1">
 	<!-- Two columns on wide screens; a single column only when the screen is narrow. -->
 	<div class="flex min-w-0 flex-col gap-2">
