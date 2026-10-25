@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RunSummary } from '$lib/logs/protocol';
 import soulshan from './fixtures/na-soulshan.json';
 import type { Loadout } from './types';
-import { initSimState } from './simulate';
+import { initSimState, type DpsLine } from './simulate';
 import { engravingNames } from './dps-loadout';
 import { gemMembers } from './dps-explain';
 import { dpsMeter, matchSnapshot, meterGain } from './dps-meter';
@@ -154,7 +154,7 @@ describe('meter gain (Next Upgrades in DPS mode)', () => {
 	});
 	it('values an Outgoing Damage line as a damage multiplier, not a note', () => {
 		const up = structuredClone(base);
-		const line = up.accessories.neck!.find((ln) => ln.key === 'outgoing_dmg')!;
+		const line = up.accessories.neck!.find((ln): ln is DpsLine => ln.key === 'outgoing_dmg')!;
 		expect(line.tier).toBe('mid');
 		line.tier = 'high';
 		const m = dpsMeter(loadout, base, up, [run(1)], [run(1)])!;
