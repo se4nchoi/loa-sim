@@ -7,6 +7,8 @@
 //     available); skills without that record are listed, not counted;
 //   - order Ark Grid cores (with the model loaded, see ark-grid-dps.ts): their skill group and Destiny damage;
 //   - engravings and Outgoing Damage lines: every skill, by the damage the CP sim scores them at;
+//   - bracelet effects: their stats with the stat edits; Outgoing, Crit Hit, back / frontal and non-directional damage
+//     on the skills (and parts of skills) they apply to;
 //   - chaos cores, astrogem options, Enlightenment Karma and the Paradise orb's proc (dealer-grid-stats.ts);
 //   - anything else (Evolution / Leap Karma, swaps the run can't show) is listed, not counted.
 import type { RunSummary } from '$lib/logs/protocol';
@@ -14,7 +16,8 @@ import { critRates } from './dps-comparison';
 import { baseAttackOf, gemMembers, planModel, skillEffect } from './dps-explain';
 import { modelGain } from './dps-model';
 import { gateSample } from './dps-gates';
-import { statDeltasAtLeast } from './dps-stats';
+import { braceletDamage, statDeltasAtLeast } from './dps-stats';
+import { NON_DIRECTIONAL_SKILLS } from './skill-groups';
 import type { orderCoreEffect } from './ark-grid-dps';
 import { initSimState, simulate, type SimGem, type SimState } from './simulate';
 import { PartType } from './cp';
@@ -48,8 +51,9 @@ export interface Meter {
 /** Edited parts of the state the stat model covers (see dps-stats COVERED) or that are only log data. */
 const STAT_KEYS = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet', 'skillShares', 'skillCooldownUse']);
 const LABELS: Partial<Record<keyof SimState, string>> = { arkGrid: 'Ark Grid', karma: 'Karma', paradise: 'Paradise' };
-/** Accessory lines the meter values itself (as damage multipliers), not through the stat model. */
-const OWN_LINES = ['outgoing_dmg'] as const;
+/** What the meter values itself, not through the stat model: Outgoing Damage lines and the bracelet's damage terms. */
+const OWN_LINES = ['outgoing_dmg', 'bracelet'] as const;
+const NON_DIRECTIONAL = new Set(NON_DIRECTIONAL_SKILLS);
 const DROPPED_EDITS = 'Some gear edits';
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
@@ -161,6 +165,24 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	const gridCrit = gridA && gridB ? ratio(gridB.critHit, gridA.critHit) - 1 : 0;
 	/** A skill's chaos / astrogem multiplier: all damage by Damage to foes and Boss, its crits by On Crit Hit damage. */
 	const gridOf = (skill: { damage: number; critDamage: number }) => gridDamage * (1 + (skill.damage > 0 ? skill.critDamage / skill.damage : 0) * gridCrit);
+	// Bracelet effects: Outgoing Damage on every skill, Crit Hit damage on each skill's crits, back / frontal attack damage on
+	// what the logs recorded as such, non-directional damage on those skills; conditional parts listed, not counted.
+	const [braA, braB] = [braceletDamage(base), braceletDamage(state)];
+	const pct = (k: 'outgoing' | 'critHit' | 'back' | 'front' | 'nonDirectional') => (1 + braB[k] / 100) / (1 + braA[k] / 100);
+	const bracelet = { outgoing: pct('outgoing'), critHit: pct('critHit') - 1, back: pct('back') - 1, front: pct('front') - 1, nonDirectional: pct('nonDirectional') };
+	// The same line at another value is one entry ("Specialization +97"); a line only the run had is marked removed.
+	const kind = (t: string) => t.replace(/[\d.,]+/g, '#');
+	for (const k of new Set([...braA.unvalued, ...braB.unvalued].map(kind))) {
+		const a = braA.unvalued.filter((t) => kind(t) === k), b = braB.unvalued.filter((t) => kind(t) === k);
+		if (same(a, b)) continue;
+		notInMeter.push(...(b.length ? b.filter((t) => !a.includes(t)) : a).map((t) => `Bracelet: ${t}${b.length ? '' : ' (removed)'}`));
+	}
+	if ((bracelet.back || bracelet.front) && runs.some((r) => r.skills.some((sk) => sk.damage > 0) && !r.skills.some((sk) => sk.front !== undefined))) notes.push('Back / frontal attack damage needs the logs re-imported; it is left out.');
+	const braceletOf = (skill: { id: number; damage: number; critDamage: number; front?: number; back?: number }) => {
+		const share = (v?: number) => (skill.damage > 0 && v ? v / skill.damage : 0);
+		return bracelet.outgoing * (1 + share(skill.critDamage) * bracelet.critHit) * (1 + share(skill.back) * bracelet.back) * (1 + share(skill.front) * bracelet.front)
+			* (NON_DIRECTIONAL.has(skill.id) ? bracelet.nonDirectional : 1);
+	};
 	const hasStats = Object.values(delta).some((v) => v);
 
 	// Each clear on its own: the gear's buckets from the build's clears, Crit Rate from this clear (or the pooled one).
@@ -176,7 +198,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 		if (gain === null) statKnown = false;
 		const stat = 1 + (gain ?? 0) / 100;
 		statWeighted += Math.max(0, run.damage - run.skills.filter((s) => s.hyper).reduce((sum, s) => sum + s.damage, 0)) * (gain ?? 0);
-		outsideDamage += Math.max(0, run.damage - run.skills.reduce((sum, s) => sum + s.damage, 0)) * stat * gridDamage * parts;
+		outsideDamage += Math.max(0, run.damage - run.skills.reduce((sum, s) => sum + s.damage, 0)) * stat * gridDamage * parts * bracelet.outgoing;
 		durationMs += run.duration;
 		const cores = arkGrid && !same(state.arkGrid, base.arkGrid) ? arkGrid(loadout, base, state, run) : null;
 		for (const u of cores?.unvalued ?? []) unvalued.add(u);
@@ -186,7 +208,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 			const row = bySkill.get(skill.id) ?? { id: skill.id, before: 0, after: 0 };
 			row.before += skill.damage;
 			// A Paradise orb's proc hits for a fixed amount (no crits, the same at any gear): only Paradise power moves it.
-			row.after += skill.damage * (isParadiseProc(skill.id) ? paradise(skill.id) : skill.hyper ? 1 : stat * gems * gridOf(skill) * parts);
+			row.after += skill.damage * (isParadiseProc(skill.id) ? paradise(skill.id) : skill.hyper ? 1 : stat * gems * gridOf(skill) * parts * braceletOf(skill));
 			bySkill.set(skill.id, row);
 		}
 		before += run.damage;

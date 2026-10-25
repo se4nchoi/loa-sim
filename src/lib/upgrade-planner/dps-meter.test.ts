@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { RunSummary } from '$lib/logs/protocol';
 import soulshan from './fixtures/na-soulshan.json';
 import type { Loadout } from './types';
-import { initSimState, type DpsLine } from './simulate';
+import { initSimState, type DpsLine, type SimState } from './simulate';
+import { braceletPart } from './dps-stats';
 import { engravingNames } from './dps-loadout';
 import { gemMembers } from './dps-explain';
 import { dpsMeter, matchSnapshot, meterGain } from './dps-meter';
@@ -160,6 +161,40 @@ describe('meter gain (Next Upgrades in DPS mode)', () => {
 		const m = dpsMeter(loadout, base, up, [run(1)], [run(1)])!;
 		expect(m.notes.join(' ')).not.toContain('Outgoing Damage');
 		expect(m.after / m.before).toBeCloseTo(1.02 / 1.012, 9);
+	});
+	describe('bracelet effects', () => {
+		const ASTAROS = 46430, REAPERS_SCYTHE = 46500; // non-directional; a back attack
+		const positional = () => run(1, { damage: 1000, skills: [
+			{ id: ASTAROS, damage: 600, critDamage: 0, hits: 1, crits: 0, casts: 1, front: 0, back: 0 },
+			{ id: REAPERS_SCYTHE, damage: 400, critDamage: 0, hits: 1, crits: 0, casts: 1, front: 0, back: 400 }
+		] });
+		const lines = (s: SimState) => s.bracelet!.lines;
+		const effect = (s: SimState, prefix: string) => lines(s).find((x): x is { kind: 'effect'; key: string } => x.kind === 'effect' && x.key.startsWith(prefix))!;
+		it('swaps non-directional damage for back attack damage on the skills each applies to', () => {
+			const up = structuredClone(base);
+			const nd = braceletPart(effect(base, '4:6051001').key)!.nonDirectional;
+			effect(up, '4:6051001').key = '4:605100151'; // Back Attack Damage +3.5%
+			const r = positional();
+			const m = dpsMeter(loadout, base, up, [r], [r])!;
+			expect(m.notInMeter).toEqual([]);
+			expect(m.skills.find((s) => s.id === ASTAROS)!.after).toBeCloseTo(600 / (1 + nd / 100), 6);
+			expect(m.skills.find((s) => s.id === REAPERS_SCYTHE)!.after).toBeCloseTo(400 * 1.035, 6);
+		});
+		it('reads a roll within a family as its stat; the same conditional part on both sides is not listed', () => {
+			const up = structuredClone(base);
+			effect(up, '3:1104').key = '3:11041'; // Additional Damage +3.5% (and the same vs. Demons bonus)
+			const m = dpsMeter(loadout, base, up, [run(1)], [run(1)])!;
+			expect(m.notInMeter).toEqual([]);
+			expect(meterGain(loadout, base, base, up, [run(1)], [run(1)]).gainPct).toBeGreaterThan(0);
+		});
+		it('values Crit as Crit Rate and lists Specialization', () => {
+			const crit = structuredClone(base);
+			(lines(crit).find((x) => x.kind === 'stat' && x.index === 15) as { value: number }).value += 20;
+			expect(meterGain(loadout, base, base, crit, [run(1)], [run(1)]).gainPct).toBeGreaterThan(0);
+			const spec = structuredClone(base);
+			(lines(spec).find((x) => x.kind === 'stat' && x.index === 16) as { value: number }).value += 20;
+			expect(dpsMeter(loadout, base, spec, [run(1)], [run(1)])!.notInMeter).toEqual(['Bracelet: Specialization +97']);
+		});
 	});
 	it("moves a proc only with its own season's power: a Season 3 orb's Broadwave keeps its hit", () => {
 		const season = orbSeason(base.paradise!.orb)!;
