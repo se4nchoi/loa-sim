@@ -133,7 +133,8 @@ export interface SupportMeter {
 
 const KINDS: SupportKind[] = ['attack', 'damage', 'brand', 'other'];
 /** The parts whose effect on the buffs is the stats above (or nothing for them); the rest is listed, not valued. */
-const VALUED = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet', 'skillShares', 'skillCooldownUse', 'arkGrid', 'gems']);
+// Karma: Enlightenment's Weapon Power reaches Attack Power through the simulator; Evolution and Leap are a CP bonus only.
+const VALUED = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet', 'skillShares', 'skillCooldownUse', 'arkGrid', 'gems', 'karma']);
 const LABELS: Partial<Record<keyof SimState, string>> = { karma: 'Karma', engravings: 'Engravings', paradise: 'Paradise' };
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 /** Astrogem options besides the support ones (Attack Power, Additional Damage, Boss Damage): not part of the buffs. */
@@ -148,6 +149,7 @@ export function supportMeter(loadout: Loadout, baseline: SimState, state: SimSta
 	const destiny = destinyUptime(run);
 	const notInMeter: string[] = (Object.keys(state) as (keyof SimState)[]).filter((k) => !VALUED.has(k) && !same(state[k], baseline[k])).map((k) => LABELS[k] ?? k);
 	if (!same(otherOptions(state), otherOptions(baseline))) notInMeter.push('Other astrogem options');
+	if (state.karma.evolution !== baseline.karma.evolution || state.karma.leap !== baseline.karma.leap) notInMeter.push('Evolution / Leap Karma');
 	if (!same(state.gems, baseline.gems)) notInMeter.push('Gem cooldowns (their base attack counts)');
 
 	/** A buff's factor from the baseline to the edits; 1 (left as recorded) when either side is unknown. */

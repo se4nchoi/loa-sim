@@ -16,6 +16,7 @@ import { statDeltasAtLeast } from './dps-stats';
 import type { orderCoreEffect } from './ark-grid-dps';
 import { simulate, type SimGem, type SimState } from './simulate';
 import { gridStats } from './dealer-grid-stats';
+import { KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL } from './tables';
 import type { Loadout } from './types';
 import { statGain, type DamageContext } from './dps-stat-engine';
 
@@ -55,7 +56,9 @@ function unvaluedParts(loadout: Loadout, base: SimState, state: SimState, hasArk
 	const out: string[] = [];
 	for (const key of Object.keys(state) as (keyof SimState)[]) {
 		if (STAT_KEYS.has(key) || key === 'gems' || same(state[key], base[key])) continue;
-		if (key !== 'arkGrid' || !hasArkGrid) out.push(LABELS[key] ?? key);
+		// Karma: Enlightenment's Weapon Power is valued; Evolution and Leap give only a CP bonus, not a damage stat.
+		if (key === 'karma') { if (state.karma.evolution !== base.karma.evolution || state.karma.leap !== base.karma.leap) out.push('Evolution / Leap Karma'); }
+		else if (key !== 'arkGrid' || !hasArkGrid) out.push(LABELS[key] ?? key);
 		else if (!same(gridStats(loadout, state).unvalued, gridStats(loadout, base).unvalued)) out.push('Chaos core speed, cooldown and Burn lines');
 	}
 	return out;
@@ -122,6 +125,9 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 		delta.additionalDamage += gridB.addDmg - gridA.addDmg;
 		delta.weaponPower += gridB.wpFlat - gridA.wpFlat + ((gridB.wpPct - gridA.wpPct) / 100) * simulate(loadout, state).weaponPower;
 	}
+	// Enlightenment Karma: Weapon Power +0.1% a level, as flat on the build's Weapon Power.
+	const enlightenment = (state.karma.enlightenment ?? 0) - (base.karma.enlightenment ?? 0);
+	if (enlightenment) delta.weaponPower += ((enlightenment * KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL) / 100) * simulate(loadout, state).weaponPower;
 	const ratio = (b: number, a: number) => (1 + b / 100) / (1 + a / 100);
 	const gridDamage = gridA && gridB ? ratio(gridB.damage, gridA.damage) * ratio(gridB.boss, gridA.boss) : 1;
 	const gridCrit = gridA && gridB ? ratio(gridB.critHit, gridA.critHit) - 1 : 0;

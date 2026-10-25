@@ -96,7 +96,7 @@ describe('DPS meter', () => {
 		if (state.karma.evolution !== null) state.karma.evolution = Math.min(30, state.karma.evolution + 1);
 		else state.karma.leap = (state.karma.leap ?? 0) + 1;
 		const m = dpsMeter(loadout, base, state, [run(1)], [run(1)])!;
-		expect(m.notInMeter).toEqual(['Karma']);
+		expect(m.notInMeter).toEqual(['Evolution / Leap Karma']);
 		expect(m.after).toBeCloseTo(m.before);
 	});
 	it('sums several clears and their fight time', () => {
@@ -123,6 +123,13 @@ describe('meter gain (Next Upgrades in DPS mode)', () => {
 		if (to.karma.evolution !== null) to.karma.evolution = Math.min(30, to.karma.evolution + 1);
 		else to.karma.leap = (to.karma.leap ?? 0) + 1;
 		expect(meterGain(loadout, base, base, to, [run(1)], [run(1)]).gainPct).toBeNull();
+	});
+	it("values Enlightenment Karma (Weapon Power) but not Evolution / Leap Karma's CP bonus", () => {
+		expect(base.karma.enlightenment).not.toBeNull();
+		const up = structuredClone(base);
+		up.karma.enlightenment = Math.min(29, base.karma.enlightenment!) + 1;
+		expect(meterGain(loadout, base, base, up, [run(1)], [run(1)]).gainPct).toBeGreaterThan(0);
+		expect(dpsMeter(loadout, base, up, [run(1)], [run(1)])!.notInMeter).toEqual([]);
 	});
 	it('is unknown too when the clear already differed there (its Karma), not +0.00%', () => {
 		const clear = structuredClone(base);
