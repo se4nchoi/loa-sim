@@ -113,6 +113,11 @@ describe('order core effects', () => {
 		expect(orderCoreEffect(loadout, withFootsteps(), withFootsteps('ancient'), exact).factor(exact.skills[0])).toBeCloseTo(1 + 0.655 * (1.64 / 1.54 - 1), 9);
 	});
 
+	it('finds a Destiny buff the logs name without "Destiny: " (Guardian Knight\'s "Hyperfocus")', () => {
+		const r = run([skill(ASTAROS, 1000, { 3461200: 655 })], { 3461200: 'Footsteps of the Dead' });
+		expect(orderCoreEffect(loadout, withFootsteps(), withFootsteps('ancient'), r).factor(r.skills[0])).toBeCloseTo(1 + 0.655 * (1.64 / 1.54 - 1), 9);
+	});
+
 	it('no core change, no effect', () => {
 		const r = run([skill(ASTAROS, 1000, {})]);
 		expect(orderCoreEffect(loadout, withFootsteps(), withFootsteps(), r).changed).toBe(false);

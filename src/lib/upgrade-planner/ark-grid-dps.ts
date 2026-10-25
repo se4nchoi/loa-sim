@@ -166,8 +166,11 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 		if (key.startsWith('buff:')) return ids.filter((id) => `buff:${Math.floor(id / 100)}` === key);
 		const state = key.slice(6);
 		const exact = ids.filter((id) => buffMatches(run.buffNames![id], state));
-		// A Destiny buff the core's text names short of what the logs record ("Destiny: Final" is "Destiny: Final Words").
-		return exact.length || !state.startsWith('Destiny: ') ? exact : ids.filter((id) => run.buffNames![id].startsWith(`${state} `));
+		// A Destiny buff the logs name otherwise than the core's text: longer ("Destiny: Final" is "Destiny: Final Words"),
+		// or without the prefix ("Destiny: Hyperfocus" is "Hyperfocus").
+		if (exact.length || !state.startsWith('Destiny: ')) return exact;
+		const bare = state.slice('Destiny: '.length);
+		return ids.filter((id) => run.buffNames![id].startsWith(`${state} `) || run.buffNames![id] === bare);
 	};
 	const share = (s: RunSkill, ids: number[]) => (s.damage ? Math.min(1, Math.max(0, ...ids.map((id) => s.buffs?.[id] ?? 0)) / s.damage) : 0);
 

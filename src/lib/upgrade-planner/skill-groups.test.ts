@@ -18,6 +18,9 @@ describe('skill groups for every class', () => {
 		expect(SKILL_GROUPS.scouter[35770]).toContain('Sync'); // Laser Blade
 		expect(SKILL_GROUPS.yinyangshi[31060]).toContain('Paint'); // Paint: Shattering Strike
 		for (const id of [24030, 24031, 24032]) expect(SKILL_GROUPS.forcemaster[id]).toContain('Supreme Art Form'); // Supreme Technique / Palm / Godfist
+		for (const id of [49150, 49160, 49280]) expect(SKILL_GROUPS.dragonknight[id]).toContain('Charge Mode'); // Quake Smash / Piercing Shock / Rending Finisher
+		// "Quake Smash, Piercing Shock, and Rending Finisher's Charge Mode Damage +138%": all three, not the last one only.
+		expect(Object.values(ORDER_CORE_EFFECTS).flat().some((e) => e.buff === 'Destiny: Hyperfocus' && [49150, 49160, 49280].every((id) => e.skills?.includes(id)))).toBe(true);
 		const effects = Object.values(ORDER_CORE_EFFECTS).flat();
 		expect(effects.some((e) => e.skills?.includes(47020))).toBe(true); // Breaker's "Asura War Basic Attack"
 		expect(effects.some((e) => e.groups?.includes('Normal') && e.groups.includes('Encroachment'))).toBe(true); // Shadowhunter

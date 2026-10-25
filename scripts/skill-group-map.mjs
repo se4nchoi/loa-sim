@@ -51,11 +51,22 @@ export const TYPE_GROUPS = { Point: 2, Charge: 3, Holding: 4, Combo: 5, Chain: 6
  */
 export const CLASS_TYPE_GROUPS = { elementalmaster: { 'Normal Mode': 1, 'Point Mode': 2, 'Casting Control': 11 } };
 
-/** Skills core effects name differently from the skill data: class → the effect's name → the skill's. */
+/**
+ * Groups a class's cores name that are a set of skills, not a category or type (skill names). Guardian Knight's "Charge
+ * Mode" skills are the three its own core text lists ("Quake Smash, Piercing Shock, and Rending Finisher's Charge Mode
+ * Damage"); its "Charging" and "Charge" skills are the same (it has no Charge-type skill), checked on a run (10-25-26).
+ */
+export const NAMED_GROUPS = {
+	dragonknight: Object.fromEntries(['Charge Mode', 'Charging', 'Charge'].map((g) => [g, ['Quake Smash', 'Piercing Shock', 'Rending Finisher']]))
+};
+
+/** Skills core effects name differently from the skill data: class → the effect's name → the skill name(s). */
 export const SKILL_ALIASES = {
 	// The only Asura basic attack in the data.
-	infighter_male: { 'Asura War Basic Attack': 'Asura Destruction Basic Attack' }
+	infighter_male: { 'Asura War Basic Attack': 'Asura Destruction Basic Attack' },
+	// A Basic Attack in Hypergravity is the enhanced one (a Destroyer player, 10-25-26): both.
+	destroyer: { 'Basic Attack': ['Basic Attack', 'Hypergravity Basic Attack'] }
 };
 
 /** Group names a class's core effects can use. */
-export const groupNames = (cls) => [...Object.keys(CATEGORY_GROUPS[cls] ?? {}), ...Object.keys(TYPE_GROUPS), ...Object.keys(CLASS_TYPE_GROUPS[cls] ?? {})];
+export const groupNames = (cls) => [...Object.keys(CATEGORY_GROUPS[cls] ?? {}), ...Object.keys(TYPE_GROUPS), ...Object.keys(CLASS_TYPE_GROUPS[cls] ?? {}), ...Object.keys(NAMED_GROUPS[cls] ?? {})];

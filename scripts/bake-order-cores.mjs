@@ -70,7 +70,11 @@ const targetOf = (target, cls) => {
 		const group = part.match(/^(.+?) Skills?$/)?.[1];
 		if (group && names.includes(group)) { groups.push(group); continue; }
 		// "Emperor Card": Arcanist's card skill of that name.
-		const name = SKILL_ALIASES[cls]?.[part] ?? (skillByName(cls, part) ? part : part.replace(/ Card$/, ''));
+		const alias = SKILL_ALIASES[cls]?.[part];
+		if (Array.isArray(alias)) { const ids = alias.flatMap((n) => skillByName(cls, n) ?? []); if (!ids.length) return undefined; skillList.push(...ids); continue; }
+		// "Rending Finisher's Charge Mode": that skill (in its charge mode, which the logs don't split out).
+		const bare = part.replace(/'s Charge Mode$/, '');
+		const name = alias ?? (skillByName(cls, bare) ? bare : bare.replace(/ Card$/, ''));
 		const ids = skillByName(cls, name) ?? (group ? skillByName(cls, group) : undefined);
 		if (!ids) return undefined;
 		skillList.push(...ids);
@@ -89,7 +93,8 @@ function effectsOf(option, cls) {
 	const feature = option.stats.find((s) => s.type === 28);
 	const out = [];
 	let inBuff = false, sticky, stickyTripod, buffName, prev = '';
-	const desc = strip(option.desc.replace(/<br>|\n/gi, '\n')).replace(/\s*\((?:Max|Up to) [^)]*\)/gi, '').replace(/%\.(?=[A-Z])/g, '%. ').replace(/([+-]) (?=\d)/g, '$1'); // "Damage + 15.0%"
+	const desc = strip(option.desc.replace(/<br>|\n/gi, '\n')).replace(/\s*\((?:Max|Up to) [^)]*\)/gi, '').replace(/%\.(?=[A-Z])/g, '%. ').replace(/([+-]) (?=\d)/g, '$1').replace(/theDestiny/g, 'the Destiny') // "Damage + 15.0%", "gain theDestiny: …"
+		.replace(/(\d[\d.]*s) (Destiny: [^:]+:)/g, '$1. $2'); // "… for 20.0s Destiny: Hyperfocus: …" (a missing period)
 	for (const line of desc.split(/(?<=\.)\s+(?=[A-Z])/)) {
 		let s = line.trim();
 		if (!s) continue;
@@ -124,7 +129,10 @@ function effectsOf(option, cls) {
 		}
 		const classTripod = !destiny && !tripod && s.match(/^With ([A-Z][\w' ]+), (.*)$/);
 		if (classTripod && tripodNames[cls]?.has(classTripod[1])) { needs = stickyTripod = classTripod[1]; s = classTripod[2]; }
-		const state = !destiny && !tripod && !(classTripod && needs) && s.match(/^(?:(?:In|While in) ([A-Z][\w' ]+ (?:Mode|Stance))|With ([A-Z][\w' ]+)|During ([A-Z][\w' ]+?)(?<! use)), (.*)$/); // "During Perfect Shot use" is a skill-use condition
+		// A sentence with its own tripod condition doesn't carry on the state before it ("During Charge Mode for Piercing
+		// Shock, … With Piercing Shock's Death Blow, Damage +20.0%").
+		if (tripod || (classTripod && needs)) when = undefined;
+		const state = !destiny && !tripod && !(classTripod && needs) && s.match(/^(?:(?:In|While in) ([A-Z][\w' ]+ (?:Mode|Stance|Zone))|With ([A-Z][\w' ]+)|During ([A-Z][\w' ]+?)(?<! use)), (.*)$/); // "During Perfect Shot use" is a skill-use condition
 		if (state) { when = sticky = state[1] ?? state[2] ?? state[3]; s = state[4]; } // and the sentence after it
 		s = s.charAt(0).toUpperCase() + s.slice(1);
 		// Conditions the logs do show, in other words: "When Destiny: X effect is active, ..." (that buff), "When using A or
@@ -162,7 +170,10 @@ function effectsOf(option, cls) {
 		// Outside a Destiny buff a leading condition the run can't show ("When Supreme Art is at Third Form or above, ...")
 		// keeps it text.
 		const conditional = !destiny && /^(?:When|On|Upon|If|After|Each|For each) /.test(whole);
-		if (!conditional && last !== whole && /^(?:[A-Z].* )?Damage(?: to foes)? ?[+-] ?[\d.]+%$/.test(last) && !/^[A-Z][^,]* Damage [+-][\d.]+%$/.test(whole) && !/Crit|Stagger|per stack/.test(last)) {
+		// Nor when the whole sentence is a list of skills ("Quake Smash, Piercing Shock, and Rending Finisher's Charge Mode Damage").
+		const listTarget = whole.match(/^(.+?) Damage(?: to foes)? ?[+-] ?[\d.]+%$/)?.[1];
+		const listed = !!listTarget && targetOf(listTarget, cls) !== undefined;
+		if (!conditional && !listed && last !== whole && /^(?:[A-Z].* )?Damage(?: to foes)? ?[+-] ?[\d.]+%$/.test(last) && !/^[A-Z][^,]* Damage [+-][\d.]+%$/.test(whole) && !/Crit|Stagger|per stack/.test(last)) {
 			head = whole.slice(0, whole.length - last.length);
 			s = last;
 		}

@@ -18,9 +18,12 @@ import { GEM_SKILLS } from '$lib/upgrade-planner/game-data';
 import { ORDER_CORES } from '$lib/upgrade-planner/order-cores';
 import { initSimState, simCorePoints, type SimState } from '$lib/upgrade-planner/simulate';
 import { SKILL_GROUPS } from '$lib/upgrade-planner/skill-groups';
+import type { Loadout } from '$lib/upgrade-planner/types';
+import soulshan from '$lib/upgrade-planner/fixtures/na-soulshan.json';
+import brushann from '$lib/upgrade-planner/fixtures/na-brushann.json';
 import { supportGain, supportMeter } from '$lib/upgrade-planner/support-meter';
 
-const LOG = process.env.LOG, PLAYER = process.env.PLAYER, REGION = process.env.REGION ?? 'NA';
+const LOG = process.env.LOG, PLAYER = process.env.PLAYER;
 const DEV = process.env.DEV_SERVER ?? 'http://localhost:5173';
 const SUPPORTS = new Set(['Bard', 'Paladin', 'Artist', 'Valkyrie']);
 
@@ -40,7 +43,8 @@ it.skipIf(!LOG || !PLAYER)('public log audit', { timeout: 120_000 }, async () =>
 	const page = nodes.map((n) => (n?.data ? (unflatten(n.data) as Record<string, unknown>) : null)).find((p) => p?.encounterInfo) as { encounterInfo: { encounter: Record<string, unknown> } };
 	const enc = page.encounterInfo.encounter as { entityList: Entity[] | Record<string, Entity>; fightStart: number; currentBossName: string; difficulty?: string; duration: number; encounterDamageStats: { buffs?: Record<string, Buff>; debuffs?: Record<string, Buff>; misc?: Record<string, unknown> } };
 	const players = (Array.isArray(enc.entityList) ? enc.entityList : Object.values(enc.entityList)).filter((e) => e.entityType === 'PLAYER');
-	const e = players.find((p) => p.name.toLowerCase() === PLAYER!.toLowerCase());
+	// PLAYER: a name, or a class ("Sorceress") for the log's first player of it.
+	const e = players.find((p) => p.name.toLowerCase() === PLAYER!.toLowerCase()) ?? players.find((p) => p.class.toLowerCase() === PLAYER!.toLowerCase());
 	if (!e) throw new Error(`${PLAYER} isn't in log ${LOG}: ${players.map((p) => p.name).join(', ')}`);
 	const stats = enc.encounterDamageStats, misc = stats.misc ?? null;
 
@@ -63,9 +67,15 @@ it.skipIf(!LOG || !PLAYER)('public log audit', { timeout: 120_000 }, async () =>
 	if (!run) throw new Error('no skill damage');
 
 	// The character (one, as the app loads it) and the run's gear.
-	const char = (await (await fetch(`${DEV}/api/character/${REGION}/${encodeURIComponent(e.name)}`)).json()) as CharacterData;
-	const loadout = char.loadout!;
+	// The log's region as bible's (NA, CE), unless REGION says. A player the log keeps anonymous ("Deadeye #1") has no
+	// character page: their run's gear goes on a stand-in character of the same role (the Soulshan / Brushann fixtures),
+	// which is all the edits and cores need; only "run setup → current gear" is skipped.
+	const REGION = process.env.REGION ?? (/^(CE|EU)/i.test(String(misc?.region ?? '')) ? 'CE' : 'NA');
+	const anonymous = /#d+$/.test(e.name);
+	const char = anonymous ? null : ((await (await fetch(`${DEV}/api/character/${REGION}/${encodeURIComponent(e.name)}`)).json()) as CharacterData);
 	const snap = (await (await fetch(`${DEV}/api/snapshot/${e.loadoutHash}`)).json()) as ClearSnapshot;
+	const standIn = !char?.loadout;
+	const loadout = char?.loadout ?? ({ ...(SUPPORTS.has(e.class) ? brushann : soulshan), classId: snap.classId } as unknown as Loadout);
 	const setup = clearState(loadout, snap, run.skills), base = setup.state, now = initSimState(loadout);
 	const isSupport = !!loadout.battlePoint.isSupport;
 	const cls = Object.values(ORDER_CORES).find((c) => base.arkGrid.some((g) => ORDER_CORES[g.as ?? g.id] === c))?.cls ?? '';
@@ -75,11 +85,13 @@ it.skipIf(!LOG || !PLAYER)('public log audit', { timeout: 120_000 }, async () =>
 	const dmg = run.skills.reduce((s, k) => s + k.damage, 0);
 	const share = (f: (id: number) => boolean) => ((100 * run.skills.filter((k) => f(k.id)).reduce((s, k) => s + k.damage, 0)) / dmg).toFixed(1);
 	out.push(`skills: ${share((id) => !!SKILL_GROUPS[cls]?.[id])}% of damage in a skill group, ${share((id) => !!GEM_SKILLS[id])}% on gem skills`);
+	const top = run.skills.toSorted((a, b) => b.damage - a.damage).slice(0, 10);
+	out.push(`top skills: ${top.map((k) => `${names[k.id]?.[0]}#${k.id} ${((100 * k.damage) / dmg).toFixed(1)}%${k.hyper ? ' hyper' : ''} [${(SKILL_GROUPS[cls]?.[k.id] ?? []).join('/')}]`).join(', ')}`);
 	out.push(`unknown skills: ${run.skills.filter((k) => !SKILL_GROUPS[cls]?.[k.id] && !GEM_SKILLS[k.id] && !isParadiseProc(k.id) && k.damage / dmg > 0.005).map((k) => `${names[k.id]?.[0]}#${k.id} ${((100 * k.damage) / dmg).toFixed(1)}%`).join(', ') || 'none over 0.5%'}`);
 
 	// The run's own setup → the current gear, as DPS mode shows it by default.
-	const meter = isSupport ? supportMeter(loadout, base, now, run) : dpsMeter(loadout, base, now, [run], [run], orderCoreEffect);
-	out.push(`run setup → current gear: ${meter ? `${pct((meter.after / meter.before - 1) * 100)}` : 'no meter'}`);
+	const meter = standIn ? null : isSupport ? supportMeter(loadout, base, now, run) : dpsMeter(loadout, base, now, [run], [run], orderCoreEffect);
+	out.push(standIn ? `stand-in character (${anonymous ? 'anonymous in the log' : 'not found'}): the run's own gear only` : `run setup → current gear: ${meter ? `${pct((meter.after / meter.before - 1) * 100)}` : 'no meter'}`);
 	for (const x of meter?.notInMeter ?? []) out.push(`  not counted: ${x}`);
 	for (const x of (meter && 'notes' in meter ? (meter.notes as string[]) : [])) out.push(`  note: ${x}`);
 
@@ -87,7 +99,8 @@ it.skipIf(!LOG || !PLAYER)('public log audit', { timeout: 120_000 }, async () =>
 	const gain = (to: SimState) => (isSupport ? supportGain(loadout, base, base, to, run) : meterGain(loadout, base, base, to, [run], [run], orderCoreEffect).gainPct);
 	const probe = (label: string, edit: (s: SimState) => boolean) => { const s = structuredClone(base); if (edit(s)) out.push(`  ${label}: ${pct(gain(s))}`); };
 	out.push('one-step edits on the run setup:');
-	probe('weapon honing +1', (s) => !!s.gear.weapon && (s.gear.weapon.honing += 1) > 0);
+	const slot = (Object.entries(base.gear) as [string, { honing: number } | undefined][]).find(([, g]) => g && g.honing < 25)?.[0];
+	if (slot) probe(`${slot} honing +1`, (s) => ((s.gear as Record<string, { honing: number }>)[slot].honing += 1) > 0);
 	for (const kind of ['damage', 'cooldown'] as const) {
 		const i = base.gems.findIndex((g) => g.kind === kind && g.skill !== null && g.level < 10);
 		if (i >= 0) probe(`${kind} gem ${GEM_SKILLS[base.gems[i].skill!]?.[0]} ${base.gems[i].level} → ${base.gems[i].level + 1}`, (s) => (s.gems[i].level += 1) > 0);
@@ -103,8 +116,15 @@ it.skipIf(!LOG || !PLAYER)('public log audit', { timeout: 120_000 }, async () =>
 		if (!info) continue;
 		const fx = activeEffects(id, simCorePoints(loadout, base, anchor, core.id));
 		const wheres = [...fx.effects.keys()].map((k) => k.slice(0, k.lastIndexOf('#'))).filter((w) => w.startsWith('state:'));
-		const found = (w: string) => Object.values(run.buffNames ?? {}).some((n) => buffMatches(n, w.slice(6)) || (w.startsWith('state:Destiny: ') && n.startsWith(`${w.slice(6)} `)));
-		out.push(`  ${info.name}: ${fx.effects.size} valued place(s)${wheres.length ? `; needs ${[...new Set(wheres)].map((w) => `${w.slice(6)} ${found(w) ? '✓' : '✗ not in the run'}`).join(', ')}` : ''}${fx.other.length ? `; text: ${fx.other.length}` : ''}`);
+		const found = (w: string) => Object.values(run.buffNames ?? {}).some((n) => buffMatches(n, w.slice(6)) || (w.startsWith('state:Destiny: ') && (n.startsWith(`${w.slice(6)} `) || n === w.slice(15))));
+		out.push(`  ${info.name}${wheres.length ? ` (needs ${[...new Set(wheres)].map((w) => `${w.slice(6)} ${found(w) ? '✓' : '✗ not in the run'}`).join(', ')})` : ''}`);
+		// Each valued effect: its size, what it names, and how much of the run's (non-hyper) damage that is.
+		for (const [key, list] of fx.effects) for (const x of list) {
+			const hits = (k: (typeof run.skills)[number]) => !k.hyper && (x.groups === null || x.skills?.includes(k.id) || !!x.groups?.some((g) => SKILL_GROUPS[cls]?.[k.id]?.includes(g))) && !x.except?.includes(k.id);
+			const on = run.skills.filter(hits).reduce((s2, k) => s2 + k.damage, 0);
+			out.push(`    ${x.stat ?? 'damage'} ${pct((x.pct ?? 0) * 100)} on ${x.groups === null ? 'every skill' : [...(x.groups ?? []), ...(x.skills ?? []).map((i) => names[i]?.[0] ?? i)].join(', ')}${x.tripod ? ` (tripod ${x.tripod})` : ''}${key.startsWith('#') ? '' : ` while ${key.slice(0, key.lastIndexOf('#')).replace(/^state:/, '')}`}: ${((100 * on) / dmg).toFixed(1)}% of damage`);
+		}
+		for (const t of fx.other) out.push(`    unread: ${t.slice(0, 120)}`);
 	}
 
 	const report = out.join('\n');
