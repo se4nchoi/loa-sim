@@ -221,12 +221,32 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	after += outsideDamage;
 	notes.push(...unvalued);
 	if (hasStats && !statKnown) notes.push(context ? 'Configured totals do not cover this run’s crit conversion; stat edits are left out.' : "Stat edits need a run recorded with LOA Logs' stat values, or configured combat totals; they're left out.");
+	const lender = hasStats && statKnown && !context && !runs.some((r) => r.statValues) ? buildRuns.find((r) => r.statValues) : undefined;
+	if (lender) notes.push(`Stat values from the ${runDate(lender.start)} run: this one didn't record them.`);
 	return {
 		before, after, durationMs,
 		skills: [...bySkill.values()].sort((a, b) => b.after - a.after),
 		statPct: hasStats && statKnown ? statWeighted / Math.max(1, before) : hasStats ? null : 0,
 		notInMeter: [...new Set(notInMeter)], notes
 	};
+}
+
+const runDate = (ms: number) => { const d = new Date(ms); return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const DAY_MS = 86_400_000;
+
+/**
+ * The runs whose stat values (LOA Logs' value of one more of each stat) the meter uses for `run`: its own when it has
+ * them. LOA Logs leaves them out of many runs, so otherwise the nearest run in time that has them: on the same gear
+ * snapshot or Order cores (`sameCores`) within two weeks, else any within a month. The values measure the stat buckets
+ * (Atk. Power, Additional Damage, crit), which drift slowly; without them every stat edit would be left out.
+ */
+export function statValueRuns(run: RunSummary, all: RunSummary[], sameCores: (r: RunSummary) => boolean = () => false): RunSummary[] {
+	if (run.statValues) return [run];
+	const within = (days: number) => all.filter((r) => r !== run && r.statValues && Math.abs(r.start - run.start) <= days * DAY_MS)
+		.toSorted((a, b) => Math.abs(a.start - run.start) - Math.abs(b.start - run.start));
+	const near = within(14);
+	const lender = near.find((r) => r.loadoutHash && r.loadoutHash === run.loadoutHash) ?? near.find(sameCores) ?? within(30)[0];
+	return lender ? [lender] : [run];
 }
 
 /**

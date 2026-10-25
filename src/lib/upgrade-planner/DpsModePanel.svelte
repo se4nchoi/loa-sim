@@ -21,7 +21,7 @@
 	import { classColor } from './class-colors';
 	import { formatDamage } from './dps-comparison';
 	import { raidsOf } from './dps-gates';
-	import { dpsMeter, matchSnapshot, type SnapshotOption } from './dps-meter';
+	import { dpsMeter, matchSnapshot, statValueRuns, type SnapshotOption } from './dps-meter';
 	import { formatDate, formatPct } from './format';
 	import { GEM_SKILLS } from './game-data';
 	import { iconUrl } from './icons';
@@ -145,7 +145,11 @@
 	let runCores = $state<Record<string, string>>({});
 	$effect(() => {
 		if (shared) return;
-		const hashes = [...new Set(clears.map((r) => r.loadoutHash).filter((h): h is string => !!h && isSnapshotHash(h) && !(h in untrack(() => runCores))))].slice(0, 12);
+		// And a run without LOA Logs' stat values: the nearest runs that have them, to lend them on the same cores.
+		const lenders = clear && !clear.statValues
+			? own.filter((r) => r.statValues && Math.abs(r.start - clear!.start) <= 14 * 86_400_000).toSorted((a, b) => Math.abs(a.start - clear!.start) - Math.abs(b.start - clear!.start)).slice(0, 4)
+			: [];
+		const hashes = [...new Set([...lenders, ...clears].map((r) => r.loadoutHash).filter((h): h is string => !!h && isSnapshotHash(h) && !(h in untrack(() => runCores))))].slice(0, 16);
 		let live = true;
 		(async () => {
 			for (const h of hashes) {
@@ -167,8 +171,10 @@
 			notEnrage: on ? pick.notEnrage.filter((x) => x !== r.id) : [...new Set([...pick.notEnrage, r.id])] });
 	}
 	const runs = $derived<RunSummary[]>(clear ? [clear] : []);
-	// Calibration belongs to the selected run. Similar CP/engravings on another run do not prove the same build.
-	const buildRuns = $derived(runs);
+	// Calibration belongs to the selected run; when LOA Logs didn't record its stat values, the nearest run on the same
+	// gear snapshot or Order cores lends them (statValueRuns). Similar CP alone doesn't prove the same build.
+	const coresOfRun = (r: RunSummary) => (r.loadoutHash && r.loadoutHash in runCores ? runCores[r.loadoutHash] : null);
+	const buildRuns = $derived(clear ? statValueRuns(clear, own, (r) => coresOfRun(r) !== null && coresOfRun(r) === coresOfRun(clear)) : runs);
 	// The Simulator's state is reactive (a proxy); the meter works on a plain copy of it.
 	const plain = $derived($state.snapshot(simState) as SimState);
 

@@ -6,7 +6,7 @@ import { initSimState, type DpsLine, type SimState } from './simulate';
 import { braceletPart } from './dps-stats';
 import { engravingNames } from './dps-loadout';
 import { gemMembers } from './dps-explain';
-import { dpsMeter, matchSnapshot, meterGain } from './dps-meter';
+import { dpsMeter, matchSnapshot, meterGain, statValueRuns } from './dps-meter';
 import { orbSeason } from './paradise';
 import { engravingTable } from './tables';
 
@@ -240,6 +240,21 @@ describe('meter gain (Next Upgrades in DPS mode)', () => {
 		const to = structuredClone(base);
 		to.karma.evolution = Math.min(30, (to.karma.evolution ?? 0) + 1);
 		expect(meterGain(loadout, clear, base, to, [run(1)], [run(1)]).gainPct).toBeNull();
+	});
+	it("borrows stat values from the nearest run on the same gear or cores when LOA Logs didn't record them", () => {
+		const DAY = 86_400_000;
+		const bare = run(10, { start: 100 * DAY, statValues: undefined, loadoutHash: 'v3/a' });
+		const sameGear = run(11, { start: 90 * DAY, loadoutHash: 'v3/a' }), closer = run(12, { start: 99 * DAY, loadoutHash: 'v3/b' }), far = run(13, { start: 60 * DAY, loadoutHash: 'v3/a' });
+		expect(statValueRuns(bare, [bare, sameGear, closer, far])).toEqual([sameGear]); // same gear before nearer
+		const otherCores = run(14, { start: 98 * DAY, loadoutHash: 'v3/c' });
+		expect(statValueRuns(bare, [bare, otherCores, closer], (r) => r === closer)).toEqual([closer]); // same cores before nearer
+		expect(statValueRuns(bare, [bare, closer])).toEqual([closer]); // else the nearest within a month
+		expect(statValueRuns(bare, [bare, far])).toEqual([bare]); // 40 days: too old
+		const to = structuredClone(base);
+		to.gear.weapon!.honing += 1;
+		const m = dpsMeter(loadout, base, to, [sameGear], [bare])!;
+		expect(m.statPct).toBeGreaterThan(0);
+		expect(m.notes.some((n) => n.startsWith('Stat values from the'))).toBe(true);
 	});
 	it("is unknown for a stat edit when no clear has the meter's stat values", () => {
 		const to = structuredClone(base);
