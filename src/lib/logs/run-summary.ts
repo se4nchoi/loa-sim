@@ -141,8 +141,10 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 	const split = splitOf(misc, row.player);
 	const thorn = (split as { bluntThornEfficiency?: { damageDoneByStat?: number } } | null)?.bluntThornEfficiency?.damageDoneByStat ?? 0;
 	const version = (misc as { version?: unknown } | null)?.version;
+	// The listing's snapshot hash; the entity's own is kept below.
+	const { loadoutHash: _listed, ...listed } = row;
 	return {
-		...row,
+		...listed,
 		combatPower: num(entity.combatPower),
 		itemLevel: num(entity.itemLevel),
 		spec: typeof entity.spec === 'string' && entity.spec ? entity.spec : null,

@@ -12,6 +12,8 @@ export interface EncounterRow {
 	player: string;
 	/** ms */
 	duration: number;
+	/** The recording player's gear snapshot (lostark.bible), when the meter kept one. */
+	loadoutHash?: string | null;
 }
 
 export interface SkillShare {

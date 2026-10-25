@@ -1,6 +1,7 @@
 // A clear's gear snapshot (lostark.bible, via our server). One request per clear the player picks; snapshots never
 // change, so each is kept: in memory for this visit and in localStorage (the last few) for the next.
 import type { ClearSnapshot } from '$lib/bible-data';
+import { decodeCore } from './tables';
 
 const PREFIX = 'loa-sim:clear-snapshot:v2:';
 const KEEP = 30;
@@ -42,3 +43,7 @@ export function clearSnapshot(hash: string): Promise<ClearSnapshot> {
 	request.catch(() => memory.delete(hash));
 	return request;
 }
+
+/** A build's Order cores as one key (core kinds, grade aside), to group runs by the cores they were played on. */
+export const orderCoreKey = (ids: number[]) =>
+	ids.filter((id) => decodeCore(id)?.attr === 'order').map((id) => String(id).slice(0, 8)).sort().join(',');

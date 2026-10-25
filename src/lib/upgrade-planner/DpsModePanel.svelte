@@ -10,7 +10,7 @@
 	import { currentRaids, raidGateOf } from '$lib/logs/raids';
 	import type { RunSummary } from '$lib/logs/protocol';
 	import { bibleSnapshotPage, isSnapshotHash, type ClearSnapshot } from '$lib/bible-data';
-	import { clearSnapshot } from './clear-snapshots';
+	import { clearSnapshot, orderCoreKey } from './clear-snapshots';
 	import { setupDiff, sameGear as sameSetupGear } from './setup-diff';
 	import DpsRunsImport from './DpsRunsImport.svelte';
 	import DpsMeter from './sim/DpsMeter.svelte';
@@ -32,7 +32,6 @@
 	import Segmented from './sim/Segmented.svelte';
 	import { wipeGap, wipeStory } from './dps-wipe';
 	import type { Loadout } from './types';
-	import { decodeCore } from './tables';
 	import { shareableRun, type SharedDps } from './shared-dps';
 
 	let { loadout, simState, characterKey, characterName, snapshots = [], onsimulate, shared }: {
@@ -142,8 +141,7 @@
 	// Which Order cores each run was played on (its gear snapshot): a run on other cores is another rotation, so the
 	// newest run on the simulated cores is the default, and the others are marked. Fetched for the raid on screen only,
 	// one request per gear snapshot (cached).
-	const coreKey = (ids: number[]) => ids.filter((id) => decodeCore(id)?.attr === 'order').map((id) => String(id).slice(0, 8)).sort().join(',');
-	const nowCores = $derived(coreKey(simState.arkGrid.map((c) => c.as ?? c.id)));
+	const nowCores = $derived(orderCoreKey(simState.arkGrid.map((c) => c.as ?? c.id)));
 	let runCores = $state<Record<string, string>>({});
 	$effect(() => {
 		if (shared) return;
@@ -154,7 +152,7 @@
 				try {
 					const snap = await clearSnapshot(h);
 					if (!live) return;
-					runCores = { ...runCores, [h]: coreKey((snap.arkGridCores ?? []).map((c) => c.id)) };
+					runCores = { ...runCores, [h]: orderCoreKey((snap.arkGridCores ?? []).map((c) => c.id)) };
 				} catch { /* left unknown */ }
 			}
 		})();
@@ -379,7 +377,7 @@
 	{:else if !shared && (!book || importing)}
 		<!-- Where Re-import logs was, so the way back is under the pointer. -->
 		{#if book}<div class="mb-3 flex"><button type="button" class="{btn} ml-auto h-8 px-3" onclick={() => (importing = false)}>Cancel re-import</button></div>{/if}
-		{#key characterKey}<DpsRunsImport {characterKey} {characterName} ondone={() => (importing = false)} />{/key}
+		{#key characterKey}<DpsRunsImport {characterKey} {characterName} cores={nowCores} ondone={() => (importing = false)} />{/key}
 	{:else}
 		<!-- Two tabs: clears, or failed pulls and what they needed. A shared link has its one run. -->
 		<div class="mb-3 flex items-center gap-2" hidden={!!shared}>

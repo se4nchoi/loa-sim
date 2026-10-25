@@ -116,8 +116,11 @@ async function encounterTable() {
 
 async function listEncounters(): Promise<EncounterRow[]> {
 	const table = await encounterTable();
+	// The recording player's gear snapshot per run, for grouping runs by build before importing them.
+	const hashed = (await query(`SELECT name FROM pragma_table_info('entity')`)).some((r) => r.name === 'loadout_hash');
+	const hash = hashed ? '(SELECT loadout_hash FROM entity WHERE encounter_id = e.id AND name = e.local_player)' : 'NULL';
 	const rows = await query(
-		`SELECT id, fight_start AS start, current_boss AS boss, difficulty, cleared, local_player AS player, duration FROM ${table} ORDER BY fight_start DESC`
+		`SELECT id, fight_start AS start, current_boss AS boss, difficulty, cleared, local_player AS player, duration, ${hash} AS hash FROM ${table} e ORDER BY fight_start DESC`
 	);
 	return rows.map((r) => ({
 		id: Number(r.id),
@@ -126,7 +129,8 @@ async function listEncounters(): Promise<EncounterRow[]> {
 		difficulty: r.difficulty ? String(r.difficulty) : '',
 		cleared: r.cleared === null || r.cleared === undefined ? null : Number(r.cleared) === 1,
 		player: String(r.player ?? ''),
-		duration: Number(r.duration ?? 0)
+		duration: Number(r.duration ?? 0),
+		loadoutHash: r.hash ? String(r.hash) : null
 	}));
 }
 
