@@ -21,8 +21,8 @@ async function post(path: string, body: unknown, fetchFn: typeof fetch, timeoutM
 	return response.json();
 }
 
-export async function command(args: (string | number)[], fetchFn: typeof fetch): Promise<unknown> {
-	const body = (await post('', args, fetchFn, 10_000)) as { result?: unknown; error?: unknown };
+export async function command(args: (string | number)[], fetchFn: typeof fetch, timeoutMs = 10_000): Promise<unknown> {
+	const body = (await post('', args, fetchFn, timeoutMs)) as { result?: unknown; error?: unknown };
 	if (body.error) throw new Error('Sharing storage could not complete the request.');
 	return body.result;
 }

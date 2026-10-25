@@ -11,6 +11,7 @@
 	import { classIconUrl } from '$lib/upgrade-planner/class-icons';
 	import { className } from '$lib/upgrade-planner/class-names';
 	import { loadCharacter } from '$lib/load-character';
+	import { trackCharacterLoad } from '$lib/stats';
 	import { onMount } from 'svelte';
 	import SiteNews from '$lib/SiteNews.svelte';
 	import SiteNewsStrip from '$lib/SiteNewsStrip.svelte';
@@ -179,6 +180,7 @@
 				return;
 			}
 			saveCharacter(data);
+			trackCharacterLoad(data, 'paste');
 			saveRegion(data.region);
 			loaded(characterKey(data));
 			searched = { region: data.region, name: data.name };

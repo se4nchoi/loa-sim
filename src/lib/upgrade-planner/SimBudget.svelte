@@ -1,7 +1,8 @@
 <script lang="ts">
 	import ModalClose from './sim/ModalClose.svelte';
 	import DrawerHandle from './sim/DrawerHandle.svelte';
-	import { onMount, tick } from 'svelte';
+	import { getContext, onMount, tick } from 'svelte';
+	import { budgetSample, observe, type InsightScope } from '$lib/stats-insights';
 	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
 	import { formatCp } from './format';
 	import { bookPricesFor, materialPricesFor, costsForCharacter, formatGold, gold, loadGold, parsePrice, setBookPrice, setGoldCost } from './gold-costs.svelte';
@@ -22,6 +23,15 @@
 	let editing = $state<string | null>(null);
 	let editText = $state('');
 	let priceInput = $state<HTMLInputElement>();
+	const insights=getContext<InsightScope|undefined>('loa-sim:insights');
+	let sampled=false;
+	function closed(){
+		if(!sampled){
+			sampled=true;
+			observe(()=>{const cohort=insights?.cohort();const sample=cohort?budgetSample(cohort,lines,current,simulated,insights?.unpricedBudgetEdits()):undefined;if(sample)insights?.emit(sample);});
+		}
+		onclose();
+	}
 	onMount(() => { loadGold(); dialog.showModal(); dialog.focus(); });
 	const characterCosts = $derived(costsForCharacter(characterKey));
 	const materialPrices = $derived(materialPricesFor(characterKey));
@@ -51,7 +61,7 @@
 	<span class="flex w-36 items-center whitespace-nowrap text-base font-bold text-amber-200 tabular-nums"><span class="flex min-w-0 flex-1 justify-center"><img src={GOLD_ICON} alt="Gold" class="size-4" /></span><span class="min-w-0 flex-1 text-right">{formatGold(value)}</span><span class="min-w-0 flex-1 pl-2 text-xs font-normal text-surface-400">avg</span></span>
 {/snippet}
 
-<dialog bind:this={dialog} use:sheetDialog={() => card} tabindex="-1" {onclose} onclick={(e) => { e.stopPropagation(); if (e.target === dialog) dialog.close(); }} aria-label="Current changes budget" class="fixed m-0 max-h-none max-w-none bg-transparent p-0 text-surface-100 outline-none backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
+<dialog bind:this={dialog} use:sheetDialog={() => card} tabindex="-1" onclose={closed} onclick={(e) => { e.stopPropagation(); if (e.target === dialog) dialog.close(); }} aria-label="Current changes budget" class="fixed m-0 max-h-none max-w-none bg-transparent p-0 text-surface-100 outline-none backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
 	<div bind:this={card} class="sim-modal-card sm:rounded-sm sm:shadow-xl sm:shadow-black/40 sm:ring-1 sm:ring-surface-700 flex max-h-[85dvh] w-[660px] max-w-[calc(100vw-1.5rem)] flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:max-w-none max-sm:rounded-t-xl max-sm:rounded-b-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)]">
 		<DrawerHandle sheet={() => card} close={() => dialog.close()} label="budget" />
 	<div class="sim-modal-header sm:px-4 sm:py-3 sm:text-base sm:font-semibold sm:text-surface-100 flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3" use:sheetDrag={{ sheet: () => card, close: () => dialog.close(), enabled: () => matchMedia('(max-width: 639px)').matches }}>
