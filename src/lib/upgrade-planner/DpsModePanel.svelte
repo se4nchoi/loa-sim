@@ -32,6 +32,7 @@
 	import Segmented from './sim/Segmented.svelte';
 	import { wipeGap, wipeStory } from './dps-wipe';
 	import type { Loadout } from './types';
+	import { decodeCore } from './tables';
 	import { shareableRun, type SharedDps } from './shared-dps';
 
 	let { loadout, simState, characterKey, characterName, snapshots = [], onsimulate, shared }: {
@@ -138,7 +139,31 @@
 		Math.max(0, ...(raid?.runs ?? []).filter((x) => x.cleared === true && gate(x) === gate(r)).map((x) => x.duration / 1000)));
 	/** An enrage wipe: the player marked it, or the pattern says so and they didn't unmark it. */
 	const isEnrage = (r: RunSummary) => pick.enrage.includes(r.id) || (storyOf(r)?.pattern?.kind === 'time' && !pick.notEnrage.includes(r.id));
-	const clear = $derived(clears.find((r) => r.id === pick.clear) ?? (pick.use === 'failed' ? clears.find(isEnrage) : null) ?? clears[0] ?? null);
+	// Which Order cores each run was played on (its gear snapshot): a run on other cores is another rotation, so the
+	// newest run on the simulated cores is the default, and the others are marked. Fetched for the raid on screen only,
+	// one request per gear snapshot (cached).
+	const coreKey = (ids: number[]) => ids.filter((id) => decodeCore(id)?.attr === 'order').map((id) => String(id).slice(0, 8)).sort().join(',');
+	const nowCores = $derived(coreKey(simState.arkGrid.map((c) => c.as ?? c.id)));
+	let runCores = $state<Record<string, string>>({});
+	$effect(() => {
+		if (shared) return;
+		const hashes = [...new Set(clears.map((r) => r.loadoutHash).filter((h): h is string => !!h && isSnapshotHash(h) && !(h in untrack(() => runCores))))].slice(0, 12);
+		let live = true;
+		(async () => {
+			for (const h of hashes) {
+				try {
+					const snap = await clearSnapshot(h);
+					if (!live) return;
+					runCores = { ...runCores, [h]: coreKey((snap.arkGridCores ?? []).map((c) => c.id)) };
+				} catch { /* left unknown */ }
+			}
+		})();
+		return () => { live = false; };
+	});
+	/** true: played on the simulated Order cores; false: on others; null: not known (no snapshot, or not read yet). */
+	const sameCores = (r: RunSummary) => (r.loadoutHash && r.loadoutHash in runCores ? runCores[r.loadoutHash] === nowCores : null);
+	const clear = $derived(clears.find((r) => r.id === pick.clear) ?? (pick.use === 'failed' ? clears.find(isEnrage) : null)
+		?? clears.find((r) => sameCores(r) === true) ?? clears[0] ?? null);
 	function markEnrage(r: RunSummary, on: boolean) {
 		remember({ enrage: on ? [...new Set([...pick.enrage, r.id])] : pick.enrage.filter((x) => x !== r.id),
 			notEnrage: on ? pick.notEnrage.filter((x) => x !== r.id) : [...new Set([...pick.notEnrage, r.id])] });
@@ -225,10 +250,10 @@
 		const outcome = r.cleared === true ? 'Clear' : r.cleared === false ? `Failed${g ? ` at ${hpText(g.hpLeftPct)}` : ''}${isEnrage(r) ? ' · enrage' : ''}` : 'Unknown';
 		// A support's run reads as the party DPS their buffs added; a dealer's, their own.
 		const damage = r.support ? Object.values(r.support.kinds).reduce((x, y) => x + y, 0) : r.damage;
-		return `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${outcome} · ${time(r.duration)} · ${formatDamage(damage / (r.duration / 1000))}`;
+		return `${formatDate(r.start)} · ${gate(r) ? `G${gate(r)}` : r.boss} · ${outcome} · ${time(r.duration)} · ${formatDamage(damage / (r.duration / 1000))}${sameCores(r) === false ? ' · other cores' : ''}`;
 	};
 	/** A run's colour in the menu: failed pulls light red, clears light green. */
-	const runTone = (r: RunSummary) => (r.cleared === false ? 'text-rose-300' : r.cleared === true ? 'text-emerald-200' : 'text-white');
+	const runTone = (r: RunSummary) => (sameCores(r) === false ? 'text-surface-400' : r.cleared === false ? 'text-rose-300' : r.cleared === true ? 'text-emerald-200' : 'text-white');
 	const wipe = $derived(clear ? storyOf(clear) : null);
 	const enrage = $derived(clear ? isEnrage(clear) : false);
 	const skillsBook = $derived(shared ? shared.skills : book?.skills);
