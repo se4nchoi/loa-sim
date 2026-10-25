@@ -64,7 +64,9 @@ const targetOf = (target, cls) => {
 	// "Normal and Encroachment Skill": the last part's "Skill" names the groups before it too.
 	const shared = / Skills?$/.test(parts.at(-1));
 	for (const part of parts) {
-		if (shared && names.includes(part)) { groups.push(part); continue; }
+		// "Normal and Encroachment Skill" shares the last "Skill"; a group the effect names bare ("Supreme Art Form Damage")
+		// when no skill has that name.
+		if ((shared || !skillByName(cls, part)) && names.includes(part)) { groups.push(part); continue; }
 		const group = part.match(/^(.+?) Skills?$/)?.[1];
 		if (group && names.includes(group)) { groups.push(group); continue; }
 		// "Emperor Card": Arcanist's card skill of that name.
@@ -125,6 +127,19 @@ function effectsOf(option, cls) {
 		const state = !destiny && !tripod && !(classTripod && needs) && s.match(/^(?:(?:In|While in) ([A-Z][\w' ]+ (?:Mode|Stance))|With ([A-Z][\w' ]+)|During ([A-Z][\w' ]+?)(?<! use)), (.*)$/); // "During Perfect Shot use" is a skill-use condition
 		if (state) { when = sticky = state[1] ?? state[2] ?? state[3]; s = state[4]; } // and the sentence after it
 		s = s.charAt(0).toUpperCase() + s.slice(1);
+		// Conditions the logs do show, in other words: "When Destiny: X effect is active, ..." (that buff), "When using A or
+		// B, Damage +x%" (those skills), "When A's B Skill Tree is applied, Damage +x%" (that tripod), "On Back Attack hit,
+		// Damage to foes +x%" (back attacks), and "on Crit Hit" after a state ("During Phantom Beast Awakening, on Crit Hit").
+		const whenDestiny = !destiny && s.match(/^When (?:the )?(Destiny: [^,]+?)(?: effect)? is active, (.*)$/);
+		if (whenDestiny) { when = whenDestiny[1]; s = whenDestiny[2]; }
+		const whenUsing = s.match(/^When using (.+?), (Damage [+-][\d.]+%\.?)$/);
+		if (whenUsing) s = `${whenUsing[1]} ${whenUsing[2]}`;
+		const whenTree = !destiny && s.match(/^When ([A-Z][\w' ]+)'s ([A-Z][\w' ]+) Skill Tree is applied, (Damage [+-][\d.]+%\.?)$/);
+		if (whenTree && skillByName(cls, whenTree[1])) { needs = whenTree[2]; s = `${whenTree[1]} ${whenTree[3]}`; }
+		const onPosition = s.match(/^On (Back|Frontal) Attack hit, Damage(?: to foes)? ([+-][\d.]+%\.?)$/);
+		if (onPosition) s = `${onPosition[1]} Attack Damage ${onPosition[2]}`;
+		const lateCrit = !crit && s.match(/^On Crit Hit, (Damage(?: to foes)? [+-][\d.]+%\.?)$/);
+		if (lateCrit) { s = lateCrit[1].replace(/^Damage(?! to foes)/, 'Damage to foes'); crit = true; }
 		const except = [];
 		let exceptUnknown = false;
 		s = s.replace(/\s*\((?:excluding|Excluding) ([^)]*)\)/g, (_, list) => {
@@ -144,7 +159,10 @@ function effectsOf(option, cls) {
 		const whole = s.replace(/\.$/, '');
 		const last = whole.split(/, and |, | and (?=[A-Z])/).at(-1);
 		let head = '';
-		if (last !== whole && /^(?:[A-Z].* )?Damage(?: to foes)? ?[+-] ?[\d.]+%$/.test(last) && !/^[A-Z][^,]* Damage [+-][\d.]+%$/.test(whole) && !/Crit|Stagger|per stack/.test(last)) {
+		// Outside a Destiny buff a leading condition the run can't show ("When Supreme Art is at Third Form or above, ...")
+		// keeps it text.
+		const conditional = !destiny && /^(?:When|On|Upon|If|After|Each|For each) /.test(whole);
+		if (!conditional && last !== whole && /^(?:[A-Z].* )?Damage(?: to foes)? ?[+-] ?[\d.]+%$/.test(last) && !/^[A-Z][^,]* Damage [+-][\d.]+%$/.test(whole) && !/Crit|Stagger|per stack/.test(last)) {
 			head = whole.slice(0, whole.length - last.length);
 			s = last;
 		}

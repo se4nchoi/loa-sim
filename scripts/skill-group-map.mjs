@@ -22,7 +22,9 @@ export const CATEGORY_GROUPS = {
 	dimensionmaster: { 'Hour Hand': [76], 'Minute Hand': [77], Fusion: [78] },
 	dragonknight: { Normal: [72], Manifestation: [73], Incarnation: [74] },
 	elementalmaster: { Normal: [51], Fire: [52], Lightning: [53], Frost: [54] },
-	forcemaster: { 'Martial Art': [13], Force: [79] },
+	// "Supreme Art Form": the forms of Supreme Art, the non-Robust Spirit Soulfist's Z skill (Supreme Technique / Palm /
+	// Godfist), confirmed by a Soulfist player (10-25-26).
+	forcemaster: { 'Martial Art': [13], Force: [79], 'Supreme Art Form': [80] },
 	hawkeye: { Normal: [24] },
 	holyknight_female: { Justice: [67], 'Holy Blade': [68] },
 	infighter: { Stamina: [11], Shock: [12] },

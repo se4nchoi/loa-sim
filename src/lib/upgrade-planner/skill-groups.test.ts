@@ -17,6 +17,7 @@ describe('skill groups for every class', () => {
 		expect(SKILL_GROUPS.souleater[46430]).not.toContain('Normal Mode');
 		expect(SKILL_GROUPS.scouter[35770]).toContain('Sync'); // Laser Blade
 		expect(SKILL_GROUPS.yinyangshi[31060]).toContain('Paint'); // Paint: Shattering Strike
+		for (const id of [24030, 24031, 24032]) expect(SKILL_GROUPS.forcemaster[id]).toContain('Supreme Art Form'); // Supreme Technique / Palm / Godfist
 		const effects = Object.values(ORDER_CORE_EFFECTS).flat();
 		expect(effects.some((e) => e.skills?.includes(47020))).toBe(true); // Breaker's "Asura War Basic Attack"
 		expect(effects.some((e) => e.groups?.includes('Normal') && e.groups.includes('Encroachment'))).toBe(true); // Shadowhunter
