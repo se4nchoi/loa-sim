@@ -2,7 +2,7 @@
 // cache (cache/maxroll-items.json, cache/maxroll-stats.json) into src/lib/upgrade-planner/order-cores.ts.
 //   node scripts/bake-order-cores.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
-import { groupNames } from './skill-group-map.mjs';
+import { groupNames, SKILL_ALIASES } from './skill-group-map.mjs';
 
 const items = JSON.parse(readFileSync('cache/maxroll-items.json', 'utf8'));
 const options = JSON.parse(readFileSync('cache/maxroll-stats.json', 'utf8')).arkGridCoreOptions;
@@ -49,14 +49,16 @@ const targetOf = (target, cls) => {
 	if (/^Esoteric Skill: /.test(target) && !skillIds[cls]?.[target]) target = target.replace(/^Esoteric Skill: /, '');
 	const names = groupNames(cls);
 	const groups = [], skillList = [];
-	const parts = target.split(/, and |, or |, | and | or /).map((p) => p.trim());
+	const parts = target.split(/, and |, or |, | and | or |\//).map((p) => p.trim());
 	// "Normal and Encroachment Skill": the last part's "Skill" names the groups before it too.
 	const shared = / Skills?$/.test(parts.at(-1));
 	for (const part of parts) {
 		if (shared && names.includes(part)) { groups.push(part); continue; }
 		const group = part.match(/^(.+?) Skills?$/)?.[1];
 		if (group && names.includes(group)) { groups.push(group); continue; }
-		const ids = skillIds[cls]?.[part] ?? (group ? skillIds[cls]?.[group] : undefined);
+		// "Emperor Card": Arcanist's card skill of that name.
+		const name = SKILL_ALIASES[cls]?.[part] ?? (skillIds[cls]?.[part] ? part : part.replace(/ Card$/, ''));
+		const ids = skillIds[cls]?.[name] ?? (group ? skillIds[cls]?.[group] : undefined);
 		if (!ids) return undefined;
 		skillList.push(...ids);
 	}
@@ -105,7 +107,7 @@ function effectsOf(option, cls) {
 		if (tripod) {
 			s = tripod[3];
 			needs = stickyTripod = tripod[2];
-			if (/^Damage ?[+-] ?[\d.]+%\.?$/.test(s) && skillIds[cls]?.[tripod[1]]) s = s.replace(/^Damage/, tripod[1] + ' Damage');
+			if (/^Damage ?[+-] ?[\d.]+%/.test(s) && skillIds[cls]?.[tripod[1]]) s = s.replace(/^Damage/, tripod[1] + ' Damage');
 		}
 		const classTripod = !destiny && !tripod && s.match(/^With ([A-Z][\w' ]+), (.*)$/);
 		if (classTripod && tripodNames[cls]?.has(classTripod[1])) { needs = stickyTripod = classTripod[1]; s = classTripod[2]; }

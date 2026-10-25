@@ -10,6 +10,18 @@ describe('skill groups for every class', () => {
 		expect(SKILL_GROUPS.warlord[17210]).toContain('Charge'); // Charged Stinger
 	});
 
+	it("reads the groups classes word their own way: Sorceress modes, Machinist Sync, Artist Paint", () => {
+		expect(SKILL_GROUPS.elementalmaster[37330]).toContain('Casting Control'); // Explosion
+		expect(SKILL_GROUPS.elementalmaster[37200]).toContain('Normal Mode'); // Blaze
+		expect(SKILL_GROUPS.elementalmaster[37250]).toContain('Point Mode'); // Rime Arrow
+		expect(SKILL_GROUPS.souleater[46430]).not.toContain('Normal Mode');
+		expect(SKILL_GROUPS.scouter[35770]).toContain('Sync'); // Laser Blade
+		expect(SKILL_GROUPS.yinyangshi[31060]).toContain('Paint'); // Paint: Shattering Strike
+		const effects = Object.values(ORDER_CORE_EFFECTS).flat();
+		expect(effects.some((e) => e.skills?.includes(47020))).toBe(true); // Breaker's "Asura War Basic Attack"
+		expect(effects.some((e) => e.groups?.includes('Normal') && e.groups.includes('Encroachment'))).toBe(true); // Shadowhunter
+	});
+
 	it('core effects name groups beyond Souleater, multi-word ones included', () => {
 		const named = new Set(Object.values(ORDER_CORE_EFFECTS).flat().flatMap((e) => e.groups ?? []));
 		for (const g of ['Handgun', 'Gunlance', 'Phantom Beast', 'Holy Blade', 'Gravity Release', 'Holding']) expect(named).toContain(g);

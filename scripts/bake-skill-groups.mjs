@@ -2,7 +2,7 @@
 // (cache/maxroll-skills.json) and scripts/skill-group-map.mjs into src/lib/upgrade-planner/skill-groups.ts.
 //   node scripts/bake-skill-groups.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
-import { CATEGORY_GROUPS, TYPE_GROUPS } from './skill-group-map.mjs';
+import { CATEGORY_GROUPS, CLASS_TYPE_GROUPS, TYPE_GROUPS } from './skill-group-map.mjs';
 
 const skills = JSON.parse(readFileSync('cache/maxroll-skills.json', 'utf8'));
 const groups = {};
@@ -10,7 +10,7 @@ for (const [id, k] of Object.entries(skills)) {
 	if (!k?.class) continue;
 	const names = [
 		...Object.entries(CATEGORY_GROUPS[k.class] ?? {}).filter(([, cats]) => cats.includes(k.category)).map(([name]) => name),
-		...Object.entries(TYPE_GROUPS).filter(([, type]) => type === k.type).map(([name]) => name)
+		...Object.entries({ ...TYPE_GROUPS, ...CLASS_TYPE_GROUPS[k.class] }).filter(([, type]) => type === k.type).map(([name]) => name)
 	];
 	if (names.length) (groups[k.class] ??= {})[id] = names;
 }
