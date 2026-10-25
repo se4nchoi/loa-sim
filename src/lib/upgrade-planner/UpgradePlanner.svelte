@@ -108,29 +108,40 @@
 		const sel = dpsMode ? dpsSelection(characterKey) : undefined;
 		return sel && !!sel.support === support ? sel : undefined;
 	});
-	const dpsGains = $derived.by(() => {
+	// Each upgrade's gain is a meter replay (~10 ms), so the list is ranked a few upgrades at a time between frames: the
+	// page stays responsive while switching to DPS or to another run, and the previous ranking shows until it's done.
+	let dpsGains = $state(new Map<string, { gainPct: number; atLeast: boolean }>());
+	let ranking = $state(false);
+	$effect(() => {
+		const sel = selection, now = simNow, list = upgrades, base = simBase ?? initSimState(loadout), l = loadout;
+		if (!sel) { dpsGains = new Map(); ranking = false; return; }
+		ranking = true;
+		let live = true;
 		const out = new Map<string, { gainPct: number; atLeast: boolean }>();
-		if (!selection) return out;
-		const base = simBase ?? initSimState(loadout);
-		if (selection.support) {
-			for (const u of upgrades) {
-				const next = structuredClone(simNow);
-				if (!applyUpgrade(loadout, next, base, u)) continue;
-				const gainPct = supportGain(loadout, selection.baseline, simNow, next, selection.runs[0]);
+		const meterNow = sel.support ? null : dpsMeter(l, sel.baseline, now, sel.buildRuns, sel.runs, sel.arkGrid, sel.context);
+		const gainOf = (u: Upgrade) => {
+			const next = structuredClone(now);
+			if (!applyUpgrade(l, next, base, u)) return;
+			if (sel.support) {
+				const gainPct = supportGain(l, sel.baseline, now, next, sel.runs[0]);
 				if (gainPct !== null) out.set(u.key, { gainPct, atLeast: false });
+				return;
 			}
-			return out;
-		}
-		const now = dpsMeter(loadout, selection.baseline, simNow, selection.buildRuns, selection.runs, selection.arkGrid, selection.context);
-		for (const u of upgrades) {
-			const next = structuredClone(simNow);
-			if (!applyUpgrade(loadout, next, base, u)) continue;
-			const g = !selection.runs.length && selection.context
-				? {gainPct: configuredPlanGain(loadout, selection.baseline, simNow, next, selection.context), atLeast: false}
-				: meterGain(loadout, selection.baseline, simNow, next, selection.buildRuns, selection.runs, selection.arkGrid, now, selection.context);
+			const g = !sel.runs.length && sel.context
+				? { gainPct: configuredPlanGain(l, sel.baseline, now, next, sel.context), atLeast: false }
+				: meterGain(l, sel.baseline, now, next, sel.buildRuns, sel.runs, sel.arkGrid, meterNow, sel.context);
 			if (g.gainPct !== null) out.set(u.key, { gainPct: g.gainPct, atLeast: g.atLeast });
-		}
-		return out;
+		};
+		let i = 0;
+		const step = () => {
+			if (!live) return;
+			const until = performance.now() + 12;
+			while (i < list.length && performance.now() < until) gainOf(list[i++]);
+			if (i < list.length) setTimeout(step);
+			else { dpsGains = out; ranking = false; }
+		};
+		setTimeout(step);
+		return () => { live = false; };
 	});
 	const dps = $derived(new Map([...dpsGains].map(([key, g]) => [key, g.gainPct] as const)));
 	/** The gain the list ranks and prices by: DPS in DPS mode (null = not estimated), CP otherwise. */
@@ -152,7 +163,7 @@
 <div class="flex min-h-0 flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
 	<!-- In the phone drawer this row is also a drag-to-close zone (its toggle buttons still tap). -->
 	<div class="sim-modal-header flex shrink-0 flex-col gap-1.5 bg-surface-900 px-3 py-2 font-semibold" use:drawerDrag>
-		<div>Next Upgrades</div>
+		<div class="flex items-center gap-2">Next Upgrades{#if ranking}<span class="flex items-center gap-1.5 text-xs font-normal text-sky-300" role="status"><span class="size-3 animate-spin rounded-full border-2 border-sky-300/30 border-t-sky-300" aria-hidden="true"></span>Ranking by {dpsLabel}…</span>{/if}</div>
 		<div>
 			<Segmented
 				value={gold.mode}
@@ -211,7 +222,7 @@
 				{#if perGold && unpriced}<span class="text-amber-300">{unpriced} missing price{unpriced > 1 ? 's' : ''}</span>{:else}All Upgrades ({upgrades.length}){/if}
 			</button>
 		</div>
-		<div class="grid gap-x-2 p-1 {scroll ? 'min-h-0 overflow-y-auto overscroll-contain' : 'lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain'} {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
+		<div aria-busy={ranking} class="grid gap-x-2 p-1 transition-opacity {ranking ? 'opacity-50' : ''} {scroll ? 'min-h-0 overflow-y-auto overscroll-contain' : 'lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain'} {onapply ? 'grid-cols-[1fr_max-content_max-content]' : 'grid-cols-[1fr_max-content]'}">
 			{#each shown as u, i (u.key)}
 				{@const honing = perGold && auto[u.key] && manualGoldCost(u, characterCosts) === undefined ? auto[u.key] : null}
 				{@const g = dpsGains.get(u.key)}
