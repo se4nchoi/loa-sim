@@ -186,6 +186,14 @@ describe('meter gain (Next Upgrades in DPS mode)', () => {
 			expect(m.notInMeter).toEqual([]);
 			expect(meterGain(loadout, base, base, up, [run(1)], [run(1)]).gainPct).toBeGreaterThan(0);
 		});
+		it('reads damage stats a bracelet carries as plain lines (Crit Damage +10%, Additional Damage +4%)', () => {
+			const up = structuredClone(base);
+			lines(up).push({ kind: 'stat', index: 50, value: 400 });
+			const m = dpsMeter(loadout, base, up, [run(1)], [run(1)])!;
+			expect(m.notInMeter).toEqual([]);
+			expect(m.notes).toEqual([]);
+			expect(meterGain(loadout, base, base, up, [run(1)], [run(1)]).gainPct).toBeGreaterThan(0);
+		});
 		it('values Crit as Crit Rate and lists Specialization', () => {
 			const crit = structuredClone(base);
 			(lines(crit).find((x) => x.kind === 'stat' && x.index === 15) as { value: number }).value += 20;

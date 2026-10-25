@@ -43,6 +43,8 @@ const LINE_STAT: Record<string, keyof StatDeltas> = {
 	atk_flat: 'attackPower'
 };
 const SCALE: Partial<Record<keyof StatDeltas, number>> = { additionalDamage: 100, attackPowerPct: 100, critRate: 100, critDamage: 100 };
+/** Stat indexes of those lines (Additional Damage, Atk. Power %, Crit Rate, Crit Damage, Atk. Power), which bracelets can carry too. */
+const BRACELET_LINE_INDEXES = [50, 49, 74, 76, 124];
 
 function lineTotals(state: SimState): Partial<Record<keyof StatDeltas, number>> {
 	const out: Partial<Record<keyof StatDeltas, number>> = {};
@@ -147,7 +149,14 @@ function braceletTotals(s: SimState, meter = false) {
 	// Main stat and flat Weapon Power are read by simulate(); other combat stats need separate models. The meter reads Crit
 	// as Crit Rate and lists the rest (braceletDamage).
 	if (meter) for (const x of braceletStats(s.bracelet)) if ((x.type ?? 2) === 2 && x.index === CRIT_STAT) stats.critRate = (stats.critRate ?? 0) + x.value * CRIT_RATE_PER_CRIT;
-	const known = meter ? [3, 4, 5, 11, 151, CRIT_STAT, ...Object.keys(COMBAT_STATS).map(Number)] : [3, 4, 5, 11, 151];
+	// Damage stats some bracelets carry as plain lines ("Crit Damage +10%", "Additional Damage +4%"), at the accessory
+	// lines' indexes and scale.
+	for (const x of braceletStats(s.bracelet)) {
+		const line = (x.type ?? 2) === 2 ? ACCESSORY_LINES.find((l) => LINE_STAT[l.key] && l.match({ type: 2, index: x.index })) : undefined;
+		if (line) stats[LINE_STAT[line.key]] = (stats[LINE_STAT[line.key]] ?? 0) + x.value / (SCALE[LINE_STAT[line.key]] ?? 1);
+	}
+	const lineIndexes = BRACELET_LINE_INDEXES;
+	const known = meter ? [3, 4, 5, 11, 151, CRIT_STAT, ...lineIndexes, ...Object.keys(COMBAT_STATS).map(Number)] : [3, 4, 5, 11, 151, ...lineIndexes];
 	const unknownStats = braceletStats(s.bracelet).filter(x => !known.includes(x.index) || (x.type ?? 2) !== 2);
 	return { stats, signature: signature.sort(), unknownStats };
 }
