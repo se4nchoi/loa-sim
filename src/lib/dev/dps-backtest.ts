@@ -36,25 +36,32 @@ const perHit = (run: RunSummary) =>
  * What the meter leaves out on real runs: each run's own setup (its snapshot) replayed with `loadout`'s current gear, as
  * DPS mode does by default. Counts each "not counted" item and note over the runs, for dealers and supports alike.
  */
-export async function coverage(file: File, player: string, loadout: Loadout): Promise<{ runs: number; snapshots: number; failed: number; counts: Record<string, number> }> {
+export async function coverage(file: File, player: string, loadout: Loadout, newest = 200): Promise<{ runs: number; snapshots: number; failed: number; counts: Record<string, number> }> {
 	const { supportMeter } = await import('$lib/upgrade-planner/support-meter');
 	const { initSimState } = await import('$lib/upgrade-planner/simulate');
 	const reader = new LoaLogsReader();
 	try {
-		const encounters = (await reader.open(file)).filter((e) => e.player === player && e.duration > 0 && e.loadoutHash && isSnapshotHash(e.loadoutHash));
+		// The newest runs only: each gear snapshot is one request to Mathi's API (cached after).
+		const encounters = (await reader.open(file)).filter((e) => e.player === player && e.duration > 0 && e.loadoutHash && isSnapshotHash(e.loadoutHash))
+			.toSorted((a, b) => b.start - a.start).slice(0, newest);
+		(globalThis as { __progress?: string }).__progress = `reading ${encounters.length} runs`;
 		const { runs } = await reader.runs(player, encounters.map((e) => e.id));
 		const now = initSimState(loadout);
 		const counts: Record<string, number> = {};
 		const states = new Map<string, SimState | null>(), cores = new Map<string, string>();
 		let failed = 0;
-		for (const hash of new Set(runs.map((r) => r.loadoutHash!))) {
+		const progress = (globalThis as { __progress?: string }), hashes = [...new Set(runs.map((r) => r.loadoutHash!))];
+		for (const [i, hash] of hashes.entries()) {
+			progress.__progress = `snapshot ${i + 1}/${hashes.length}`;
 			try {
-				const snap = await clearSnapshot(hash);
+				const snap = await Promise.race([clearSnapshot(hash), new Promise<never>((_, no) => setTimeout(() => no(new Error('timeout')), 20_000))]);
 				states.set(hash, clearState(loadout, snap).state);
 				cores.set(hash, orderCoreKey((snap.arkGridCores ?? []).map((c) => c.id)));
 			} catch { states.set(hash, null); }
 		}
-		for (const run of runs) {
+		for (const [i, run] of runs.entries()) {
+			progress.__progress = `run ${i + 1}/${runs.length}`;
+			if (i % 25 === 0) await new Promise((r) => setTimeout(r));
 			const base = states.get(run.loadoutHash!);
 			if (!base) { failed++; continue; }
 			// As the panel picks them: the run's own stat values, or the nearest run's on the same gear or cores.
