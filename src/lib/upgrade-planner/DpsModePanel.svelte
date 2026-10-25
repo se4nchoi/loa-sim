@@ -323,7 +323,7 @@
 			<ol class="mt-2 grid gap-2 text-xs sm:grid-cols-3" hidden={!!shared}>
 				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">1 · Import your logs</p><p class="mt-0.5 text-surface-400">LOA Logs' encounters.db, read in this browser. Nothing is uploaded.</p></li>
 				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">2 · Pick a run</p><p class="mt-0.5 text-surface-400">{#if isSupport}What your buffs added to each dealer, on the gear it was played with.{:else}Its damage, skill by skill, on the gear it was played with.{/if}</p></li>
-				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">3 · Edit the cards below</p><p class="mt-0.5 text-surface-400">{#if isSupport}Each buff follows the stat behind it: Attack Power, ally enhancement, Brand Power.{:else}Each skill's damage follows your gear, gems and Ark Grid edits.{/if}</p></li>
+				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">3 · Edit the cards below</p><p class="mt-0.5 text-surface-400">{#if isSupport}Each buff follows the stat behind it: Attack Power, ally enhancement, Brand Power.{:else}Each skill's damage follows your gear, gems, engravings and Ark Grid edits.{/if}</p></li>
 			</ol>
 			<div class="mt-2 grid gap-2 text-xs sm:grid-cols-2">
 				<div class="rounded-xs bg-surface-950/60 p-2">
@@ -332,7 +332,7 @@
 					<p class="mt-1 text-sm font-semibold text-surface-50">If you played it exactly like this again, how much DPS would this change add?</p>
 					<ul class="mt-1 list-disc space-y-0.5 pl-4 text-surface-400">
 						<li>Kept as recorded: casts, rotation, crits, buffs and fight length.</li>
-						<li>{#if isSupport}Scaled: each buff, by its stat.{:else}Scaled: each skill's damage, by the stat, gem and Ark Grid changes.{/if}</li>
+						<li>{#if isSupport}Scaled: each buff, by its stat.{:else}Scaled: each skill's damage, by the stat, gem, engraving and Ark Grid changes.{/if}</li>
 						<li>Not counted yet: listed under the meter.</li>
 					</ul>
 				</div>

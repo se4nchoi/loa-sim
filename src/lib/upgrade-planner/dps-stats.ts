@@ -81,12 +81,13 @@ function braceletTotals(s: SimState) {
 	return { stats, signature: signature.sort(), unknownStats };
 }
 
-/** Damage lines the stat values don't describe (Outgoing Damage), as total line value per line name. */
-function unvaluedLines(s: SimState): Record<string, number> {
+/** Damage lines the stat values don't describe (Outgoing Damage), as total line value per line name; `own`: lines the
+ *  caller values itself (the DPS meter's Outgoing Damage), left out. */
+function unvaluedLines(s: SimState, own: readonly string[] = []): Record<string, number> {
 	const out: Record<string, number> = {};
 	for (const slot of ACCESSORY_SLOTS)
 		for (const ln of s.accessories[slot] ?? []) {
-			if (isOtherLine(ln) || LINE_STAT[ln.key] || ln.key.startsWith('weapon_')) continue;
+			if (isOtherLine(ln) || LINE_STAT[ln.key] || ln.key.startsWith('weapon_') || own.includes(ln.key)) continue;
 			const line = ACCESSORY_LINES.find((l) => l.key === ln.key);
 			if (line) out[line.name] = (out[line.name] ?? 0) + line.values[ln.tier];
 		}
@@ -126,11 +127,11 @@ function coveredChange(from: SimState, to: SimState) {
  * Raw stat change from `from` to `to`, or null when something changed that the stat values don't describe (an
  * engraving, a gem, an Outgoing Damage line, …).
  */
-export function statDeltas(l: Loadout, from: SimState, to: SimState, base: SimState): StatDeltas | null {
+export function statDeltas(l: Loadout, from: SimState, to: SimState, base: SimState, own: readonly string[] = []): StatDeltas | null {
 	if (!coveredChange(from, to)) return null;
-	// Outgoing Damage and other lines aren't in the stat values.
+	// Outgoing Damage and other lines aren't in the stat values (unless the caller values them: `own`).
 	const uncoveredLines = (s: SimState) =>
-		ACCESSORY_SLOTS.map((slot) => (s.accessories[slot] ?? []).filter((ln) => isOtherLine(ln) || !LINE_STAT[ln.key] && !ln.key.startsWith('weapon_')));
+		ACCESSORY_SLOTS.map((slot) => (s.accessories[slot] ?? []).filter((ln) => isOtherLine(ln) || !LINE_STAT[ln.key] && !ln.key.startsWith('weapon_') && !own.includes(ln.key)));
 	if (changed(uncoveredLines(from), uncoveredLines(to))) return null;
 	return rawDeltas(l, from, to, base);
 }
@@ -141,11 +142,11 @@ export function statDeltas(l: Loadout, from: SimState, to: SimState, base: SimSt
  * gives. Losing such a line makes the covered part an overestimate, so that stays null. Lines with no damage value
  * ("other" lines) don't matter here.
  */
-export function statDeltasAtLeast(l: Loadout, from: SimState, to: SimState, base: SimState): { delta: StatDeltas; unvalued: string[] } | null {
-	const exact = statDeltas(l, from, to, base);
+export function statDeltasAtLeast(l: Loadout, from: SimState, to: SimState, base: SimState, own: readonly string[] = []): { delta: StatDeltas; unvalued: string[] } | null {
+	const exact = statDeltas(l, from, to, base, own);
 	if (exact) return { delta: exact, unvalued: [] };
 	if (!coveredChange(from, to)) return null;
-	const before = unvaluedLines(from), after = unvaluedLines(to);
+	const before = unvaluedLines(from, own), after = unvaluedLines(to, own);
 	const names = [...new Set([...Object.keys(before), ...Object.keys(after)])];
 	if (names.some((n) => (after[n] ?? 0) < (before[n] ?? 0))) return null;
 	return { delta: rawDeltas(l, from, to, base), unvalued: names.filter((n) => (after[n] ?? 0) > (before[n] ?? 0)) };

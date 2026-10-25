@@ -6,7 +6,9 @@
 //   - cooldown gems: their skills cast more often, as far as the clear had them on cooldown (LOA Logs' time
 //     available); skills without that record are listed, not counted;
 //   - order Ark Grid cores (with the model loaded, see ark-grid-dps.ts): their skill group and Destiny damage;
-//   - anything else (chaos cores, astrogem options, karma, engravings, Paradise) isn't valued yet: listed, not counted.
+//   - engravings and Outgoing Damage lines: every skill, by the damage the CP sim scores them at;
+//   - chaos cores, astrogem options, Enlightenment Karma and the Paradise orb's proc (dealer-grid-stats.ts);
+//   - anything else (Evolution / Leap Karma, swaps the run can't show) is listed, not counted.
 import type { RunSummary } from '$lib/logs/protocol';
 import { critRates } from './dps-comparison';
 import { baseAttackOf, gemMembers, planModel, skillEffect } from './dps-explain';
@@ -14,7 +16,8 @@ import { modelGain } from './dps-model';
 import { gateSample } from './dps-gates';
 import { statDeltasAtLeast } from './dps-stats';
 import type { orderCoreEffect } from './ark-grid-dps';
-import { simulate, type SimGem, type SimState } from './simulate';
+import { initSimState, simulate, type SimGem, type SimState } from './simulate';
+import { PartType } from './cp';
 import { gridStats, isParadiseProc, paradiseFactor, procSeason } from './dealer-grid-stats';
 import { orbSeason } from './paradise';
 import { KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL } from './tables';
@@ -44,7 +47,9 @@ export interface Meter {
 
 /** Edited parts of the state the stat model covers (see dps-stats COVERED) or that are only log data. */
 const STAT_KEYS = new Set<keyof SimState>(['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet', 'skillShares', 'skillCooldownUse']);
-const LABELS: Partial<Record<keyof SimState, string>> = { arkGrid: 'Ark Grid', karma: 'Karma', engravings: 'Engravings', paradise: 'Paradise' };
+const LABELS: Partial<Record<keyof SimState, string>> = { arkGrid: 'Ark Grid', karma: 'Karma', paradise: 'Paradise' };
+/** Accessory lines the meter values itself (as damage multipliers), not through the stat model. */
+const OWN_LINES = ['outgoing_dmg'] as const;
 const DROPPED_EDITS = 'Some gear edits';
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
@@ -56,7 +61,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stri
 function unvaluedParts(loadout: Loadout, base: SimState, state: SimState, hasArkGrid: boolean): string[] {
 	const out: string[] = [];
 	for (const key of Object.keys(state) as (keyof SimState)[]) {
-		if (STAT_KEYS.has(key) || key === 'gems' || same(state[key], base[key])) continue;
+		if (STAT_KEYS.has(key) || key === 'gems' || key === 'engravings' || same(state[key], base[key])) continue;
 		// Karma: Enlightenment's Weapon Power is valued; Evolution and Leap give only a CP bonus, not a damage stat.
 		if (key === 'paradise') { if (paradiseFactor(base, state) === null) out.push('Paradise orb swap'); continue; } // its proc's damage is valued
 		if (key === 'karma') { if (state.karma.evolution !== base.karma.evolution || state.karma.leap !== base.karma.leap) out.push('Evolution / Leap Karma'); }
@@ -64,6 +69,20 @@ function unvaluedParts(loadout: Loadout, base: SimState, state: SimState, hasArk
 		else if (!same(gridStats(loadout, state).unvalued, gridStats(loadout, base).unvalued)) out.push('Chaos core speed, cooldown and Burn lines');
 	}
 	return out;
+}
+
+/** The loadout's own state: what simulate() rebuilds edited parts against. */
+const anchors = new WeakMap<Loadout, SimState>();
+const anchorOf = (l: Loadout) => anchors.get(l) ?? (anchors.set(l, initSimState(l)), anchors.get(l)!);
+
+/**
+ * Engravings and Outgoing Damage lines as one damage multiplier, the way the CP sim scores them: each part
+ * 1 + value / 10,000 (an engraving's table is its damage at that book and stone level).
+ */
+function damageParts(loadout: Loadout, state: SimState): number {
+	return simulate(loadout, state, anchorOf(loadout)).parts
+		.filter((p) => p.type === PartType.Engraving || p.type === PartType.AccessoryCombatEffect)
+		.reduce((m, p) => m * (1 + (p.value ?? 0) / 1e4), 1);
 }
 
 export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buildRuns: RunSummary[], runs: RunSummary[], arkGrid?: typeof orderCoreEffect, context?: DamageContext): Meter | null {
@@ -76,7 +95,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	notInMeter.push(...unvaluedParts(loadout, base, state, !!arkGrid));
 	for (const key of Object.keys(state) as (keyof SimState)[])
 		if (!STAT_KEYS.has(key) && !same(state[key], base[key])) (statState as unknown as Record<string, unknown>)[key] = structuredClone(base[key]);
-	const change = statDeltasAtLeast(loadout, base, statState, base);
+	const change = statDeltasAtLeast(loadout, base, statState, base, OWN_LINES);
 	if (!change && !same(statState, base)) notes.push(`${DROPPED_EDITS} remove a damage line the model can't value, so they're left out.`);
 	if (change?.unvalued.length) notes.push(`${change.unvalued.join(', ')} isn't valued yet: the real gain is a little higher.`);
 
@@ -138,6 +157,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	const paradise = (skillId: number) => paradiseFactor(base, state, procSeason(skillId)) ?? 1;
 	const orbNow = state.paradise ? orbSeason(state.paradise.orb) : null;
 	const powerMoved = !!orbNow && !!base.paradise && state.paradise!.orb === base.paradise.orb && state.paradise!.powers[orbNow] !== base.paradise.powers[orbNow];
+	const parts = same(state.engravings, base.engravings) && same(state.accessories, base.accessories) ? 1 : damageParts(loadout, state) / damageParts(loadout, base);
 	const gridCrit = gridA && gridB ? ratio(gridB.critHit, gridA.critHit) - 1 : 0;
 	/** A skill's chaos / astrogem multiplier: all damage by Damage to foes and Boss, its crits by On Crit Hit damage. */
 	const gridOf = (skill: { damage: number; critDamage: number }) => gridDamage * (1 + (skill.damage > 0 ? skill.critDamage / skill.damage : 0) * gridCrit);
@@ -156,7 +176,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 		if (gain === null) statKnown = false;
 		const stat = 1 + (gain ?? 0) / 100;
 		statWeighted += Math.max(0, run.damage - run.skills.filter((s) => s.hyper).reduce((sum, s) => sum + s.damage, 0)) * (gain ?? 0);
-		outsideDamage += Math.max(0, run.damage - run.skills.reduce((sum, s) => sum + s.damage, 0)) * stat * gridDamage;
+		outsideDamage += Math.max(0, run.damage - run.skills.reduce((sum, s) => sum + s.damage, 0)) * stat * gridDamage * parts;
 		durationMs += run.duration;
 		const cores = arkGrid && !same(state.arkGrid, base.arkGrid) ? arkGrid(loadout, base, state, run) : null;
 		for (const u of cores?.unvalued ?? []) unvalued.add(u);
@@ -166,7 +186,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 			const row = bySkill.get(skill.id) ?? { id: skill.id, before: 0, after: 0 };
 			row.before += skill.damage;
 			// A Paradise orb's proc hits for a fixed amount (no crits, the same at any gear): only Paradise power moves it.
-			row.after += skill.damage * (isParadiseProc(skill.id) ? paradise(skill.id) : skill.hyper ? 1 : stat * gems * gridOf(skill));
+			row.after += skill.damage * (isParadiseProc(skill.id) ? paradise(skill.id) : skill.hyper ? 1 : stat * gems * gridOf(skill) * parts);
 			bySkill.set(skill.id, row);
 		}
 		before += run.damage;

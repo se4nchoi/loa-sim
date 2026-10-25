@@ -7,6 +7,7 @@ import { engravingNames } from './dps-loadout';
 import { gemMembers } from './dps-explain';
 import { dpsMeter, matchSnapshot, meterGain } from './dps-meter';
 import { orbSeason } from './paradise';
+import { engravingTable } from './tables';
 
 const loadout = soulshan as unknown as Loadout;
 const base = initSimState(loadout);
@@ -139,6 +140,26 @@ describe('meter gain (Next Upgrades in DPS mode)', () => {
 		const swap = structuredClone(base);
 		swap.paradise!.orb = swap.paradise!.orb + 1;
 		expect(dpsMeter(loadout, base, swap, [r], [r])!.notInMeter).toContain('Paradise orb swap');
+	});
+	it('values an engraving step at its damage table, on every skill', () => {
+		const up = structuredClone(base);
+		const e = up.engravings[1299]; // Adrenaline: relic books 20, stone 0 (19.40%)
+		expect(e).toEqual({ books: 4, stone: 0 });
+		e.stone = 1;
+		const t = engravingTable(1299)!;
+		const m = dpsMeter(loadout, base, up, [run(1)], [run(1)])!;
+		expect(m.notInMeter).toEqual([]);
+		expect(m.after / m.before).toBeCloseTo((1 + t[1][4] / 1e4) / (1 + t[0][4] / 1e4), 9);
+		expect(meterGain(loadout, base, base, up, [run(1)], [run(1)]).gainPct).toBeGreaterThan(0);
+	});
+	it('values an Outgoing Damage line as a damage multiplier, not a note', () => {
+		const up = structuredClone(base);
+		const line = up.accessories.neck!.find((ln) => ln.key === 'outgoing_dmg')!;
+		expect(line.tier).toBe('mid');
+		line.tier = 'high';
+		const m = dpsMeter(loadout, base, up, [run(1)], [run(1)])!;
+		expect(m.notes.join(' ')).not.toContain('Outgoing Damage');
+		expect(m.after / m.before).toBeCloseTo(1.02 / 1.012, 9);
 	});
 	it("moves a proc only with its own season's power: a Season 3 orb's Broadwave keeps its hit", () => {
 		const season = orbSeason(base.paradise!.orb)!;
