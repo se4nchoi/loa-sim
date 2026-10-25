@@ -96,10 +96,9 @@ describe('DPS meter', () => {
 	});
 	it("lists edits it doesn't count yet and leaves them out", () => {
 		const state = structuredClone(base);
-		if (state.karma.evolution !== null) state.karma.evolution = Math.min(30, state.karma.evolution + 1);
-		else state.karma.leap = (state.karma.leap ?? 0) + 1;
+		state.karma.evolution = Math.min(30, (state.karma.evolution ?? 0) + 1);
 		const m = dpsMeter(loadout, base, state, [run(1)], [run(1)])!;
-		expect(m.notInMeter).toEqual(['Evolution / Leap Karma']);
+		expect(m.notInMeter).toEqual(['Evolution Karma']);
 		expect(m.after).toBeCloseTo(m.before);
 	});
 	it('sums several clears and their fight time', () => {
@@ -210,7 +209,17 @@ describe('meter gain (Next Upgrades in DPS mode)', () => {
 		expect(dpsMeter(loadout, base, s3, [r(thunder)], [r(thunder)])!.skills.find((s) => s.id === thunder)!.after).toBeCloseTo(30);
 		expect(dpsMeter(loadout, base, s3, [r(broadwave)], [r(broadwave)])!.skills.find((s) => s.id === broadwave)!.after).toBeGreaterThan(30);
 	});
-	it("values Enlightenment Karma (Weapon Power) but not Evolution / Leap Karma's CP bonus", () => {
+	it("values Leap Karma on Hyper Awakening damage only (+0.5% a level)", () => {
+		const leap = base.karma.leap ?? 0;
+		const up = structuredClone(base);
+		up.karma.leap = Math.min(29, leap) + 1;
+		const r = run(1, { skills: [{ id: gemSkill, damage: 900, critDamage: 0, hits: 1, crits: 0, casts: 1 }, { id: 46640, damage: 100, critDamage: 0, hits: 1, crits: 0, casts: 1, hyper: true }] });
+		const m = dpsMeter(loadout, base, up, [r], [r])!;
+		expect(m.notInMeter).toEqual([]);
+		expect(m.skills.find((s) => s.id === 46640)!.after).toBeCloseTo(100 * (1 + 0.005 * up.karma.leap!) / (1 + 0.005 * leap), 9);
+		expect(m.skills.find((s) => s.id === gemSkill)!.after).toBeCloseTo(900, 9);
+	});
+	it("values Enlightenment Karma (Weapon Power) but not Evolution Karma's HP and CP bonus", () => {
 		expect(base.karma.enlightenment).not.toBeNull();
 		const up = structuredClone(base);
 		up.karma.enlightenment = Math.min(29, base.karma.enlightenment!) + 1;
@@ -219,9 +228,9 @@ describe('meter gain (Next Upgrades in DPS mode)', () => {
 	});
 	it('is unknown too when the clear already differed there (its Karma), not +0.00%', () => {
 		const clear = structuredClone(base);
-		clear.karma.leap = Math.max(0, (clear.karma.leap ?? 1) - 1);
+		clear.karma.evolution = Math.max(0, (clear.karma.evolution ?? 1) - 1);
 		const to = structuredClone(base);
-		to.karma.leap = Math.min(30, (to.karma.leap ?? 0) + 1);
+		to.karma.evolution = Math.min(30, (to.karma.evolution ?? 0) + 1);
 		expect(meterGain(loadout, clear, base, to, [run(1)], [run(1)]).gainPct).toBeNull();
 	});
 	it("is unknown for a stat edit when no clear has the meter's stat values", () => {

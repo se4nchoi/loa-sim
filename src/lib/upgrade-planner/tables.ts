@@ -237,3 +237,5 @@ export const karmaRank = (level: number) => (level <= 0 ? 0 : 1 + KARMA_RANK_UP_
 export const KARMA_EVOLUTION_HP_PER_LEVEL = 400;
 /** Enlightenment karma: +0.1% Weapon Power per level. */
 export const KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL = 0.1;
+/** Leap karma: Hyper Awakening (skill and technique) damage +0.5% per level (the game's stat 104, 50 a level). */
+export const KARMA_LEAP_HYPER_PCT_PER_LEVEL = 0.5;

@@ -10,7 +10,8 @@
 //   - bracelet effects: their stats with the stat edits; Outgoing, Crit Hit, back / frontal and non-directional damage
 //     on the skills (and parts of skills) they apply to;
 //   - chaos cores, astrogem options, Enlightenment Karma and the Paradise orb's proc (dealer-grid-stats.ts);
-//   - anything else (Evolution / Leap Karma, swaps the run can't show) is listed, not counted.
+//   - Leap Karma: Hyper Awakening damage, the one thing that moves it (it's otherwise kept as recorded);
+//   - anything else (Evolution Karma, swaps the run can't show) is listed, not counted.
 import type { RunSummary } from '$lib/logs/protocol';
 import { critRates } from './dps-comparison';
 import { baseAttackOf, gemMembers, planModel, skillEffect } from './dps-explain';
@@ -23,7 +24,7 @@ import { initSimState, simulate, type SimGem, type SimState } from './simulate';
 import { PartType } from './cp';
 import { gridStats, isParadiseProc, paradiseFactor, procSeason } from './dealer-grid-stats';
 import { orbSeason } from './paradise';
-import { KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL } from './tables';
+import { KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL, KARMA_LEAP_HYPER_PCT_PER_LEVEL } from './tables';
 import type { Loadout } from './types';
 import { statGain, type DamageContext } from './dps-stat-engine';
 
@@ -66,9 +67,9 @@ function unvaluedParts(loadout: Loadout, base: SimState, state: SimState, hasArk
 	const out: string[] = [];
 	for (const key of Object.keys(state) as (keyof SimState)[]) {
 		if (STAT_KEYS.has(key) || key === 'gems' || key === 'engravings' || same(state[key], base[key])) continue;
-		// Karma: Enlightenment's Weapon Power is valued; Evolution and Leap give only a CP bonus, not a damage stat.
+		// Karma: Enlightenment's Weapon Power and Leap's Hyper Awakening damage are valued; Evolution gives HP and CP only.
 		if (key === 'paradise') { if (paradiseFactor(base, state) === null) out.push('Paradise orb swap'); continue; } // its proc's damage is valued
-		if (key === 'karma') { if (state.karma.evolution !== base.karma.evolution || state.karma.leap !== base.karma.leap) out.push('Evolution / Leap Karma'); }
+		if (key === 'karma') { if (state.karma.evolution !== base.karma.evolution) out.push('Evolution Karma'); }
 		else if (key !== 'arkGrid' || !hasArkGrid) out.push(LABELS[key] ?? key);
 		else if (!same(gridStats(loadout, state).unvalued, gridStats(loadout, base).unvalued)) out.push('Chaos core speed, cooldown and Burn lines');
 	}
@@ -154,6 +155,8 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	const enlightenment = (state.karma.enlightenment ?? 0) - (base.karma.enlightenment ?? 0);
 	if (enlightenment) delta.weaponPower += ((enlightenment * KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL) / 100) * simulate(loadout, state).weaponPower;
 	const ratio = (b: number, a: number) => (1 + b / 100) / (1 + a / 100);
+	// Leap Karma: Hyper Awakening damage +0.5% a level, on the skills the logs flag as Hyper Awakening.
+	const leap = ratio((state.karma.leap ?? 0) * KARMA_LEAP_HYPER_PCT_PER_LEVEL, (base.karma.leap ?? 0) * KARMA_LEAP_HYPER_PCT_PER_LEVEL);
 	const gridDamage = gridA && gridB ? ratio(gridB.damage, gridA.damage) * ratio(gridB.boss, gridA.boss) : 1;
 	// The Paradise orb's proc (its own skill, a few percent of the damage) grows with its season's Paradise power. Checked
 	// on the logs: a character's proc hit is the same on every run and at any CP, and rises only as that power does (a
@@ -208,7 +211,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 			const row = bySkill.get(skill.id) ?? { id: skill.id, before: 0, after: 0 };
 			row.before += skill.damage;
 			// A Paradise orb's proc hits for a fixed amount (no crits, the same at any gear): only Paradise power moves it.
-			row.after += skill.damage * (isParadiseProc(skill.id) ? paradise(skill.id) : skill.hyper ? 1 : stat * gems * gridOf(skill) * parts * braceletOf(skill));
+			row.after += skill.damage * (isParadiseProc(skill.id) ? paradise(skill.id) : skill.hyper ? leap : stat * gems * gridOf(skill) * parts * braceletOf(skill));
 			bySkill.set(skill.id, row);
 		}
 		before += run.damage;
