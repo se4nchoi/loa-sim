@@ -23,7 +23,7 @@
 	import BottomDrawer from './sim/BottomDrawer.svelte';
 	import HScroll from './sim/HScroll.svelte';
 	import { supportCombatPower } from './support';
-	import { cpBrackets, cpStanding, ownRange, type CpDistribution, type CpRole, type IlvlRange } from './cp-distribution';
+	import { cpBrackets, cpStanding, followStandingRange, ownRange, type CpDistribution, type CpRole, type IlvlRange } from './cp-distribution';
 	import SimAccessories from './sim/SimAccessories.svelte';
 	import SimArkGrid from './sim/SimArkGrid.svelte';
 	import SimBracelet from './sim/SimBracelet.svelte';
@@ -247,11 +247,18 @@
 		emit:sample=>{if(cohort())track({event:`${sample.kind}_sampled`,insight:sample});}
 	});
 
-	// Standing among the class: the character's own 10-level bracket until the player picks another range.
-	const own = $derived(ownRange(loadout.itemLevel));
+	// Follow the settled equipment's bracket so standing and CP update together.
+	const own = $derived(ownRange(itemLevel(calculated) ?? loadout.itemLevel));
 	let range = $state<IlvlRange>(null);
+	let rangeLoadout: Loadout | undefined;
+	let previousOwn: IlvlRange = null;
 	$effect.pre(() => {
-		range = own;
+		const next = own, currentLoadout = loadout;
+		untrack(() => {
+			range = currentLoadout !== rangeLoadout ? (next ? { ...next } : null) : followStandingRange(range, previousOwn, next);
+			previousOwn = next ? { ...next } : null;
+			rangeLoadout = currentLoadout;
+		});
 	});
 	// Dealers and supports are ranked separately; the score's id says which one this is.
 	const role = $derived<CpRole>(loadout.combatPower?.id === 2 || (!loadout.combatPower && loadout.battlePoint.isSupport) ? 2 : 1);

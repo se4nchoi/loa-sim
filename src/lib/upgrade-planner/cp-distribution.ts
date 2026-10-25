@@ -89,6 +89,18 @@ export const ownRange = (itemLevel: number | null | undefined): IlvlRange => {
 	return { from, to: from + 10 };
 };
 
+/** Follow the equipment bracket while the default is selected; retain a manual comparison range. */
+export function followStandingRange(selected: IlvlRange, previousOwn: IlvlRange, nextOwn: IlvlRange): IlvlRange {
+	if (selected?.from !== previousOwn?.from || selected?.to !== previousOwn?.to) return selected;
+	return nextOwn ? { ...nextOwn } : null;
+}
+
+/** The source has whole 10-ilvl buckets, so a typed range must cover whole buckets too. */
+export function snapStandingRange(range: NonNullable<IlvlRange>): NonNullable<IlvlRange> {
+	const from = Math.floor(range.from / 10) * 10;
+	return { from, to: Math.max(from + 10, Math.ceil(range.to / 10) * 10) };
+}
+
 /** "Top 12%", "Top 3.1%", "Top 0.85%": two significant digits near the top. */
 export const formatTop = (top: number) =>
 	`Top ${top < 0.1 ? '<0.1' : top < 10 ? Number(top.toPrecision(2)) : top.toFixed(0)}%`;
