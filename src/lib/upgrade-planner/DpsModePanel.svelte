@@ -68,15 +68,13 @@
 	const base = $derived(initSimState(loadout));
 	let confirmed = $state<string | null>(null);
 
-	// The panel's own view: folded, and the Beta intro dismissed. Kept for every character.
+	// The panel's own view: folded or not. Kept for every character; read before the first draw.
 	const VIEW_KEY = 'loa-sim:dps-panel';
-	// Read before the first draw: an intro card shown and then dropped (once dismissed) would move everything under it.
-	let view = $state<{ folded: boolean; intro: boolean }>((() => {
+	let view = $state<{ folded: boolean }>((() => {
 		try {
-			const v = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null');
-			return { folded: v?.folded === true, intro: v?.intro !== false };
+			return { folded: JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null')?.folded === true };
 		} catch {
-			return { folded: false, intro: true };
+			return { folded: false };
 		}
 	})());
 	function setView(next: Partial<typeof view>) {
@@ -307,7 +305,6 @@
 	<div class="flex items-center gap-2 px-3 py-2 sm:px-4" bind:this={header}>
 	<span class="font-semibold text-surface-100">DPS sim</span>
 	<span class="rounded-xs bg-amber-500/15 px-1 text-[10px] font-semibold text-amber-300">BETA</span>
-	<button type="button" hidden={!!shared} class="flex size-5 items-center justify-center rounded-full border text-[11px] font-bold transition {view.intro && !view.folded ? 'border-amber-400/60 bg-amber-500/15 text-amber-200' : 'border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-100'}" title="How the DPS sim works" aria-label="How the DPS sim works" aria-pressed={view.intro && !view.folded} onclick={() => setView({ intro: !(view.intro && !view.folded), folded: false })}>?</button>
 	<button type="button" class="group flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-left" aria-expanded={!view.folded} aria-label={view.folded ? 'Show the DPS sim' : 'Hide the DPS sim'} onclick={() => setView({ folded: !view.folded })}>
 		{#if head && raid && clear}
 			<span class="flex min-w-0 items-center gap-1.5 text-xs text-surface-400 {view.folded ? '' : 'max-sm:hidden'}"><span class="truncate">{raid.name}{gate(clear) ? ` G${gate(clear)}` : ''}</span>
@@ -319,22 +316,6 @@
 
 	{#if !view.folded}
 	<div class="px-3 pb-3 sm:px-4 sm:pb-4">
-	{#if view.intro && !shared}
-		<!-- Beta: how it works, in three steps; hidden once read (remembered). Limits sit under the meter. -->
-		<div class="mb-3 rounded-xs border border-amber-500/30 bg-amber-500/5 p-3">
-			<div class="flex items-center gap-2">
-				<span class="rounded-xs bg-amber-500/20 px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-amber-300">BETA</span>
-				<span class="text-sm font-semibold text-surface-100">How the DPS sim works</span>
-				<button type="button" class="ml-auto rounded-xs border border-surface-600 px-2 py-0.5 text-xs text-surface-200 hover:bg-surface-800" onclick={() => setView({ intro: false })}>Got it</button>
-			</div>
-			<ol class="mt-2 grid gap-2 text-xs sm:grid-cols-3">
-				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">1 · Import your logs</p><p class="mt-0.5 text-surface-400">LOA Logs' encounters.db, read in this browser. Nothing is uploaded.</p></li>
-				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">2 · Pick a run</p><p class="mt-0.5 text-surface-400">{#if isSupport}What your buffs added to each dealer, on the gear it was played with.{:else}Its damage, skill by skill, on the gear it was played with.{/if}</p></li>
-				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">3 · Edit the cards below</p><p class="mt-0.5 text-surface-400">{#if isSupport}Each buff follows the stat behind it: Attack Power, ally enhancement, Brand Power.{:else}Each skill's damage follows your gear, gems, engravings and Ark Grid edits.{/if}</p></li>
-			</ol>
-		</div>
-	{/if}
-
 	{#if (!warm || (!shared && !(characterKey in runsBooks.byCharacter))) && !hasRuns}
 		<!-- No runs in this browser yet: the import card's shape (its label and file picker). -->
 		<div class="animate-pulse" role="status" aria-label="Loading the DPS sim">

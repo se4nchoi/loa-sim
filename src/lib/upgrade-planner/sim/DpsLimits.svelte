@@ -1,6 +1,6 @@
 <!--
-	The DPS sim's limits, in one fold under the meter: what this run's meter leaves out (from the meter), then what
-	always holds. Short facts, one per line; the fold says how many are about this run.
+	The DPS sim's limits, in one fold under the meter: the question it answers, what this run's meter leaves out (from
+	the meter), then what always holds. Short facts, one per line; the fold says how many are about this run.
 -->
 <script lang="ts">
 	let { support = false, notIn = [], notes = [] }: {
@@ -12,14 +12,17 @@
 	} = $props();
 
 	const runCount = $derived((notIn.length ? 1 : 0) + notes.length);
+	const question = $derived(support
+		? 'If you played this run exactly the same with these edits, how much would your buffs add?'
+		: 'If you played this run exactly the same with these edits, what would your DPS be?');
 	const always = $derived(support
 		? [
-			'Replays this run: dealers’ damage, uptime and fight length stay as recorded.',
+			'Kept as recorded: dealers’ damage, uptime and fight length.',
 			'Buffs scale with their stat. Raid buffs (Dance of Passion, orbs) stay as recorded.',
 			'Same gear, run to run: ±10–20%. Most single upgrades: under 2%.'
 		]
 		: [
-			'Replays this run: casts, rotation, crits, buffs and fight length stay as recorded.',
+			'Kept as recorded: casts, rotation, crits, buffs and fight length.',
 			'Same gear, run to run: ±10–20%. Most single upgrades: under 2%.',
 			'Not valued: Order core swaps, Paradise orb swaps, Evolution Karma, stacking or timed effects, summons and DoTs.',
 			'Cooldown gems add casts only where the run had the skill on cooldown.',
@@ -33,6 +36,7 @@
 		{#if runCount}<span class="text-amber-300">※ {runCount} on this run</span>{/if}
 	</summary>
 	<div class="space-y-2 px-3 pb-3">
+		<p class="text-sm font-semibold text-surface-50">{question}</p>
 		{#if runCount}
 			<ul class="space-y-0.5 text-amber-200/90">
 				{#if notIn.length}<li title="Still counted in CP">Not counted: {notIn.join(', ')}</li>{/if}
