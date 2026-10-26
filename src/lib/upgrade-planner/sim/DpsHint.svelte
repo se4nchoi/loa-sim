@@ -18,49 +18,36 @@
 	const paradise: ItemLook = { icon: iconUrl(latestDealerOrb?.icon), grade: latestDealerOrb?.grade, name: latestDealerOrb?.name };
 	type Factor = { label: string; kind: 'Not valued' | 'Assumed' | 'Unverified'; look?: ItemLook; tldr: string; points: string[] };
 	const dealerFactors: Factor[] = [
-		{ label: 'Order core swaps', kind: 'Not valued', look: order, tldr: 'Core swaps are left out; supported same-core upgrades count.', points: [
-			'Different cores change the rotation and Destiny triggers. This run cannot supply the replacement rotation, so swaps are left out.',
-			'Same-core grade and point upgrades count for supported damage effects, using recorded buff coverage.',
-			'Core speed, cooldown, meter gain and Burn effects are left out; cast timing and new ticks are not simulated.'
+		{ label: 'Order core swaps', kind: 'Not valued', look: order, tldr: 'Core swaps aren’t counted (another build); same-build core upgrades (Relic → Ancient) are.', points: [
+			'Other cores play another rotation and trigger other Destinies, which this run can’t show.',
+			'Upgrades on the same cores count for their damage effects; their speed, cooldown and meter effects don’t (casts stay as recorded).'
 		] },
-		{ label: 'Evolution Karma', kind: 'Not valued', look: karma, tldr: 'The HP/CP bonus adds no DPS here.', points: [
-			'Its HP and CP bonuses supply no direct damage multiplier here.',
-			'Enlightenment’s Weapon Power and Leap’s Hyper Awakening damage do count.'
+		{ label: 'Evolution Karma', kind: 'Not valued', look: karma, tldr: 'No DPS (HP and CP only); Enlightenment and Leap Karma are counted.', points: [] },
+		{ label: 'Paradise orb swaps', kind: 'Not valued', look: paradise, tldr: 'Orb swaps aren’t counted (another proc); Paradise power on the same orb is.', points: [
+			'The run’s proc hits scale with its orb’s season power; how often it procs stays as recorded.'
 		] },
-		{ label: 'Paradise orb swaps', kind: 'Not valued', look: paradise, tldr: 'Same-orb power counts; orb swaps are left out.', points: [
-			'Orb swaps add a different proc; its triggers, hit count and damage are not in this run.',
-			'Same orb: recorded proc damage scales with its season’s power, assuming the orb’s CP power formula. Proc count and timing stay fixed.'
+		{ label: 'Stacked buffs', kind: 'Assumed', look: adrenaline, tldr: 'Engravings at their listed value; stacking bracelet Weapon Power at full stacks.', points: [
+			'Stack build-up and drop-off aren’t replayed.',
+			'Core bonuses per stack aren’t counted (stacks aren’t logged).'
 		] },
-		{ label: 'Stacked buffs', kind: 'Assumed', look: adrenaline, tldr: 'Fixed engraving values, full bracelet stacks; per-stack core bonuses left out.', points: [
-			'Adrenaline and other engravings use fixed book/stone damage values; stack buildup and expiry are not replayed.',
-			'Stacking bracelet Weapon Power assumes full stacks throughout, including downtime.',
-			'Per-stack core bonuses are left out because stack counts are not recorded.'
+		{ label: 'Summons & DoTs', kind: 'Unverified', look: bleeding, tldr: 'Scaled like other damage; core bonuses aimed at them (Heavy Bleeding) aren’t counted.', points: [
+			'Their hits and ticks stay as recorded; only the damage per hit scales.'
 		] },
-		{ label: 'Summons & DoTs', kind: 'Unverified', look: bleeding, tldr: 'Some Ark Grid interactions, including Heavy Bleeding, remain unverified.', points: [
-			'Recorded summon/DoT damage can receive general stat scaling; specific Ark Grid interactions remain unverified.',
-			'Reaper’s Heavy Bleeding core bonuses are left out: their target is not reliably mapped to logged damage.',
-			'Recorded attacks and ticks stay fixed. New procs, durations and buff snapshot timing are not simulated.'
+		{ label: 'Cooldown gems', kind: 'Assumed', look: blazing, tldr: 'Extra casts from the skill’s time on cooldown in this run; can overstate the gain.', points: [
+			'Each extra cast deals the run’s average for that skill, with nothing else pushed out of the rotation.',
+			'A run without cooldown data counts only the gem’s base attack.'
 		] },
-		{ label: 'Cooldown gems', kind: 'Assumed', look: blazing, tldr: 'Extra casts are estimated and can overstate the gain.', points: [
-			'Extra casts use recorded time on cooldown. Without that data, cooldown gain is left out; base attack can still count.',
-			'Each extra cast assumes the recorded average damage, no extra animation time or resources, and no other skill displaced. This can overstate the gain.'
-		] },
-		{ label: 'Conditional bracelet effects', kind: 'Not valued', look: bracelet, tldr: 'Conditional bonuses are left out; unconditional stat/damage lines count.', points: [
-			'Staggered/Demon damage bonuses and HP-gated Weapon Power are left out; the model does not track when those conditions were met.',
-			'Unconditional stat and damage lines count. Speed and cooldown lines are left out because the rotation is not rebuilt.'
+		{ label: 'Bracelet effects', kind: 'Not valued', look: bracelet, tldr: 'Plain stat and damage lines count; conditional lines and combat stats don’t.', points: [
+			'Not counted: vs. Staggered or Demons, HP-gated Weapon Power, speed and cooldown lines (when they applied isn’t logged).',
+			'Combat stats (Specialization, Swiftness, …) aren’t counted (what they do depends on the class).'
 		] }
 	];
 	const supportFactors: Factor[] = [
-		{ label: 'Buff uptime & cooldowns', kind: 'Assumed', look: blazing, tldr: 'Buff strength changes; uptime stays fixed.', points: [
-			'Buff strength changes; buff windows, uptime and dealers’ damage stay as recorded.',
-			'Cooldown gems add no buff windows: cast timing and overlap are not simulated. Their base attack still counts.'
+		{ label: 'Buff uptime & cooldowns', kind: 'Assumed', look: blazing, tldr: 'Buff strength changes; uptime and dealers’ damage stay as recorded.', points: [
+			'Cooldown gems add no buff casts; their base attack still counts.'
 		] },
-		{ label: 'Ark Passive party buffs & orbs', kind: 'Assumed', look: paradise, tldr: 'Setup changes are not simulated.', points: [
-			'Assumes the same party buffs and orb setup. Their contribution stays as recorded.'
-		] },
-		{ label: 'New Destiny effects', kind: 'Not valued', look: order, tldr: 'New Destiny effects are left out.', points: [
-			'New effects have no recorded buff window or affected damage to scale, so their contribution is left out.'
-		] }
+		{ label: 'Ark Passive party buffs & orbs', kind: 'Assumed', look: paradise, tldr: 'Kept as recorded (not moved by gear).', points: [] },
+		{ label: 'New Destiny effects', kind: 'Not valued', look: order, tldr: 'A Destiny effect the run didn’t have isn’t counted (nothing recorded to scale).', points: [] }
 	];
 	const factorColumns = $derived.by(() => {
 		const factors = support ? supportFactors : dealerFactors;
@@ -107,10 +94,12 @@
 							<span class="ml-auto shrink-0 rounded-xs border px-1.5 py-0.5 text-[10px] {factor.kind === 'Not valued' || factor.kind === 'Unverified' ? 'border-amber-500/25 bg-amber-500/5 text-amber-300' : 'border-surface-600 bg-surface-900/60 text-surface-300'}">{factor.kind}</span>
 						</summary>
 						<div class="border-t border-surface-700/80 px-4 py-4 sm:px-5">
-							<p class="mb-3 border-l-2 border-amber-400/60 pl-2.5 leading-relaxed text-surface-100"><span class="mr-1 font-semibold text-amber-200">TL;DR</span> {factor.tldr}</p>
-							<ul class="list-disc space-y-2.5 pl-3.5 leading-relaxed text-surface-300 marker:text-surface-500">
-								{#each factor.points as point (point)}<li class="pl-0.5">{point}</li>{/each}
-							</ul>
+							<p class="{factor.points.length ? 'mb-3' : ''} border-l-2 border-amber-400/60 pl-2.5 leading-relaxed text-surface-100"><span class="mr-1 font-semibold text-amber-200">TL;DR</span> {factor.tldr}</p>
+							{#if factor.points.length}
+								<ul class="list-disc space-y-2.5 pl-3.5 leading-relaxed text-surface-300 marker:text-surface-500">
+									{#each factor.points as point (point)}<li class="pl-0.5">{point}</li>{/each}
+								</ul>
+							{/if}
 						</div>
 					</details>
 				</li>
