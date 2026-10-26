@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RunSummary } from '$lib/logs/protocol';
-import { dpsSpread, sameGearRuns } from './run-spread';
+import { dpsByBuild, dpsSpread, sameGearRuns } from './run-spread';
 
 const run = (id: number, dps: number, extra: Partial<RunSummary> = {}) => ({
 	id, start: id, boss: 'Death Incarnate Kazeros', difficulty: 'Hard', cleared: true, player: 'Soulshan', duration: 400_000,
@@ -20,5 +20,16 @@ describe('same-gear spread', () => {
 	});
 	it('needs two runs', () => {
 		expect(dpsSpread(runs[2], runs)).toBeNull();
+	});
+});
+
+describe('DPS by build', () => {
+	const runs = [run(1, 820e6), run(2, 880e6), run(3, 900e6, { loadoutHash: 'v3/ne' }), run(4, 700e6, { difficulty: 'Normal', loadoutHash: 'v3/ne' }), run(5, 999e6, { loadoutHash: 'v3/x' })];
+	const builds: Record<string, string | null> = { 'v3/a': 'footsteps', 'v3/ne': 'deathlord', 'v3/x': null };
+	it("averages the fight's cleared runs per build, best first; unknown builds left out", () => {
+		expect(dpsByBuild(runs[0], runs, (r) => builds[r.loadoutHash!])).toEqual([{ build: 'deathlord', avg: 900e6, count: 1 }, { build: 'footsteps', avg: 850e6, count: 2 }]);
+	});
+	it('needs two builds', () => {
+		expect(dpsByBuild(runs[0], runs.slice(0, 2), (r) => builds[r.loadoutHash!])).toBeNull();
 	});
 });

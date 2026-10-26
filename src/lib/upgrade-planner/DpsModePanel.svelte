@@ -18,7 +18,8 @@
 	import SupportMeterView from './sim/SupportMeter.svelte';
 	import DpsLimits from './sim/DpsLimits.svelte';
 	import DpsHint from './sim/DpsHint.svelte';
-	import { dpsSpread } from './run-spread';
+	import { dpsByBuild, dpsSpread } from './run-spread';
+	import { CORE_NAMES } from './game-data';
 	import { supportMeter } from './support-meter';
 	import FoldChip from './sim/FoldChip.svelte';
 	import { classColor } from './class-colors';
@@ -282,6 +283,16 @@
 	const wipe = $derived(clear ? storyOf(clear) : null);
 	/** The same fight on the same gear, run to run (null under two runs). */
 	const spread = $derived(clear && !shared ? dpsSpread(clear, own) : null);
+	// The fight by build (Order cores, read off each run's own snapshot, and spec): a core swap can't be simulated, but
+	// the runs on each build can be measured.
+	const buildOfRun = (r: RunSummary) => { const c = coresOfRun(r); return c === null ? null : `${c}|${r.spec ?? ''}`; };
+	const byBuild = $derived(clear && !shared ? dpsByBuild(clear, own, buildOfRun) : null);
+	/** "Footsteps of the Dead · Full Moon Harvester": the build's sun core and spec. */
+	const buildName = (key: string) => {
+		const [cores, spec] = key.split('|');
+		const sun = cores.split(',').find((id) => id[4] === '0');
+		return [sun ? CORE_NAMES[sun] ?? sun : 'No Order cores', spec].filter(Boolean).join(' · ');
+	};
 	const enrage = $derived(clear ? isEnrage(clear) : false);
 	const skillsBook = $derived(shared ? shared.skills : book?.skills);
 	const skillName = (id: number) => skillsBook?.[id]?.[0] ?? GEM_SKILLS[id]?.[0] ?? `Skill ${id}`;
@@ -474,6 +485,10 @@
 					<dt>Party DPS added</dt><dd class="font-semibold text-surface-50 tabular-nums">{added ? formatDamage(added / (clear.duration / 1000)) : '—'}</dd>
 					<dt>Of party damage</dt><dd class="font-semibold text-surface-50 tabular-nums">{added && clear.partyDamage ? `${((added / clear.partyDamage) * 100).toFixed(1)}%` : '—'}</dd>
 					{#if spread}<dt>Same gear</dt><dd class="text-surface-200 tabular-nums" title="This fight's cleared runs on this run's gear (same gear snapshot): run-to-run spread">{formatDamage(spread.low)}–{formatDamage(spread.high)} <span class="text-surface-500">({spread.count} runs)</span></dd>{/if}
+					{#if byBuild}
+						<dt class="self-start">By build</dt>
+						<dd><ul class="space-y-0.5">{#each byBuild as b (b.build)}<li class="tabular-nums {b.build === buildOfRun(clear) ? 'text-surface-50' : 'text-surface-400'}" title="This fight's cleared runs on this build: average DPS (cores read off each run's own snapshot)"><span class="font-semibold">{formatDamage(b.avg)}</span> {buildName(b.build)} <span class="text-surface-500">({b.count})</span></li>{/each}</ul></dd>
+					{/if}
 					{#if wipe && enrage}<dt>Party short</dt><dd class="font-semibold text-rose-100 tabular-nums">+{wipe.partyPct.toFixed(1)}% damage</dd>{/if}
 				{:else if wipe && enrage}
 					<dt>Party short</dt><dd class="font-semibold text-rose-100 tabular-nums">+{wipe.partyPct.toFixed(1)}% damage</dd>
@@ -484,6 +499,10 @@
 					<dt>Your DPS</dt><dd class="font-semibold text-surface-50 tabular-nums">{formatDamage(yours)}</dd>
 					<dt>Party share</dt><dd class="font-semibold text-surface-50 tabular-nums">{sharePct !== null ? `${sharePct.toFixed(1)}%` : '—'}</dd>
 					{#if spread}<dt>Same gear</dt><dd class="text-surface-200 tabular-nums" title="This fight's cleared runs on this run's gear (same gear snapshot): run-to-run spread">{formatDamage(spread.low)}–{formatDamage(spread.high)} <span class="text-surface-500">({spread.count} runs)</span></dd>{/if}
+					{#if byBuild}
+						<dt class="self-start">By build</dt>
+						<dd><ul class="space-y-0.5">{#each byBuild as b (b.build)}<li class="tabular-nums {b.build === buildOfRun(clear) ? 'text-surface-50' : 'text-surface-400'}" title="This fight's cleared runs on this build: average DPS (cores read off each run's own snapshot)"><span class="font-semibold">{formatDamage(b.avg)}</span> {buildName(b.build)} <span class="text-surface-500">({b.count})</span></li>{/each}</ul></dd>
+					{/if}
 				{/if}
 			</dl>
 		</div>
