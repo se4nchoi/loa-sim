@@ -3,6 +3,7 @@
 	import { PARADISE_ORBS } from '../game-data';
 	import { engravingIcon, iconUrl, itemLook, t4GemId, type ItemLook } from '../icons';
 	import ItemIcon from './ItemIcon.svelte';
+	import type { DpsLimitKey } from '../dps-limit-link.svelte';
 
 	let { support = false, ondismiss }: { support?: boolean; ondismiss: () => void } = $props();
 	const blazing = itemLook(t4GemId(2, 10));
@@ -16,28 +17,28 @@
 	// Use the latest dealer orb in the game's table, rather than a past season's or support orb.
 	const latestDealerOrb = Object.entries(PARADISE_ORBS).filter(([, orb]) => !orb.support).sort(([a], [b]) => Number(b) - Number(a))[0]?.[1];
 	const paradise: ItemLook = { icon: iconUrl(latestDealerOrb?.icon), grade: latestDealerOrb?.grade, name: latestDealerOrb?.name };
-	type Factor = { label: string; kind: 'Not valued' | 'Assumed' | 'Unverified'; look?: ItemLook; tldr: string; points: string[] };
+	type Factor = { key?: DpsLimitKey; label: string; kind: 'Not valued' | 'Assumed' | 'Unverified'; look?: ItemLook; tldr: string; points: string[] };
 	const dealerFactors: Factor[] = [
-		{ label: 'Order core swaps', kind: 'Not valued', look: order, tldr: 'Core swaps aren’t counted (another build); same-build core upgrades (Relic → Ancient) are.', points: [
+		{ key: 'cores', label: 'Order core swaps', kind: 'Not valued', look: order, tldr: 'Core swaps aren’t counted (another build); same-build core upgrades (Relic → Ancient) are.', points: [
 			'Other cores play another rotation and trigger other Destinies, which this run can’t show.',
 			'Upgrades on the same cores count for their damage effects; their speed, cooldown and meter effects don’t (casts stay as recorded).'
 		] },
-		{ label: 'Evolution Karma', kind: 'Not valued', look: karma, tldr: 'No DPS (HP and CP only); Enlightenment and Leap Karma are counted.', points: [] },
-		{ label: 'Paradise orb swaps', kind: 'Not valued', look: paradise, tldr: 'Orb swaps aren’t counted (another proc); Paradise power on the same orb is.', points: [
+		{ key: 'karma', label: 'Evolution Karma', kind: 'Not valued', look: karma, tldr: 'No DPS (HP and CP only); Enlightenment and Leap Karma are counted.', points: [] },
+		{ key: 'paradise', label: 'Paradise orb swaps', kind: 'Not valued', look: paradise, tldr: 'Orb swaps aren’t counted (another proc); Paradise power on the same orb is.', points: [
 			'The run’s proc hits scale with its orb’s season power; how often it procs stays as recorded.'
 		] },
-		{ label: 'Stacked buffs', kind: 'Assumed', look: adrenaline, tldr: 'Engravings at their listed value; stacking bracelet Weapon Power at full stacks.', points: [
+		{ key: 'stacks', label: 'Stacked buffs', kind: 'Assumed', look: adrenaline, tldr: 'Engravings at their listed value; stacking bracelet Weapon Power at full stacks.', points: [
 			'Stack build-up and drop-off aren’t replayed.',
 			'Core bonuses per stack aren’t counted (stacks aren’t logged).'
 		] },
-		{ label: 'Summons & DoTs', kind: 'Unverified', look: bleeding, tldr: 'Scaled like other damage; core bonuses aimed at them (Heavy Bleeding) aren’t counted.', points: [
+		{ key: 'summons', label: 'Summons & DoTs', kind: 'Unverified', look: bleeding, tldr: 'Scaled like other damage; core bonuses aimed at them (Heavy Bleeding) aren’t counted.', points: [
 			'Their hits and ticks stay as recorded; only the damage per hit scales.'
 		] },
-		{ label: 'Cooldown gems', kind: 'Assumed', look: blazing, tldr: 'Extra casts from the skill’s time on cooldown in this run; can overstate the gain.', points: [
+		{ key: 'cooldown', label: 'Cooldown gems', kind: 'Assumed', look: blazing, tldr: 'Extra casts from the skill’s time on cooldown in this run; can overstate the gain.', points: [
 			'Each extra cast deals the run’s average for that skill, with nothing else pushed out of the rotation.',
 			'A run without cooldown data counts only the gem’s base attack.'
 		] },
-		{ label: 'Bracelet effects', kind: 'Not valued', look: bracelet, tldr: 'Plain stat and damage lines count; conditional lines and combat stats don’t.', points: [
+		{ key: 'bracelet', label: 'Bracelet effects', kind: 'Not valued', look: bracelet, tldr: 'Plain stat and damage lines count; conditional lines and combat stats don’t.', points: [
 			'Not counted: vs. Staggered or Demons, HP-gated Weapon Power, speed and cooldown lines (when they applied isn’t logged).',
 			'Combat stats (Specialization, Swiftness, …) aren’t counted (what they do depends on the class).'
 		] }
@@ -85,7 +86,7 @@
 			{#each factorColumns as column, index (index)}
 			<ul class="space-y-4">
 			{#each column as factor (factor.label)}
-				<li class="min-w-0">
+				<li class="min-w-0 scroll-mt-24 rounded-sm transition-shadow" id={factor.key ? `dps-limit-${factor.key}` : undefined}>
 					<details open class="group overflow-hidden rounded-sm border border-surface-600/70 bg-surface-950/70">
 						<summary class="flex cursor-pointer items-center gap-2.5 bg-surface-800/80 px-3 py-3 text-surface-100 select-none hover:bg-surface-700/80 sm:px-4">
 							<span aria-hidden="true" class="text-surface-500 transition-transform group-open:rotate-90">▸</span>
@@ -108,7 +109,7 @@
 			{/each}
 		</div>
 	</section>
-	<div class="mt-4 flex justify-start border-t border-amber-500/20 pt-4">
-		<button type="button" class="shrink-0 rounded-xs border border-surface-600 px-3 py-1.5 text-xs text-surface-200 hover:bg-surface-800" onclick={ondismiss}>Got it</button>
+	<div class="mt-4 flex justify-center border-t border-amber-500/20 pt-4">
+		<button type="button" class="h-10 min-w-40 rounded-xs bg-accent-700 px-6 text-sm font-semibold text-white hover:bg-accent-600" onclick={ondismiss}>Got it</button>
 	</div>
 </aside>

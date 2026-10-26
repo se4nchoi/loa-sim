@@ -10,9 +10,10 @@
 	} from '../tables';
 	import SimCard from './SimCard.svelte';
 	import Stepper from './Stepper.svelte';
+	import NoDpsChip from './NoDpsChip.svelte';
 	import { btn, btnAccent, type SectionDelta } from './ui';
 
-	let { sim = $bindable(), base, delta }: { sim: SimState; base: SimState; delta: SectionDelta } = $props();
+	let { sim = $bindable(), base, delta, dpsBase = null }: { sim: SimState; base: SimState; delta: SectionDelta; /** DPS mode: Evolution Karma isn't counted. */ dpsBase?: SimState | null } = $props();
 	const role = getContext<() => RoleTables>('loa-sim:role');
 
 	type Tree = 'evolution' | 'enlightenment' | 'leap';
@@ -67,7 +68,7 @@
 							title={`Rank ${rank}`}>{rank}</span
 						>
 						<div class="flex min-w-0 flex-1 flex-col">
-							<span class="text-sm font-semibold" style:color={t.color}>{t.name}</span>
+							<span class="flex items-center gap-1.5 text-sm font-semibold" style:color={t.color}>{t.name}{#if dpsBase && t.key === 'evolution'}<NoDpsChip limit="karma" title="Evolution Karma gives HP and CP, no damage" />{/if}</span>
 							<span class="text-xs text-surface-400">Rank {rank} · Lv. {level}</span>
 						</div>
 					</div>

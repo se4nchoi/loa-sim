@@ -4,7 +4,7 @@
 	rotation are its own. Next Upgrades ranks by the same meter (dps-selection); Target DPS plans on it.
 -->
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { setDpsSelection, type DpsSelection } from './dps-selection.svelte';
 	import { hasStoredRuns, loadRuns, runsBooks } from '$lib/logs/runs-store.svelte';
 	import { currentRaids, raidGateOf } from '$lib/logs/raids';
@@ -18,6 +18,7 @@
 	import SupportMeterView from './sim/SupportMeter.svelte';
 	import DpsLimits from './sim/DpsLimits.svelte';
 	import DpsHint from './sim/DpsHint.svelte';
+	import { dpsLimitRequest } from './dps-limit-link.svelte';
 	import { dpsByBuild, dpsSpread } from './run-spread';
 	import { CORE_NAMES } from './game-data';
 	import { supportMeter } from './support-meter';
@@ -82,6 +83,21 @@
 			return { folded: false, hint: true };
 		}
 	})());
+	// A "no DPS" chip on a card: open the hint at that limit, scrolled to and briefly highlighted.
+	$effect(() => {
+		const { key, count } = dpsLimitRequest;
+		if (!key || !count) return;
+		untrack(() => setView({ hint: true, folded: false }));
+		// After the hint has laid out (it may have just opened), so the scroll lands on the card.
+		tick().then(() => setTimeout(() => {
+			const el = document.getElementById(`dps-limit-${key}`);
+			if (!el) return;
+			el.querySelector('details')?.setAttribute('open', '');
+			el.scrollIntoView({ block: 'center' });
+			el.classList.add('ring-2', 'ring-amber-400');
+			setTimeout(() => el.classList.remove('ring-2', 'ring-amber-400'), 1600);
+		}, 30));
+	});
 	function setView(next: Partial<typeof view>) {
 		view = { ...view, ...next };
 		try { localStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch { /* this visit only */ }

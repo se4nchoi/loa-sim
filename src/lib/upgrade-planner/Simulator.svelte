@@ -215,6 +215,8 @@
 			shieldHeal: { value: b.shieldHeal, pct: (b.shieldHeal / a.shieldHeal - 1) * 100 }
 		};
 	});
+	/** DPS mode, a dealer's picked run: its setup, the meter's baseline. Cards tag edits from it the meter won't count. */
+	const dpsBase = $derived(dpsMode && characterKey && !loadout.battlePoint.isSupport ? (dpsSelection(characterKey)?.baseline ?? null) : null);
 	const startingScore = $derived(simulationBaseline(loadout, baseline.cp));
 	const current = $derived(startingScore.cp);
 	// A consistent snapshot keeps its in-game score; inconsistent gear uses its calculated baseline.
@@ -440,14 +442,14 @@
 		<div class="grid grid-cols-2 items-start gap-2 max-xl:grid-cols-1">
 			<div class="flex min-w-0 flex-col gap-2">
 				<section id="sim-equipment" aria-label="Equipment" class="scroll-mt-28 max-lg:scroll-mt-32"><SimGear bind:sim {base} {itemIds} classId={loadout.classId} delta={sections.gear} /></section>
-				{#if base.paradise}<section id="sim-paradise" aria-label="Paradise" class="scroll-mt-28 max-lg:scroll-mt-32"><SimParadise bind:sim {base} {preview} delta={sections.paradise} /></section>{/if}
+				{#if base.paradise}<section id="sim-paradise" aria-label="Paradise" class="scroll-mt-28 max-lg:scroll-mt-32"><SimParadise bind:sim {base} {preview} {dpsBase} delta={sections.paradise} /></section>{/if}
 				<section id="sim-accessories" aria-label="Accessories" class="scroll-mt-28 max-lg:scroll-mt-32"><SimAccessories bind:sim {base} {itemIds} {mainStatName} {preview} delta={sections.accessories} /></section>
-				<section id="sim-bracelet" aria-label="Bracelet" class="scroll-mt-28 max-lg:scroll-mt-32"><SimBracelet bind:sim {base} {loadout} itemId={itemIds.bracelet} {mainStatName} {preview} delta={sections.bracelet} /></section>
+				<section id="sim-bracelet" aria-label="Bracelet" class="scroll-mt-28 max-lg:scroll-mt-32"><SimBracelet bind:sim {base} {loadout} itemId={itemIds.bracelet} {mainStatName} {preview} {dpsBase} delta={sections.bracelet} /></section>
 			</div>
 			<div class="flex min-w-0 flex-col gap-2">
 				<section id="sim-gems" aria-label="Gems" class="scroll-mt-28 max-lg:scroll-mt-32"><SimGems bind:sim {base} {gems} delta={sections.gems} /></section>
 				<section id="sim-engravings" aria-label="Engravings" class="scroll-mt-28 max-lg:scroll-mt-32"><SimEngravings bind:sim {base} {preview} delta={sections.engravings} /></section>
-				<section id="sim-karma" aria-label="Karma" class="scroll-mt-28 max-lg:scroll-mt-32"><SimKarma bind:sim {base} delta={sections.karma} /></section>
+				<section id="sim-karma" aria-label="Karma" class="scroll-mt-28 max-lg:scroll-mt-32"><SimKarma bind:sim {base} {dpsBase} delta={sections.karma} /></section>
 				<section id="sim-skins" aria-label="Skins" class="scroll-mt-28 max-lg:scroll-mt-32"><SimSkins bind:sim {base} {itemIds} {mainStatName} delta={sections.skins} /></section>
 			</div>
 		</div>

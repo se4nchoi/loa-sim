@@ -5,10 +5,12 @@
 	import type { SimState } from '../simulate';
 	import ItemIcon from './ItemIcon.svelte';
 	import LinePicker from './LinePicker.svelte';
+	import NoDpsChip from './NoDpsChip.svelte';
 	import SimCard from './SimCard.svelte';
 	import { btn, btnAccent, type PickOption, type PreviewEdit, type SectionDelta } from './ui';
 
-	let { sim = $bindable(), base, delta, preview }: { sim: SimState; base: SimState; delta: SectionDelta; preview: PreviewEdit } = $props();
+	let { sim = $bindable(), base, delta, preview, dpsBase = null }: { sim: SimState; base: SimState; delta: SectionDelta; preview: PreviewEdit; /** DPS mode: the run's setup; orbs other than its own aren't counted. */ dpsBase?: SimState | null } = $props();
+	const runOrb = $derived(dpsBase?.paradise && !dpsBase.paradise.flat ? dpsBase.paradise.orb : null);
 
 	/** lostark.bible's Relic name color: orbs are Relic items. */
 	const RELIC = '#fa5d00';
@@ -33,7 +35,7 @@
 						textColor: RELIC,
 						iconUrl: iconUrl(orbIcon(o)),
 						group: `Season ${orbSeason(o) ?? '?'}`,
-						detail: { label: `${formatPct(shareOf(orb, o))}% CP${better ? ' ▲' : ''}`, color: better ? '#38bdf8' : '#a1a1aa' }
+						detail: { label: `${formatPct(shareOf(orb, o))}% CP${better ? ' ▲' : ''}${runOrb !== null && o !== runOrb ? ' · no DPS' : ''}`, color: better ? '#38bdf8' : '#a1a1aa' }
 					};
 				})
 			: []
@@ -83,6 +85,7 @@
 						onpick={(o) => (sim.paradise = { ...sim.paradise!, orb: Number(o) })}
 						preview={(o) => previewOrb(Number(o))}
 					/>
+					{#if runOrb !== null && orb.orb !== runOrb}<NoDpsChip limit="paradise" title="Another orb than the run's: its proc isn't in this run, so the swap isn't counted" />{/if}
 				{/if}
 			</div>
 			{#if orb.flat}

@@ -12,6 +12,8 @@
 	import Segmented from './Segmented.svelte';
 	import SimCard from './SimCard.svelte';
 	import Stepper from './Stepper.svelte';
+	import NoDpsChip from './NoDpsChip.svelte';
+	import { braceletPart } from '../dps-stats';
 	import { GRADE_COLORS, ROLL_COLORS, btn, btnAccent, selectClass, type PickOption, type PreviewEdit, type SectionDelta } from './ui';
 
 	let {
@@ -21,7 +23,8 @@
 		itemId,
 		mainStatName,
 		preview,
-		loadout
+		loadout,
+		dpsBase = null
 	}: {
 		sim: SimState;
 		base: SimState;
@@ -30,6 +33,8 @@
 		mainStatName: string;
 		preview: PreviewEdit;
 		loadout: Loadout;
+		/** DPS mode: the run's setup; changed lines the meter can't value are tagged. */
+		dpsBase?: SimState | null;
 	} = $props();
 
 	const role = getContext<() => RoleTables>('loa-sim:role');
@@ -99,6 +104,22 @@
 	const kindOf = (l: BraceletLine): BraceletLine['kind'] => (isStatEffect(l) ? 'effect' : l.kind);
 	const look = $derived(itemLook(itemId));
 
+	// What the DPS meter values (dps-stats): stat-coded Crit Rate / Crit Damage / Additional Damage / Weapon Power, and
+	// effects' plain stat and damage sentences; conditional parts and the rest aren't.
+	const COUNTED_STAT_EFFECTS = new Set(['2:74', '2:76', '2:50', '2:151']);
+	/** Whether the meter counts an effect line: fully, partly (some sentences conditional), or not at all. */
+	const dpsCount = (key: string): 'yes' | 'partly' | 'no' => {
+		const p = braceletPart(key);
+		if (!p) return 'no';
+		const valued = Object.values(p.stats).some((v) => v) || !!(p.outgoing || p.critHit || p.back || p.front || p.nonDirectional);
+		return !valued ? 'no' : p.unvalued.length ? 'partly' : 'yes';
+	};
+	/** A line as the meter counts it: stats (main stat, Crit) and counted effects; combat stats and the rest not. */
+	const lineCount = (l: BraceletLine): 'yes' | 'partly' | 'no' =>
+		l.kind === 'empty' ? 'yes'
+		: l.kind === 'effect' ? dpsCount(l.key)
+		: isStatEffect(l) ? (COUNTED_STAT_EFFECTS.has(statKey(l)) ? 'yes' : 'no')
+		: isMainStat(statKey(l)) || statKey(l) === '2:15' ? 'yes' : 'no';
 	/** "Outgoing Damage +3%." → short label for the family heading. */
 	const shortText = (t: string) => (t.length > 70 ? `${t.slice(0, 68)}…` : t);
 	// Dealers and supports roll the same effects but score them differently; supports list their own table.
@@ -110,14 +131,16 @@
 			value: e.key,
 			label: shortText(e.text),
 			color: GRADE_COLORS[e.grade] ?? ROLL_COLORS.none,
-			group: 'Special effects'
+			group: 'Special effects',
+			...(dpsBase && dpsCount(e.key) !== 'yes' ? { detail: { label: dpsCount(e.key) === 'no' ? 'no DPS' : 'partly', color: '#fcd34d' } } : {})
 		})),
 		...Object.entries(STAT_EFFECTS).flatMap(([key, e]) =>
 			e.values.toReversed().map((v, i) => ({
 				value: `stat:${key}:${v}`,
 				label: statEffectLabel(key, v),
 				color: TIER_COLORS[2 - i],
-				group: 'Stat effects'
+				group: 'Stat effects',
+				...(dpsBase && !COUNTED_STAT_EFFECTS.has(key) ? { detail: { label: 'no DPS', color: '#fcd34d' } } : {})
 			}))
 		)
 	]);
@@ -248,6 +271,9 @@
 							</span>
 						{:else}
 							<span class="text-xs text-surface-500">No line</span>
+						{/if}
+						{#if dpsBase && !sameLine(dpsBase.bracelet?.lines[i], line) && lineCount(line) !== 'yes'}
+							<NoDpsChip limit="bracelet" label={lineCount(line) === 'no' ? 'no DPS' : 'partly'} title={lineCount(line) === 'no' ? "The DPS meter doesn't count this line (conditional, a combat stat, or no damage)" : 'Only its plain stat and damage parts count; its conditional parts don’t'} />
 						{/if}
 					</div>
 				{/each}
