@@ -149,7 +149,7 @@
 	const menuOptions = $derived(
 		older.length
 			? menu
-			: [...menu, { value: 'hint', label: 'Older snapshots show up here as you reload this character', disabled: true, muted: true, marker: '' }]
+			: [...menu, { value: 'hint', label: 'Reloads add older snapshots here', disabled: true, muted: true, marker: '' }]
 	);
 	const menuValue = $derived(snapshotId ? `snap:${snapshotId}` : (loadoutKind ?? ''));
 	/**
