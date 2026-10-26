@@ -18,6 +18,7 @@
 	import SupportMeterView from './sim/SupportMeter.svelte';
 	import DpsLimits from './sim/DpsLimits.svelte';
 	import DpsHint from './sim/DpsHint.svelte';
+	import { dpsSpread } from './run-spread';
 	import { supportMeter } from './support-meter';
 	import FoldChip from './sim/FoldChip.svelte';
 	import { classColor } from './class-colors';
@@ -279,6 +280,8 @@
 	/** A run's colour in the menu: failed pulls light red, clears light green. */
 	const runTone = (r: RunSummary) => (sameCores(r) === false ? 'text-surface-400' : r.cleared === false ? 'text-rose-300' : r.cleared === true ? 'text-emerald-200' : 'text-white');
 	const wipe = $derived(clear ? storyOf(clear) : null);
+	/** The same fight on the same gear, run to run (null under two runs). */
+	const spread = $derived(clear && !shared ? dpsSpread(clear, own) : null);
 	const enrage = $derived(clear ? isEnrage(clear) : false);
 	const skillsBook = $derived(shared ? shared.skills : book?.skills);
 	const skillName = (id: number) => skillsBook?.[id]?.[0] ?? GEM_SKILLS[id]?.[0] ?? `Skill ${id}`;
@@ -470,6 +473,7 @@
 				{#if isSupport}
 					<dt>Party DPS added</dt><dd class="font-semibold text-surface-50 tabular-nums">{added ? formatDamage(added / (clear.duration / 1000)) : '—'}</dd>
 					<dt>Of party damage</dt><dd class="font-semibold text-surface-50 tabular-nums">{added && clear.partyDamage ? `${((added / clear.partyDamage) * 100).toFixed(1)}%` : '—'}</dd>
+					{#if spread}<dt>Same gear</dt><dd class="text-surface-200 tabular-nums" title="This fight's cleared runs on this run's gear (same gear snapshot): run-to-run spread">{formatDamage(spread.low)}–{formatDamage(spread.high)} <span class="text-surface-500">({spread.count} runs)</span></dd>{/if}
 					{#if wipe && enrage}<dt>Party short</dt><dd class="font-semibold text-rose-100 tabular-nums">+{wipe.partyPct.toFixed(1)}% damage</dd>{/if}
 				{:else if wipe && enrage}
 					<dt>Party short</dt><dd class="font-semibold text-rose-100 tabular-nums">+{wipe.partyPct.toFixed(1)}% damage</dd>
@@ -479,6 +483,7 @@
 				{:else}
 					<dt>Your DPS</dt><dd class="font-semibold text-surface-50 tabular-nums">{formatDamage(yours)}</dd>
 					<dt>Party share</dt><dd class="font-semibold text-surface-50 tabular-nums">{sharePct !== null ? `${sharePct.toFixed(1)}%` : '—'}</dd>
+					{#if spread}<dt>Same gear</dt><dd class="text-surface-200 tabular-nums" title="This fight's cleared runs on this run's gear (same gear snapshot): run-to-run spread">{formatDamage(spread.low)}–{formatDamage(spread.high)} <span class="text-surface-500">({spread.count} runs)</span></dd>{/if}
 				{/if}
 			</dl>
 		</div>
