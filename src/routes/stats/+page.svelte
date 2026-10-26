@@ -3,6 +3,7 @@
 	import { CATEGORY_LABELS, type UpgradeCategory } from '$lib/upgrade-planner/upgrades';
 	import StatsTimeline from '$lib/StatsTimeline.svelte';
 	import StatsCollection from '$lib/StatsCollection.svelte';
+	import StatsSampling from '$lib/StatsSampling.svelte';
 	import { CP_BUCKETS, LEVEL_BUCKETS } from '$lib/plan-stats';
 	let days = $state('30');
 	let key = $state('');
@@ -109,6 +110,7 @@
 			<section class="panel p-5"><h2 class="mb-5 font-semibold">Applied upgrades</h2><div class="grid gap-x-12 gap-y-5 sm:grid-cols-2">{#each upgrades as [name, count]}<div><div class="mb-2 flex justify-between"><span>{CATEGORY_LABELS[name as UpgradeCategory] ?? name}</span><strong class="tabular-nums text-accent-300">{fmt(count)}</strong></div><div class="h-1.5 overflow-hidden rounded-full bg-neutral-800"><div class="h-full rounded-full bg-accent-500/70" style:width={`${count / Math.max(1, upgrades[0]?.[1] ?? 1) * 100}%`}></div></div></div>{:else}<p class="text-surface-400">No applied upgrades recorded</p>{/each}</div></section>
 			<StatsCollection totals={report.totals} view="exploration" />
 		{:else}
+			<p class="text-xs text-surface-400">Saved-plan overview · all recorded models in the selected dates. Model-specific progression and headroom remain available in Collected counters.</p>
 			<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
 				<div class="stat-card"><span class="stat-label">Sampled saved plans</span><strong class="stat-value text-accent-300">{fmt(planCount)}</strong></div>
 				<div class="stat-card"><span class="stat-label">Dealer / support plans</span><strong class="stat-value">{fmt(report.totals['plan:role:dealer'] ?? 0)} <span class="text-base text-surface-500">/</span> {fmt(report.totals['plan:role:support'] ?? 0)}</strong></div>
@@ -123,6 +125,7 @@
 			{:else}<div class="panel px-5 py-12 text-center text-surface-400">No eligible saved plans yet</div>{/if}
 			<StatsCollection totals={report.totals} view="plans" />
 		{/if}
+		<StatsSampling totals={report.totals} />
 		<details class="panel group"><summary class="px-5 py-4 font-semibold text-surface-300">Daily data</summary><div class="overflow-x-auto border-t border-neutral-800"><table class="w-full min-w-[650px] text-left text-xs tabular-nums"><thead class="bg-neutral-900 text-surface-400"><tr><th class="px-5 py-3 font-medium">UTC date</th><th class="px-3 py-3 text-right font-medium">Est. characters</th>{#each dailyEvents as [, label]}<th class="px-3 py-3 text-right font-medium">{label}</th>{/each}</tr></thead><tbody>{#each report.days as day}<tr class="border-t border-neutral-800/60 hover:bg-neutral-900/60"><td class="whitespace-nowrap px-5 py-3 text-surface-300">{day.date}{day.date === new Date().toISOString().slice(0, 10) ? ' · partial' : ''}</td><td class="px-3 py-3 text-right">{fmt(day.distinctCharacters)}</td>{#each dailyEvents as [event]}<td class="px-3 py-3 text-right">{fmt(day.counts[event] ?? 0)}</td>{/each}</tr>{/each}</tbody></table></div></details>
 		<details class="panel"><summary class="px-5 py-4 font-semibold text-surface-300">Collected counters</summary><div class="space-y-3 border-t border-neutral-800 p-5"><input aria-label="Find counter" bind:value={counterSearch} placeholder="Find counter" class="{field} w-full"/><p class="text-xs text-surface-400">{fmt(counters.length)} matching counters{counters.length > 100 ? ' · showing first 100' : ''}</p><div class="max-h-80 overflow-auto"><table class="w-full text-xs"><tbody>{#each counters.slice(0,100) as [name,count]}<tr class="border-b border-neutral-800/60"><td class="break-all py-2 pr-4 font-mono text-surface-300">{name}</td><td class="text-right align-top py-2 font-semibold tabular-nums">{fmt(count)}</td></tr>{/each}</tbody></table></div></div></details>
 		<details class="panel"><summary class="px-5 py-4 text-xs text-surface-400">Collection details</summary><ul class="list-disc space-y-2 border-t border-neutral-800 px-9 py-4 text-xs text-surface-300">
@@ -134,6 +137,8 @@
 			<li>Exploration counts apply to simulations, not in-game purchases. No historical backfill.</li>
 			<li>Budget costs are estimates from entered prices and bound inventory. Partial budgets are excluded from complete-cost distributions. Single-step offers are not multi-upgrade optimizations.</li>
 			<li>Repeated views and choices can belong to the same character. Cohort tables pool observations while retaining model and cost-assumption labels.</li>
+			<li>Comparisons use the selected CP model and recorded coverage. The historical model tag spans the Vambraces correction; older pooled offers cannot recover missing context.</li>
+			<li>Collection health reconciles new received sampling attempts, not all historic actions or browser sessions.</li>
 			<li>Plan samples include new named saves with settled calculations and no flagged baseline or Willpower error. Samples contain CP-gain and item-level ranges plus build role; no names or equipment.</li>
 			{#if report.updatedAt}<li>Report generated {report.updatedAt.replace('T', ' ').slice(0, 19)} UTC.</li>{/if}
 		</ul></details>

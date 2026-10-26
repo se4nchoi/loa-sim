@@ -1,6 +1,6 @@
 # Simulator insight collection
 
-Collection-only maintenance: `codex/stats-collection-quality`. No public navigation tab, dashboard redesign, or public reporting endpoint is included. The existing private stats page and key-protected API remain unchanged. New clients use schema 3 and CP model `cp-2026-10-26-vambraces-v1`. Cached schema-2 clients and the historical `cp-2026-10-25` model remain accepted. No historical backfill.
+Collection schema 3 uses CP model `cp-2026-10-26-vambraces-v1`. Cached schema-2 clients and the historical `cp-2026-10-25` model remain accepted. No historical backfill. The private dashboard at `/stats` now presents these counters through the existing key-protected API; see `private-stats.md`. There is no public Stats navigation tab or public reporting endpoint.
 
 The live audit on Oct 26 found consistent arithmetic, but the old CP tag spans both sides of the Vambraces correction. Those historical observations cannot be separated retrospectively. Treat that tag as mixed model history, and restrict corrected-model conclusions to the new tag after deployment. Old pooled category/price histograms remain compatible counters, not model-specific evidence.
 
