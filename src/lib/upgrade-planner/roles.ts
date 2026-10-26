@@ -4,7 +4,7 @@
 
 import { BRACELET_EFFECTS } from './game-data';
 import { COMBAT_ENGRAVING_IDS, ZERO_ENGRAVING_TABLE } from './engraving-catalog';
-import { PartType, combatPower } from './cp';
+import { PartType, baselineParts, combatPower } from './cp';
 import {
 	SUPPORT_ACCESSORY_LINES,
 	SUPPORT_ASTROGEM_OPTIONS,
@@ -106,7 +106,7 @@ const SUPPORT: RoleTables = {
 export const roleOf = (l: Loadout): RoleTables => (l.battlePoint.isSupport ? SUPPORT : DEALER);
 
 /** Dealer merged snapshots can carry a score from different gear. Support scores retain their existing calibration. */
-export function simulationBaseline(l: Loadout, computed = roleOf(l).score(l.battlePoint.parts)) {
+export function simulationBaseline(l: Loadout, computed = roleOf(l).score(baselineParts(l))) {
 	const reported = l.combatPower?.score;
 	const mismatch = !l.battlePoint.isSupport && l.classification === 'raid_merged' && reported !== undefined && Math.abs(reported - computed) > 0.01;
 	return { cp: mismatch ? computed : reported ?? computed, reported, mismatch };
