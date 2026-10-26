@@ -5,11 +5,12 @@
 -->
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
-	import { LoaLogsReader, type EncounterRow } from '$lib/logs/loa-logs';
+	import { LoaLogsReader, type EncounterRow, type RunGear } from '$lib/logs/loa-logs';
 	import { saveRuns, type RunsBook } from '$lib/logs/runs-store.svelte';
 	import { isSnapshotHash } from '$lib/bible-data';
 	import { clearSnapshot, orderCoreKey } from './clear-snapshots';
 	import { CORE_NAMES } from './game-data';
+	import { GRADE_GRADIENTS } from './icons';
 	import Segmented from './sim/Segmented.svelte';
 	import Spinner from './sim/Spinner.svelte';
 
@@ -43,16 +44,16 @@
 		(outcome === 'all' || outcome === 'clear' && e.cleared === true || outcome === 'failed' && e.cleared === false))
 		.toSorted((a, b) => b.start - a.start));
 
-	// Each picked run's gear snapshot hash, read from the file once step 2 picks the runs (the listing leaves them out:
-	// reading them for every run in the file is what made opening it slow).
-	let hashById = $state<Record<number, string | null>>({});
-	let hashKey = $state('');
-	const missingHashes = $derived(ranged.filter((e) => !(e.id in hashById)).map((e) => e.id));
+	// Each picked run's build (gear snapshot hash, Order core grades, spec), read from the file once step 2 picks the runs
+	// (the listing leaves them out: reading them for every run in the file is what made opening it slow).
+	let gearById = $state<Record<number, RunGear>>({});
+	let gearKey = $state('');
+	const missingHashes = $derived(ranged.filter((e) => !(e.id in gearById)).map((e) => e.id));
 	$effect(() => {
 		const ids = missingHashes, who = player, key = `${who}:${ids.join(',')}`;
-		if (!ids.length || !reader || untrack(() => hashKey) === key) return;
-		hashKey = key;
-		reader.hashes(who, ids).then((h) => { if (player === who) hashById = { ...hashById, ...h }; }, (err) => {
+		if (!ids.length || !reader || untrack(() => gearKey) === key) return;
+		gearKey = key;
+		reader.gear(who, ids).then((g) => { if (player === who) gearById = { ...gearById, ...g }; }, (err: unknown) => {
 			error = err instanceof Error ? err.message : String(err);
 		});
 	});
@@ -60,7 +61,7 @@
 	// Each run's Order cores, by snapshot; '?' when the run has none or it couldn't be read.
 	const UNKNOWN = '?';
 	let snapCores = $state<Record<string, string>>({});
-	const hashOf = (e: EncounterRow) => { const h = hashById[e.id]; return h && isSnapshotHash(h) ? h : null; };
+	const hashOf = (e: EncounterRow) => { const h = gearById[e.id]?.hash; return h && isSnapshotHash(h) ? h : null; };
 	/** Builds change rarely; past this many distinct snapshots the rest count as unknown. */
 	const MAX_SNAPSHOTS = 40;
 	const hashes = $derived([...new Set(ranged.map(hashOf).filter((h): h is string => !!h))].slice(0, MAX_SNAPSHOTS));
@@ -80,17 +81,36 @@
 		for (let i = 0; i < 3; i++) next();
 		return () => { live = false; };
 	});
-	const buildOf = (e: EncounterRow) => { const h = hashOf(e); return (h && snapCores[h]) || UNKNOWN; };
-
-	const coreNames = (key: string) => key === UNKNOWN ? 'No gear snapshot' : key ? key.split(',').map((p) => CORE_NAMES[p] ?? p).join(' · ') : 'No Order cores';
+	// A build: its Order cores (from the snapshot) and its enlightenment spec, which plays the same cores differently.
+	const SEP = '|';
+	const buildOf = (e: EncounterRow) => {
+		const h = hashOf(e), coreKey = h && snapCores[h];
+		return coreKey ? `${coreKey}${SEP}${gearById[e.id]?.spec ?? ''}` : UNKNOWN;
+	};
+	const coresOf = (key: string) => key.split(SEP)[0];
+	const SHAPE_ORDER = ['sun', 'moon', 'star'] as const;
+	/** LOA Logs' core grade numbers, as in its tooltip (badge colours: lostark.bible's grade backgrounds, Epic = 3). */
+	const GRADES: Record<number, string> = { 1: 'Epic', 2: 'Legendary', 3: 'Relic', 4: 'Ancient' };
+	/** The build's cores, sun → moon → star (the id's fifth digit), with the grade LOA Logs recorded for each. */
+	const coreParts = (key: string, order: RunGear['order']) =>
+		coresOf(key).split(',').filter(Boolean)
+			.map((p) => ({ shape: SHAPE_ORDER[Number(p[4])], name: CORE_NAMES[p] ?? p }))
+			.sort((a, b) => SHAPE_ORDER.indexOf(a.shape) - SHAPE_ORDER.indexOf(b.shape))
+			.map((c) => ({ ...c, grade: c.shape ? order?.[c.shape] : undefined }));
 	const builds = $derived.by(() => {
-		const counts = new Map<string, number>();
-		for (const e of ranged) counts.set(buildOf(e), (counts.get(buildOf(e)) ?? 0) + 1);
-		return [...counts].map(([key, count]) => ({ key, count, newest: ranged.find((e) => buildOf(e) === key)!.start }))
-			.sort((a, b) => (a.key === UNKNOWN ? 1 : b.key === UNKNOWN ? -1 : b.newest - a.newest));
+		const groups = new Map<string, EncounterRow[]>();
+		for (const e of ranged) (groups.get(buildOf(e)) ?? groups.set(buildOf(e), []).get(buildOf(e))!).push(e);
+		return [...groups].map(([key, runs]) => ({
+			key, count: runs.length, newest: runs[0].start,
+			spec: key === UNKNOWN ? null : key.split(SEP)[1] || null,
+			// The cores' grades as of the newest run that recorded them.
+			order: runs.map((e) => gearById[e.id]?.order).find((o) => o && Object.keys(o).length) ?? null
+		})).sort((a, b) => (a.key === UNKNOWN ? 1 : b.key === UNKNOWN ? -1 : b.newest - a.newest));
 	});
 	const known = $derived(builds.filter((b) => b.key !== UNKNOWN));
-	const picked = $derived(build ?? (known.some((b) => b.key === cores) ? cores : 'all'));
+	// Default: the loadout's cores, in the spec played most on them.
+	const current = $derived(known.filter((b) => coresOf(b.key) === cores).toSorted((a, b) => b.count - a.count)[0]?.key);
+	const picked = $derived(build ?? current ?? 'all');
 	const clears = $derived(ranged.filter((e) => picked === 'all' || buildOf(e) === picked).slice(0, maxRuns));
 
 	async function open(e: Event) {
@@ -105,8 +125,8 @@
 			const own = players.find(([name]) => name.toLowerCase() === characterName.toLowerCase());
 			player = own?.[0] ?? players[0]?.[0] ?? '';
 			build = null;
-			hashById = {};
-			hashKey = '';
+			gearById = {};
+			gearKey = '';
 		} catch (err) {
 			error = err instanceof Error ? err.message : String(err);
 		} finally {
@@ -179,8 +199,18 @@
 					<button type="button" role="radio" aria-checked={on} disabled={b.key === UNKNOWN}
 						class="flex w-full items-center gap-2 rounded-xs border px-2.5 py-1.5 text-left text-xs transition {on ? 'border-accent-600 bg-accent-700/15 text-surface-100' : 'border-surface-700 bg-surface-950 text-surface-300 hover:border-surface-500'} disabled:cursor-default disabled:opacity-60"
 						onclick={() => (build = b.key)}>
-						<span class="min-w-0 flex-1 truncate">{b.key === 'all' ? 'Every build' : coreNames(b.key)}</span>
-						{#if b.key === cores}<span class="rounded-xs bg-accent-700/30 px-1.5 text-[10px] font-semibold text-accent-200">Current</span>{/if}
+						<span class="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
+							{#if b.key === 'all'}Every build
+							{:else if b.key === UNKNOWN}No gear snapshot
+							{:else if !coresOf(b.key)}No Order cores
+							{:else}
+								{#each coreParts(b.key, 'order' in b ? b.order : null) as c (c.name)}
+									<span class="flex items-center gap-1 whitespace-nowrap">{#if c.grade !== undefined && GRADES[c.grade]}<span class="flex size-4 items-center justify-center rounded-xs text-[10px] font-bold text-white tabular-nums" style:background={GRADE_GRADIENTS[c.grade + 2]} title={GRADES[c.grade]}>{c.grade}</span>{/if}{c.name}</span>
+								{/each}
+							{/if}
+							{#if 'spec' in b && b.spec}<span class="whitespace-nowrap text-sky-300">{b.spec}</span>{/if}
+						</span>
+						{#if 'key' in b && b.key !== 'all' && b.key !== UNKNOWN && coresOf(b.key) === cores}<span class="rounded-xs bg-accent-700/30 px-1.5 text-[10px] font-semibold text-accent-200">Current</span>{/if}
 						<span class="tabular-nums text-surface-400">{b.count} {b.count === 1 ? 'run' : 'runs'}</span>
 					</button>
 				{/each}

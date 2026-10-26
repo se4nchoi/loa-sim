@@ -7,7 +7,7 @@ import * as SQLite from 'wa-sqlite';
 import SQLiteESMFactory from 'wa-sqlite/dist/wa-sqlite.mjs';
 import wasmUrl from 'wa-sqlite/dist/wa-sqlite.wasm?url';
 import * as VFS from 'wa-sqlite/src/VFS.js';
-import type { LogsRequest, LogsResponse, SkillShare, EncounterRow, StatValues, ReplayRun } from './protocol';
+import type { LogsRequest, LogsResponse, SkillShare, EncounterRow, StatValues, ReplayRun, RunGear } from './protocol';
 import { averageStatValues, splitOf } from './stat-values';
 import { replayRun, type LoggedReplaySkill } from './replay-data';
 import { runSummary, supportRunOf, type LoggedRunSkill } from './run-summary';
@@ -115,7 +115,7 @@ async function encounterTable() {
 }
 
 // Every run in the file, without gear snapshots: those sit after the big skill columns of each entity row, so reading
-// them for every run took ~14 s on a 1.4 GB file (vs ~30 ms for this list). gearHashes reads them for picked runs only.
+// them for every run took ~14 s on a 1.4 GB file (vs ~30 ms for this list). runGear reads them for picked runs only.
 async function listEncounters(): Promise<EncounterRow[]> {
 	const table = await encounterTable();
 	const rows = await query(
@@ -133,14 +133,23 @@ async function listEncounters(): Promise<EncounterRow[]> {
 	}));
 }
 
-/** The player's gear snapshot hash per run (null without one), for grouping runs by build before importing them. */
-async function gearHashes(player: string, ids: number[]): Promise<Record<number, string | null>> {
-	const out: Record<number, string | null> = Object.fromEntries(ids.map((id) => [id, null]));
-	if (!(await query(`SELECT name FROM pragma_table_info('entity')`)).some((r) => r.name === 'loadout_hash')) return out;
+/** The player's build per run (gear snapshot hash, Order core grades, spec), for grouping runs before importing them.
+ *  All three sit in the same entity row, so reading the extra two costs nothing. */
+async function runGear(player: string, ids: number[]): Promise<Record<number, RunGear>> {
+	const out: Record<number, RunGear> = Object.fromEntries(ids.map((id) => [id, { hash: null, order: null, spec: null }]));
+	const columns = new Set((await query(`SELECT name FROM pragma_table_info('entity')`)).map((r) => r.name));
+	const pick = (c: string) => (columns.has(c) ? c : `NULL AS ${c}`);
 	for (let i = 0; i < ids.length; i += 200) {
 		const chunk = ids.slice(i, i + 200);
-		const rows = await query(`SELECT encounter_id, loadout_hash FROM entity WHERE name = ? AND encounter_id IN (${chunk.map(() => '?').join(',')})`, [player, ...chunk]);
-		for (const r of rows) out[Number(r.encounter_id)] = r.loadout_hash ? String(r.loadout_hash) : null;
+		const rows = await query(`SELECT encounter_id, ${pick('loadout_hash')}, ${pick('spec')}, ${pick('ark_passive_data')} FROM entity WHERE name = ? AND encounter_id IN (${chunk.map(() => '?').join(',')})`, [player, ...chunk]);
+		for (const r of rows) {
+			let order: RunGear['order'] = null;
+			try {
+				const o = r.ark_passive_data ? JSON.parse(String(r.ark_passive_data))?.arkGridOrder : null;
+				if (o && typeof o === 'object') order = Object.fromEntries((['sun', 'moon', 'star'] as const).flatMap((k) => (Number.isFinite(o[k]) ? [[k, Number(o[k])]] : [])));
+			} catch { /* old or unreadable passive data */ }
+			out[Number(r.encounter_id)] = { hash: r.loadout_hash ? String(r.loadout_hash) : null, order, spec: r.spec ? String(r.spec) : null };
+		}
 	}
 	return out;
 }
@@ -359,8 +368,8 @@ self.onmessage = async (e: MessageEvent<LogsRequest>) => {
 			reply({ id: req.id, type: 'runs', ...(await runSummaries(req.player, req.encounterIds)) });
 		} else if (req.type === 'replay') {
 			reply({ id: req.id, type: 'replay', runs: await replayRuns(req.player, req.encounterIds) });
-		} else if (req.type === 'hashes') {
-			reply({ id: req.id, type: 'hashes', hashes: await gearHashes(req.player, req.encounterIds) });
+		} else if (req.type === 'gear') {
+			reply({ id: req.id, type: 'gear', gear: await runGear(req.player, req.encounterIds) });
 		}
 	} catch (err) {
 		const code = (err as { code?: number })?.code;

@@ -13,7 +13,7 @@ export interface EncounterRow {
 	/** ms */
 	duration: number;
 	/** The recording player's gear snapshot (lostark.bible), when the meter kept one. The file listing leaves it out
-	 *  (LoaLogsReader.hashes reads it for picked runs). */
+	 *  (LoaLogsReader.gear reads it for picked runs). */
 	loadoutHash?: string | null;
 }
 
@@ -168,13 +168,21 @@ export interface RunSummary extends EncounterRow {
 	meterVersion: string | null;
 }
 
+/** A run's build as LOA Logs kept it: gear snapshot hash, each Order core's grade (1 Epic … 4 Ancient, its tooltip's
+ *  badges), spec. */
+export interface RunGear {
+	hash: string | null;
+	order: Partial<Record<'sun' | 'moon' | 'star', number>> | null;
+	spec: string | null;
+}
+
 export type LogsRequest =
 	| { id: number; type: 'open'; file: File }
 	| { id: number; type: 'shares'; player: string; encounterIds: number[] }
 	| { id: number; type: 'statValues'; player: string; encounterIds: number[] }
 	| { id: number; type: 'replay'; player: string; encounterIds: number[] }
 	| { id: number; type: 'runs'; player: string; encounterIds: number[] }
-	| { id: number; type: 'hashes'; player: string; encounterIds: number[] };
+	| { id: number; type: 'gear'; player: string; encounterIds: number[] };
 
 export type LogsResponse =
 	| { id: number; type: 'encounters'; encounters: EncounterRow[] }
@@ -182,5 +190,5 @@ export type LogsResponse =
 	| { id: number; type: 'statValues'; values: StatValues | null }
 	| { id: number; type: 'replay'; runs: ReplayRun[] }
 	| { id: number; type: 'runs'; runs: RunSummary[]; skills: Record<number, [name: string, icon: string]> }
-	| { id: number; type: 'hashes'; hashes: Record<number, string | null> }
+	| { id: number; type: 'gear'; gear: Record<number, RunGear> }
 	| { id: number; type: 'error'; message: string };

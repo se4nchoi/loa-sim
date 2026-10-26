@@ -1,8 +1,8 @@
 // Page-side client for the LOA Logs worker, plus the time-range presets.
 
-import type { EncounterRow, LogsRequest, LogsResponse, SkillShare, StatValues, ReplayRun, RunSummary } from './protocol';
+import type { EncounterRow, LogsRequest, LogsResponse, SkillShare, StatValues, ReplayRun, RunGear, RunSummary } from './protocol';
 
-export type { EncounterRow, SkillShare, StatValues };
+export type { EncounterRow, RunGear, SkillShare, StatValues };
 
 /** A request without its correlation id (distributes over the union). */
 type Outgoing<T> = T extends unknown ? Omit<T, 'id'> : never;
@@ -32,9 +32,10 @@ export class LoaLogsReader {
 		return (await this.send<'encounters'>({ type: 'open', file })).encounters;
 	}
 
-	/** The player's gear snapshot hash per run; the file listing leaves them out (slow to read for every run). */
-	async hashes(player: string, encounterIds: number[]): Promise<Record<number, string | null>> {
-		return (await this.send<'hashes'>({ type: 'hashes', player, encounterIds })).hashes;
+	/** The player's build per run (snapshot hash, Order core grades, spec); the file listing leaves them out (slow for
+	 *  every run). */
+	async gear(player: string, encounterIds: number[]): Promise<Record<number, RunGear>> {
+		return (await this.send<'gear'>({ type: 'gear', player, encounterIds })).gear;
 	}
 
 	async shares(player: string, encounterIds: number[]): Promise<{ runs: number; shares: SkillShare[] }> {
