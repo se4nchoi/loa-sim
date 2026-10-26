@@ -24,6 +24,8 @@ export interface BudgetChange {
 	books?: { id: number; count: number };
 	fixed?: number;
 	status?: 'rng' | 'excluded' | 'unavailable';
+	qualityAssumption?: boolean;
+	raidRequirement?: boolean;
 	rolls?: { name: string; tier: string; value?: string }[];
 }
 const different = (a: unknown, b: unknown) => JSON.stringify(a) !== JSON.stringify(b);
@@ -58,8 +60,8 @@ export function budgetChanges(loadout: Loadout, base: SimState, target: SimState
 			for (let n = 0; n < 30 && different(from, to); n++) {
 				const next = nextBracer(from);
 				if (!next || !to || next.honing > to.honing) break;
-				if (!from) add('Equipment', 'Acquire Epic Vambraces +0', null, next, { fixed: 0, detail: 'The first Vambraces are free.' });
-				else if (next.grade !== from.grade) add('Equipment', `Vambraces limit break: ${from.grade} → ${next.grade}`, from, next, { fixed: 0, detail: 'No gold; uses Spectral Shade or Deathly Hand (raid drops, not counted).' });
+				if (!from) add('Equipment', 'Acquire Epic Vambraces +0', null, next, { raidRequirement:true, fixed: 0, detail: 'The first Vambraces are free.' });
+				else if (next.grade !== from.grade) add('Equipment', `Vambraces limit break: ${from.grade} → ${next.grade}`, from, next, { raidRequirement:true, fixed: 0, detail: 'No gold; uses Spectral Shade or Deathly Hand (raid drops, not counted).' });
 				else add('Equipment', `Vambraces +${from.honing} → +${next.honing}`, from, next, { tap: BRACER_TAPS[next.honing - 1] });
 				from = next;
 			}
@@ -87,7 +89,7 @@ export function budgetChanges(loadout: Loadout, base: SimState, target: SimState
 	}
 	for (const slot of HONING_SLOTS) {
 		const from = base.quality[slot], to = target.quality[slot];
-		if (from !== undefined && to !== undefined && from !== to) add('Equipment', `${HONING_SLOT_LABELS[slot]} quality ${from} → ${to}`, from, to, to > from ? { fixed: qualityCost(slot, from, to).gold, detail: 'Average tap gold with unlimited Chaos Stones; stops at this quality or higher. No pity.' } : { status: 'excluded' });
+		if (from !== undefined && to !== undefined && from !== to) add('Equipment', `${HONING_SLOT_LABELS[slot]} quality ${from} → ${to}`, from, to, to > from ? { qualityAssumption:true, fixed: qualityCost(slot, from, to).gold, detail: 'Average tap gold with unlimited Chaos Stones; stops at this quality or higher. No pity.' } : { status: 'excluded' });
 	}
 	for (const slot of ACCESSORY_SLOTS) {
 		const from = [base.accessories[slot], base.accessoryStats[slot]], to = [target.accessories[slot], target.accessoryStats[slot]];

@@ -1,6 +1,7 @@
 import { normalizeName } from '$lib/bible-data';
 import { loadSavedCharacter, saveCharacter } from '$lib/saved-character';
 import { parseSimulation, saveSimulation } from '$lib/upgrade-planner/saved-simulations';
+import { track } from '$lib/stats';
 
 /** Import opens the saved build explicitly and never replaces an existing character's active snapshot. */
 export function importSimulation(json: string): string {
@@ -14,5 +15,6 @@ export function importSimulation(json: string): string {
    loadout: s.loadout, loadouts: { current: s.loadout }, loadoutKind: 'current' });
   if (!loadSavedCharacter(key)) throw new Error('Browser storage is blocked; the character could not be imported.');
  }
+ track({ event: 'build_imported' });
  return `/sim?c=${encodeURIComponent(key)}&build=${encodeURIComponent(plan.id)}`;
 }

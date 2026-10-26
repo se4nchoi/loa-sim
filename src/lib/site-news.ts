@@ -21,6 +21,15 @@ export const UPDATES: SiteUpdate[] = [
 		points: ['Vambraces’ flat attack stats now count toward CP.']
 	},
 	{
+		date: '2026-10-24',
+		kind: 'new',
+		title: 'Market prices',
+		points: [
+			'Material prices can load current honing material and relic engraving book prices for your region from loa-buddy.',
+			'Undo an import any time; prices you type yourself still work.'
+		]
+	},
+	{
 		date: '2026-10-22',
 		kind: 'new',
 		title: 'DPS mode (Beta)',
@@ -200,12 +209,8 @@ export interface SiteIssue {
 // Resolved (kept here, not shown; these aren't GitHub issues):
 // - 2026-10-12 "CP lower than your gear" (known issue: bible lists only two loadouts, neither may have your gear) and
 //   "Pick from saved snapshots" (planned): both resolved by Saved snapshots (snapshot-history.ts).
+// - 2026-10-24 "Market API" (in progress): shipped as the market price import in Material prices (loa-buddy approved).
 export const ISSUES: SiteIssue[] = [
-	{
-		status: 'in progress',
-		title: 'Market API',
-		points: ['Testing honing material prices from loa-buddy.']
-	},
 	{
 		status: 'investigating',
 		title: 'Pet ranch CP',

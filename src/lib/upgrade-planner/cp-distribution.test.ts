@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cpBrackets, cpStanding, digestCdf, formatTop, ownRange, type CpDistribution } from './cp-distribution';
+import { cpBrackets, cpStanding, digestCdf, followStandingRange, formatTop, ownRange, snapStandingRange, type CpDistribution } from './cp-distribution';
 import dist from './fixtures/na-soulshan-cp.json';
 import supportDist from './fixtures/na-brushann-cp.json';
 
@@ -34,6 +34,33 @@ describe('cp distribution', () => {
 		expect(cpBrackets(d, 1)[0]).toBe(1640);
 		expect(cpBrackets(d, 1).at(-1)).toBe(1800);
 		expect(cpStanding(d, { from: 1500, to: 1510 }, 1)).toBeNull();
+	});
+
+	it('moves the default standing cohort when simulated equipment crosses a bracket, including undo', () => {
+		const before = ownRange(1784.17), after = ownRange(1790);
+		const selected = followStandingRange(before, before, after);
+		expect(selected).toEqual({ from: 1790, to: 1800 });
+		expect(cpStanding(d, selected, 1)!.count).toBe(d.digests['1-1790'].count);
+		expect(followStandingRange(selected, after, before)).toEqual(before);
+		expect(followStandingRange(before, before, ownRange(1789.99))).toEqual(before);
+	});
+
+	it('preserves manual comparison ranges and All when equipment changes', () => {
+		const before = ownRange(1784.17), after = ownRange(1800);
+		const custom = { from: 1760, to: 1800 };
+		expect(followStandingRange(custom, before, after)).toBe(custom);
+		expect(followStandingRange(null, before, after)).toBeNull();
+		// Choosing ilvl again resumes following equipment, even when the new bracket has no data.
+		const missing = followStandingRange(after, after, ownRange(1900));
+		expect(missing).toEqual({ from: 1900, to: 1910 });
+		expect(cpStanding(d, missing, 1)).toBeNull();
+	});
+
+	it('snaps narrow and equal typed ranges to whole source buckets', () => {
+		expect(snapStandingRange({ from: 1750, to: 1751 })).toEqual({ from: 1750, to: 1760 });
+		expect(snapStandingRange({ from: 1750, to: 1750 })).toEqual({ from: 1750, to: 1760 });
+		expect(snapStandingRange({ from: 1755, to: 1765 })).toEqual({ from: 1750, to: 1770 });
+		expect(snapStandingRange({ from: 1750, to: 1770 })).toEqual({ from: 1750, to: 1770 });
 	});
 
 	it('formats', () => {

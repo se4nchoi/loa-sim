@@ -5,6 +5,7 @@
 	import { untrack } from 'svelte';
 	import { initSimState, type SimState } from '$lib/upgrade-planner/simulate';
 	import SavedSimulations from '$lib/upgrade-planner/SavedSimulations.svelte';
+	import type { PlanContext } from '$lib/plan-stats';
 	import { className } from '$lib/upgrade-planner/class-names';
 	import type { CpDistribution } from '$lib/upgrade-planner/cp-distribution';
 	import type { LoadoutKind } from '$lib/bible-data';
@@ -68,6 +69,7 @@
 	} = $props();
 
 	let edited = $state(false);
+	let planStats = $state<PlanContext | null>(null);
  let simulation = $state<SimState | null>(untrack(() => initialBuild ? structuredClone($state.snapshot(initialBuild.state)) : loadout ? initSimState(loadout) : null));
 	$effect.pre(() => { simulation = loadout ? initSimState(loadout) : null; });
 	let reloading = $state(false);
@@ -247,7 +249,7 @@
 	{/if}
 	{#if loadout && simulation}
 		<div class="mt-2 grid w-full max-w-[27.125rem] grid-cols-[minmax(0,1fr)_2rem] max-lg:grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-1.5">
-			<SavedSimulations workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} initialId={initialBuild?.id} characterKey={`${region}/${name}`.toLowerCase()} {loadout} state={simulation} onrestore={(state) => simulation = state} />
+			<SavedSimulations {planStats} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} initialId={initialBuild?.id} characterKey={`${region}/${name}`.toLowerCase()} {loadout} state={simulation} onrestore={(state) => simulation = state} />
 		</div>
 	{/if}
 </div>
@@ -270,6 +272,6 @@
 			</div>
 		{/if}
 		{#if dpsMode && simulation && (!sharedBuild || sharedDps)}<DpsModePanel shared={sharedBuild ? sharedDps : undefined} {loadout} simState={simulation} characterKey={`${region}/${name}`.toLowerCase()} characterName={name} snapshots={snapshotOptions} onsimulate={(s) => (simulation = s)} />{/if}
-		{#if simulation}<Simulator {dpsMode} {onmode} restoreInitial={sharedBuild} initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
+		{#if simulation}<Simulator {dpsMode} {onmode} bind:planStats restoreInitial={sharedBuild} initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
 	</div>
 {/if}

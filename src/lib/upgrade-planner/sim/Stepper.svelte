@@ -10,7 +10,8 @@
 		changed = false,
 		label,
 		width = 'w-12',
-		buttonsOnly = false
+		buttonsOnly = false,
+		normalize
 	}: {
 		value: number;
 		min: number;
@@ -23,9 +24,16 @@
 		width?: string;
 		/** Just − and + everywhere, for values shown elsewhere and never typed (e.g. gem levels 1–10). */
 		buttonsOnly?: boolean;
+		/** Optional normalization for typed values; also commits when an invalid step loses focus. */
+		normalize?: (value: number) => number;
 	} = $props();
 
 	const clamp = (v: number) => Math.min(max, Math.max(min, v));
+	function commit(input: HTMLInputElement) {
+		const next = clamp(Number(input.value) || min);
+		value = normalize ? clamp(normalize(next)) : next;
+		input.value = String(value);
+	}
 	const btn =
 		'flex size-8 shrink-0 items-center justify-center text-lg leading-none text-surface-200 transition hover:bg-surface-700 disabled:opacity-30 disabled:hover:bg-transparent';
 </script>
@@ -49,7 +57,8 @@
 			class="{width} bg-transparent {prefix ? 'text-left' : 'text-center'} [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 			aria-label={label}
 			{value}
-			onchange={(e) => (value = clamp(Number(e.currentTarget.value) || min))}
+			onchange={(e) => commit(e.currentTarget)}
+			onblur={normalize ? (e) => commit(e.currentTarget) : undefined}
 		/>
 		<span class="text-surface-400">{suffix}</span>
 	</label>

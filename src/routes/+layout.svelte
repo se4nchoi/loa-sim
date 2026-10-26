@@ -2,8 +2,9 @@
 	import { dev } from '$app/environment';
 	import { page } from '$app/state';
 	import { injectAnalytics } from '@vercel/analytics/sveltekit';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { installTouchTips } from '$lib/touch-tips';
+	import { loadSavedCharacter } from '$lib/saved-character';
 	import '../app.css';
 	// The Latin Geist file the stylesheet uses: preloaded so text isn't held back until the CSS has been parsed.
 	import geistLatin from '@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url';
@@ -12,6 +13,16 @@
 
 	let { children } = $props();
 	onMount(installTouchTips);
+	let loadHint = $state(false);
+	let hintTimer: ReturnType<typeof setTimeout>;
+	onDestroy(() => clearTimeout(hintTimer));
+	function openTab(event: MouseEvent, href: string) {
+		if (href !== '/sim' || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || loadSavedCharacter()) return;
+		event.preventDefault();
+		loadHint = true;
+		clearTimeout(hintTimer);
+		hintTimer = setTimeout(() => loadHint = false, 3_000);
+	}
 
 	const tabs = [
 		{ href: '/', label: 'Characters', active: (p: string) => p === '/' },
@@ -39,6 +50,7 @@
 				{@const on = t.active(page.url.pathname)}
 				<a
 					href={t.href !== '/' && page.url.searchParams.has('c') ? `${t.href}?c=${encodeURIComponent(page.url.searchParams.get('c')!)}` : t.href}
+					onclick={(event) => openTab(event, t.href)}
 					class="flex items-center border-b-2 px-2 transition sm:px-3 {on ? 'border-accent-500 text-surface-50' : 'border-transparent text-surface-300 hover:text-surface-50'}"
 					aria-current={on ? 'page' : undefined}
 				>
@@ -47,6 +59,9 @@
 			{/each}
 		</nav>
 	</header>
+	<div role="status" aria-live="polite" aria-atomic="true" class="pointer-events-none fixed top-14 left-1/2 z-[60] -translate-x-1/2">
+		{#if loadHint}<p class="whitespace-nowrap rounded-sm border border-neutral-700 bg-surface-900 px-4 py-2 text-sm text-surface-200 shadow-lg shadow-black/30">Load a character first to simulate !</p>{/if}
+	</div>
 
 	<main class="mx-auto w-full max-w-[1680px] flex-1 px-4 py-6">
 		{@render children()}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type {Snippet} from 'svelte';
-	import { formatTop, type CpStanding, type IlvlRange } from '../cp-distribution';
+	import { formatTop, snapStandingRange, type CpStanding, type IlvlRange } from '../cp-distribution';
 	import { folded, toggleFold } from './folded.svelte';
 	import FoldChip from './FoldChip.svelte';
 	import Segmented from './Segmented.svelte';
@@ -90,6 +90,7 @@
 		return null;
 	});
 	const applyPreset = (p: Preset) => (range = p === 'all' ? null : widen({ own: 0, pm10: 10, pm20: 20 }[p]));
+	const normalizeBoundary = (edge: 'from' | 'to', value: number) => snapStandingRange({ ...range!, [edge]: value })[edge];
 	const delta = $derived((simulated / current - 1) * 100);
 	const changed = $derived((Object.entries(sections) as [SimSection, SectionDelta][]).filter(([, d]) => Math.abs(d.pct) > 0.00005));
 	const color = (v: number) => (v > 0 ? 'text-green-400' : v < 0 ? 'text-red-400' : 'text-surface-300');
@@ -192,9 +193,9 @@
 			{/if}
 			{#if range && !folded.standing}
 				<div class="flex flex-row items-center gap-1.5">
-					<Stepper bind:value={range.from} min={lo} max={range.to - 10} step={10} label="Item level from" width="w-11" />
+					<Stepper bind:value={range.from} normalize={(value) => normalizeBoundary('from', value)} min={lo} max={range.to - 10} step={10} label="Item level from" width="w-11" />
 					<span class="text-surface-400">–</span>
-					<Stepper bind:value={range.to} min={range.from + 10} max={hi} step={10} label="Item level to" width="w-11" />
+					<Stepper bind:value={range.to} normalize={(value) => normalizeBoundary('to', value)} min={range.from + 10} max={hi} step={10} label="Item level to" width="w-11" />
 				</div>
 			{/if}
 		</div>

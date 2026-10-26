@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ request, url, fetch }) => {
 	if (!redisConfig()) error(503, 'Storage is not configured.');
 	const param = url.searchParams.get('days') ?? '30';
 	const days = param === 'all' ? MAX_STATS_DAYS : Number(param);
-	if (!Number.isInteger(days) || days < 1) error(400, 'days must be a positive whole number or "all"');
+	if (!Number.isInteger(days) || days < 1 || days > MAX_STATS_DAYS) error(400, 'Invalid date range');
 	try {
 		return json(await readStats(days, fetch), { headers: { 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' } });
 	} catch {

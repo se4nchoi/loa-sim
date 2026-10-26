@@ -12,7 +12,8 @@
 	import { autoHoningCosts, inventoryMaterials, materialsFor } from './honing-cost';
 	import { bookCost, bookPricesFor, materialPricesFor, costsForCharacter, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, missingPriceCount, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
-	import { onMount } from 'svelte';
+	import { getContext, onMount } from 'svelte';
+	import { decisionSample, opportunitySample, observe, type InsightScope } from '$lib/stats-insights';
 	import { liveUpgrades } from './live-upgrades';
 	import { rollsFor, setAccRolls } from './acc-rolls.svelte';
 	import { arkGridOverWillpower, initSimState, type SimState } from './simulate';
@@ -49,8 +50,19 @@
 	/** Brief feedback on the row just applied. */
 	let flash = $state<{ key: string; ok: boolean } | null>(null);
 	let flashTimer: ReturnType<typeof setTimeout>;
+	const insights=getContext<InsightScope|undefined>('loa-sim:insights');
+	let root=$state<HTMLDivElement>();
+	let visible=$state(false);
+	onMount(()=>{
+		if(typeof IntersectionObserver==='undefined')return;
+		const observer=new IntersectionObserver(entries=>visible=entries.some(entry=>entry.isIntersecting),{threshold:0.1});
+		if(root)observer.observe(root);
+		return()=>observer.disconnect();
+	});
 	function apply(u: Upgrade) {
+		const sample=observe(()=>{const cohort=insights?.cohort();return cohort?decisionSample(cohort,u,gold.mode,upgrades,costs,auto,materialPrices):undefined;});
 		const ok = onapply?.(u) ?? false;
+		if(ok&&sample)observe(()=>insights?.emit(sample));
 		flash = { key: u.key, ok };
 		clearTimeout(flashTimer);
 		flashTimer = setTimeout(() => (flash = null), 1200);
@@ -159,9 +171,17 @@
 	/** DPS gains in the class's meter colour, as on the DPS sim's bars. */
 	const meterColor = $derived(classTextColor(loadout.classId));
 
+	$effect(()=>{
+		observe(()=>{
+			if(!visible || gold.mode!=='gold' || !insights?.opportunityReady())return;
+			const cohort=insights.cohort();
+			const sample=cohort?opportunitySample(cohort,upgrades,costs,auto,materialPrices):undefined;
+			if(sample)insights.opportunity(sample);
+		});
+	});
 </script>
 
-<div class="flex min-h-0 flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
+<div bind:this={root} class="flex min-h-0 flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
 	<!-- In the phone drawer this row is also a drag-to-close zone (its toggle buttons still tap). -->
 	<div class="sim-modal-header flex shrink-0 flex-col gap-1.5 bg-surface-900 px-3 py-2 font-semibold" use:drawerDrag>
 		<div class="flex items-center gap-2">Next Upgrades{#if ranking}<span class="flex items-center gap-1.5 text-xs font-normal text-surface-400" role="status"><Spinner class="size-3.5 text-accent-400" />Ranking by {dpsLabel}…</span>{/if}</div>
