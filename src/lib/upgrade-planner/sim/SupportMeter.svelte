@@ -87,8 +87,4 @@
 			{@render bar(d.cls || 'Dealer', `${((d.before / Math.max(1, d.damage)) * 100).toFixed(1)}% of their damage${dealerUp}`, d.before, d.after, topDealer, classColorByName(d.cls) ?? color, '')}
 		{/each}
 	</ul>
-
-	{#if meter.notInMeter.length}
-		<p class="text-xs text-amber-300/90">※ Not counted yet: {meter.notInMeter.join(', ')}</p>
-	{/if}
 </div>

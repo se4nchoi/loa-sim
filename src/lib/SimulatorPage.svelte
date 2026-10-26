@@ -131,9 +131,9 @@
 {:else if saved}
  {#if build}<div class="mb-3 flex flex-wrap items-center gap-3 text-sm"><span class="font-semibold text-accent-200">Build: {build.name}</span><a class="text-surface-300 underline" href={`/sim?c=${encodeURIComponent(characterKey(saved))}`}>Back to character</a></div>
  {:else if buildId}<p class="mb-3 text-sm text-surface-300">This saved build is no longer available. Showing your character.</p>{/if}
-	<CharacterSwitcher current={characterKey(saved)} dpsMode={mode === 'dps'} />
+	<CharacterSwitcher current={characterKey(saved)} dpsMode={mode === 'dps'} onmode={setMode} />
 	{#key `${saved.region}/${saved.name}:${build?.id ?? "character"}`}
-		<CharacterView dpsMode={mode === 'dps'} onmode={setMode} initialBuild={build} name={saved.name} region={saved.region} {subtitle} itemLevel={build ? build.loadout.itemLevel : saved.header?.ilvl} loadout={saved.loadout}
+		<CharacterView dpsMode={mode === 'dps'} initialBuild={build} name={saved.name} region={saved.region} {subtitle} itemLevel={build ? build.loadout.itemLevel : saved.header?.ilvl} loadout={saved.loadout}
 			cpDistribution={build ? null : saved.cpDistribution}
 			loadouts={saved.loadouts}
 			loadoutKind={saved.loadoutKind}

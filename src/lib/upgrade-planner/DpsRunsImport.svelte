@@ -138,7 +138,7 @@
 					<div><Segmented label="Recorded as" size={chip} value={player} options={players.map(([name, count]) => ({ value: name, label: `${name} · ${count}` }))} onselect={(v) => ((player = v), (build = null))} /></div>
 				{:else}
 					<select class="h-7 w-fit rounded-xs border border-surface-700 bg-surface-950 px-2 text-xs text-surface-100" bind:value={player} onchange={() => (build = null)}>
-						{#each players as [name, count]}<option value={name}>{name} · {count} runs</option>{/each}
+						{#each players as [name, count]}<option value={name}>{name} · {count} {count === 1 ? 'run' : 'runs'}</option>{/each}
 					</select>
 				{/if}
 				<span>From</span>

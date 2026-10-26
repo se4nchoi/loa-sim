@@ -16,6 +16,7 @@
 	import DpsMeter from './sim/DpsMeter.svelte';
 	import DpsTarget from './DpsTarget.svelte';
 	import SupportMeterView from './sim/SupportMeter.svelte';
+	import DpsLimits from './sim/DpsLimits.svelte';
 	import { supportMeter } from './support-meter';
 	import FoldChip from './sim/FoldChip.svelte';
 	import { classColor } from './class-colors';
@@ -306,7 +307,7 @@
 	<div class="flex items-center gap-2 px-3 py-2 sm:px-4" bind:this={header}>
 	<span class="font-semibold text-surface-100">DPS sim</span>
 	<span class="rounded-xs bg-amber-500/15 px-1 text-[10px] font-semibold text-amber-300">BETA</span>
-	<button type="button" class="flex size-5 items-center justify-center rounded-full border text-[11px] font-bold transition {view.intro && !view.folded ? 'border-amber-400/60 bg-amber-500/15 text-amber-200' : 'border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-100'}" title="How the DPS sim works" aria-label="How the DPS sim works" aria-pressed={view.intro && !view.folded} onclick={() => setView({ intro: !(view.intro && !view.folded), folded: false })}>?</button>
+	<button type="button" hidden={!!shared} class="flex size-5 items-center justify-center rounded-full border text-[11px] font-bold transition {view.intro && !view.folded ? 'border-amber-400/60 bg-amber-500/15 text-amber-200' : 'border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-100'}" title="How the DPS sim works" aria-label="How the DPS sim works" aria-pressed={view.intro && !view.folded} onclick={() => setView({ intro: !(view.intro && !view.folded), folded: false })}>?</button>
 	<button type="button" class="group flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-left" aria-expanded={!view.folded} aria-label={view.folded ? 'Show the DPS sim' : 'Hide the DPS sim'} onclick={() => setView({ folded: !view.folded })}>
 		{#if head && raid && clear}
 			<span class="flex min-w-0 items-center gap-1.5 text-xs text-surface-400 {view.folded ? '' : 'max-sm:hidden'}"><span class="truncate">{raid.name}{gate(clear) ? ` G${gate(clear)}` : ''}</span>
@@ -318,40 +319,19 @@
 
 	{#if !view.folded}
 	<div class="px-3 pb-3 sm:px-4 sm:pb-4">
-	{#if view.intro}
-		<!-- Beta: how it works, in three steps; hidden once read (remembered). -->
+	{#if view.intro && !shared}
+		<!-- Beta: how it works, in three steps; hidden once read (remembered). Limits sit under the meter. -->
 		<div class="mb-3 rounded-xs border border-amber-500/30 bg-amber-500/5 p-3">
 			<div class="flex items-center gap-2">
 				<span class="rounded-xs bg-amber-500/20 px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-amber-300">BETA</span>
 				<span class="text-sm font-semibold text-surface-100">How the DPS sim works</span>
 				<button type="button" class="ml-auto rounded-xs border border-surface-600 px-2 py-0.5 text-xs text-surface-200 hover:bg-surface-800" onclick={() => setView({ intro: false })}>Got it</button>
 			</div>
-			<ol class="mt-2 grid gap-2 text-xs sm:grid-cols-3" hidden={!!shared}>
+			<ol class="mt-2 grid gap-2 text-xs sm:grid-cols-3">
 				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">1 · Import your logs</p><p class="mt-0.5 text-surface-400">LOA Logs' encounters.db, read in this browser. Nothing is uploaded.</p></li>
 				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">2 · Pick a run</p><p class="mt-0.5 text-surface-400">{#if isSupport}What your buffs added to each dealer, on the gear it was played with.{:else}Its damage, skill by skill, on the gear it was played with.{/if}</p></li>
 				<li class="rounded-xs bg-surface-950/60 p-2"><p class="text-sm font-semibold text-surface-100">3 · Edit the cards below</p><p class="mt-0.5 text-surface-400">{#if isSupport}Each buff follows the stat behind it: Attack Power, ally enhancement, Brand Power.{:else}Each skill's damage follows your gear, gems, engravings and Ark Grid edits.{/if}</p></li>
 			</ol>
-			<div class="mt-2 grid gap-2 text-xs sm:grid-cols-2">
-				<div class="rounded-xs bg-surface-950/60 p-2">
-					<p class="text-sm font-semibold text-surface-100">What it simulates</p>
-					<p class="mt-0.5 text-surface-400">The same run, played the same way:</p>
-					<p class="mt-1 text-sm font-semibold text-surface-50">If you played it exactly like this again, how much DPS would this change add?</p>
-					<ul class="mt-1 list-disc space-y-0.5 pl-4 text-surface-400">
-						<li>Kept as recorded: casts, rotation, crits, buffs and fight length.</li>
-						<li>{#if isSupport}Scaled: each buff, by its stat.{:else}Scaled: each skill's damage, by the stat, gem, engraving and Ark Grid changes.{/if}</li>
-						<li>Not counted yet: listed under the meter.</li>
-					</ul>
-				</div>
-				<div class="rounded-xs border border-green-500/30 bg-green-500/5 p-2">
-					<p class="text-sm font-semibold text-green-200">Before spending gold</p>
-					<ul class="mt-1 list-disc space-y-0.5 pl-4 text-surface-300">
-						<li>Gear changes tend to move DPS by only a few percent.</li>
-						<li>Uptime, positionals and staying alive can matter more, and they're free.</li>
-						<li>These are estimates from one run; real runs will vary.</li>
-						<li>Best used to compare options, not as a list of things to buy.</li>
-					</ul>
-				</div>
-			</div>
 		</div>
 	{/if}
 
@@ -564,7 +544,9 @@
 			{#key `${clear.id}:${clear.start}`}<div class="mb-3"><DpsTarget bind:this={target} {loadout} simState={plain} {base} {characterKey} {selection} meterDps={simulatedDps} onapply={onsimulate} /></div>{/key}
 		{/if}
 		{#if meter}<div bind:this={meterBox}><DpsMeter {meter} {skillName} {skillIcon} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>
+			<DpsLimits notIn={meter.notInMeter} notes={meter.notes} />
 		{:else if supMeter}<div bind:this={meterBox}><SupportMeterView meter={supMeter} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>
+			<DpsLimits support notIn={supMeter.notInMeter} />
 		{:else if isSupport}<p class="text-sm text-surface-300">No buff data for this run. Re-import to read it; LOA Logs records it on newer runs.</p>{/if}
 		</div>
 		</div>
