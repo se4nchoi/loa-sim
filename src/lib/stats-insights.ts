@@ -4,13 +4,15 @@ import type { Upgrade } from './upgrade-planner/upgrades';
 import type { HoningCost, MaterialPrices } from './upgrade-planner/honing-cost';
 import type { BudgetLine } from './upgrade-planner/sim-budget';
 import type { SimState } from './upgrade-planner/simulate';
-import { CP_STATS_MODEL } from './stats-versions';
+import { CP_STATS_MODEL, isCpStatsModel, type CpStatsModel } from './stats-versions';
+import { samplingAttempt, type SamplingAttempt, type SkipReason } from './stats-sampling';
+import type { CountEvent } from './stats-model';
 
 export const GOLD_BUCKETS = ['zero','under100k','100to500k','500kto1m','1to5m','5to10m','over10m'] as const;
 export const BUDGET_BANDS = ['100k','500k','1m'] as const;
 export const COVERAGE = ['complete','partial','unpriced','empty'] as const;
 export const BOUND_USE = ['none','some','all','na'] as const;
-export type Cohort = { start: typeof LEVEL_BUCKETS[number][0]; role:'dealer'|'support'; region:'NA'|'CE'; classId:string; model:typeof CP_STATS_MODEL };
+export type Cohort = { start: typeof LEVEL_BUCKETS[number][0]; role:'dealer'|'support'; region:'NA'|'CE'; classId:string; model:CpStatsModel };
 type Gain = typeof CP_BUCKETS[number][0];
 type Category = Upgrade['category'];
 type GoldBand = typeof GOLD_BUCKETS[number];
@@ -18,17 +20,30 @@ type Assumption = 'standard'|'unlimited-stones'|'non-gold-materials'|'mixed';
 export const BUDGET_LIMITATIONS = ['rng','unavailable','excluded','missing-price'] as const;
 export type BudgetSample = {kind:'budget';cohort:Cohort;coverage:typeof COVERAGE[number];bound:typeof BOUND_USE[number];assumption:Assumption;gain:Gain;gold?:GoldBand;limitations:typeof BUDGET_LIMITATIONS[number][]};
 export type DecisionSample = {kind:'decision';cohort:Cohort;mode:'cp'|'gold';chosen:Category;best?:Category;rank:'best'|'other'|'unpriced';coverage:'complete'|'partial'|'unpriced';gain:Gain;gold?:GoldBand;assumption:Assumption};
-export type OpportunitySample = {kind:'opportunity';cohort:Cohort;best:Category;coverage:'complete'|'partial';assumption:Assumption;offers:{band:typeof BUDGET_BANDS[number];category:Category;gain:Gain}[]};
+export type OpportunitySample = {kind:'opportunity';cohort:Cohort;best:Category;coverage:'complete'|'partial';assumption:Assumption;bestAssumption?:Assumption;offers:{band:typeof BUDGET_BANDS[number];category:Category;gain:Gain;assumption?:Assumption}[]};
 export type InsightSample = BudgetSample | DecisionSample | OpportunitySample;
 
 /** Analytics failure must not change the result of a product action. */
 export function observe<T>(read:()=>T):T|undefined {try{return read();}catch{return undefined;}}
+
+export function insightObservation<K extends InsightSample['kind']>(kind:K, read:()=>Extract<InsightSample,{kind:K}>|undefined, missing:()=>SkipReason):
+	{insight?:Extract<InsightSample,{kind:K}>;sampling:SamplingAttempt} {
+	try {
+		const insight=read();
+		return {insight,sampling:samplingAttempt(kind,insight?undefined:missing())};
+	} catch { return {sampling:samplingAttempt(kind,'observation-error')}; }
+}
 
 export function insightCohort(classId: string, characterKey: string | undefined, ilvl: number, support: boolean): Cohort | undefined {
 	const region = characterKey?.split('/')[0]?.toUpperCase();
 	const cls = resolveClass(classId);
 	if (!cls || (region !== 'NA' && region !== 'CE') || !Number.isFinite(ilvl) || ilvl < 1500 || ilvl > 2000) return;
 	return {start:levelBucket(ilvl),role:support?'support':'dealer',region,classId:cls,model:CP_STATS_MODEL};
+}
+export function cohortSkipReason(classId:string, characterKey:string|undefined, ilvl:number): SkipReason | undefined {
+	if (!resolveClass(classId)) return 'unknown-class';
+	if (!['NA','CE'].includes(characterKey?.split('/')[0]?.toUpperCase() ?? '')) return 'unknown-region';
+	if (!Number.isFinite(ilvl) || ilvl<1500 || ilvl>2000) return 'invalid-item-level';
 }
 export function goldBucket(value: number): GoldBand | undefined {
 	if (!Number.isFinite(value) || value < 0) return;
@@ -65,11 +80,11 @@ export function opportunitySample(cohort: Cohort, upgrades: Upgrade[], costs: Re
 	const offers = BUDGET_BANDS.flatMap((band,i) => {
 		const best = priced.filter(p=>p.cost <= [1e5,5e5,1e6][i]).sort((a,b)=>b.u.gainPct-a.u.gainPct || a.cost-b.cost)[0];
 		if (best) selected.push(best.u);
-		return best ? [{band,category:best.u.category,gain:cpBucket(best.u.gainPct)}] : [];
+		return best ? [{band,category:best.u.category,gain:cpBucket(best.u.gainPct),assumption:upgradeAssumptions([best.u])}] : [];
 	});
 	return {kind:'opportunity',cohort,best:priced[0].u.category,offers,
 		coverage:priced.length === upgrades.filter(priceable).filter(u=>u.gainPct>0).length?'complete':'partial',
-		assumption:upgradeAssumptions(selected)};
+		assumption:upgradeAssumptions(selected),bestAssumption:upgradeAssumptions([priced[0].u])};
 }
 export function decisionSample(cohort: Cohort, chosen: Upgrade, mode:'cp'|'gold', upgrades: Upgrade[], costs: Record<string,number>, auto: Record<string,HoningCost>, prices: MaterialPrices): DecisionSample | undefined {
 	if (!Number.isFinite(chosen.gainPct) || chosen.gainPct <= 0) return;
@@ -104,23 +119,24 @@ export function budgetSample(cohort:Cohort, lines:BudgetLine[], current:number, 
 
 export interface InsightScope {
 	cohort:()=>Cohort|undefined;
+	skipReason:()=>SkipReason|undefined;
 	unpricedBudgetEdits:()=>typeof BUDGET_LIMITATIONS[number][];
 	opportunityReady:()=>boolean;
-	opportunity:(sample:OpportunitySample)=>void;
-	emit:(sample:InsightSample)=>void;
+	opportunity:(sample:OpportunitySample|undefined, reason?:SkipReason)=>void;
+	emit:(event:CountEvent)=>void;
 }
 
 /** Enum-only validation, including nested properties. Unknown/new dimensions require an intentional schema update. */
-export function cleanInsight(value:unknown, categories: readonly string[]): InsightSample | undefined {
+export function cleanInsight(value:unknown, categories: readonly string[], version:2|3=3): InsightSample | undefined {
 	const object = (v:unknown):v is Record<string,unknown> => !!v && typeof v==='object' && !Array.isArray(v);
 	const one = (v:unknown, options:readonly string[]) => typeof v==='string' && options.includes(v);
 	if (!object(value) || !object(value.cohort)) return;
 	const c=value.cohort;
-	if (Object.keys(c).some(k=>!['start','role','region','classId','model'].includes(k)) || c.model!==CP_STATS_MODEL ||
+	if (Object.keys(c).some(k=>!['start','role','region','classId','model'].includes(k)) || !isCpStatsModel(c.model) ||
 		!one(c.start,LEVEL_BUCKETS.map(([k])=>k)) || !one(c.role,['dealer','support']) || !one(c.region,['NA','CE']) ||
 		typeof c.classId!=='string' || resolveClass(c.classId)!==c.classId) return;
 	if (!one(value.assumption,['standard','unlimited-stones','non-gold-materials','mixed'])) return;
-	const allowed = value.kind==='budget'?['coverage','bound','gain','gold','limitations'] : value.kind==='decision'?['mode','chosen','best','rank','coverage','gain','gold'] : value.kind==='opportunity'?['best','coverage','offers']:[];
+	const allowed = value.kind==='budget'?['coverage','bound','gain','gold','limitations'] : value.kind==='decision'?['mode','chosen','best','rank','coverage','gain','gold'] : value.kind==='opportunity'?['best','bestAssumption','coverage','offers']:[];
 	if (!allowed.length || Object.keys(value).some(k=>!['kind','cohort','assumption',...allowed].includes(k))) return;
 	if (value.kind==='budget') {
 		if (!one(value.coverage,COVERAGE) || !one(value.bound,BOUND_USE) || !one(value.gain,CP_BUCKETS.map(([k])=>k))) return;
@@ -137,10 +153,13 @@ export function cleanInsight(value:unknown, categories: readonly string[]): Insi
 		if(one(value.chosen,['core','astrogem'])&&value.gold!==undefined)return;
 	} else {
 		if (!one(value.best,categories) || one(value.best,['core','astrogem']) || !one(value.coverage,['complete','partial']) || !Array.isArray(value.offers) || value.offers.length>3) return;
+		const assumptions=['standard','unlimited-stones','non-gold-materials','mixed'];
+		if ((version===3 || value.bestAssumption!==undefined) && !one(value.bestAssumption,assumptions)) return;
 		const bands = new Set();
 		for (const offer of value.offers) {
-			if (!object(offer) || Object.keys(offer).some(k=>!['band','category','gain'].includes(k)) || !one(offer.band,BUDGET_BANDS) ||
+			if (!object(offer) || Object.keys(offer).some(k=>!['band','category','gain','assumption'].includes(k)) || !one(offer.band,BUDGET_BANDS) ||
 				!one(offer.category,categories) || one(offer.category,['core','astrogem']) || !one(offer.gain,CP_BUCKETS.map(([k])=>k)) || bands.has(offer.band)) return;
+			if ((version===3 || offer.assumption!==undefined) && !one(offer.assumption,assumptions)) return;
 			bands.add(offer.band);
 		}
 	}
@@ -148,15 +167,18 @@ export function cleanInsight(value:unknown, categories: readonly string[]): Insi
 }
 
 /** Bounded daily joint distributions preserve relationships needed for later analysis. No raw user identifiers. */
-export function insightFields(sample:InsightSample): string[] {
+export function insightFields(sample:InsightSample, version:2|3=3): string[] {
 	const c=sample.cohort, cohort=`${c.model}:${c.region}:${c.classId}:${c.role}:${c.start}`;
-	const common=[`insight:version:2`,`insight:model:${c.model}`,`insight:class:${c.classId}:${sample.kind}`,`insight:region:${c.region}:${sample.kind}`];
+	const common=[`insight:version:${version}`,`insight:model:${c.model}`,`insight:class:${c.classId}:${sample.kind}`,`insight:region:${c.region}:${sample.kind}`];
 	if (sample.kind==='budget') return [...common,`budget:coverage:${sample.coverage}`,`budget:bound:${sample.bound}`,`budget:assumption:${sample.assumption}`,
 		...sample.limitations.map(reason=>`budget:limitation:${reason}`),
 		...(sample.gold?[`budget:cost:${sample.gold}`,`budget:curve:${cohort}:${sample.gold}:${sample.gain}:${sample.bound}:${sample.assumption}`]:[])];
 	if (sample.kind==='decision') return [...common,`decision:mode:${sample.mode}`,`decision:rank:${sample.mode}:${sample.rank}`,
 		`decision:choice:${cohort}:${sample.mode}:${sample.chosen}:${sample.rank}:${sample.coverage}`,
+		`decision:comparison:${version}:${cohort}:${sample.mode}:${sample.coverage}:${sample.assumption}:${sample.best??'none'}:${sample.chosen}:${sample.rank}:${sample.gain}:${sample.gold??'unpriced'}`,
 		...(sample.best?[`decision:pair:${sample.mode}:${sample.best}:${sample.chosen}:${sample.assumption}`]:[])];
 	return [...common,`opportunity:best:${sample.best}`,`opportunity:coverage:${sample.coverage}`,
+		`opportunity:outcome:${version}:${cohort}:${sample.coverage}:${sample.bestAssumption??'unrecorded'}:${sample.best}`,
+		...sample.offers.map(o=>`opportunity:offer-context:${version}:${cohort}:${sample.coverage}:${o.assumption??'unrecorded'}:${o.band}:${o.category}:${o.gain}`),
 		...sample.offers.map(o=>`opportunity:offer:${cohort}:${o.band}:${o.category}:${o.gain}:${sample.assumption}`)];
 }

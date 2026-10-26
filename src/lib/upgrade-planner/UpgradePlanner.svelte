@@ -12,7 +12,8 @@
 	import { bookCost, bookPricesFor, materialPricesFor, costsForCharacter, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, missingPriceCount, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { getContext, onMount } from 'svelte';
-	import { decisionSample, opportunitySample, observe, type InsightScope } from '$lib/stats-insights';
+	import { decisionSample, opportunitySample, insightObservation, observe, type InsightScope } from '$lib/stats-insights';
+	import { track } from '$lib/stats';
 	import { liveUpgrades } from './live-upgrades';
 	import { rollsFor, setAccRolls } from './acc-rolls.svelte';
 	import { arkGridOverWillpower, initSimState, type SimState } from './simulate';
@@ -51,9 +52,11 @@
 		return()=>observer.disconnect();
 	});
 	function apply(u: Upgrade) {
-		const sample=observe(()=>{const cohort=insights?.cohort();return cohort?decisionSample(cohort,u,gold.mode,upgrades,costs,auto,materialPrices):undefined;});
+		// Capture ranking before Apply changes the state; one receipt includes action and sampling outcome.
+		const observation=insightObservation('decision',()=>{const cohort=insights?.cohort();return cohort?decisionSample(cohort,u,gold.mode,upgrades,costs,auto,materialPrices):undefined;},
+			()=>insights?.skipReason()??(insights?'no-positive-gain':'no-context'));
 		const ok = onapply?.(u) ?? false;
-		if(ok&&sample)observe(()=>insights?.emit(sample));
+		if(ok)observe(()=>track({event:'upgrade_applied',category:u.category,...observation}));
 		flash = { key: u.key, ok };
 		clearTimeout(flashTimer);
 		flashTimer = setTimeout(() => (flash = null), 1200);
@@ -116,9 +119,9 @@
 	$effect(()=>{
 		observe(()=>{
 			if(!visible || gold.mode!=='gold' || !insights?.opportunityReady())return;
-			const cohort=insights.cohort();
-			const sample=cohort?opportunitySample(cohort,upgrades,costs,auto,materialPrices):undefined;
-			if(sample)insights.opportunity(sample);
+			const observation=insightObservation('opportunity',()=>{const cohort=insights.cohort();return cohort?opportunitySample(cohort,upgrades,costs,auto,materialPrices):undefined;},
+				()=>insights.skipReason()??(upgrades.some(u=>Number.isFinite(u.gainPct)&&u.gainPct>0)?'no-priced-candidate':'no-positive-gain'));
+			insights.opportunity(observation.insight,observation.sampling.reason);
 		});
 	});
 </script>

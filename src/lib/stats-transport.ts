@@ -1,4 +1,5 @@
 import type { CountEvent } from './stats-model';
+import { STATS_SCHEMA } from './stats-versions';
 
 type Pending = { event: CountEvent; attempts: number };
 type ClientEvent = Omit<CountEvent, 'id'>;
@@ -41,7 +42,7 @@ export function createStatsQueue(send: typeof fetch, uuid = () => crypto.randomU
 	}
 	function enqueue(event: ClientEvent) {
 		if (pending.length >= 64) return;
-		try { pending.push({ event: { ...event, id: uuid(), v: 2 }, attempts: 0 }); schedule(); }
+		try { pending.push({ event: { ...event, id: uuid(), v: STATS_SCHEMA }, attempts: 0 }); schedule(); }
 		catch { /* Analytics must never interrupt the action being observed. */ }
 	}
 	return { enqueue, flush };

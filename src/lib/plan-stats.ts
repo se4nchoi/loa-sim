@@ -1,6 +1,7 @@
 import type { SimState } from './upgrade-planner/simulate';
 import { resolveClass } from './upgrade-planner/class-names';
-import { CP_STATS_MODEL } from './stats-versions';
+import { CP_STATS_MODEL, type CpStatsModel } from './stats-versions';
+import { samplingAttempt, type SamplingAttempt, type SkipReason } from './stats-sampling';
 
 export const CP_BUCKETS = [
 	['lower', 'Lower CP'], ['same', 'Unchanged'], ['under1', '<1%'], ['1to3', '1–3%'],
@@ -23,7 +24,7 @@ export interface PlanObservation {
 	gems?: 'under9' | '9' | 'some10' | 'all10';
 	classId?: string;
 	region?: 'NA'|'CE';
-	model?: typeof CP_STATS_MODEL;
+	model?: CpStatsModel;
 	milestones?: typeof LEVEL_MILESTONES[number][];
 }
 export const PLAN_SECTIONS = ['gear','accessories','bracelet','skins','gems','engravings','arkGrid','karma','paradise'] as const;
@@ -35,6 +36,7 @@ export interface PlanContext {
 	targetCp: number;
 	targetIlvl: number | null;
 	consistent: boolean;
+	exclusion?: SkipReason;
 	support: boolean;
 	base?: SimState;
 	startIlvl?: number;
@@ -53,13 +55,29 @@ export function levelBucket(level:number): typeof LEVEL_BUCKETS[number][0] {
 		: level < 1790 ? '1760to1789' : level < 1820 ? '1790to1819' : 'over1820';
 }
 
+export function planSkipReason(context: PlanContext | null | undefined, savedState: SimState): SkipReason | undefined {
+	if (!context) return 'no-context';
+	if (!context.consistent) return context.exclusion ?? 'baseline-mismatch';
+	if (context.targetIlvl===null) return 'missing-item-level';
+	if (
+		![context.baselineCp, context.targetCp, context.targetIlvl].every(Number.isFinite) ||
+		context.baselineCp <= 0 || context.targetCp <= 0) return 'invalid-values';
+	if (context.targetIlvl < 1500 || context.targetIlvl > 2000) return 'invalid-item-level';
+	if (JSON.stringify(context.state) !== JSON.stringify(savedState)) return 'unsettled';
+}
+
+export function savedPlanObservation(context:PlanContext|null|undefined, savedState:SimState): {plan?:PlanObservation;sampling:SamplingAttempt} {
+	try {
+		const reason=planSkipReason(context,savedState);
+		const plan=reason?undefined:planObservation(context,savedState);
+		return {plan,sampling:samplingAttempt('plan',reason)};
+	} catch { return {sampling:samplingAttempt('plan','observation-error')}; }
+}
+
 /** Uses the simulator's settled results, never runs a new CP/honing calculation for telemetry. */
 export function planObservation(context: PlanContext | null | undefined, savedState: SimState): PlanObservation | undefined {
-	if (!context || !context.consistent || context.targetIlvl === null ||
-		![context.baselineCp, context.targetCp, context.targetIlvl].every(Number.isFinite) ||
-		context.baselineCp <= 0 || context.targetCp <= 0 || context.targetIlvl < 1500 || context.targetIlvl > 2000 ||
-		JSON.stringify(context.state) !== JSON.stringify(savedState)) return;
-	const out:PlanObservation={cp:cpBucket((context.targetCp/context.baselineCp-1)*100),target:levelBucket(context.targetIlvl),role:context.support?'support':'dealer'};
+	if (planSkipReason(context,savedState) || !context || context.targetIlvl===null) return;
+	const out:PlanObservation={cp:cpBucket((context.targetCp/context.baselineCp-1)*100),target:levelBucket(context.targetIlvl),role:context.support?'support':'dealer',model:CP_STATS_MODEL};
 	if (context.startIlvl!==undefined && Number.isFinite(context.startIlvl)) {
 		out.start=levelBucket(context.startIlvl);
 		out.milestones=LEVEL_MILESTONES.filter(level=>Number(level)>context.startIlvl! && Number(level)<=context.targetIlvl!);
@@ -67,7 +85,6 @@ export function planObservation(context: PlanContext | null | undefined, savedSt
 	if(context.classId)out.classId=resolveClass(context.classId);
 	if(context.region)out.region=context.region;
 	if (context.base) {
-		out.model=CP_STATS_MODEL;
 		const base=context.base;
 		const different=(a:unknown,b:unknown)=>JSON.stringify(a)!==JSON.stringify(b);
 		out.sections=PLAN_SECTIONS.filter(section=>sectionKeys[section].some(key=>different(base[key],savedState[key])));

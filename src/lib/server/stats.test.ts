@@ -4,6 +4,8 @@ const env: Record<string,string> = {};
 vi.mock('$env/dynamic/private', () => ({env}));
 const {cleanEvent, count, record, isBot, readStats} = await import('./stats');
 const {budgetSample,insightCohort}=await import('$lib/stats-insights');
+const {CP_STATS_MODEL}=await import('$lib/stats-versions');
+const {samplingAttempt}=await import('$lib/stats-sampling');
 
 // A tiny Redis: hashes and "HyperLogLogs" as exact sets, behind Upstash's /pipeline endpoint.
 function fakeRedis() {
@@ -117,13 +119,58 @@ describe('usage stats', () => {
 		const db=fakeRedis();await record(event,db.fetchFn,day1);await record(event,db.fetchFn,day1);
 		const report=await readStats(7,db.fetchFn,day1);
 		expect(report.totals).toMatchObject({budget_sampled:1,'budget:coverage:complete':1,'budget:cost:100to500k':1});
-		expect(Object.keys(report.totals)).toContain('budget:curve:cp-2026-10-25:NA:souleater:dealer:1760to1789:100to500k:5to10:na:standard');
+		expect(Object.keys(report.totals)).toContain(`budget:curve:${CP_STATS_MODEL}:NA:souleater:dealer:1760to1789:100to500k:5to10:na:standard`);
 	});
 
 	it('strict ingestion surfaces outages, while product actions remain best effort', async () => {
 		const down = vi.fn(async () => new Response(null, {status: 500})) as unknown as typeof fetch;
 		await expect(record({event: 'sim_open'}, down)).rejects.toThrow();
 		await expect(count({event: 'sim_open'}, down)).resolves.toBeUndefined();
+	});
+	it('atomically counts an applied choice or its exclusion, including retries across midnight',async()=>{
+		const {decisionSample}=await import('$lib/stats-insights');
+		const upgrade={key:'gem',category:'gem',gainPct:2,title:'private',detail:'private',count:1,approximate:false} as const;
+		const insight=decisionSample(insightCohort('souleater','NA/A',1780,false)!,upgrade,'gold',[upgrade],{gem:100000},{},{})!;
+		const event={event:'upgrade_applied',category:'gem',v:3,id:crypto.randomUUID(),insight,sampling:samplingAttempt('decision')} as const;
+		expect(cleanEvent(event)).toEqual(event);
+		const db=fakeRedis();
+		await record(cleanEvent(event)!,db.fetchFn,day1);await record(cleanEvent(event)!,db.fetchFn,day2);
+		const skipped={...event,id:crypto.randomUUID(),insight:undefined,sampling:samplingAttempt('decision','baseline-mismatch')};
+		expect(cleanEvent(skipped)).toEqual(skipped);
+		await record(cleanEvent(skipped)!,db.fetchFn,day2);
+		const counts=(await readStats(7,db.fetchFn,day2)).totals;
+		expect(counts).toMatchObject({upgrade_applied:2,'upgrade:gem':2,decision_sampled:1,
+			[`sampling:attempt:${CP_STATS_MODEL}:decision`]:2,
+			[`sampling:outcome:${CP_STATS_MODEL}:decision:sampled`]:1,
+			[`sampling:outcome:${CP_STATS_MODEL}:decision:baseline-mismatch`]:1});
+		expect(Object.keys(counts).some(k=>k.includes('private'))).toBe(false);
+	});
+	it('records closed and unmounted budgets separately without inventing completed samples',async()=>{
+		const insight=budgetSample(insightCohort('bard','CE/A',1780,true)!,[],100,100)!;
+		const closed={event:'budget_closed',v:3,id:crypto.randomUUID(),insight,sampling:samplingAttempt('budget')} as const;
+		const abandoned={event:'budget_abandoned',v:3,id:crypto.randomUUID(),sampling:samplingAttempt('budget','unmounted')} as const;
+		expect(cleanEvent(closed)).toEqual(closed);expect(cleanEvent(abandoned)).toEqual(abandoned);
+		const db=fakeRedis();await record(cleanEvent(closed)!,db.fetchFn,day1);await record(cleanEvent(abandoned)!,db.fetchFn,day1);
+		expect((await readStats(7,db.fetchFn,day1)).totals).toMatchObject({budget_closed:1,budget_abandoned:1,budget_sampled:1,'budget:coverage:empty':1,
+			[`sampling:attempt:${CP_STATS_MODEL}:budget`]:2,[`sampling:outcome:${CP_STATS_MODEL}:budget:unmounted`]:1});
+	});
+	it('preserves old plan model tags and enforces coherent v3 sampling envelopes',()=>{
+		const plan={cp:'same',target:'1760to1789',role:'dealer',model:'cp-2026-10-25'} as const;
+		expect(cleanEvent({event:'build_saved',v:2,id:crypto.randomUUID(),plan})?.plan?.model).toBe('cp-2026-10-25');
+		const id=crypto.randomUUID();
+		const skipped={event:'build_saved',v:3,id,sampling:samplingAttempt('plan','unsettled')};
+		expect(cleanEvent(skipped)).toEqual(skipped);
+		for(const bad of [
+			{...skipped,plan},
+			{...skipped,sampling:samplingAttempt('budget','unsettled')},
+			{...skipped,sampling:samplingAttempt('plan')},
+			{...skipped,sampling:{...skipped.sampling,reason:'private text'}},
+			{...skipped,sampling:{...skipped.sampling,extra:'private'}},
+			{...skipped,sampling:{...skipped.sampling,model:'unknown'}},
+			{...skipped,id:undefined}, {...skipped,v:2}, {...skipped,sampling:undefined},
+			{...skipped,plan:{...plan,model:'unknown'}},
+			{...skipped,sampling:samplingAttempt('plan'),plan},
+		])expect(cleanEvent(bad)).toBeNull();
 	});
 	it('does not mix preview share activity into production counters', async () => {
 		env.VERCEL_ENV = 'preview';

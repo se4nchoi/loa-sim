@@ -6,7 +6,7 @@
 	import type { MenuOption } from './sim/ui';
 	import MenuPicker from './sim/MenuPicker.svelte';
 	import { track } from '$lib/stats';
-	import { planObservation, type PlanContext } from '$lib/plan-stats';
+	import { savedPlanObservation, type PlanContext } from '$lib/plan-stats';
 	import { observe } from '$lib/stats-insights';
 	let { characterKey = '', initialId = '', workspaceKey, loadout, state: simState, onrestore, planStats }: { characterKey?: string; initialId?: string; workspaceKey?: string; loadout: Loadout; state: SimState; onrestore: (state: SimState) => void; planStats?: PlanContext | null } = $props();
 	let name = $state('');
@@ -45,7 +45,7 @@
 	const active = $derived(list.find(s => s.id === selected && JSON.stringify(s.state) === JSON.stringify(simState)));
 	const menuValue = $derived(active?.id ?? (working ? 'autosave' : ''));
 	function saveNamed(title: string): boolean {
-		try { const prior = new Set(list.map(s => s.id)); const s = saveSimulation(characterKey, title, loadout, $state.snapshot(simState)); list = savedSimulations(characterKey); selected = s.id; name = s.name; note = ''; feedback = prior.has(s.id) ? 'Already saved—no changes.' : ''; if (!prior.has(s.id)) observe(()=>track({ event: 'build_saved', plan: planObservation(planStats, s.state) })); return true; }
+		try { const prior = new Set(list.map(s => s.id)); const s = saveSimulation(characterKey, title, loadout, $state.snapshot(simState)); list = savedSimulations(characterKey); selected = s.id; name = s.name; note = ''; feedback = prior.has(s.id) ? 'Already saved—no changes.' : ''; if (!prior.has(s.id)) observe(()=>track({ event: 'build_saved', ...savedPlanObservation(planStats, s.state) })); return true; }
 		catch (e) { note = (e as Error).message; return false; }
 	}
 	function rename(id: string, title: string): boolean {

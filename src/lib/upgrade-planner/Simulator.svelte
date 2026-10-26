@@ -10,7 +10,8 @@
 	import { applyUpgrade } from './apply-upgrade';
 	import { track } from '$lib/stats';
 	import type { PlanContext } from '$lib/plan-stats';
-	import { insightCohort, unpricedBudgetEdits, type InsightScope } from '$lib/stats-insights';
+	import { insightCohort, cohortSkipReason, unpricedBudgetEdits, type InsightScope } from '$lib/stats-insights';
+	import { samplingAttempt, type SkipReason } from '$lib/stats-sampling';
 	import { autosaveSimulation, loadAutosave } from './saved-simulations';
 	import { roleOf, simulationBaseline } from './roles';
 	import { formatCp } from './format';
@@ -204,6 +205,7 @@
 		const c=insightCohort(loadout.classId,characterKey,loadout.itemLevel,loadout.battlePoint.isSupport);
 		planStats = { state: calculated, baselineCp: current, targetCp: simulated,
 			targetIlvl: itemLevel(calculated), consistent: !startingScore.mismatch && !arkGridOverWillpower(calculated.arkGrid),
+			exclusion: startingScore.mismatch ? 'baseline-mismatch' : arkGridOverWillpower(calculated.arkGrid) ? 'over-willpower' : undefined,
 			support: loadout.battlePoint.isSupport,base,startIlvl:loadout.itemLevel,contributions:sections,classId:c?.classId,region:c?.region };
 	});
 
@@ -231,20 +233,26 @@
 	// Dealer or support battle point tables, for the cards (which lines / options / effects score).
 	setContext('loa-sim:role', () => roleOf(loadout));
 	const sampledOpportunities = new WeakMap<Loadout,Set<string>>();
-	const cohort = () => startingScore.mismatch || arkGridOverWillpower(calculated.arkGrid) ? undefined
-		: insightCohort(loadout.classId,characterKey,loadout.itemLevel,loadout.battlePoint.isSupport);
+	const skipReason = ():SkipReason|undefined => startingScore.mismatch ? 'baseline-mismatch'
+		: arkGridOverWillpower(calculated.arkGrid) ? 'over-willpower'
+		: JSON.stringify(calculated)!==JSON.stringify(snapshot()) ? 'unsettled'
+		: cohortSkipReason(loadout.classId,characterKey,loadout.itemLevel);
+	const cohort = () => skipReason() ? undefined : insightCohort(loadout.classId,characterKey,loadout.itemLevel,loadout.battlePoint.isSupport);
 	setContext<InsightScope>('loa-sim:insights',{
 		cohort,
+		skipReason,
 		unpricedBudgetEdits:()=>unpricedBudgetEdits(base,calculated),
-		opportunityReady:()=>!edited && !!cohort() && (sampledOpportunities.get(loadout)?.size??0)<2,
-		opportunity:sample=>{
-			if(edited || !cohort()) return;
+		opportunityReady:()=>!edited && !sampledOpportunities.get(loadout)?.has('complete'),
+		opportunity:(sample,reason)=>{
+			if(edited) return;
 			const seen=sampledOpportunities.get(loadout)??new Set<string>();
-			if(seen.has(sample.coverage))return;
-			seen.add(sample.coverage);sampledOpportunities.set(loadout,seen);
-			track({event:'opportunity_sampled',insight:sample});
+			const key=sample?.coverage??`skip:${reason??'observation-error'}`;
+			if(seen.has(key))return;
+			seen.add(key);sampledOpportunities.set(loadout,seen);
+			track({event:sample?'opportunity_sampled':'sample_skipped',insight:sample,
+				sampling:samplingAttempt('opportunity',sample?undefined:reason??'observation-error')});
 		},
-		emit:sample=>{if(cohort())track({event:`${sample.kind}_sampled`,insight:sample});}
+		emit:track
 	});
 
 	// Follow the settled equipment's bracket so standing and CP update together.
@@ -277,7 +285,6 @@
 		if (!applyUpgrade(loadout, s, base, u)) return false;
 		const changed = JSON.stringify(s) !== JSON.stringify(snapshot());
 		sim = s;
-		if (changed) track({ event: 'upgrade_applied', category: u.category });
 		return changed;
 	}
 	function openBudget() {

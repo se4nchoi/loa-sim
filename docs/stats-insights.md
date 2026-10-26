@@ -1,6 +1,8 @@
 # Simulator insight collection
 
-Collection-only release: `codex/stats-collection`. The public navigation tab, dashboard, and public reporting endpoint stay on the deferred `codex/stats-tab` preview. The existing private stats page and key-protected API remain in production. Collection starts after deployment. Schema 2, CP model `cp-2026-10-25`. No historical backfill.
+Collection-only maintenance: `codex/stats-collection-quality`. No public navigation tab, dashboard redesign, or public reporting endpoint is included. The existing private stats page and key-protected API remain unchanged. New clients use schema 3 and CP model `cp-2026-10-26-vambraces-v1`. Cached schema-2 clients and the historical `cp-2026-10-25` model remain accepted. No historical backfill.
+
+The live audit on Oct 26 found consistent arithmetic, but the old CP tag spans both sides of the Vambraces correction. Those historical observations cannot be separated retrospectively. Treat that tag as mixed model history, and restrict corrected-model conclusions to the new tag after deployment. Old pooled category/price histograms remain compatible counters, not model-specific evidence.
 
 ## Questions the data can answer
 
@@ -19,10 +21,10 @@ Collection-only release: `codex/stats-collection`. The public navigation tab, da
 
 ## Triggers and sampling
 
-- **Recommendation sample:** a visible Next Upgrades card in Per gold mode, while the starting state is unedited. Intersection visibility excludes the hidden pricing instance. At most one partial-price and one complete-price sample per baseline object per simulator visit, shared across desktop/mobile card instances. These are observations, not unique characters.
-- **Decision sample:** built from the pre-Apply list; emitted only if Apply changes state. Tied best scores count as best. CP and gold choices are separate. Core/astrogem RNG upgrades remain unpriced in gold comparisons.
-- **Budget sample:** captured once when a budget dialog closes, using its final visible price result. Reopening creates another budget-view observation. Navigation that simply unmounts the dialog is not a completed budget view. Budget observations and named saves are separate populations.
-- **Named save:** captured only after a genuinely new save persists. State equality rejects a save that outruns the simulator debounce. Existing settled CP and system deltas are reused; collection adds no CP or honing simulations.
+- **Recommendation sample:** a visible Next Upgrades card in Per gold mode, while the starting state is unedited. Intersection visibility excludes the hidden pricing instance. At most one partial-price and one complete-price sample per baseline object per simulator visit, shared across desktop/mobile card instances. Each distinct exclusion reason is also recorded at most once for that baseline; a completed full-price sample ends further recommendation sampling. These are observations, not unique characters. A skipped attempt can later become a priced sample; diagnostics count attempts, not a character funnel.
+- **Decision sample:** built from the pre-Apply list; emitted only if Apply changes state. Schema 3 places the basic Apply action and either its decision sample or an exclusion reason in one atomic receipt. Tied best scores count as best. CP and gold choices are separate. Core/astrogem RNG upgrades remain unpriced in gold comparisons.
+- **Budget sample:** captured once when a budget dialog closes, using its final visible price result. Schema 3 records the close and its sample or exclusion in one receipt. Reopening creates another budget-view observation. In-app unmounts record `budget_abandoned` / `unmounted` separately, with no completed sample. Page termination may still prevent delivery. Budget observations and named saves are separate populations.
+- **Named save:** captured only after a genuinely new save persists. The save receipt contains a plan sample or an exclusion reason, such as an unsettled state or inconsistent baseline. Existing settled CP and system deltas are reused; collection adds no CP or honing simulations.
 - **Class/region/role:** canonical class ID, character region, scored role, and starting item-level range. No character name, guild, account identity, full loadout, skill distribution, or named-plan title is retained in insight data.
 
 ## Price and model rules
@@ -35,6 +37,20 @@ Collection-only release: `codex/stats-collection`. The public navigation tab, da
 6. The strongest saved-plan system uses the existing standalone section delta; ties are recorded separately. These deltas are not additive shares of total CP gain and must not be drawn as a contribution pie chart.
 7. Role, class, starting range, region, bound use, coverage and model version are available for grouping. They reduce confounding; they do not make a self-selected sample representative of every Lost Ark player.
 8. Bump the model tag when CP or cost semantics change, preserve accepted historical model IDs during migration, and compare versions separately. DPS needs its own contract and model tag before these CP-only hooks are adapted to the DPS branch.
+
+## Contextual counters and reconciliation
+
+Existing counter layouts are preserved. Use these new joint families for schema-aware findings:
+
+- `opportunity:outcome:<schema>:<cohort>:<coverage>:<best assumption>:<best category>`
+- `opportunity:offer-context:<schema>:<cohort>:<coverage>:<offer assumption>:<ceiling>:<category>:<gain>`
+- `decision:comparison:<schema>:<cohort>:<mode>:<coverage>:<assumption>:<best or none>:<chosen>:<rank>:<gain>:<cost or unpriced>`
+
+`cohort` means model, region, canonical class, role and starting level bucket. Each recommendation winner now has its own assumption; the historical overall assumption combined every winner and cannot reliably be assigned to one offer. Cached schema-2 records with missing per-winner metadata are marked `unrecorded` in the new families, never inferred from the pooled flag. Decisions retain the combined assumptions of chosen and best upgrades, since that is the comparison being made. Complete-budget curves already retain model, bound use and assumptions and keep their existing layout.
+
+Every schema-3 Apply, named save, budget close/unmount, and deduplicated recommendation attempt has a `sampling:attempt:<model>:<kind>` counter and exactly one `sampling:outcome:<model>:<kind>:<sampled or reason>` counter. Their sums must match per model and kind. Only sampled outcomes increment rich sample counters. Model/schema/coverage must be filtered before comparing joint cells with historical totals. Legacy events remain outside these new denominators.
+
+Exclusion reasons are a fixed allowlist: missing context, baseline mismatch, excess willpower, unknown class/region, missing/invalid item level, invalid numeric values, unsettled calculation, no positive gain, no priced candidate, in-app unmount, or a caught observation error. No raw error text is stored. The counts explain accepted sampling attempts, not dropped traffic, unique users, abandoned browser sessions, or the old audit's unexplained gaps. The queue remains best effort; offline exits, rate limits and permanently rejected batches can still lose whole receipts.
 
 ## Storage, privacy and reporting
 

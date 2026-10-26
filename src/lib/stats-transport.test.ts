@@ -16,6 +16,7 @@ describe('stats delivery', () => {
 		expect(send).toHaveBeenCalledTimes(1);
 		const first = send.mock.calls[0][1].body;
 		expect(JSON.parse(first).events).toHaveLength(2);
+		expect(JSON.parse(first).events.every((event:{v:number})=>event.v===3)).toBe(true);
 		await vi.advanceTimersByTimeAsync(2_000);
 		expect(send).toHaveBeenCalledTimes(2);
 		expect(send.mock.calls[1][1].body).toBe(first);
