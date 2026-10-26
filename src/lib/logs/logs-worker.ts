@@ -114,13 +114,12 @@ async function encounterTable() {
 	return names.has('encounter_preview') ? 'encounter_preview' : 'encounter';
 }
 
+// Every run in the file, without gear snapshots: those sit after the big skill columns of each entity row, so reading
+// them for every run took ~14 s on a 1.4 GB file (vs ~30 ms for this list). gearHashes reads them for picked runs only.
 async function listEncounters(): Promise<EncounterRow[]> {
 	const table = await encounterTable();
-	// The recording player's gear snapshot per run, for grouping runs by build before importing them.
-	const hashed = (await query(`SELECT name FROM pragma_table_info('entity')`)).some((r) => r.name === 'loadout_hash');
-	const hash = hashed ? '(SELECT loadout_hash FROM entity WHERE encounter_id = e.id AND name = e.local_player)' : 'NULL';
 	const rows = await query(
-		`SELECT id, fight_start AS start, current_boss AS boss, difficulty, cleared, local_player AS player, duration, ${hash} AS hash FROM ${table} e ORDER BY fight_start DESC`
+		`SELECT id, fight_start AS start, current_boss AS boss, difficulty, cleared, local_player AS player, duration FROM ${table} e ORDER BY fight_start DESC`
 	);
 	return rows.map((r) => ({
 		id: Number(r.id),
@@ -130,8 +129,20 @@ async function listEncounters(): Promise<EncounterRow[]> {
 		cleared: r.cleared === null || r.cleared === undefined ? null : Number(r.cleared) === 1,
 		player: String(r.player ?? ''),
 		duration: Number(r.duration ?? 0),
-		loadoutHash: r.hash ? String(r.hash) : null
+		loadoutHash: null
 	}));
+}
+
+/** The player's gear snapshot hash per run (null without one), for grouping runs by build before importing them. */
+async function gearHashes(player: string, ids: number[]): Promise<Record<number, string | null>> {
+	const out: Record<number, string | null> = Object.fromEntries(ids.map((id) => [id, null]));
+	if (!(await query(`SELECT name FROM pragma_table_info('entity')`)).some((r) => r.name === 'loadout_hash')) return out;
+	for (let i = 0; i < ids.length; i += 200) {
+		const chunk = ids.slice(i, i + 200);
+		const rows = await query(`SELECT encounter_id, loadout_hash FROM entity WHERE name = ? AND encounter_id IN (${chunk.map(() => '?').join(',')})`, [player, ...chunk]);
+		for (const r of rows) out[Number(r.encounter_id)] = r.loadout_hash ? String(r.loadout_hash) : null;
+	}
+	return out;
 }
 
 type LoggedSkill = { id?: number; name?: string; icon?: string; total_damage?: number; totalDamage?: number; timeAvailable?: number };
@@ -348,6 +359,8 @@ self.onmessage = async (e: MessageEvent<LogsRequest>) => {
 			reply({ id: req.id, type: 'runs', ...(await runSummaries(req.player, req.encounterIds)) });
 		} else if (req.type === 'replay') {
 			reply({ id: req.id, type: 'replay', runs: await replayRuns(req.player, req.encounterIds) });
+		} else if (req.type === 'hashes') {
+			reply({ id: req.id, type: 'hashes', hashes: await gearHashes(req.player, req.encounterIds) });
 		}
 	} catch (err) {
 		const code = (err as { code?: number })?.code;

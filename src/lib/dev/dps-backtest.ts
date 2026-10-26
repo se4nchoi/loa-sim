@@ -42,8 +42,9 @@ export async function coverage(file: File, player: string, loadout: Loadout, new
 	const reader = new LoaLogsReader();
 	try {
 		// The newest runs only: each gear snapshot is one request to Mathi's API (cached after).
-		const encounters = (await reader.open(file)).filter((e) => e.player === player && e.duration > 0 && e.loadoutHash && isSnapshotHash(e.loadoutHash))
-			.toSorted((a, b) => b.start - a.start).slice(0, newest);
+		const theirs = (await reader.open(file)).filter((e) => e.player === player && e.duration > 0);
+		const gear = await reader.hashes(player, theirs.map((e) => e.id));
+		const encounters = theirs.filter((e) => isSnapshotHash(gear[e.id] ?? '')).toSorted((a, b) => b.start - a.start).slice(0, newest);
 		(globalThis as { __progress?: string }).__progress = `reading ${encounters.length} runs`;
 		const { runs } = await reader.runs(player, encounters.map((e) => e.id));
 		const now = initSimState(loadout);
@@ -80,7 +81,9 @@ export async function coverage(file: File, player: string, loadout: Loadout, new
 export async function backtest(file: File, player: string, loadout: Loadout, opts: { maxPairs?: number } = {}): Promise<BacktestPair[]> {
 	const reader = new LoaLogsReader();
 	try {
-		const encounters = (await reader.open(file)).filter((e) => e.player === player && e.duration > 0 && e.cleared === true && e.loadoutHash && isSnapshotHash(e.loadoutHash));
+		const theirs = (await reader.open(file)).filter((e) => e.player === player && e.duration > 0 && e.cleared === true);
+		const gear = await reader.hashes(player, theirs.map((e) => e.id));
+		const encounters = theirs.filter((e) => isSnapshotHash(gear[e.id] ?? ''));
 		const { runs } = await reader.runs(player, encounters.map((e) => e.id));
 		const states = new Map<string, SimState | null>();
 		for (const hash of new Set(runs.map((r) => r.loadoutHash!).filter(Boolean))) {

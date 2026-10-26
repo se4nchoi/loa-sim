@@ -170,7 +170,7 @@
 	const menuOptions = $derived(
 		older.length
 			? menu
-			: [...menu, { value: 'hint', label: 'Older snapshots show up here as you reload this character', disabled: true, muted: true, marker: '' }]
+			: [...menu, { value: 'hint', label: 'Reloads add older snapshots here', disabled: true, muted: true, marker: '' }]
 	);
 	const menuValue = $derived(snapshotId ? `snap:${snapshotId}` : (loadoutKind ?? ''));
 	/**
@@ -201,7 +201,8 @@
 
 <!-- The character on the left; CP / DPS on the right, up here so opening the DPS sim below never moves it. -->
 <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
-<div class="flex min-w-0 flex-col gap-1">
+<!-- Takes the row's free space: the snapshot and plan pickers fill up to their max width, and their menus fit them. -->
+<div class="flex min-w-0 flex-1 flex-col gap-1">
 	<div class="flex flex-row gap-1 text-xs">
 		<span class="rounded-xs bg-surface-900 px-2 py-0.5">{region === 'NA' ? 'North America' : region}</span>
 		{#if loadout}<span class="rounded-xs bg-surface-900 px-2 py-0.5">{className(loadout.classId)}</span>{/if}

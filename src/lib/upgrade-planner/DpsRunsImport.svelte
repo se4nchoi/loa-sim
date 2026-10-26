@@ -42,14 +42,28 @@
 		(outcome === 'all' || outcome === 'clear' && e.cleared === true || outcome === 'failed' && e.cleared === false))
 		.toSorted((a, b) => b.start - a.start));
 
+	// Each picked run's gear snapshot hash, read from the file once step 2 picks the runs (the listing leaves them out:
+	// reading them for every run in the file is what made opening it slow).
+	let hashById = $state<Record<number, string | null>>({});
+	let hashKey = $state('');
+	const missingHashes = $derived(ranged.filter((e) => !(e.id in hashById)).map((e) => e.id));
+	$effect(() => {
+		const ids = missingHashes, who = player, key = `${who}:${ids.join(',')}`;
+		if (!ids.length || !reader || untrack(() => hashKey) === key) return;
+		hashKey = key;
+		reader.hashes(who, ids).then((h) => { if (player === who) hashById = { ...hashById, ...h }; }, (err) => {
+			error = err instanceof Error ? err.message : String(err);
+		});
+	});
+
 	// Each run's Order cores, by snapshot; '?' when the run has none or it couldn't be read.
 	const UNKNOWN = '?';
 	let snapCores = $state<Record<string, string>>({});
-	const hashOf = (e: EncounterRow) => (e.loadoutHash && isSnapshotHash(e.loadoutHash) ? e.loadoutHash : null);
+	const hashOf = (e: EncounterRow) => { const h = hashById[e.id]; return h && isSnapshotHash(h) ? h : null; };
 	/** Builds change rarely; past this many distinct snapshots the rest count as unknown. */
 	const MAX_SNAPSHOTS = 40;
 	const hashes = $derived([...new Set(ranged.map(hashOf).filter((h): h is string => !!h))].slice(0, MAX_SNAPSHOTS));
-	const pending = $derived(hashes.filter((h) => !(h in snapCores)).length);
+	const pending = $derived(hashes.filter((h) => !(h in snapCores)).length + (missingHashes.length ? 1 : 0));
 	$effect(() => {
 		const all = hashes;
 		const todo = untrack(() => all.filter((h) => !(h in snapCores)));
@@ -82,7 +96,7 @@
 		const file = (e.currentTarget as HTMLInputElement).files?.[0];
 		if (!file) return;
 		error = null;
-		busy = 'Opening…';
+		busy = `Opening ${file.name} (${(file.size / 1e9 >= 1 ? `${(file.size / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(file.size / 1e6))} MB`)})…`;
 		try {
 			reader ??= new LoaLogsReader();
 			encounters = await reader.open(file);
@@ -90,6 +104,8 @@
 			const own = players.find(([name]) => name.toLowerCase() === characterName.toLowerCase());
 			player = own?.[0] ?? players[0]?.[0] ?? '';
 			build = null;
+			hashById = {};
+			hashKey = '';
 		} catch (err) {
 			error = err instanceof Error ? err.message : String(err);
 		} finally {
@@ -116,6 +132,8 @@
 
 	const chip = 'h-7 min-w-10 px-2.5 text-xs';
 </script>
+
+{#snippet spinner()}<span class="size-3.5 shrink-0 animate-spin rounded-full border-2 border-sky-300/30 border-t-sky-300" aria-hidden="true"></span>{/snippet}
 
 {#snippet step(n: number, title: string, on: boolean)}
 	<h4 class="flex items-center gap-2 text-sm font-semibold {on ? 'text-surface-100' : 'text-surface-500'}">
@@ -170,10 +188,11 @@
 			</div>
 			<div class="flex items-center gap-3">
 				<button class="h-8 rounded-xs bg-accent-700 px-3 text-xs font-semibold text-white hover:bg-accent-600 disabled:opacity-50" disabled={!clears.length || !!busy || pending > 0} onclick={importRuns}>Import {clears.length} {clears.length === 1 ? 'run' : 'runs'}</button>
-				{#if pending}<span class="text-xs text-sky-300">Reading gear snapshots… {hashes.length - pending}/{hashes.length}</span>{/if}
+				{#if missingHashes.length}<span class="flex items-center gap-1.5 text-xs text-sky-300">{@render spinner()}Reading {ranged.length} runs' gear…</span>
+				{:else if pending}<span class="flex items-center gap-1.5 text-xs text-sky-300">{@render spinner()}Reading gear snapshots… {hashes.length - pending}/{hashes.length}</span>{/if}
 			</div>
 		{/if}
 	</section>
-	{#if busy}<p class="text-xs text-sky-300">{busy}</p>{/if}
+	{#if busy}<p class="flex items-center gap-1.5 text-xs text-sky-300" role="status">{@render spinner()}{busy}</p>{/if}
 	{#if error}<p class="text-xs text-red-400">{error}</p>{/if}
 </div>

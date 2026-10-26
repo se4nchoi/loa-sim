@@ -32,6 +32,11 @@ export class LoaLogsReader {
 		return (await this.send<'encounters'>({ type: 'open', file })).encounters;
 	}
 
+	/** The player's gear snapshot hash per run; the file listing leaves them out (slow to read for every run). */
+	async hashes(player: string, encounterIds: number[]): Promise<Record<number, string | null>> {
+		return (await this.send<'hashes'>({ type: 'hashes', player, encounterIds })).hashes;
+	}
+
 	async shares(player: string, encounterIds: number[]): Promise<{ runs: number; shares: SkillShare[] }> {
 		const r = await this.send<'shares'>({ type: 'shares', player, encounterIds });
 		return { runs: r.runs, shares: r.shares };
