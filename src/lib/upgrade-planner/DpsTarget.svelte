@@ -16,6 +16,7 @@
 	import { classTextColor } from './class-colors';
 	import { CATEGORY_LABELS, type Upgrade } from './upgrades';
 	import UpgradeTitle from './UpgradeTitle.svelte';
+	import Spinner from './sim/Spinner.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { btn } from './sim/ui';
 	import type { SimState } from './simulate';
@@ -120,10 +121,6 @@
 	});
 </script>
 
-{#snippet spinner(cls: string)}
-	<!-- Spins on the compositor, so it keeps turning while planning holds the page. -->
-	<svg class="{cls} shrink-0 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" stroke-width="3" /><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" /></svg>
-{/snippet}
 
 <div class="rounded-xs border border-surface-700 bg-surface-950/50 p-3 text-sm" bind:this={box}>
 	<p class="text-sm font-semibold text-surface-100">Target DPS</p>
@@ -131,11 +128,11 @@
 	<form class="mt-1.5 flex w-full max-w-sm flex-col gap-1.5" onsubmit={(e) => { e.preventDefault(); planNow(); }}>
 		<div class="relative" onclickcapture={(e) => { if (stale(e)) { e.stopPropagation(); e.preventDefault(); } }}>
 		<Segmented label="Plan by" full disabled={planning || !selection} value={byGold ? 'gold' : 'steps'} options={[{ value: 'steps', label: 'Fewest steps', title: 'Biggest DPS gain at each step' }, { value: 'gold', label: 'Least gold', title: 'Least gold per 1% DPS at each step' }]} onselect={(v) => { byGold = v === 'gold'; if (plan) planNow(); }} size="h-7 px-2 text-xs" />
-		{#if planning}<span class="absolute inset-0 flex items-center justify-center" role="status" aria-label="Planning">{@render spinner('size-4 text-accent-300')}</span>{/if}
+		{#if planning}<span class="absolute inset-0 flex items-center justify-center" role="status" aria-label="Planning"><Spinner class="size-4 text-accent-300" /></span>{/if}
 		</div>
 		<div class="flex gap-1.5">
 			<input disabled={planning || !selection} class="h-8 min-w-0 flex-1 disabled:opacity-60 rounded-xs border border-surface-700 bg-surface-950 px-2 text-sm text-surface-100 tabular-nums" placeholder="1.4b, +5%, or empty: best upgrades" bind:value={text} aria-label="Target DPS" />
-			<button type="submit" class="{btn} h-8 gap-1.5 px-4" disabled={planning || !selection}>{#if planning}{@render spinner('size-3.5')}Planning…{:else}Plan{/if}</button>
+			<button type="submit" class="{btn} h-8 gap-1.5 px-4" disabled={planning || !selection}>{#if planning}<Spinner class="size-3.5" />Planning…{:else}Plan{/if}</button>
 		</div>
 	</form>
 	{#if plan && goal?.ceiling}

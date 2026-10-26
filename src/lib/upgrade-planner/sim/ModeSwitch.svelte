@@ -1,6 +1,7 @@
 <!-- CP / DPS: the same simulator; DPS adds a clear from the player's logs and its meter. -->
 <script lang="ts">
 	import Segmented from './Segmented.svelte';
+	import Spinner from './Spinner.svelte';
 
 	let { dpsMode, onmode }: { dpsMode: boolean; onmode: (mode: 'cp' | 'dps') => void } = $props();
 
@@ -22,7 +23,7 @@
 </script>
 
 <div class="relative" aria-busy={!!pending}>
-	{#if pending}<span class="absolute top-1/2 -left-6 size-4 max-sm:left-auto max-sm:-right-6 -translate-y-1/2 animate-spin rounded-full border-2 border-sky-300/30 border-t-sky-300" role="status" aria-label="Opening {pending === 'dps' ? 'the DPS sim' : 'CP'}"></span>{/if}
+	{#if pending}<span class="absolute top-1/2 -left-6 -translate-y-1/2 max-sm:left-auto max-sm:-right-6" role="status" aria-label="Opening {pending === 'dps' ? 'the DPS sim' : 'CP'}"><Spinner /></span>{/if}
 	<Segmented
 		label="Simulate"
 		value={pending ?? (dpsMode ? 'dps' : 'cp')}

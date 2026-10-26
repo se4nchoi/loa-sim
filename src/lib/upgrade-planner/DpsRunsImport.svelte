@@ -11,6 +11,7 @@
 	import { clearSnapshot, orderCoreKey } from './clear-snapshots';
 	import { CORE_NAMES } from './game-data';
 	import Segmented from './sim/Segmented.svelte';
+	import Spinner from './sim/Spinner.svelte';
 
 	let { characterKey, characterName, cores = '', ondone }: {
 		characterKey: string; characterName: string;
@@ -116,7 +117,7 @@
 	async function importRuns() {
 		if (!reader || !clears.length) return;
 		error = null;
-		busy = `Reading ${clears.length} runs…`;
+		busy = `Reading ${clears.length.toLocaleString()} ${clears.length === 1 ? 'run' : 'runs'}…`;
 		try {
 			const { runs, skills } = await reader.runs(player, clears.map(c => c.id));
 			const book: RunsBook = { player, fileName, importedAt: Date.now(), runs, skills };
@@ -132,8 +133,6 @@
 
 	const chip = 'h-7 min-w-10 px-2.5 text-xs';
 </script>
-
-{#snippet spinner()}<span class="size-3.5 shrink-0 animate-spin rounded-full border-2 border-sky-300/30 border-t-sky-300" aria-hidden="true"></span>{/snippet}
 
 {#snippet step(n: number, title: string, on: boolean)}
 	<h4 class="flex items-center gap-2 text-sm font-semibold {on ? 'text-surface-100' : 'text-surface-500'}">
@@ -188,11 +187,11 @@
 			</div>
 			<div class="flex items-center gap-3">
 				<button class="h-8 rounded-xs bg-accent-700 px-3 text-xs font-semibold text-white hover:bg-accent-600 disabled:opacity-50" disabled={!clears.length || !!busy || pending > 0} onclick={importRuns}>Import {clears.length} {clears.length === 1 ? 'run' : 'runs'}</button>
-				{#if missingHashes.length}<span class="flex items-center gap-1.5 text-xs text-sky-300">{@render spinner()}Reading {ranged.length} runs' gear…</span>
-				{:else if pending}<span class="flex items-center gap-1.5 text-xs text-sky-300">{@render spinner()}Reading gear snapshots… {hashes.length - pending}/{hashes.length}</span>{/if}
+				{#if missingHashes.length}<span class="flex items-center gap-2 text-xs text-surface-300" role="status"><Spinner class="size-3.5 text-accent-400" />Reading gear for {ranged.length.toLocaleString()} {ranged.length === 1 ? 'run' : 'runs'}…</span>
+				{:else if pending}<span class="flex items-center gap-2 text-xs text-surface-300" role="status"><Spinner class="size-3.5 text-accent-400" />Loading gear snapshots… {hashes.length - pending}/{hashes.length}</span>{/if}
 			</div>
 		{/if}
 	</section>
-	{#if busy}<p class="flex items-center gap-1.5 text-xs text-sky-300" role="status">{@render spinner()}{busy}</p>{/if}
+	{#if busy}<p class="flex items-center gap-2 text-xs text-surface-300" role="status"><Spinner class="size-3.5 text-accent-400" />{busy}</p>{/if}
 	{#if error}<p class="text-xs text-red-400">{error}</p>{/if}
 </div>

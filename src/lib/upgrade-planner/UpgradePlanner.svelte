@@ -20,6 +20,7 @@
 	import type { Loadout } from './types';
 	import UpgradeDialog from './UpgradeDialog.svelte';
 	import UpgradeTitle from './UpgradeTitle.svelte';
+	import Spinner from './sim/Spinner.svelte';
 	import { btn } from './sim/ui';
 	import { CATEGORY_LABELS, topDistinct, type Upgrade } from './upgrades';
 	import { applyUpgrade } from './apply-upgrade';
@@ -163,7 +164,7 @@
 <div class="flex min-h-0 flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 {cls}">
 	<!-- In the phone drawer this row is also a drag-to-close zone (its toggle buttons still tap). -->
 	<div class="sim-modal-header flex shrink-0 flex-col gap-1.5 bg-surface-900 px-3 py-2 font-semibold" use:drawerDrag>
-		<div class="flex items-center gap-2">Next Upgrades{#if ranking}<span class="flex items-center gap-1.5 text-xs font-normal text-sky-300" role="status"><span class="size-3 animate-spin rounded-full border-2 border-sky-300/30 border-t-sky-300" aria-hidden="true"></span>Ranking by {dpsLabel}…</span>{/if}</div>
+		<div class="flex items-center gap-2">Next Upgrades{#if ranking}<span class="flex items-center gap-1.5 text-xs font-normal text-surface-400" role="status"><Spinner class="size-3.5 text-accent-400" />Ranking by {dpsLabel}…</span>{/if}</div>
 		<div>
 			<Segmented
 				value={gold.mode}

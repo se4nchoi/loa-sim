@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Spinner from './Spinner.svelte';
 	import { getContext, untrack } from 'svelte';
 	import { engravingIcon, iconUrl } from '../icons';
 	import type { RoleTables } from '../roles';
@@ -103,10 +104,7 @@
 
 {#snippet working(cls: string)}
 	<span class="flex items-center gap-2 text-surface-400 {cls}">
-		<svg class="size-4 animate-spin text-accent-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-			<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" stroke-width="3" />
-			<path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
-		</svg>
+		<Spinner />
 		<span class="sr-only">Loading</span>
 	</span>
 {/snippet}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Simulator } from '$lib/upgrade-planner';
 	import ModeSwitch from '$lib/upgrade-planner/sim/ModeSwitch.svelte';
+	import Spinner from '$lib/upgrade-planner/sim/Spinner.svelte';
 	import { untrack } from 'svelte';
 	import { initSimState, type SimState } from '$lib/upgrade-planner/simulate';
 	import SavedSimulations from '$lib/upgrade-planner/SavedSimulations.svelte';
@@ -262,10 +263,7 @@
 			<div class="absolute inset-0 z-30 bg-surface-950/60" role="status" aria-live="polite">
 				<div class="sticky top-[40vh] flex justify-center">
 					<span class="flex items-center gap-2 rounded-xs border border-surface-600 bg-surface-900 px-3 py-2 text-sm text-surface-100 shadow-lg shadow-black/50">
-						<svg class="size-4 animate-spin text-accent-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-							<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" stroke-width="3" />
-							<path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
-						</svg>
+						<Spinner />
 						Loading snapshot…
 					</span>
 				</div>
