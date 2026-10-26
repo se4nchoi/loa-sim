@@ -1,11 +1,11 @@
 // Combat power simulator: edit a character's gear and recompute CP.
 //
 // initSimState() reads the loadout into editable state; simulate() turns state back into
-// battlePoint parts and a CP. With untouched state it returns the loadout's own parts, so the
-// simulated CP starts exactly at lostark.bible's number. Every edit is applied as a delta on top
+// battlePoint parts and a CP. Untouched state preserves the loadout's parts except a verified missing Vambraces
+// flat-attack contribution (see baselineParts). Every edit is applied as a delta on top
 // of bible's values, which keeps unknown bonuses (titles, karma, etc.) intact.
 
-import { PartType, baseAttackPoint, partHigh } from './cp';
+import { PartType, baseAttackPoint, baselineParts, partHigh } from './cp';
 import { bracerStats, readBracer, type SimBracer } from './bracer';
 import { ASTROGEM_ITEMS, ASTROGEM_KINDS, BRACELET_EFFECTS, GEM_BASE_ATTACK, GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
 import { HONING_SLOTS, HONING_TABLE, AEGIR_HONING_TABLE, type HoningSlot } from './honing-data';
@@ -478,7 +478,7 @@ function stoneNodesOf(l: Loadout): number[] | null {
 
 export function simulate(l: Loadout, state: SimState, base: SimState = initSimState(l)): SimResult {
 	const role = roleOf(l);
-	const parts = l.battlePoint.parts.map((p) => ({ ...p }));
+	const parts = baselineParts(l).map((p) => ({ ...p }));
 	/** Replaces the part(s) of `types` matching `match` with one of `type` (a swap can move a part between sides). */
 	const replace = (types: number[], match: (p: BattlePointPart) => boolean, type: number, value: number, extra: Record<string, unknown>) => {
 		const at = parts.findIndex((p) => types.includes(p.type) && match(p));

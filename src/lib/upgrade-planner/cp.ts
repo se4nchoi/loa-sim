@@ -1,4 +1,4 @@
-import type { BattlePointPart } from './types';
+import type { BattlePointPart, Loadout } from './types';
 
 // Battle point part types, as numbered in lostark.bible's `battlePoint.parts[].type`.
 export const PartType = {
@@ -84,3 +84,26 @@ export const ratioToPct = (ratio: number) => (ratio - 1) * 100;
  */
 export const baseAttackPoint = (mainStat: number, weaponPower: number, attackPct: number, attackFlat = 0) =>
 	2.88 * (Math.sqrt((mainStat * weaponPower) / 6) + attackFlat) * (1 + attackPct / 100);
+
+/**
+ * Released Vambraces put flat Basic Attack Power in stat 114. Bible's October 2026 breakdown omits it even though
+ * its recorded CP includes it (verified on Soulshann, Shanzkii and Ignishan). Repair only the identifiable old
+ * formula; an upstream breakdown that already includes flat attack, or differs for another reason, stays intact.
+ */
+export function baselineParts(loadout: Loadout): BattlePointPart[] {
+	const parts = loadout.battlePoint.parts;
+	if (!loadout.items?.some((item) => item.slot === 'bracer' || item.slot === 'vambrace')) return parts;
+	const flat = loadout.stats?.find((stat) => stat.type === 114)?.value;
+	const attack = parts.find((part) => part.type === PartType.BaseAttack);
+	if (!attack || typeof flat !== 'number' || !Number.isFinite(flat) || flat <= 0) return parts;
+	const { mainStat, weaponPower, attackPowerMultiplier, baseAttackPower, value } = attack;
+	if (typeof mainStat !== 'number' || typeof weaponPower !== 'number' || typeof attackPowerMultiplier !== 'number'
+		|| typeof baseAttackPower !== 'number' || typeof value !== 'number' || mainStat <= 0 || weaponPower <= 0) return parts;
+	const factor = 1 + attackPowerMultiplier / 100;
+	const withoutFlat = Math.sqrt(mainStat * weaponPower / 6) * factor;
+	const coefficient = loadout.battlePoint.isSupport ? 1.24 : 2.88;
+	if (!Number.isFinite(withoutFlat) || Math.abs(baseAttackPower - withoutFlat) > 0.001
+		|| Math.abs(value - withoutFlat * coefficient) > 0.001) return parts;
+	const corrected = (Math.sqrt(mainStat * weaponPower / 6) + flat) * factor;
+	return parts.map((part) => part === attack ? { ...part, baseAttackPower: corrected, value: corrected * coefficient } : part);
+}

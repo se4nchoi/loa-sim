@@ -408,8 +408,7 @@
 {#if autosaveError}<p class="mb-2 text-xs text-amber-300" role="alert">{autosaveError}</p>{/if}
 {#if startingScore.mismatch}
 	<p class="mb-3 rounded-xs border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200" role="status">
-		This snapshot's gear calculates to {formatCp(baseline.cp)} CP, but its recorded score is {formatCp(startingScore.reported!)}.
-		Simulation uses the supplied gear's CP. Choose another snapshot for a matching gear and score.
+		This setup: {formatCp(baseline.cp)} CP · Reported: {formatCp(startingScore.reported!)} CP
 	</p>
 {/if}
 <MobileSummaryBar {current} {simulated} nav={jumpChips} onbudget={openBudget}>{@render summary()}</MobileSummaryBar>

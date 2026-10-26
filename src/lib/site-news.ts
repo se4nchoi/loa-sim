@@ -15,6 +15,12 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-10-26',
+		kind: 'fix',
+		title: 'Vambraces calc',
+		points: ['Vambraces’ flat attack stats now count toward CP.']
+	},
+	{
 		date: '2026-10-24',
 		kind: 'new',
 		title: 'Market prices',
