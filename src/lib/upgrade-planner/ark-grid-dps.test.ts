@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RunSummary } from '$lib/logs/protocol';
 import soulshan from './fixtures/na-soulshan.json';
-import { activeEffects, buffMatches, critProfile, critRatio, orderCoreEffect } from './ark-grid-dps';
+import { activeEffects, buffMatches, critProfile, critRatio, orderCoreEffect, snapshotCoresContradicted } from './ark-grid-dps';
 import { ORDER_CORE_EFFECTS } from './order-cores';
 import { initSimState, simCorePoints } from './simulate';
 import type { Loadout } from './types';
@@ -121,5 +121,19 @@ describe('order core effects', () => {
 	it('no core change, no effect', () => {
 		const r = run([skill(ASTAROS, 1000, {})]);
 		expect(orderCoreEffect(loadout, withFootsteps(), withFootsteps(), r).changed).toBe(false);
+	});
+});
+
+describe('snapshot cores against the run', () => {
+	// Soulshan 10-26: runs played on Footsteps of the Dead, while lostark.bible kept the Night's Edge set in the snapshot.
+	const footsteps = [673002435, 673012435, 673022435], nightsEdge = [673004435, 673014435, 673024435];
+	const logged = { 1: 'Deathlord Mode', 2: 'Destiny: Footsteps of the Dead', 3: 'Destiny: Bias' };
+	it("flags a snapshot whose cores aren't the ones the run's Destiny buffs name", () => {
+		expect(snapshotCoresContradicted(nightsEdge, logged)).toBe(true);
+	});
+	it('trusts a snapshot with the played cores, or a run with no Destiny buff of the class', () => {
+		expect(snapshotCoresContradicted(footsteps, logged)).toBe(false);
+		expect(snapshotCoresContradicted(nightsEdge, { 1: 'Destiny: Bias' })).toBe(false);
+		expect(snapshotCoresContradicted(nightsEdge, undefined)).toBe(false);
 	});
 });

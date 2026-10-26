@@ -174,6 +174,8 @@ export interface RunGear {
 	hash: string | null;
 	order: Partial<Record<'sun' | 'moon' | 'star', number>> | null;
 	spec: string | null;
+	/** The Ark Passive enlightenment the run recorded, to check the snapshot is this setup (snapshotFitsRun). */
+	enlightenment: { id: number; lv: number }[] | null;
 }
 
 export type LogsRequest =

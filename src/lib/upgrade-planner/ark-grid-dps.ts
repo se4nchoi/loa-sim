@@ -231,3 +231,31 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 	];
 	return { factor, unvalued, changed: slots.length > 0 || swaps.length > 0 };
 }
+
+/** Per class: each Order core's Destiny buff, by the name the logs record it under, to the core's name. */
+const destinyBuffs = new Map<string, Map<string, string>>();
+function destinyBuffsOf(cls: string): Map<string, string> {
+	let byBuff = destinyBuffs.get(cls);
+	if (byBuff) return byBuff;
+	byBuff = new Map();
+	for (const core of Object.values(ORDER_CORES)) {
+		if (core.cls !== cls) continue;
+		for (const [, option] of core.bonuses) for (const e of ORDER_CORE_EFFECTS[option] ?? []) if (e.buff) byBuff.set(e.buff, core.name);
+	}
+	destinyBuffs.set(cls, byBuff);
+	return byBuff;
+}
+
+/**
+ * Whether a run's own Destiny buffs say its gear snapshot holds other Order cores than the run was played on:
+ * lostark.bible can keep another setup's cores (its highest-CP one) even with the run's Ark Passive. True when the run
+ * logged a Destiny buff of the class's cores and none of them is a snapshot core. (Another player of the class in the
+ * party would log theirs too; that only makes the snapshot distrusted, and the loaded gear stand in.)
+ */
+export function snapshotCoresContradicted(coreIds: number[], buffNames: Record<number, string> | undefined): boolean {
+	const ids = coreIds.filter((id) => ORDER_CORES[id]);
+	if (!ids.length || !buffNames) return false;
+	const byBuff = destinyBuffsOf(ORDER_CORES[ids[0]].cls);
+	const played = new Set(Object.values(buffNames).flatMap((b) => (byBuff.has(b) ? [byBuff.get(b)!] : [])));
+	return played.size > 0 && !ids.some((id) => played.has(ORDER_CORES[id].name));
+}

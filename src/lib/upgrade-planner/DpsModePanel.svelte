@@ -10,7 +10,7 @@
 	import { currentRaids, raidGateOf } from '$lib/logs/raids';
 	import type { RunSummary } from '$lib/logs/protocol';
 	import { bibleSnapshotPage, isSnapshotHash, type ClearSnapshot } from '$lib/bible-data';
-	import { clearSnapshot, orderCoreKey } from './clear-snapshots';
+	import { clearSnapshot, orderCoreKey, snapshotFitsRun } from './clear-snapshots';
 	import { setupDiff, sameGear as sameSetupGear } from './setup-diff';
 	import DpsRunsImport from './DpsRunsImport.svelte';
 	import DpsMeter from './sim/DpsMeter.svelte';
@@ -148,13 +148,18 @@
 		const lenders = clear && !clear.statValues
 			? own.filter((r) => r.statValues && Math.abs(r.start - clear!.start) <= 14 * 86_400_000).toSorted((a, b) => Math.abs(a.start - clear!.start) - Math.abs(b.start - clear!.start)).slice(0, 4)
 			: [];
-		const hashes = [...new Set([...lenders, ...clears].map((r) => r.loadoutHash).filter((h): h is string => !!h && isSnapshotHash(h) && !(h in untrack(() => runCores))))].slice(0, 16);
+		const candidates = [...lenders, ...clears], model = arkGridModel;
+		const hashes = [...new Set(candidates.map((r) => r.loadoutHash).filter((h): h is string => !!h && isSnapshotHash(h) && !(h in untrack(() => runCores))))].slice(0, 16);
 		let live = true;
 		(async () => {
 			for (const h of hashes) {
 				try {
 					const snap = await clearSnapshot(h);
 					if (!live) return;
+					// A snapshot of another setup (lostark.bible's highest-CP one) says nothing about this run's cores.
+					const run = candidates.find((r) => r.loadoutHash === h);
+					if (!snapshotFitsRun(snap, run?.arkPassives?.enlightenment)) continue;
+					if (model?.snapshotCoresContradicted((snap.arkGridCores ?? []).map((c) => c.id), run?.buffNames)) continue;
 					runCores = { ...runCores, [h]: orderCoreKey((snap.arkGridCores ?? []).map((c) => c.id)) };
 				} catch { /* left unknown */ }
 			}
@@ -187,8 +192,11 @@
 
 	// The run's own setup: LOA Logs links each run to a lostark.bible snapshot of the gear it was played with.
 	let setup = $state<{ hash: string; snap: ClearSnapshot | null; error: string | null } | null>(null);
+	/** The run's snapshot is another setup than the one played (its Ark Passive differs): the loaded gear stands in. */
+	let otherSetup = $state(false);
 	$effect(() => {
-		const hash = clear?.loadoutHash;
+		const hash = clear?.loadoutHash, ran = clear?.arkPassives?.enlightenment, buffs = clear?.buffNames, model = arkGridModel;
+		otherSetup = false;
 		if (shared || !hash || !isSnapshotHash(hash)) {
 			setup = null;
 			return;
@@ -198,7 +206,10 @@
 		clearSnapshot(hash)
 			.then((snap) => {
 				if (snap.classId.replaceAll('_', '').toLowerCase() !== loadout.classId.replaceAll('_', '').toLowerCase()) throw new Error('The snapshot class does not match this character.');
-				if (live) setup = { hash, snap, error: null };
+				if (!live) return;
+				const cores = (snap.arkGridCores ?? []).map((c) => c.id);
+				if (snapshotFitsRun(snap, ran) && !model?.snapshotCoresContradicted(cores, buffs)) setup = { hash, snap, error: null };
+				else { setup = null; otherSetup = true; }
 			})
 			.catch((e) => { if (live) setup = { hash, snap: null, error: e instanceof Error ? e.message : String(e) }; });
 		return () => { live = false; };
@@ -511,7 +522,7 @@
 			<div class="mb-3 rounded-xs border border-amber-500/40 px-3 py-2 text-xs text-amber-200">
 				<p class="flex flex-wrap items-center gap-2">
 					<span class="text-sm font-semibold text-surface-100">Run setup</span>
-					<span>No LOA Logs snapshot · loaded gear stands in{#if gap !== null && !matches}{' '}({Math.abs(gap).toFixed(1)}% CP {gap > 0 ? 'above' : 'below'} the run){/if}</span>
+					<span>{#if otherSetup}<span title="Its Ark Passive or Order cores aren't the ones this run recorded: lostark.bible kept another setup (its highest-CP one)">LOA Logs snapshot is another setup</span>{:else}No LOA Logs snapshot{/if} · loaded gear stands in{#if gap !== null && !matches}{' '}({Math.abs(gap).toFixed(1)}% CP {gap > 0 ? 'above' : 'below'} the run){/if}</span>
 					{#if better}<button type="button" class="font-semibold underline hover:text-white" onclick={better.select}>Use {better.label}</button>{/if}
 					{#if baselineReady}<span class="ml-auto text-surface-400">Using loaded gear</span>
 					{:else}<button type="button" class="ml-auto rounded-xs border border-amber-400/50 px-2 py-0.5 hover:bg-amber-500/10" onclick={() => { confirmed = baselineKey; }}>Use loaded gear</button>{/if}

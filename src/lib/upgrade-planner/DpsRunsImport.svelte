@@ -7,8 +7,8 @@
 	import { onDestroy, untrack } from 'svelte';
 	import { LoaLogsReader, type EncounterRow, type RunGear } from '$lib/logs/loa-logs';
 	import { saveRuns, type RunsBook } from '$lib/logs/runs-store.svelte';
-	import { isSnapshotHash } from '$lib/bible-data';
-	import { clearSnapshot, orderCoreKey } from './clear-snapshots';
+	import { isSnapshotHash, type ClearSnapshot } from '$lib/bible-data';
+	import { clearSnapshot, orderCoreKey, snapshotFitsRun } from './clear-snapshots';
 	import { CORE_NAMES } from './game-data';
 	import { GRADE_GRADIENTS } from './icons';
 	import Segmented from './sim/Segmented.svelte';
@@ -58,9 +58,11 @@
 		});
 	});
 
-	// Each run's Order cores, by snapshot; '?' when the run has none or it couldn't be read.
+	// Each snapshot's Order cores and Ark Passive (to check it's the setup a run was played on); '?' cores when it
+	// couldn't be read.
 	const UNKNOWN = '?';
-	let snapCores = $state<Record<string, string>>({});
+	type SnapInfo = { cores: string; arkPassive: ClearSnapshot['arkPassive'] };
+	let snapCores = $state<Record<string, SnapInfo>>({});
 	const hashOf = (e: EncounterRow) => { const h = gearById[e.id]?.hash; return h && isSnapshotHash(h) ? h : null; };
 	/** Builds change rarely; past this many distinct snapshots the rest count as unknown. */
 	const MAX_SNAPSHOTS = 40;
@@ -73,8 +75,11 @@
 		let live = true;
 		const next = async () => {
 			for (let h = todo.shift(); h && live; h = todo.shift()) {
-				const key = await clearSnapshot(h).then((s) => orderCoreKey((s.arkGridCores ?? []).map((c) => c.id)), () => UNKNOWN);
-				if (live) snapCores[h] = key;
+				const info: SnapInfo = await clearSnapshot(h).then(
+					(s) => ({ cores: orderCoreKey((s.arkGridCores ?? []).map((c) => c.id)), arkPassive: s.arkPassive ?? null }),
+					() => ({ cores: UNKNOWN, arkPassive: null })
+				);
+				if (live) snapCores[h] = info;
 			}
 		};
 		// A few at a time: one request per snapshot, to an API that isn't ours.
@@ -83,9 +88,28 @@
 	});
 	// A build: its Order cores (from the snapshot) and its enlightenment spec, which plays the same cores differently.
 	const SEP = '|';
+	/** The run's cores from its own snapshot; null when it has none, or keeps another setup (snapshotFitsRun). */
+	const ownCores = (e: EncounterRow) => {
+		const info = snapCores[hashOf(e) ?? ''];
+		if (!info || info.cores === UNKNOWN) return null;
+		return snapshotFitsRun({ arkPassive: info.arkPassive } as ClearSnapshot, gearById[e.id]?.enlightenment) ? info.cores : null;
+	};
+	// A run whose snapshot is another setup (lostark.bible's highest-CP one) was played on its spec's cores: the ones
+	// that spec's runs with a fitting snapshot used most.
+	const specCores = $derived.by(() => {
+		const counts = new Map<string, Map<string, number>>();
+		for (const e of ranged) {
+			const c = ownCores(e), spec = gearById[e.id]?.spec ?? '';
+			if (c === null) continue;
+			const m = counts.get(spec) ?? counts.set(spec, new Map()).get(spec)!;
+			m.set(c, (m.get(c) ?? 0) + 1);
+		}
+		return new Map([...counts].map(([spec, m]) => [spec, [...m].toSorted((a, b) => b[1] - a[1])[0][0]]));
+	});
 	const buildOf = (e: EncounterRow) => {
-		const h = hashOf(e), coreKey = h && snapCores[h];
-		return coreKey ? `${coreKey}${SEP}${gearById[e.id]?.spec ?? ''}` : UNKNOWN;
+		const spec = gearById[e.id]?.spec ?? '';
+		const coreKey = ownCores(e) ?? (hashOf(e) && snapCores[hashOf(e)!] ? specCores.get(spec) : undefined);
+		return coreKey !== undefined && coreKey !== null ? `${coreKey}${SEP}${spec}` : UNKNOWN;
 	};
 	const coresOf = (key: string) => key.split(SEP)[0];
 	const SHAPE_ORDER = ['sun', 'moon', 'star'] as const;
