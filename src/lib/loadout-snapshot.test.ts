@@ -29,6 +29,15 @@ describe('Mathi loadout API adapter', () => {
 	it.each([null, {}, { ...raw, equipped_items: null }, { ...raw, class: '405' }, { ...raw, loadout: { type: 'legacy' } }])('rejects malformed or incompatible payloads', (body) => {
 		expect(() => decodeLoadoutSnapshot(body)).toThrow('unsupported snapshot');
 	});
+	it("reads Vambraces (slot 34) into the run's setup", () => {
+		// As a 10-25 run snapshot sends them: Epic Vambraces +10.
+		const withVambraces = structuredClone(raw) as typeof raw;
+		(withVambraces.equipped_items as unknown[]).push({ id: 134301406, slot: 34, item_data: { type: 'equipment', advanced_honing_state: { unlocked: false, stage: 0 }, honing_level: 10, honing_experience: 1578000, honing_unlocked: true, honing_limit_break_unlocked: false, esther_weapon: null, rolled_stats: [] } });
+		const snap = decodeLoadoutSnapshot(withVambraces);
+		expect(snap.items?.find((i) => i.slot === 'vambrace')).toMatchObject({ id: 134301406, data: { honing: 10 } });
+		const loadout = soulshan as unknown as Loadout;
+		expect(clearState(loadout, snap).state.bracer).toEqual({ honing: 10, grade: 'epic' });
+	});
 	it('rejects a changed nested stat schema rather than dropping a damage line', () => {
 		const changed = structuredClone(raw);
 		(changed.equipped_items[0].item_data.rolled_stats![0] as unknown as Record<string, unknown>).addon_type = '2';

@@ -6,7 +6,9 @@ import type { ItemStat, LoadoutItem } from './upgrade-planner/types';
 
 const SLOTS: Record<number, string> = {
 	0: 'weapon', 1: 'head', 2: 'upper_body', 3: 'lower_body', 4: 'hand', 5: 'shoulder',
-	6: 'neck', 7: 'ear1', 8: 'ear2', 9: 'finger1', 10: 'finger2', 11: 'ability_stone', 26: 'bracelet'
+	6: 'neck', 7: 'ear1', 8: 'ear2', 9: 'finger1', 10: 'finger2', 11: 'ability_stone', 26: 'bracelet',
+	// Vambraces: slot 34 in the API (seen on a 10-25 run snapshot, Epic +10 = item 134301406).
+	34: 'vambrace'
 };
 function unexpected(): never { throw new Error('The loadout API sent an unsupported snapshot.'); }
 const record = (v: unknown): Record<string, unknown> =>

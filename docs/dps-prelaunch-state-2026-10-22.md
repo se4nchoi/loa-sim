@@ -48,11 +48,9 @@ Working branch: `dps-sim/v0`. The existing DPS work remains experimental; these 
 
 ## Open checks (10-26)
 
-- **Vambraces in run snapshots: unverified.** The loadout API adapter (`src/lib/loadout-snapshot.ts`, `SLOTS`) maps
-  slots 0–11 and 26 only, so a Vambraces slot would be dropped. Every run in the 10-26 copy of Soulshan's
-  encounters.db predates the character's Vambraces (CP ≤ 6620; they arrived after 10-17), so it couldn't be checked. With a
-  run played *with* Vambraces: confirm the API sends the slot (and its number), map it, and check the run's setup has
-  them. Until then such a run's baseline lacks them and the meter credits today's Vambraces as a gain; the run setup
-  line lists "Vambraces" under "Changed since" either way.
+- **Vambraces in run snapshots: fixed (10-26).** The API sends them as slot 34 (Soulshann's 10-25 Serca / Corvus runs,
+  snapshot `v3/e68e75c0…`: item 134301406, Epic +10). The adapter dropped that slot; it now maps it to `vambrace`, and a
+  run's setup has its own Vambraces. Soulshan's two Kazeros runs with them (10-25) have no snapshot at all: LOA Logs
+  recorded none for anyone in those fights, so they use the current gear as their baseline.
 - **The Vambraces' DPS value.** The meter values Epic +10 at +4.6% on Soulshan's 10-15 Kazeros G2 (822m → 861m). Same
   gear, 10-08: 887m, so one run can't confirm it; compare with Kazeros G2 clears played with the Vambraces.
