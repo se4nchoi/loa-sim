@@ -129,11 +129,14 @@ describe('snapshot cores against the run', () => {
 	const footsteps = [673002435, 673012435, 673022435], nightsEdge = [673004435, 673014435, 673024435];
 	const logged = { 1: 'Deathlord Mode', 2: 'Destiny: Footsteps of the Dead', 3: 'Destiny: Bias' };
 	it("flags a snapshot whose cores aren't the ones the run's Destiny buffs name", () => {
-		expect(snapshotCoresContradicted(nightsEdge, logged)).toBe(true);
+		expect(snapshotCoresContradicted(nightsEdge, { names: logged })).toBe(true);
+		// The same from LOA Logs' buff ids, read with the run's gear before import (3461200: Footsteps' Destiny buff).
+		expect(snapshotCoresContradicted(nightsEdge, { ids: [3467100, 3461101, 3461200, 3464000] })).toBe(true);
+		expect(snapshotCoresContradicted(footsteps, { ids: [3467100, 3461101, 3461200, 3464000] })).toBe(false);
 	});
 	it('trusts a snapshot with the played cores, or a run with no Destiny buff of the class', () => {
-		expect(snapshotCoresContradicted(footsteps, logged)).toBe(false);
-		expect(snapshotCoresContradicted(nightsEdge, { 1: 'Destiny: Bias' })).toBe(false);
-		expect(snapshotCoresContradicted(nightsEdge, undefined)).toBe(false);
+		expect(snapshotCoresContradicted(footsteps, { names: logged })).toBe(false);
+		expect(snapshotCoresContradicted(nightsEdge, { names: { 1: 'Destiny: Bias' } })).toBe(false);
+		expect(snapshotCoresContradicted(nightsEdge, {})).toBe(false);
 	});
 });

@@ -136,12 +136,13 @@ async function listEncounters(): Promise<EncounterRow[]> {
 /** The player's build per run (gear snapshot hash, Order core grades, spec), for grouping runs before importing them.
  *  All three sit in the same entity row, so reading the extra two costs nothing. */
 async function runGear(player: string, ids: number[]): Promise<Record<number, RunGear>> {
-	const out: Record<number, RunGear> = Object.fromEntries(ids.map((id) => [id, { hash: null, order: null, spec: null, enlightenment: null }]));
+	const out: Record<number, RunGear> = Object.fromEntries(ids.map((id) => [id, { hash: null, order: null, spec: null, enlightenment: null, buffs: null }]));
 	const columns = new Set((await query(`SELECT name FROM pragma_table_info('entity')`)).map((r) => r.name));
 	const pick = (c: string) => (columns.has(c) ? c : `NULL AS ${c}`);
 	for (let i = 0; i < ids.length; i += 200) {
 		const chunk = ids.slice(i, i + 200);
-		const rows = await query(`SELECT encounter_id, ${pick('loadout_hash')}, ${pick('spec')}, ${pick('ark_passive_data')} FROM entity WHERE name = ? AND encounter_id IN (${chunk.map(() => '?').join(',')})`, [player, ...chunk]);
+		// damage_stats sits before loadout_hash in the row, so reading it costs no more pages.
+		const rows = await query(`SELECT encounter_id, ${pick('loadout_hash')}, ${pick('spec')}, ${pick('ark_passive_data')}, ${pick('damage_stats')} FROM entity WHERE name = ? AND encounter_id IN (${chunk.map(() => '?').join(',')})`, [player, ...chunk]);
 		for (const r of rows) {
 			let order: RunGear['order'] = null, enlightenment: RunGear['enlightenment'] = null;
 			try {
@@ -150,7 +151,12 @@ async function runGear(player: string, ids: number[]): Promise<Record<number, Ru
 				if (o && typeof o === 'object') order = Object.fromEntries((['sun', 'moon', 'star'] as const).flatMap((k) => (Number.isFinite(o[k]) ? [[k, Number(o[k])]] : [])));
 				if (Array.isArray(data?.enlightenment)) enlightenment = data.enlightenment.flatMap((n: { id?: unknown; lv?: unknown }) => (Number.isFinite(n?.id) && Number.isFinite(n?.lv) ? [{ id: Number(n.id), lv: Number(n.lv) }] : []));
 			} catch { /* old or unreadable passive data */ }
-			out[Number(r.encounter_id)] = { hash: r.loadout_hash ? String(r.loadout_hash) : null, order, spec: r.spec ? String(r.spec) : null, enlightenment };
+			let buffs: number[] | null = null;
+			try {
+				const stats = (await decodeSkills(r.damage_stats)) as unknown as { buffedBy?: Record<string, unknown> };
+				if (stats?.buffedBy && typeof stats.buffedBy === 'object') buffs = Object.keys(stats.buffedBy).map(Number).filter(Number.isFinite);
+			} catch { /* old or unreadable damage stats */ }
+			out[Number(r.encounter_id)] = { hash: r.loadout_hash ? String(r.loadout_hash) : null, order, spec: r.spec ? String(r.spec) : null, enlightenment, buffs };
 		}
 	}
 	return out;

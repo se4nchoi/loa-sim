@@ -232,30 +232,35 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 	return { factor, unvalued, changed: slots.length > 0 || swaps.length > 0 };
 }
 
-/** Per class: each Order core's Destiny buff, by the name the logs record it under, to the core's name. */
-const destinyBuffs = new Map<string, Map<string, string>>();
-function destinyBuffsOf(cls: string): Map<string, string> {
-	let byBuff = destinyBuffs.get(cls);
-	if (byBuff) return byBuff;
-	byBuff = new Map();
+/** Per class: each Order core's name by its Destiny buff, keyed both by the name the logs record and by the buff id
+ *  (a core option's id: Footsteps of the Dead's 17P option 3461200 is the "Destiny: Footsteps of the Dead" buff). */
+const destinyBuffs = new Map<string, { byName: Map<string, string>; byId: Map<number, string> }>();
+function destinyBuffsOf(cls: string) {
+	let found = destinyBuffs.get(cls);
+	if (found) return found;
+	found = { byName: new Map(), byId: new Map() };
 	for (const core of Object.values(ORDER_CORES)) {
 		if (core.cls !== cls) continue;
-		for (const [, option] of core.bonuses) for (const e of ORDER_CORE_EFFECTS[option] ?? []) if (e.buff) byBuff.set(e.buff, core.name);
+		for (const [, option] of core.bonuses) for (const e of ORDER_CORE_EFFECTS[option] ?? []) if (e.buff) { found.byName.set(e.buff, core.name); found.byId.set(option, core.name); }
 	}
-	destinyBuffs.set(cls, byBuff);
-	return byBuff;
+	destinyBuffs.set(cls, found);
+	return found;
 }
 
 /**
  * Whether a run's own Destiny buffs say its gear snapshot holds other Order cores than the run was played on:
  * lostark.bible can keep another setup's cores (its highest-CP one) even with the run's Ark Passive. True when the run
- * logged a Destiny buff of the class's cores and none of them is a snapshot core. (Another player of the class in the
- * party would log theirs too; that only makes the snapshot distrusted, and the loaded gear stand in.)
+ * had a Destiny buff of the class's cores and none of them is a snapshot core. The buffs: LOA Logs' buff ids on the
+ * player (read with the run's gear, before import), or the logged buff names of an imported run. (Another player of the
+ * class in the party could add theirs; that only makes the snapshot distrusted, and the loaded gear stand in.)
  */
-export function snapshotCoresContradicted(coreIds: number[], buffNames: Record<number, string> | undefined): boolean {
+export function snapshotCoresContradicted(coreIds: number[], buffs: { ids?: number[] | null; names?: Record<number, string> }): boolean {
 	const ids = coreIds.filter((id) => ORDER_CORES[id]);
-	if (!ids.length || !buffNames) return false;
-	const byBuff = destinyBuffsOf(ORDER_CORES[ids[0]].cls);
-	const played = new Set(Object.values(buffNames).flatMap((b) => (byBuff.has(b) ? [byBuff.get(b)!] : [])));
+	if (!ids.length) return false;
+	const { byName, byId } = destinyBuffsOf(ORDER_CORES[ids[0]].cls);
+	const played = new Set([
+		...(buffs.ids ?? []).flatMap((b) => (byId.has(b) ? [byId.get(b)!] : [])),
+		...Object.values(buffs.names ?? {}).flatMap((b) => (byName.has(b) ? [byName.get(b)!] : []))
+	]);
 	return played.size > 0 && !ids.some((id) => played.has(ORDER_CORES[id].name));
 }

@@ -159,7 +159,7 @@
 					// A snapshot of another setup (lostark.bible's highest-CP one) says nothing about this run's cores.
 					const run = candidates.find((r) => r.loadoutHash === h);
 					if (!snapshotFitsRun(snap, run?.arkPassives?.enlightenment)) continue;
-					if (model?.snapshotCoresContradicted((snap.arkGridCores ?? []).map((c) => c.id), run?.buffNames)) continue;
+					if (model?.snapshotCoresContradicted((snap.arkGridCores ?? []).map((c) => c.id), { names: run?.buffNames })) continue;
 					runCores = { ...runCores, [h]: orderCoreKey((snap.arkGridCores ?? []).map((c) => c.id)) };
 				} catch { /* left unknown */ }
 			}
@@ -208,7 +208,7 @@
 				if (snap.classId.replaceAll('_', '').toLowerCase() !== loadout.classId.replaceAll('_', '').toLowerCase()) throw new Error('The snapshot class does not match this character.');
 				if (!live) return;
 				const cores = (snap.arkGridCores ?? []).map((c) => c.id);
-				if (snapshotFitsRun(snap, ran) && !model?.snapshotCoresContradicted(cores, buffs)) setup = { hash, snap, error: null };
+				if (snapshotFitsRun(snap, ran) && !model?.snapshotCoresContradicted(cores, { names: buffs })) setup = { hash, snap, error: null };
 				else { setup = null; otherSetup = true; }
 			})
 			.catch((e) => { if (live) setup = { hash, snap: null, error: e instanceof Error ? e.message : String(e) }; });

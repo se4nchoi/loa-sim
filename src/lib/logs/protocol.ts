@@ -176,6 +176,9 @@ export interface RunGear {
 	spec: string | null;
 	/** The Ark Passive enlightenment the run recorded, to check the snapshot is this setup (snapshotFitsRun). */
 	enlightenment: { id: number; lv: number }[] | null;
+	/** Buffs on the player during the run (LOA Logs' damage_stats.buffedBy ids): a core's Destiny buff names the cores
+	 *  played (snapshotCoresContradicted). */
+	buffs: number[] | null;
 }
 
 export type LogsRequest =

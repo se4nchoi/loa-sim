@@ -61,13 +61,18 @@
 	// Each snapshot's Order cores and Ark Passive (to check it's the setup a run was played on); '?' cores when it
 	// couldn't be read.
 	const UNKNOWN = '?';
-	type SnapInfo = { cores: string; arkPassive: ClearSnapshot['arkPassive'] };
+	type SnapInfo = { cores: string; ids: number[]; arkPassive: ClearSnapshot['arkPassive'] };
+	// The Order core table (large; DPS mode loads it anyway) for the Destiny check.
+	let coreModel = $state<typeof import('./ark-grid-dps') | null>(null);
+	$effect(() => {
+		import('./ark-grid-dps').then((m) => (coreModel = m));
+	});
 	let snapCores = $state<Record<string, SnapInfo>>({});
 	const hashOf = (e: EncounterRow) => { const h = gearById[e.id]?.hash; return h && isSnapshotHash(h) ? h : null; };
 	/** Builds change rarely; past this many distinct snapshots the rest count as unknown. */
 	const MAX_SNAPSHOTS = 40;
 	const hashes = $derived([...new Set(ranged.map(hashOf).filter((h): h is string => !!h))].slice(0, MAX_SNAPSHOTS));
-	const pending = $derived(hashes.filter((h) => !(h in snapCores)).length + (missingHashes.length ? 1 : 0));
+	const pending = $derived(hashes.filter((h) => !(h in snapCores)).length + (missingHashes.length || !coreModel ? 1 : 0));
 	$effect(() => {
 		const all = hashes;
 		const todo = untrack(() => all.filter((h) => !(h in snapCores)));
@@ -76,8 +81,8 @@
 		const next = async () => {
 			for (let h = todo.shift(); h && live; h = todo.shift()) {
 				const info: SnapInfo = await clearSnapshot(h).then(
-					(s) => ({ cores: orderCoreKey((s.arkGridCores ?? []).map((c) => c.id)), arkPassive: s.arkPassive ?? null }),
-					() => ({ cores: UNKNOWN, arkPassive: null })
+					(s) => ({ cores: orderCoreKey((s.arkGridCores ?? []).map((c) => c.id)), ids: (s.arkGridCores ?? []).map((c) => c.id), arkPassive: s.arkPassive ?? null }),
+					() => ({ cores: UNKNOWN, ids: [], arkPassive: null })
 				);
 				if (live) snapCores[h] = info;
 			}
@@ -88,11 +93,13 @@
 	});
 	// A build: its Order cores (from the snapshot) and its enlightenment spec, which plays the same cores differently.
 	const SEP = '|';
-	/** The run's cores from its own snapshot; null when it has none, or keeps another setup (snapshotFitsRun). */
+	/** The run's cores from its own snapshot; null when it has none, or keeps another setup: another Ark Passive
+	 *  (snapshotFitsRun) or other cores than the run's Destiny buffs name (snapshotCoresContradicted). */
 	const ownCores = (e: EncounterRow) => {
-		const info = snapCores[hashOf(e) ?? ''];
+		const info = snapCores[hashOf(e) ?? ''], gear = gearById[e.id];
 		if (!info || info.cores === UNKNOWN) return null;
-		return snapshotFitsRun({ arkPassive: info.arkPassive } as ClearSnapshot, gearById[e.id]?.enlightenment) ? info.cores : null;
+		if (!snapshotFitsRun({ arkPassive: info.arkPassive } as ClearSnapshot, gear?.enlightenment)) return null;
+		return coreModel?.snapshotCoresContradicted(info.ids, { ids: gear?.buffs }) ? null : info.cores;
 	};
 	// A run whose snapshot is another setup (lostark.bible's highest-CP one) was played on its spec's cores: the ones
 	// that spec's runs with a fitting snapshot used most.
