@@ -414,11 +414,11 @@
 			<li>Load a character by name, or sign in and pick one from your roster.</li>
 			<li>Change honing, accessories, gems, engravings, ark grid, bracelet and karma; Combat Power updates as you go.</li>
 			<li>
-				Data comes from lostark.bible, as of its last snapshot. To refresh it:
+				Data comes from lostark.bible, as of its last snapshot. To record the loadout you want:
 				<ol class="mt-1 list-decimal space-y-0.5 pl-5">
-					<li>In game, equip the gear you want to simulate.</li>
-					<li>Go to character select or switch characters, so lostark.bible picks up the change.</li>
-					<li>Check the character's lostark.bible page shows the new gear.</li>
+					<li>In game, equip that loadout (gear, Ark Passive, Ark Grid).</li>
+					<li>Go to character select.</li>
+					<li>On the character's lostark.bible page, press its refresh button and check it shows that loadout.</li>
 					<li>Press ↻ on the character here. A character loaded in the last 5 minutes comes back unchanged; wait a few minutes and press it again.</li>
 				</ol>
 			</li>
