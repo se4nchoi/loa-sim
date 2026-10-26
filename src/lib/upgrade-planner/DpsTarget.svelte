@@ -4,7 +4,8 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { autoHoningCosts } from './honing-cost';
+	import { autoHoningCosts, inventoryMaterials } from './honing-cost';
+	import MaterialPrices from './MaterialPrices.svelte';
 	import { bookCost, bookPricesFor, costsForCharacter, formatGold, gold, loadGold, manualGoldCost, materialPricesFor } from './gold-costs.svelte';
 	import { liveUpgrades } from './live-upgrades';
 	import { rollsFor } from './acc-rolls.svelte';
@@ -22,12 +23,13 @@
 	import type { SimState } from './simulate';
 	import type { Loadout } from './types';
 
-	let { loadout, simState, base, characterKey, selection, meterDps, onapply }: {
+	let { loadout, simState, base, characterKey, characterName, selection, meterDps, onapply }: {
 		loadout: Loadout;
 		/** The Simulator's state (a plain copy): plans start from it. */
 		simState: SimState;
 		base: SimState;
 		characterKey: string;
+		characterName?: string;
 		/** null until the run's gear is confirmed: the card keeps its place, disabled. */
 		selection: DpsSelection | null;
 		/** The meter's simulated DPS now. */
@@ -53,6 +55,7 @@
 
 	const materialPrices = $derived(materialPricesFor(characterKey));
 	const unsetPrices = $derived(Object.keys(materialPrices).length === 0);
+	let pricesOpen = $state(false);
 	/** Gold for an upgrade made from state `s`, as Next Upgrades prices it (a typed or book price, else honing from prices). */
 	function goldFor(u: Upgrade, s: SimState): number | null {
 		const book = bookCost(u, bookPricesFor(characterKey));
@@ -141,7 +144,13 @@
 			{dpsText(goal.target!)} is out of reach with gear: about <span class="font-semibold tabular-nums">{dpsText(goal.ceiling)}</span> <span class="tabular-nums">({formatPct((goal.ceiling / plan.startDps - 1) * 100)}%)</span> at most.
 		</p>
 	{/if}
-	{#if byGold && unsetPrices}<p class="mt-1.5 text-amber-300">No material prices: honing counted as free.</p>{/if}
+	{#if byGold && unsetPrices}
+		<!-- The same price editor as Next Upgrades' Per gold. -->
+		<p class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-amber-300">
+			No material prices: honing counted as free.
+			<button type="button" class="flex h-7 items-center rounded-xs border border-dashed border-amber-400/60 px-2 text-xs font-semibold text-amber-300 transition hover:bg-amber-500/10" aria-haspopup="dialog" onclick={() => (pricesOpen = true)}>Material prices</button>
+		</p>
+	{/if}
 	{#if error}<p class="mt-1.5 text-amber-300">{error}</p>{/if}
 	{#if plan}
 		{@const p = plan}
@@ -188,3 +197,7 @@
 		</div>
 	{/if}
 </div>
+
+{#if pricesOpen}
+	<MaterialPrices ids={inventoryMaterials(simState.gear, !!simState.bracer)} {characterKey} {characterName} onclose={() => (pricesOpen = false)} />
+{/if}
