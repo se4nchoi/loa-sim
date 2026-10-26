@@ -2,7 +2,7 @@
 // comes in; newest first. Dates are YYYY-MM-DD. `points` show as bullets when a line is unfolded.
 // Keep entries short: a few-word title that fits the card (~17 characters, e.g. "Character load UX") and one plain
 // sentence per point saying what changed for the player (e.g. "Loading a character no longer sends you to the
-// simulator page"). Group related fixes under one title with a bullet each.
+// simulator page"), with no period. Group related fixes under one title with a bullet each.
 
 export type UpdateKind = 'new' | 'improved' | 'fix';
 
@@ -18,15 +18,15 @@ export const UPDATES: SiteUpdate[] = [
 		date: '2026-10-26',
 		kind: 'fix',
 		title: 'Vambraces calc',
-		points: ['Vambraces’ flat attack stats now count toward CP.']
+		points: ['Vambraces’ flat attack stats now count toward CP']
 	},
 	{
 		date: '2026-10-24',
 		kind: 'new',
 		title: 'Market prices',
 		points: [
-			'Material prices can load current honing material and relic engraving book prices for your region from loa-buddy.',
-			'Undo an import any time; prices you type yourself still work.'
+			'Material prices can load current honing material and relic engraving book prices for your region from loa-buddy',
+			'Undo an import any time; prices you type yourself still work'
 		]
 	},
 	{
@@ -34,10 +34,10 @@ export const UPDATES: SiteUpdate[] = [
 		kind: 'new',
 		title: 'DPS mode (Beta)',
 		points: [
-			'Replay your own LOA Logs runs and see what each edit does to their damage.',
-			'encounters.db is read in your browser; nothing is uploaded.',
-			'Supports see the party DPS their buffs add.',
-			'Next Upgrades ranks by DPS or gold per 1% DPS.'
+			'Replay your own LOA Logs runs and see what each edit does to their damage',
+			'encounters.db is read in your browser; nothing is uploaded',
+			'Supports see the party DPS their buffs add',
+			'Next Upgrades ranks by DPS or gold per 1% DPS'
 		]
 	},
 	{
@@ -45,8 +45,8 @@ export const UPDATES: SiteUpdate[] = [
 		kind: 'improved',
 		title: 'Vambraces & books',
 		points: [
-			'Bracer is now called Vambraces, matching the global release, and is no longer marked as a KR preview.',
-			'Serca gear honing can now use Metallurgy and Tailoring: Tremor books from +12 to +19.'
+			'Bracer is now called Vambraces, matching the global release, and is no longer marked as a KR preview',
+			'Serca gear honing can now use Metallurgy and Tailoring: Tremor books from +12 to +19'
 		]
 	},
 	{
@@ -54,23 +54,23 @@ export const UPDATES: SiteUpdate[] = [
 		kind: 'fix',
 		title: 'Simulator fixes',
 		points: [
-			'Ark Grid "+1 level" previews now show real values on finished grids.',
-			'Next Upgrades shows gains in green and gold per 1% CP.'
+			'Ark Grid "+1 level" previews now show real values on finished grids',
+			'Next Upgrades shows gains in green and gold per 1% CP'
 		]
 	},
 	{
 		date: '2026-10-18',
 		kind: 'fix',
 		title: 'Simulator fix',
-		points: ['Fixed simulator showing wrong engraving for saved snapshots in certain scenarios.']
+		points: ['Fixed simulator showing wrong engraving for saved snapshots in certain scenarios']
 	},
 	{
 		date: '2026-10-17',
 		kind: 'new',
 		title: 'Character list',
 		points: [
-			'Reorder characters by drag and drop.',
-			'Pin simulations to a quick-access list for each character. Pinned simulations preserve their original snapshot.'
+			'Reorder characters by drag and drop',
+			'Pin simulations to a quick-access list for each character; pinned simulations preserve their original snapshot'
 		]
 	},
 	{
@@ -78,28 +78,28 @@ export const UPDATES: SiteUpdate[] = [
 		kind: 'new',
 		title: 'Shareable links',
 		points: [
-			'Character links now load the character even if it is not saved in your browser.',
-			'Share your current simulation as a link that preserves its snapshot and changes. Links expire after 30 days.',
-			'Sharing links replaces JSON export and import.'
+			'Character links now load the character even if it is not saved in your browser',
+			'Share your current simulation as a link that preserves its snapshot and changes; links expire after 30 days',
+			'Sharing links replaces JSON export and import'
 		]
 	},
 	{
 		date: '2026-10-13',
 		kind: 'new',
 		title: 'Saved simulations',
-		points: ['Save named simulations (saved to your browser).', 'Pin saved simulations to your character list for quick access.']
+		points: ['Save named simulations (saved to your browser)', 'Pin saved simulations to your character list for quick access']
 	},
 	{
 		date: '2026-10-13',
 		kind: 'improved',
 		title: 'Honing',
-		points: ['Added Hellfire books.', 'Recommended strategies show average gold cost and success rate.']
+		points: ['Added Hellfire books', 'Recommended strategies show average gold cost and success rate']
 	},
 	{
 		date: '2026-10-13',
 		kind: 'improved',
 		title: 'Mobile',
-		points: ['Price entry scrolling keeps the full accessory visible.', 'Improved selector layout and accessory labels.']
+		points: ['Price entry scrolling keeps the full accessory visible', 'Improved selector layout and accessory labels']
 	},
 	{
 		date: '2026-10-13',
