@@ -188,7 +188,7 @@
 		<div>
 			<Segmented
 				value={gold.mode}
-				options={selection
+				options={dpsMode
 					? [
 						{ value: 'cp', label: 'Most DPS', title: 'Biggest estimated damage gain first; upgrades without an estimate follow, by CP' },
 						{ value: 'gold', label: 'Per gold', title: 'Least gold per 1% DPS first (enter gold costs on the rows)' }
@@ -204,6 +204,10 @@
 			/>
 		</div>
 	</div>
+	{#if dpsMode && !selection}
+		<!-- DPS mode keeps its labels; until the DPS sim has a run (picked, its gear set), the list falls back to CP. -->
+		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-surface-400">Ranked by CP until a run is ready in the DPS sim.</p>
+	{/if}
 	{#if arkGridOverWillpower(simNow.arkGrid)}
 		<p class="shrink-0 border-b border-neutral-950 px-2.5 py-1.5 text-xs text-amber-300" title="An astrogem doesn't fit its core's Willpower, so Ark Grid steps can't be worked out from here">
 			Ark Grid upgrades are left out: a core needs more Willpower than it has.

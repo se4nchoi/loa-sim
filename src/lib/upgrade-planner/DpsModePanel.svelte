@@ -96,9 +96,10 @@
 
 	// What's picked: tab, raid and run. Remembered per character.
 	const storeKey = $derived(`loa-sim:dps-meter:${characterKey}`);
-	// enrage / notEnrage: pulls the player marked (or unmarked) as enrage wipes.
-	type Pick = { raid: string | null; clear: number | null; use: Use; enrage: number[]; notEnrage: number[] };
-	const NO_PICK: Pick = { raid: null, clear: null, use: 'cleared', enrage: [], notEnrage: [] };
+	// enrage / notEnrage: pulls the player marked (or unmarked) as enrage wipes. loaded: runs where the player chose
+	// "Use loaded gear" (run and loaded gear, as gearKeyOf), so the choice holds across visits until the gear changes.
+	type Pick = { raid: string | null; clear: number | null; use: Use; enrage: number[]; notEnrage: number[]; loaded: string[] };
+	const NO_PICK: Pick = { raid: null, clear: null, use: 'cleared', enrage: [], notEnrage: [], loaded: [] };
 	let pick = $state<Pick>({ ...NO_PICK });
 	$effect(() => {
 		const key = storeKey;
@@ -111,7 +112,8 @@
 				const v = JSON.parse(localStorage.getItem(key) ?? 'null');
 				const ids = (x: unknown) => (Array.isArray(x) ? x.filter((n): n is number => typeof n === 'number') : []);
 				pick = { raid: typeof v?.raid === 'string' ? v.raid : null, clear: typeof v?.clear === 'number' ? v.clear : null,
-					use: v?.use === 'failed' || v?.use === 'enrage' ? 'failed' : 'cleared', enrage: ids(v?.enrage), notEnrage: ids(v?.notEnrage) };
+					use: v?.use === 'failed' || v?.use === 'enrage' ? 'failed' : 'cleared', enrage: ids(v?.enrage), notEnrage: ids(v?.notEnrage),
+					loaded: Array.isArray(v?.loaded) ? v.loaded.filter((k: unknown): k is string => typeof k === 'string') : [] };
 			} catch {
 				pick = { ...NO_PICK };
 			}
@@ -219,8 +221,11 @@
 	const diff = $derived(setup?.snap ? setupDiff(loadout, setup.snap) : null);
 	// The run's setup as a Simulator state: the meter's baseline, so gear changed since the run counts with the edits.
 	const clearSetup = $derived(shared ? { state: shared.baseline, notes: [] as string[] } : setup?.snap && setup.hash === clear?.loadoutHash ? clearState(loadout, $state.snapshot(setup.snap) as ClearSnapshot, clear?.skills) : null);
-	const baselineKey = $derived(clear ? `${characterKey}:${clear.id}:${clear.start}:${JSON.stringify(base)}` : '');
-	const baselineReady = $derived(!!clearSetup || confirmed === baselineKey);
+	/** A run with the loaded gear standing in: the run and a short digest of the loaded gear (a reload or another
+	 *  snapshot asks again). */
+	const digest = (text: string) => { let h = 0; for (let i = 0; i < text.length; i++) h = (Math.imul(h, 31) + text.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
+	const baselineKey = $derived(clear ? `${clear.id}:${clear.start}:${digest(JSON.stringify(base))}` : '');
+	const baselineReady = $derived(!!clearSetup || confirmed === baselineKey || pick.loaded.includes(baselineKey));
 	const clearSetupCp = $derived(clearSetup ? simulate(loadout, clearSetup.state, base).cp : null);
 	// Tripod conditions ("With Possession") are checked on the run's own skills when its snapshot has them.
 	const clearSkills = $derived(shared ? shared.arkSkills : (setup?.snap?.raw?.skills as { id: number; tripods?: number[] }[] | undefined));
@@ -532,7 +537,7 @@
 					<span>{#if otherSetup}<span title="Its Ark Passive or Order cores aren't the ones this run recorded: lostark.bible kept another setup (its highest-CP one)">LOA Logs snapshot is another setup</span>{:else}No LOA Logs snapshot{/if} · loaded gear stands in{#if gap !== null && !matches}{' '}({Math.abs(gap).toFixed(1)}% CP {gap > 0 ? 'above' : 'below'} the run){/if}</span>
 					{#if better}<button type="button" class="font-semibold underline hover:text-white" onclick={better.select}>Use {better.label}</button>{/if}
 					{#if baselineReady}<span class="ml-auto text-surface-400">Using loaded gear</span>
-					{:else}<button type="button" class="ml-auto rounded-xs border border-amber-400/50 px-2 py-0.5 hover:bg-amber-500/10" onclick={() => { confirmed = baselineKey; }}>Use loaded gear</button>{/if}
+					{:else}<button type="button" class="ml-auto rounded-xs border border-amber-400/50 px-2 py-0.5 hover:bg-amber-500/10" onclick={() => { confirmed = baselineKey; remember({ loaded: [baselineKey, ...pick.loaded.filter((k) => k !== baselineKey)].slice(0, 100) }); }}>Use loaded gear</button>{/if}
 				</p>
 			</div>
 		{/if}

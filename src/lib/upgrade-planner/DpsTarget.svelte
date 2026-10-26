@@ -68,19 +68,36 @@
 	}
 	const dpsText = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(3)}b` : formatDamage(n));
 
-	function run(start: SimState, target: number, done: (p: TargetPlan | null) => void) {
+	/** A plan toward a typed target runs until it gets there, nothing helps, Stop, or this many steps. */
+	const MAX_STEPS = 120;
+	/** Steps per batch: the page paints (progress, Stop) between batches. */
+	const BATCH = 5;
+	let stopping = false;
+	/**
+	 * Plans from `start` toward `target`, adding to `before` (Keep listing). A typed target plans in batches until it's
+	 * reached, nothing helps, or Stop; the best-upgrades list (no target) is one batch of 15.
+	 */
+	function run(start: SimState, target: number, before: TargetPlan | null = null) {
 		if (planning || !selection) return;
 		error = null;
 		planning = true;
-		const sel = selection, gold = byGold;
-		// Let the button show "Planning…" before the work (a few hundred ms per step).
-		setTimeout(() => {
+		stopping = false;
+		const sel = selection, gold = byGold, toTarget = Number.isFinite(target);
+		let from = start, acc = before;
+		const batch = () => {
 			try {
-				done(planToTarget({ loadout, base, start, selection: sel, targetDps: target, byGold: gold, goldFor,
-					upgradesFor: (st) => liveUpgrades(loadout, st, base, rollsFor(characterKey), true) }));
-			} catch { error = "Couldn't plan from here."; }
-			finally { planning = false; plannedAt = performance.now(); }
-		}, 20);
+				const p = planToTarget({ loadout, base, start: from, selection: sel, targetDps: target, byGold: gold, goldFor, maxSteps: toTarget ? BATCH : 15,
+					upgradesFor: (st) => liveUpgrades(loadout, st, base, rollsFor(characterKey), true) });
+				if (!p) { if (!acc) plan = null; return finish(); }
+				acc = acc ? { ...p, startDps: acc.startDps, steps: [...($state.snapshot(acc.steps) as TargetPlan['steps']), ...p.steps], gold: acc.gold + p.gold, unpriced: Math.max(acc.unpriced, p.unpriced) } : p;
+				plan = acc;
+				if (toTarget && p.capped && !stopping && acc.steps.length < MAX_STEPS) { from = p.end; setTimeout(batch, 0); return; }
+				finish();
+			} catch { error = "Couldn't plan from here."; finish(); }
+		};
+		const finish = () => { planning = false; plannedAt = performance.now(); };
+		// Let the button show "Planning…" before the work (a few hundred ms per step).
+		setTimeout(batch, 20);
 	}
 	function planNow() {
 		const typed = text.trim();
@@ -92,7 +109,7 @@
 		const out = target !== null && ceiling !== null && target > ceiling * 1.05;
 		goal = { target, ceiling: out ? ceiling : null };
 		plan = null;
-		run(simState, target !== null && !out ? target : Infinity, (p) => (plan = p));
+		run(simState, target !== null && !out ? target : Infinity);
 	}
 	/** Fills the box with a target and plans it (from a failed pull's card). */
 	export function planFor(target: string) {
@@ -100,14 +117,12 @@
 		box?.scrollIntoView({ block: 'nearest' });
 		planNow();
 	}
-	/** Go on from where a capped plan stopped, adding its steps. */
+	/** Go on from where a plan stopped (the best-upgrades list, or a plan stopped early), adding its steps. */
 	function more() {
 		const previous = plan;
 		if (!previous) return;
 		const aim = goal && goal.target !== null && goal.ceiling === null ? goal.target : Infinity;
-		run($state.snapshot(previous.end) as SimState, aim, (p) => {
-			if (p) plan = { ...p, startDps: previous.startDps, steps: [...($state.snapshot(previous.steps) as typeof p.steps), ...p.steps], gold: previous.gold + p.gold, unpriced: Math.max(previous.unpriced, p.unpriced) };
-		});
+		run($state.snapshot(previous.end) as SimState, aim, $state.snapshot(previous) as TargetPlan);
 	}
 	function applyAll() {
 		const next = structuredClone(simState);
@@ -135,7 +150,11 @@
 		</div>
 		<div class="flex gap-1.5">
 			<input disabled={planning || !selection} class="h-8 min-w-0 flex-1 disabled:opacity-60 rounded-xs border border-surface-700 bg-surface-950 px-2 text-sm text-surface-100 tabular-nums" placeholder="1.4b, +5%, or empty: best upgrades" bind:value={text} aria-label="Target DPS" />
-			<button type="submit" class="{btn} h-8 gap-1.5 px-4" disabled={planning || !selection}>{#if planning}<Spinner class="size-3.5" />Planning…{:else}Plan{/if}</button>
+			{#if planning && !listing}
+				<button type="button" class="{btn} h-8 gap-1.5 px-4" onclick={() => (stopping = true)}><Spinner class="size-3.5" />{plan?.steps.length ?? 0} steps · Stop</button>
+			{:else}
+				<button type="submit" class="{btn} h-8 gap-1.5 px-4" disabled={planning || !selection} title="Adds upgrades one at a time from your current edits, re-measured on this run each time: the biggest DPS gain (Fewest steps) or the least gold per 1% DPS (Least gold), until the target is reached or nothing helps. Empty: the best 15 upgrades.">{#if planning}<Spinner class="size-3.5" />Planning…{:else}Plan{/if}</button>
+			{/if}
 		</div>
 	</form>
 	{#if plan && goal?.ceiling}
@@ -163,7 +182,7 @@
 				<span class="text-surface-500" aria-hidden="true">→</span>
 				<span class="font-bold tabular-nums {listing ? 'text-surface-50' : p.reached ? 'text-green-400' : 'text-amber-300'}">{dpsText(p.endDps)}</span>
 				<span class="text-xs text-surface-400 tabular-nums">({formatPct((p.endDps / p.startDps - 1) * 100)}%)</span>
-				{#if !listing && !p.reached}<span class="text-xs text-amber-300">not reached</span>{/if}
+				{#if !listing && !p.reached && !planning}<span class="text-xs text-amber-300">not reached</span>{/if}
 				{#if !listing}<span class="text-surface-600" aria-hidden="true">·</span>
 				<span class="text-surface-100">{p.steps.length} step{p.steps.length === 1 ? '' : 's'}</span>{/if}
 				{#if byGold}<span class="text-surface-600" aria-hidden="true">·</span><span class="font-semibold text-yellow-300 tabular-nums">{formatGold(p.gold)} gold</span>{/if}
@@ -191,8 +210,8 @@
 		<div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-surface-400">
 			{#if p.steps.length}<button type="button" class="{btn} h-7 px-3" onclick={applyAll}>Apply all {p.steps.length}</button>{/if}
 			{#if p.capped && listing}<button type="button" class="{btn} h-7 px-2" disabled={planning} onclick={more}>{planning ? 'Planning…' : 'More upgrades'}</button>
-			{:else if p.capped}<span>{dpsText(goal!.target! - p.endDps)} short after {p.steps.length} steps.</span><button type="button" class="{btn} h-7 px-2" disabled={planning} onclick={more}>{planning ? 'Planning…' : 'Keep planning'}</button>
-			{:else if !p.reached && !listing}<span>Nothing gets closer.</span>{/if}
+			{:else if p.capped && !planning}<span>Stopped {dpsText(goal!.target! - p.endDps)} short after {p.steps.length} steps.</span><button type="button" class="{btn} h-7 px-2" onclick={more}>Continue</button>
+			{:else if !p.reached && !listing && !planning}<span>Nothing gets closer.</span>{/if}
 			{#if p.unpriced && byGold}<span>{p.unpriced} unpriced left out.</span>{/if}
 		</div>
 	{/if}

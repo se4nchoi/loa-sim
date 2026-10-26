@@ -19,6 +19,9 @@ export interface ClearState {
 	orb: number | null;
 }
 
+/** The lowest Paradise power a run is taken to have had, as a share of today's: further off, other gear differs too. */
+const MIN_SCALE = 0.7;
+
 const books = (e: { grade?: string; progress?: number }) =>
 	e.grade === 'engrave_grade05' ? 4 : Math.max(0, Math.min(4, Math.floor((e.progress || 0) / 5)));
 
@@ -77,29 +80,40 @@ export function clearState(loadout: Loadout, snap: ClearSnapshot, runSkills?: { 
 		});
 	} else if (gems.length) notes.push("The clear had a different number of gems; the loadout's gems are kept.");
 
-	// Paradise: a snapshot doesn't name the orb, but its recorded CP does, nearly. Paradise power only grows, so at
-	// today's power the clear's orb scores at or a little above the recorded CP: the closest orb from there up to 1%
-	// over is taken (a raid orb such as Blazing Sun, against a CP setup's Spreading Mist).
+	// Paradise: a snapshot keeps neither the orb nor its power. The run's own orb proc names the orb it was played with
+	// (Sunlight Fragrance is Blazing Sun's). The power only grows, so the run's is today's scaled down: the scale at which
+	// an orb reproduces the recorded CP. LOA Logs' CP can be recorded on another orb than the one raided with (a CP orb
+	// such as Spreading Mist, swapped for Rhythmic Tide before the raid): the scale comes from the orb that fits closest
+	// to today's power, the orb from the proc. Seen on Soulshan's runs (10-26): 85–93% of today's power.
 	let orb: number | null = null;
 	const recorded = snap.combatPower?.score;
-	// The run's own orb proc names it exactly (Sunlight Fragrance is Blazing Sun's): no guess needed.
 	const procOrb = orbOfRun(runSkills ?? []);
-	if (base.paradise && !base.paradise.flat && procOrb) {
-		if (procOrb !== base.paradise.orb) {
-			orb = procOrb;
-			state.paradise = { ...base.paradise, orb: procOrb };
-			notes.push(`Paradise orb: ${orbName(procOrb)}, from the run's orb proc.`);
+	const today = base.paradise;
+	if (today && !today.flat) {
+		const at = (id: number, f: number) => ({ ...today, orb: id, powers: Object.fromEntries(Object.entries(today.powers).map(([k, v]) => [k, Math.round(v * f)])) });
+		const cpAt = (id: number, f: number) => simulate(loadout, { ...state, paradise: at(id, f) }, base).cp;
+		/** The power scale (MIN_SCALE..1) at which this orb gives the recorded CP; null when none does. */
+		const scaleFor = (id: number) => {
+			if (!recorded || cpAt(id, 1) < recorded || cpAt(id, MIN_SCALE) > recorded) return null;
+			let lo = MIN_SCALE, hi = 1;
+			for (let i = 0; i < 24; i++) { const m = (lo + hi) / 2; if (cpAt(id, m) < recorded) lo = m; else hi = m; }
+			return hi;
+		};
+		// The orb the CP was recorded on: the proc's when it fits, else the one fitting closest to today's power.
+		const fits = orbChoices(today).flatMap((id) => { const f = scaleFor(id); return f === null ? [] : [{ id, f }]; });
+		const cpOrb = fits.find((x) => x.id === procOrb) ?? fits.toSorted((x, y) => y.f - x.f)[0] ?? null;
+		const played = procOrb ?? cpOrb?.id ?? today.orb;
+		if (played !== today.orb) {
+			orb = played;
+			notes.push(`Paradise orb: ${orbName(played)}, from the run's ${procOrb ? 'orb proc' : 'CP'}.`);
 		}
-	} else if (base.paradise && !base.paradise.flat && recorded) {
-		const fit = orbChoices(base.paradise)
-			.map((id) => ({ id, over: simulate(loadout, { ...state, paradise: { ...base.paradise!, orb: id } }, base).cp / recorded - 1 }))
-			.filter((o) => o.over >= -0.0005 && o.over <= 0.01)
-			.sort((a, b) => a.over - b.over)[0];
-		if (fit && fit.id !== base.paradise.orb) {
-			orb = fit.id;
-			state.paradise = { ...base.paradise, orb: fit.id };
-			notes.push(`Paradise orb: ${orbName(fit.id)}, from the clear's CP (a snapshot doesn't name it).`);
-		} else if (!fit) notes.push("The snapshot doesn't name the Paradise orb; yours is used.");
+		if (cpOrb && cpOrb.f < 0.999) {
+			state.paradise = at(played, cpOrb.f);
+			notes.push(`Paradise power: ${Math.round(cpOrb.f * 100)}% of today's, from the run's CP${cpOrb.id !== played ? ` (recorded on ${orbName(cpOrb.id)})` : ''}.`);
+		} else {
+			state.paradise = { ...today, orb: played };
+			if (!cpOrb && recorded) notes.push("The run's Paradise power can't be read from its CP; today's is used.");
+		}
 	}
 	return { state, notes, orb };
 }
