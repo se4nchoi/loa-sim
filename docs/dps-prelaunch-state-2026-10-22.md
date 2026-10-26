@@ -45,3 +45,14 @@ Working branch: `dps-sim/v0`. The existing DPS work remains experimental; these 
    unvalued; cooldown changes estimate throughput rather than replaying a new legal rotation.
 5. Exercise browser flows with fresh imports and old saved data, clear/snapshot switching, upgrade Apply and Undo,
    price import/manual edits/undo, and upstream failure. HTTP/unit checks do not cover the full browser workflow.
+
+## Open checks (10-26)
+
+- **Vambraces in run snapshots: unverified.** The loadout API adapter (`src/lib/loadout-snapshot.ts`, `SLOTS`) maps
+  slots 0–11 and 26 only, so a Vambraces slot would be dropped. Every run in the 10-26 copy of Soulshan's
+  encounters.db predates his Vambraces (CP ≤ 6620; the bracer arrived after 10-17), so it couldn't be checked. With a
+  run played *with* Vambraces: confirm the API sends the slot (and its number), map it, and check the run's setup has
+  them. Until then such a run's baseline lacks them and the meter credits today's Vambraces as a gain; the run setup
+  line lists "Vambraces" under "Changed since" either way.
+- **The Vambraces' DPS value.** The meter values Epic +10 at +4.6% on Soulshan's 10-15 Kazeros G2 (822m → 861m). Same
+  gear, 10-08: 887m, so one run can't confirm it; compare with Kazeros G2 clears played with the Vambraces.

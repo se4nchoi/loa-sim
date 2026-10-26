@@ -4,6 +4,7 @@
 import type { ClearSnapshot } from '$lib/bible-data';
 import { ARK_PASSIVE_NODES } from './ark-passive-names';
 import { CORE_NAMES } from './game-data';
+import { readBracer } from './bracer';
 import type { Loadout } from './types';
 
 export interface SetupDiff {
@@ -44,6 +45,11 @@ export function setupDiff(loadout: Loadout, clear: ClearSnapshot): SetupDiff {
 		if (!mine || !SLOTS[item.slot]) return [];
 		return json({ id: item.id, data: item.data }) === json({ id: mine.id, data: onKeys(mine.data as Record<string, unknown>, item.data as Record<string, unknown>) }) ? [] : [SLOTS[item.slot]];
 	});
+
+	// Vambraces, as the meter reads them (readBracer on each side's items): a run before them has none, which the
+	// slot-by-slot check above skips (the snapshot has no such slot). The loadout API's slot for them is unverified
+	// (2026-10-26): a run played with Vambraces may lose them too, so this line also shows that.
+	if (json(readBracer(loadout)) !== json(readBracer({ ...loadout, items: clear.items ?? [] }))) gear.push('Vambraces');
 
 	const gems = !sameList((clear.gems ?? []).map((g) => ({ id: g.id, effects: g.effects })), (loadout.gems ?? []).map((g) => ({ id: g.id, effects: g.effects })));
 

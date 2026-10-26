@@ -194,6 +194,8 @@
 	let setup = $state<{ hash: string; snap: ClearSnapshot | null; error: string | null } | null>(null);
 	/** The run's snapshot is another setup than the one played (its Ark Passive differs): the loaded gear stands in. */
 	let otherSetup = $state(false);
+	/** The run whose setup was last put into the Simulator ("Simulate from this setup"). */
+	let fromSetup = $state<number | null>(null);
 	$effect(() => {
 		const hash = clear?.loadoutHash, ran = clear?.arkPassives?.enlightenment, buffs = clear?.buffNames, model = arkGridModel;
 		otherSetup = false;
@@ -355,7 +357,7 @@
 	{:else if !shared && (!book || importing)}
 		<!-- Where Re-import logs was, so the way back is under the pointer. -->
 		{#if book}<div class="mb-3 flex"><button type="button" class="{btn} ml-auto h-8 px-3" onclick={() => (importing = false)}>Cancel re-import</button></div>{/if}
-		{#key characterKey}<DpsRunsImport {characterKey} {characterName} cores={nowCores} ondone={() => (importing = false)} />{/key}
+		{#key characterKey}<DpsRunsImport {characterKey} {characterName} {loadout} cores={nowCores} ondone={() => (importing = false)} />{/key}
 	{:else}
 		<!-- Two tabs: clears, or failed pulls and what they needed. A shared link has its one run. -->
 		<div class="mb-3 flex items-center gap-2" hidden={!!shared}>
@@ -487,10 +489,7 @@
 					<span class="text-sm font-semibold text-surface-100">Run setup</span>
 					{#if recorded}<span class="tabular-nums">CP {recorded.toFixed(2)}</span>{/if}
 					<span class="text-surface-400" title="LOA Logs saves a lostark.bible snapshot of your gear with each fight; the meter starts from it, so only your edits count">· LOA Logs snapshot</span>
-					{#if clearSetup && onsimulate}
-						<button type="button" class="ml-auto rounded-xs border border-accent-500/70 bg-accent-700/30 px-2 py-0.5 font-semibold text-accent-100 hover:bg-accent-700/60" title="Load this run's gear, cores and gems into the Simulator (Undo brings yours back)" onclick={() => onsimulate(structuredClone($state.snapshot(clearSetup.state)) as SimState)}>Simulate from this setup</button>
-					{/if}
-					<a class="{clearSetup && onsimulate ? '' : 'ml-auto'} text-sky-300 hover:underline" href={bibleSnapshotPage(setup.hash)} target="_blank" rel="noopener">lostark.bible ↗</a>
+					<a class="ml-auto text-sky-300 hover:underline" href={bibleSnapshotPage(setup.hash)} target="_blank" rel="noopener">lostark.bible ↗</a>
 				</p>
 				{#if setup.error}
 					<p class="mt-1 text-amber-300">{setup.error}</p>
@@ -501,6 +500,14 @@
 						<p class="mt-1 text-green-400">● Same gear as now</p>
 					{:else}
 						<p class="mt-1 text-amber-300">● Changed since: {[...diff.gear, ...(diff.gems ? ['Gems'] : [])].join(', ')}</p>
+						<!-- The run was on other gear: the meter replays it with today's. To plan from the gear it was played with, the
+						     run's setup goes into the Simulator (Undo brings the edits back). -->
+						{#if clearSetup && onsimulate}
+							<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+								<button type="button" class="h-9 rounded-xs bg-accent-700 px-4 text-sm font-semibold text-white hover:bg-accent-600" title="Load this run's gear, cores and gems into the Simulator, so upgrades and Target DPS start from it (Undo brings yours back)" onclick={() => { onsimulate(structuredClone($state.snapshot(clearSetup.state)) as SimState); fromSetup = clear?.id ?? null; }}>Simulate from this setup</button>
+								{#if fromSetup === clear?.id}<span class="text-green-400">● Planning from this run's gear</span>{/if}
+							</div>
+						{/if}
 					{/if}
 					{#if build.length}
 						<details class="mt-0.5 text-surface-400">

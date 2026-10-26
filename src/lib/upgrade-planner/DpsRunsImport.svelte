@@ -12,10 +12,14 @@
 	import { CORE_NAMES } from './game-data';
 	import { GRADE_GRADIENTS } from './icons';
 	import Segmented from './sim/Segmented.svelte';
+	import { sameGear, setupDiff } from './setup-diff';
+	import type { Loadout } from './types';
 	import Spinner from './sim/Spinner.svelte';
 
-	let { characterKey, characterName, cores = '', ondone }: {
+	let { characterKey, characterName, cores = '', loadout, ondone }: {
 		characterKey: string; characterName: string;
+		/** The loaded loadout: runs whose snapshot has its gear and gems are "on my current gear" (step 4). */
+		loadout?: Loadout;
 		/** The loadout's Order cores (orderCoreKey), to preselect runs on the same build. */
 		cores?: string;
 		ondone?: (book: RunsBook) => void;
@@ -61,7 +65,7 @@
 	// Each snapshot's Order cores and Ark Passive (to check it's the setup a run was played on); '?' cores when it
 	// couldn't be read.
 	const UNKNOWN = '?';
-	type SnapInfo = { cores: string; ids: number[]; arkPassive: ClearSnapshot['arkPassive'] };
+	type SnapInfo = { cores: string; ids: number[]; arkPassive: ClearSnapshot['arkPassive']; sameGear: boolean };
 	// The Order core table (large; DPS mode loads it anyway) for the Destiny check.
 	let coreModel = $state<typeof import('./ark-grid-dps') | null>(null);
 	$effect(() => {
@@ -81,8 +85,11 @@
 		const next = async () => {
 			for (let h = todo.shift(); h && live; h = todo.shift()) {
 				const info: SnapInfo = await clearSnapshot(h).then(
-					(s) => ({ cores: orderCoreKey((s.arkGridCores ?? []).map((c) => c.id)), ids: (s.arkGridCores ?? []).map((c) => c.id), arkPassive: s.arkPassive ?? null }),
-					() => ({ cores: UNKNOWN, ids: [], arkPassive: null })
+					(s) => ({
+						cores: orderCoreKey((s.arkGridCores ?? []).map((c) => c.id)), ids: (s.arkGridCores ?? []).map((c) => c.id),
+						arkPassive: s.arkPassive ?? null, sameGear: !!loadout && sameGear(setupDiff(loadout, s))
+					}),
+					() => ({ cores: UNKNOWN, ids: [], arkPassive: null, sameGear: false })
 				);
 				if (live) snapCores[h] = info;
 			}
@@ -142,7 +149,15 @@
 	// Default: the loadout's cores, in the spec played most on them.
 	const current = $derived(known.filter((b) => coresOf(b.key) === cores).toSorted((a, b) => b.count - a.count)[0]?.key);
 	const picked = $derived(build ?? current ?? 'all');
-	const clears = $derived(ranged.filter((e) => picked === 'all' || buildOf(e) === picked).slice(0, maxRuns));
+	const inBuild = $derived(ranged.filter((e) => picked === 'all' || buildOf(e) === picked));
+	// Step 4. A run on the loaded gear: its own snapshot (one that is the setup played) has this gear and gems, so the
+	// meter's edits are upgrades from now. Other runs are replayed with today's gear: from them, plans start at "Simulate
+	// from this setup".
+	const onCurrentGear = (e: EncounterRow) => ownCores(e) !== null && snapCores[hashOf(e)!]?.sameGear === true;
+	const onGear = $derived(inBuild.filter(onCurrentGear));
+	let gearPick = $state<'current' | 'all' | null>(null);
+	const useCurrent = $derived((gearPick ?? (onGear.length ? 'current' : 'all')) === 'current' && onGear.length > 0);
+	const clears = $derived((useCurrent ? onGear : inBuild).slice(0, maxRuns));
 
 	async function open(e: Event) {
 		const file = (e.currentTarget as HTMLInputElement).files?.[0];
@@ -246,6 +261,26 @@
 					</button>
 				{/each}
 			</div>
+		{/if}
+	</section>
+
+	<section class="space-y-2">
+		{@render step(4, 'Match your gear', !!encounters)}
+		{#if encounters}
+			<div class="grid gap-1.5 sm:grid-cols-2" role="radiogroup" aria-label="Runs by gear">
+				{#each [{ key: 'current', label: 'On my current gear', count: onGear.length }, { key: 'all', label: 'All runs', count: inBuild.length }] as o (o.key)}
+					{@const on = (o.key === 'current') === useCurrent}
+					<button type="button" role="radio" aria-checked={on} disabled={!o.count || pending > 0}
+						class="flex h-12 items-center gap-2 rounded-xs border px-3 text-left text-sm font-semibold transition {on ? 'border-accent-500 bg-accent-700/25 text-surface-50' : 'border-surface-700 bg-surface-950 text-surface-300 hover:border-surface-500'} disabled:cursor-default disabled:opacity-50"
+						onclick={() => (gearPick = o.key as 'current' | 'all')}>
+						<span class="flex-1">{o.label}</span>
+						<span class="text-xs font-normal tabular-nums text-surface-400">{pending ? '…' : `${o.count} ${o.count === 1 ? 'run' : 'runs'}`}</span>
+					</button>
+				{/each}
+			</div>
+			{#if !pending && !useCurrent && inBuild.length > onGear.length}
+				<p class="text-xs text-amber-300">{onGear.length ? '' : 'No runs on your current gear. '}On a run with other gear, press <span class="font-semibold">Simulate from this setup</span> to plan from that gear.</p>
+			{/if}
 			<div class="flex items-center gap-3">
 				<button class="h-8 rounded-xs bg-accent-700 px-3 text-xs font-semibold text-white hover:bg-accent-600 disabled:opacity-50" disabled={!clears.length || !!busy || pending > 0} onclick={importRuns}>Import {clears.length} {clears.length === 1 ? 'run' : 'runs'}</button>
 				{#if missingHashes.length}<span class="flex items-center gap-2 text-xs text-surface-300" role="status"><Spinner class="size-3.5 text-accent-400" />Reading gear for {ranged.length.toLocaleString()} {ranged.length === 1 ? 'run' : 'runs'}…</span>
