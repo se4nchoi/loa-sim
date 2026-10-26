@@ -11,7 +11,7 @@ runs, 105 snapshots). Party members of every class in the same logs were used fo
 | Logged skill ids known to the game data, per class (all 30 classes in the logs) | 96–100% of each class's damage; the rest is bleed and battle items |
 | Order core damage lines the meter reads, per class | see the per-class table in the 10-25 session; Souleater 5 unread (2 cores it doesn't run) |
 | Core states / Destiny buffs found in the logs | 2 real name mismatches, fixed (Valkyrie "Destiny: Final" = "Destiny: Final Words"; Wildsoul Phantom Beast Awakening = "Phantom Beast Spirit"); the rest unseen only because nobody ran those cores |
-| Support buff kinds, all four support classes (≈350 support runs) | attack ≈37%, damage 27–30%, brand ≈16% valued; "other" 17–19% is raid buffs (Dance of Passion II, Strength / Flash Orb, Lostwind Cliff) the support's gear can't move |
+| Support buff kinds, all four support classes (≈350 support runs) | attack ≈37%, damage 27–30%, brand ≈16% valued; "other" 17–19% is the support's own effects (corrected 10-26, below) |
 | Each run's own setup replayed with the current gear (what DPS mode does) | see "Coverage on real runs" |
 | Pairs of runs on different gear: predicted vs measured damage per hit | see "Backtest" |
 
@@ -47,3 +47,10 @@ damage-per-hit change on the skills both used ≥ 20 hits:
 - Run-dependent effects stay unvalued: per-stack bonuses, cooldown-for-damage trades, skill-tree conditions, summons /
   DoTs, timed buffs, Order core swaps, Paradise orb swaps, Evolution Karma.
 - Sorceress "Casting Control" = her Casting-type skills is a best match, not confirmed by any source.
+
+## Correction (10-26): the support "other" bucket
+
+It isn't raid buffs. Looked up by buff id in the logs (Brushann, Artist, newest runs): Dance of Passion II is an Ark
+Passive party buff (9.4% of her buff damage), Pray is her bracelet (1.5%, already scaled by `gearDebuffFactor`),
+Strength / Flash Orb are abilities LOA Logs credits to her (2.1%), 608243000 is Echoing Brand (0.3%, scaled). So
+"Party DPS added" (LOA Logs' rDPS given) rightly includes it; only the labels said "not moved by gear" / "raid buffs".

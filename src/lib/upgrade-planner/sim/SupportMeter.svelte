@@ -27,7 +27,7 @@
 	});
 
 	const KIND_NAMES: Record<SupportKind, string> = { attack: 'Attack Power buffs', damage: 'Damage buffs', brand: 'Brand', other: 'Other effects' };
-	const KIND_STATS: Record<SupportKind, string> = { attack: 'Attack Power · Ally Atk. Power Enhancement', damage: 'Ally Damage Enhancement', brand: 'Brand Power', other: 'Not moved by gear' };
+	const KIND_STATS: Record<SupportKind, string> = { attack: 'Attack Power · Ally Atk. Power Enhancement', damage: 'Ally Damage Enhancement', brand: 'Brand Power', other: 'Ark Passive, bracelet, orbs' };
 	const top = $derived(Math.max(1, ...meter.kinds.map((k) => Math.max(k.before, k.after))));
 	const topDealer = $derived(Math.max(1, ...meter.dealers.map((d) => Math.max(d.before, d.after))));
 	const gainOf = (a: number, b: number) => (a > 0 ? (b / a - 1) * 100 : 0);

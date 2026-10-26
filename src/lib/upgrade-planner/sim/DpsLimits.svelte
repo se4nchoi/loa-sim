@@ -18,7 +18,7 @@
 	const always = $derived(support
 		? [
 			'Kept as recorded: dealers’ damage, uptime and fight length.',
-			'Buffs scale with their stat. Raid buffs (Dance of Passion, orbs) stay as recorded.',
+			'Buffs scale with their stat. Ark Passive party buffs and orbs stay as recorded.',
 			'Same gear, run to run: ±10–20%. Most single upgrades: under 2%.'
 		]
 		: [
