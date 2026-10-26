@@ -17,6 +17,7 @@
 	import DpsTarget from './DpsTarget.svelte';
 	import SupportMeterView from './sim/SupportMeter.svelte';
 	import DpsLimits from './sim/DpsLimits.svelte';
+	import DpsHint from './sim/DpsHint.svelte';
 	import { supportMeter } from './support-meter';
 	import FoldChip from './sim/FoldChip.svelte';
 	import { classColor } from './class-colors';
@@ -68,13 +69,15 @@
 	const base = $derived(initSimState(loadout));
 	let confirmed = $state<string | null>(null);
 
-	// The panel's own view: folded or not. Kept for every character; read before the first draw.
+	// Read before the first draw to avoid shifting the panel after a remembered dismissal. The new hint is shown
+	// once even when the old numbered intro was dismissed; its explanation and limits are different.
 	const VIEW_KEY = 'loa-sim:dps-panel';
-	let view = $state<{ folded: boolean }>((() => {
+	let view = $state<{ folded: boolean; hint: boolean }>((() => {
 		try {
-			return { folded: JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null')?.folded === true };
+			const saved = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null');
+			return { folded: saved?.folded === true, hint: saved?.hint !== false };
 		} catch {
-			return { folded: false };
+			return { folded: false, hint: true };
 		}
 	})());
 	function setView(next: Partial<typeof view>) {
@@ -323,6 +326,7 @@
 	<div class="flex items-center gap-2 px-3 py-2 sm:px-4" bind:this={header}>
 	<span class="font-semibold text-surface-100">DPS sim</span>
 	<span class="rounded-xs bg-amber-500/15 px-1 text-[10px] font-semibold text-amber-300">BETA</span>
+	<button type="button" class="flex size-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold transition {view.hint && !view.folded ? 'border-amber-400/60 bg-amber-500/15 text-amber-200' : 'border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-100'}" title="How the DPS sim works" aria-label="How the DPS sim works" aria-expanded={view.hint && !view.folded} aria-controls="dps-sim-hint" onclick={() => setView({ hint: !(view.hint && !view.folded), folded: false })}>?</button>
 	<button type="button" class="group flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-left" aria-expanded={!view.folded} aria-label={view.folded ? 'Show the DPS sim' : 'Hide the DPS sim'} onclick={() => setView({ folded: !view.folded })}>
 		{#if head && raid && clear}
 			<span class="flex min-w-0 items-center gap-1.5 text-xs text-surface-400 {view.folded ? '' : 'max-sm:hidden'}"><span class="truncate">{raid.name}{gate(clear) ? ` G${gate(clear)}` : ''}</span>
@@ -334,6 +338,7 @@
 
 	{#if !view.folded}
 	<div class="px-3 pb-3 sm:px-4 sm:pb-4">
+	{#if view.hint}<DpsHint support={isSupport} ondismiss={() => setView({ hint: false })} />{/if}
 	{#if (!warm || (!shared && !(characterKey in runsBooks.byCharacter))) && !hasRuns}
 		<!-- No runs in this browser yet: the import card's shape (its label and file picker). -->
 		<div class="animate-pulse" role="status" aria-label="Loading the DPS sim">
@@ -550,7 +555,7 @@
 		{#if meter}<div bind:this={meterBox}><DpsMeter {meter} {skillName} {skillIcon} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>
 			<DpsLimits notIn={meter.notInMeter} notes={meter.notes} />
 		{:else if supMeter}<div bind:this={meterBox}><SupportMeterView meter={supMeter} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>
-			<DpsLimits support notIn={supMeter.notInMeter} />
+			<DpsLimits notIn={supMeter.notInMeter} />
 		{:else if isSupport}<p class="text-sm text-surface-300">No buff data for this run. Re-import to read it; LOA Logs records it on newer runs.</p>{/if}
 		</div>
 		</div>
