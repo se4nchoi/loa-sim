@@ -50,7 +50,7 @@ Working branch: `dps-sim/v0`. The existing DPS work remains experimental; these 
 
 - **Vambraces in run snapshots: unverified.** The loadout API adapter (`src/lib/loadout-snapshot.ts`, `SLOTS`) maps
   slots 0–11 and 26 only, so a Vambraces slot would be dropped. Every run in the 10-26 copy of Soulshan's
-  encounters.db predates his Vambraces (CP ≤ 6620; the bracer arrived after 10-17), so it couldn't be checked. With a
+  encounters.db predates the character's Vambraces (CP ≤ 6620; they arrived after 10-17), so it couldn't be checked. With a
   run played *with* Vambraces: confirm the API sends the slot (and its number), map it, and check the run's setup has
   them. Until then such a run's baseline lacks them and the meter credits today's Vambraces as a gain; the run setup
   line lists "Vambraces" under "Changed since" either way.
