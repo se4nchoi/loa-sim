@@ -386,9 +386,11 @@
 {#if autosaveNote}<p class="mb-3 text-sm text-amber-300" role="status">{autosaveNote}</p>{/if}
 
 <!-- Phones/tablets: pinned under the header while scrolling, expandable. -->
+<!-- lostark.bible's CP can be its highest-CP setup (e.g. another spec's Ark Grid cores), not this loadout: a note on
+     where the two numbers come from, not a warning. -->
 {#if startingScore.mismatch}
-	<p class="mb-3 rounded-xs border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200" role="status">
-		This setup: {formatCp(baseline.cp)} CP · Reported: {formatCp(startingScore.reported!)} CP
+	<p class="mb-3 text-xs text-surface-400" role="status" title="lostark.bible shows the highest CP it has recorded for the character, which can be another setup (another spec's Ark Grid cores, for one). The simulator starts from this loadout's own CP.">
+		This loadout: <span class="text-surface-200 tabular-nums">{formatCp(baseline.cp)} CP</span> · lostark.bible's highest: <span class="tabular-nums">{formatCp(startingScore.reported!)} CP</span>
 	</p>
 {/if}
 <MobileSummaryBar {current} {simulated} support={loadout.battlePoint.isSupport} nav={jumpChips} onbudget={() => budgetOpen = true}>{@render summary()}</MobileSummaryBar>
