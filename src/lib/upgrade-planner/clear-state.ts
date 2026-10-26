@@ -5,7 +5,7 @@
 // spent, not which nodes, so a different build (Full Moon Harvester vs Night's Edge) doesn't move CP here.
 import type { ClearSnapshot } from '$lib/bible-data';
 import { GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
-import { orbChoices, orbName, orbOfRun } from './paradise';
+import { orbChoices, orbName, orbOfRun, orbSeason } from './paradise';
 import { coreVariant, GEM_EFFECT_TYPE, initSimState, simulate, type SimCore, type SimState } from './simulate';
 import { decodeCore } from './tables';
 import { STONE_LEVEL_NODES } from './stones';
@@ -18,9 +18,6 @@ export interface ClearState {
 	/** The Paradise orb read from the clear's recorded CP (a snapshot doesn't name it), or null if kept. */
 	orb: number | null;
 }
-
-/** The lowest Paradise power a run is taken to have had, as a share of today's: further off, other gear differs too. */
-const MIN_SCALE = 0.7;
 
 const books = (e: { grade?: string; progress?: number }) =>
 	e.grade === 'engrave_grade05' ? 4 : Math.max(0, Math.min(4, Math.floor((e.progress || 0) / 5)));
@@ -80,40 +77,49 @@ export function clearState(loadout: Loadout, snap: ClearSnapshot, runSkills?: { 
 		});
 	} else if (gems.length) notes.push("The clear had a different number of gems; the loadout's gems are kept.");
 
-	// Paradise: a snapshot keeps neither the orb nor its power. The run's own orb proc names the orb it was played with
-	// (Sunlight Fragrance is Blazing Sun's). The power only grows, so the run's is today's scaled down: the scale at which
-	// an orb reproduces the recorded CP. LOA Logs' CP can be recorded on another orb than the one raided with (a CP orb
-	// such as Spreading Mist, swapped for Rhythmic Tide before the raid): the scale comes from the orb that fits closest
-	// to today's power, the orb from the proc. Seen on Soulshan's runs (10-26): 85–93% of today's power.
+	// Paradise: a snapshot keeps neither the orb nor its power, and power is per season (a Season 3 orb scales with
+	// Season 3's). The run's orb proc names the orb (Broadwave: Rhythmic Tide, Season 3; Sunlight Fragrance: Blazing Sun,
+	// Season 4); without one, the orb is the one that fits the recorded CP. Then that orb's season power is solved from
+	// the recorded CP. The current season's only grows, so up to today's; an older season's is fixed since it ended and
+	// can be above today's current-season power. Soulshan (10-26): Rhythmic Tide on 31.56M Season 3 power on every run
+	// 10-08..10-16 (a finished season: unchanged across the weekly reset); Blazing Sun at 86% of today's Season 4 on 10-17.
 	let orb: number | null = null;
 	const recorded = snap.combatPower?.score;
-	const procOrb = orbOfRun(runSkills ?? []);
 	const today = base.paradise;
 	if (today && !today.flat) {
-		const at = (id: number, f: number) => ({ ...today, orb: id, powers: Object.fromEntries(Object.entries(today.powers).map(([k, v]) => [k, Math.round(v * f)])) });
-		const cpAt = (id: number, f: number) => simulate(loadout, { ...state, paradise: at(id, f) }, base).cp;
-		/** The power scale (MIN_SCALE..1) at which this orb gives the recorded CP; null when none does. */
-		const scaleFor = (id: number) => {
-			if (!recorded || cpAt(id, 1) < recorded || cpAt(id, MIN_SCALE) > recorded) return null;
-			let lo = MIN_SCALE, hi = 1;
-			for (let i = 0; i < 24; i++) { const m = (lo + hi) / 2; if (cpAt(id, m) < recorded) lo = m; else hi = m; }
+		const nowSeason = orbSeason(today.orb);
+		const withPower = (id: number, power: number) => {
+			const season = orbSeason(id);
+			return { ...today, orb: id, powers: season === null ? today.powers : { ...today.powers, [season]: Math.round(power) } };
+		};
+		const powerOf = (id: number) => { const season = orbSeason(id); return season === null ? 0 : today.powers[season] ?? 0; };
+		const cpAt = (id: number, power: number) => simulate(loadout, { ...state, paradise: withPower(id, power) }, base).cp;
+		/** The orb's season power that gives the recorded CP; null when none in range does. */
+		const powerFor = (id: number) => {
+			const now = powerOf(id);
+			if (!recorded || !(now > 0)) return null;
+			if (Math.abs(cpAt(id, now) - recorded) < 0.01) return now;
+			const [min, max] = orbSeason(id) === nowSeason ? [now * 0.7, now] : [now * 0.5, now * 2];
+			if (cpAt(id, max) < recorded - 0.005 || cpAt(id, min) > recorded + 0.005) return null;
+			let lo = min, hi = max;
+			for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (cpAt(id, m) < recorded) lo = m; else hi = m; }
 			return hi;
 		};
-		// The orb the CP was recorded on: the proc's when it fits, else the one fitting closest to today's power.
-		const fits = orbChoices(today).flatMap((id) => { const f = scaleFor(id); return f === null ? [] : [{ id, f }]; });
-		const cpOrb = fits.find((x) => x.id === procOrb) ?? fits.toSorted((x, y) => y.f - x.f)[0] ?? null;
-		const played = procOrb ?? cpOrb?.id ?? today.orb;
+		const procOrb = orbOfRun(runSkills ?? []);
+		// Without a proc: the orb that fits with the least change to today's power.
+		const fitted = procOrb ? null : orbChoices(today).flatMap((id) => { const p = powerFor(id); return p === null ? [] : [{ id, change: Math.abs(p / powerOf(id) - 1) }]; })
+			.toSorted((x, y) => x.change - y.change)[0]?.id ?? null;
+		const played = procOrb ?? fitted ?? today.orb;
 		if (played !== today.orb) {
 			orb = played;
 			notes.push(`Paradise orb: ${orbName(played)}, from the run's ${procOrb ? 'orb proc' : 'CP'}.`);
 		}
-		if (cpOrb && cpOrb.f < 0.999) {
-			state.paradise = at(played, cpOrb.f);
-			notes.push(`Paradise power: ${Math.round(cpOrb.f * 100)}% of today's, from the run's CP${cpOrb.id !== played ? ` (recorded on ${orbName(cpOrb.id)})` : ''}.`);
-		} else {
-			state.paradise = { ...today, orb: played };
-			if (!cpOrb && recorded) notes.push("The run's Paradise power can't be read from its CP; today's is used.");
-		}
+		const power = powerFor(played);
+		state.paradise = withPower(played, power ?? powerOf(played));
+		const season = orbSeason(played);
+		if (power !== null && Math.abs(power / powerOf(played) - 1) > 0.001)
+			notes.push(`Season ${season} Paradise power: ${(power / 1e6).toFixed(2)}M, from the run's CP.`);
+		else if (power === null && recorded) notes.push(`The run's Season ${season} Paradise power can't be read from its CP; today's is used.`);
 	}
 	return { state, notes, orb };
 }
