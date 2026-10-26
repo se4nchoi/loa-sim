@@ -238,7 +238,6 @@
 	<section class="space-y-2">
 		{@render step(3, 'Pick the Ark Grid build', !!encounters)}
 		{#if encounters}
-			<p class="text-xs text-surface-400">Other Order cores play a different rotation.</p>
 			<div class="space-y-1.5" role="radiogroup" aria-label="Ark Grid build">
 				{#each [{ key: 'all', count: ranged.length }, ...builds] as b (b.key)}
 					{@const on = picked === b.key}
