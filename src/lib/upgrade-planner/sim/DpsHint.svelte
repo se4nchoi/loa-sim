@@ -27,9 +27,10 @@
 		{ key: 'paradise', label: 'Paradise orb swaps', kind: 'Not valued', look: paradise, tldr: 'Orb swaps aren’t counted (another proc); Paradise power on the same orb is.', points: [
 			'The run’s proc hits scale with its orb’s season power; how often it procs stays as recorded.'
 		] },
-		{ key: 'stacks', label: 'Stacked buffs', kind: 'Assumed', look: adrenaline, tldr: 'Engravings at their listed value; stacking bracelet Weapon Power at full stacks.', points: [
-			'Stack build-up and drop-off aren’t replayed.',
-			'Core bonuses per stack aren’t counted (stacks aren’t logged).'
+		{ key: 'stacks', label: 'Stacked buffs', kind: 'Assumed', look: adrenaline, tldr: 'Core damage bonuses with untracked stacks or timers assume full stacks or uptime.', points: [
+			'Adrenaline assumes 6 stacks, Ether Predator 30; stacking bracelet Weapon Power uses full stacks.',
+			'Gear-derived Additional Damage assumes Master at 5 stacks and the pet’s +1% Additional Damage, as LOA Logs does.',
+			'Next-use core bonuses are assumed ready. Stack build-up and drop-off aren’t replayed; existing logged buff windows still apply to other core effects.'
 		] },
 		{ key: 'summons', label: 'Summons & DoTs', kind: 'Unverified', look: bleeding, tldr: 'Scaled like other damage; core bonuses aimed at them (Heavy Bleeding) aren’t counted.', points: [
 			'Their hits and ticks stay as recorded; only the damage per hit scales.'
@@ -38,8 +39,11 @@
 			'Each extra cast deals the run’s average for that skill, with nothing else pushed out of the rotation.',
 			'A run without cooldown data counts only the gem’s base attack.'
 		] },
-		{ key: 'bracelet', label: 'Bracelet effects', kind: 'Not valued', look: bracelet, tldr: 'Plain stat and damage lines count; conditional lines and combat stats don’t.', points: [
-			'Not counted: vs. Staggered or Demons, HP-gated Weapon Power, speed and cooldown lines (when they applied isn’t logged).',
+		{ key: 'bracelet', label: 'Bracelet effects', kind: 'Not valued', look: bracelet, tldr: 'Plain stat and damage lines count; most conditional lines and combat stats don’t.', points: [
+			'Demon/Archdemon bonus: inactive on known non-Demon gates. Changing it on other gates isn’t counted: card-book totals and damage by target aren’t available.',
+			'Boss race assumes damage to the gate’s listed bosses; adds aren’t reconstructed.',
+			'Stagger bonuses aren’t counted: the logs don’t give usable damage during stagger.',
+			'Not counted: HP-gated Weapon Power, speed and cooldown lines (when they applied isn’t logged).',
 			'Combat stats (Specialization, Swiftness, …) aren’t counted (what they do depends on the class).'
 		] }
 	];

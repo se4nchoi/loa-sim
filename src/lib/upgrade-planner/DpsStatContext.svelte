@@ -15,7 +15,7 @@
 		const source = JSON.stringify([loadout.battlePoint, base]);
 		let hash = 2166136261;
 		for (let i = 0; i < source.length; i++) hash = Math.imul(hash ^ source.charCodeAt(i), 16777619) >>> 0;
-		return `loa-sim:dps-context:v1:${characterKey}:${hash.toString(36)}`;
+		return `loa-sim:dps-context:v2:${characterKey}:${hash.toString(36)}`;
 	});
 	$effect(() => {
 		const k = key;
@@ -33,7 +33,7 @@
 	});
 	const stats = $derived(simulate(loadout, base, base));
 	const defaults = $derived({mainStat: stats.mainStat, weaponPower: stats.weaponPower, baseAttackPct: baseAttackOf(loadout, base),
-		flatAttack: bracerStats(base.bracer).attackFlat, supportAttack: 0, critCap: 100});
+		baseAttackFlat: bracerStats(base.bracer).attackFlat, flatAttack: 0, supportAttack: 0, critCap: 100});
 	const context = $derived({...defaults, ...values, ...(conversion.enabled ? {critConversion: {
 		threshold: (conversion.threshold ?? NaN) / 100, ratio: conversion.ratio ?? NaN, maxBonus: (conversion.maximum ?? NaN) / 100}} : {})} as DamageContext);
 	const valid = $derived(damageFactor(context) !== null);
@@ -45,7 +45,7 @@
 	});
 	const fields = [
 		['mainStat', 'Main stat', 'flat'], ['weaponPower', 'Weapon Power', 'flat'], ['baseAttackPct', 'Base Atk. Power', '%'],
-		['attackPowerPct', 'Atk. Power', '%'], ['flatAttack', 'Flat Atk. Power', 'flat'], ['supportAttack', 'Fixed support attack', 'flat'],
+		['attackPowerPct', 'Atk. Power', '%'], ['baseAttackFlat', 'Flat Basic Atk. Power', 'flat'], ['flatAttack', 'Flat Atk. Power', 'flat'], ['supportAttack', 'Fixed support attack', 'flat'],
 		['additionalDamage', 'Additional Damage', '%'], ['evolutionDamage', 'Evolution Damage', '%'],
 		['critRate', 'Crit Rate', '%'], ['critDamage', 'Total Crit Damage', '%'], ['critCap', 'Crit cap', '%']
 	] as const;

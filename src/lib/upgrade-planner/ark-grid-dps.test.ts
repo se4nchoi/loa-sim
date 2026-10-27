@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RunSummary } from '$lib/logs/protocol';
 import soulshan from './fixtures/na-soulshan.json';
 import { activeEffects, buffMatches, critProfile, critRatio, orderCoreEffect, snapshotCoresContradicted } from './ark-grid-dps';
-import { ORDER_CORE_EFFECTS } from './order-cores';
+import { ORDER_CORES, ORDER_CORE_EFFECTS } from './order-cores';
 import { initSimState, simCorePoints } from './simulate';
 import type { Loadout } from './types';
 
@@ -26,6 +26,41 @@ const withFootsteps = (grade: 'relic' | 'ancient' = 'relic') => {
 };
 
 describe('order core effects', () => {
+	// Reuse the fixture's 17-point slot/gems to isolate a core's effects, independent of its class's stat setup.
+	const coreState = (name: string, grade: 'relic' | 'ancient' = 'relic') => {
+		const id = Number(Object.entries(ORDER_CORES).find(([id, c]) => c.name === name && id.endsWith('5'))![0]);
+		const state = withFootsteps(grade);
+		state.arkGrid[sun].as = id;
+		return state;
+	};
+	it.each([
+		['Power Drive', 16640, 1.66 / 1.6],
+		['SMG Agent', 35130, 1.5 / 1.45],
+		['Eternal Blood', 27990, 1.57 / 1.48],
+		['Art Master', 25090, 1.2 / 1.16],
+		['Dimensional Annihilation', 2050932, 1.128 / 1.08]
+	])('values the same-core %s grade upgrade at its stated assumption', (name, target, expected) => {
+		const r = run([skill(target, 1000), skill(99999, 500)], {});
+		const e = orderCoreEffect(loadout, coreState(name), coreState(name, 'ancient'), r);
+		expect(e.factor(r.skills[0])).toBeCloseTo(expected, 9);
+		expect(e.factor(r.skills[1])).toBe(1);
+		expect(e.unvalued).toEqual([]); // Unchanged logged buff buckets cancel, even on an older import.
+	});
+	it('values a newly unlocked stacking line only when its point threshold is reached', () => {
+		const after = coreState('Power Drive');
+		const before = structuredClone(after);
+		before.arkGrid[sun].gems[0].corePoints -= 3;
+		const slot = after.arkGrid[sun].id;
+		expect(simCorePoints(loadout, before, anchor, slot)).toBe(14);
+		expect(simCorePoints(loadout, after, anchor, slot)).toBe(17);
+		const r = run([skill(16640, 1000)], {});
+		expect(orderCoreEffect(loadout, before, after, r).factor(r.skills[0])).toBeCloseTo(1.6, 9);
+	});
+	it('the max-stack cap is applied once and upgraded feature levels replace the lower line', () => {
+		const effects = [...activeEffects(673001416, 17).effects.values()].flat().filter(e => e.skills?.includes(27990));
+		expect(effects).toHaveLength(1);
+		expect(effects[0]).toMatchObject({pct: .57, assumed: 'max-stacks', stacks: 6});
+	});
 	it('reads Footsteps of the Dead by points, the ancient Destiny buff replacing the relic one', () => {
 		const relic = activeEffects(FOOTSTEPS_RELIC, 20), ancient = activeEffects(FOOTSTEPS_ANCIENT, 20);
 		expect(relic.effects.get('#')!.reduce((s, e) => s + (e.pct ?? 0), 0)).toBeCloseTo(0.03 + 3 * 0.006);

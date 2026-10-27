@@ -299,8 +299,10 @@ async function runSummaries(player: string, ids: number[]) {
 		// Ark Grid, identity and the player's own class/Ark Passive buffs ("Destiny: Footsteps of the Dead", "Deathlord Mode",
 		// "Brawl King Stance"): the meter values Order core effects on the damage dealt under them.
 		let keptBuffs: Map<number, string> | undefined;
+		let statBuffSources: Record<number, number> | undefined;
 		if (hasBuffs) try {
-			const buffs = await decodeSkills((await query(`SELECT buffs FROM encounter WHERE id = ?`, [row.id]))[0]?.buffs) as Record<string, { buffCategory?: string; target?: string; source?: { name?: string } }>;
+			const buffs = await decodeSkills((await query(`SELECT buffs FROM encounter WHERE id = ?`, [row.id]))[0]?.buffs) as Record<string, { buffCategory?: string; target?: string; source?: { name?: string; skill?: {id?: number} } }>;
+			statBuffSources = Object.fromEntries(Object.entries(buffs).flatMap(([id, buff]) => Number.isSafeInteger(buff?.source?.skill?.id) ? [[Number(id), buff.source!.skill!.id!]] : []));
 			// The player's own states too ("Brawl King Stance", "Level 3 Hype"), not party buffs.
 			const kept = (b: { buffCategory?: string; target?: string }) => b?.buffCategory === 'arkgrid' || b?.buffCategory === 'identity' ||
 				((b?.buffCategory === 'classskill' || b?.buffCategory === 'arkpassive') && b.target !== 'PARTY');
@@ -354,7 +356,7 @@ async function runSummaries(player: string, ids: number[]) {
 		const run = runSummary({ ...row, player }, {
 			skills: await decodeSkills(entity.skills) as Record<string, LoggedRunSkill>,
 			combatPower: entity.combat_power, itemLevel: entity.gear_score, spec: entity.spec, engravings: entity.engravings,
-			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash, keptBuffs, bossHp, partyDamage, dead, upstreamId, support
+			arkPassiveData: entity.ark_passive_data, loadoutHash: entity.loadout_hash, keptBuffs, bossHp, partyDamage, dead, upstreamId, support, statBuffSources
 		}, misc, names);
 		if (run) runs.push(run);
 	}

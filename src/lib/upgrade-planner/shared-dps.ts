@@ -31,6 +31,7 @@ function skill(s: unknown): s is RunSkill {
 	const optional = (k: string) => s[k] === undefined || finite(s[k]);
 	return finite(s.id) && finite(s.damage) && finite(s.critDamage) && finite(s.hits) && finite(s.crits) && finite(s.casts) &&
 		['timeAvailable', 'damageGem', 'cooldownGem', 'front', 'back'].every(optional) &&
+		(s.gearAttackPowerPct === undefined || finite(s.gearAttackPowerPct) && s.gearAttackPowerPct >= 0 && s.gearAttackPowerPct <= 1) &&
 		(s.hyper === undefined || typeof s.hyper === 'boolean') && (s.buffs === undefined || idMap(s.buffs, finite));
 }
 
@@ -47,6 +48,8 @@ function run(r: unknown): r is RunSummary {
 		(r.loadoutHash === undefined || text(r.loadoutHash, 80)) && (r.buffNames === undefined || idMap(r.buffNames, (v) => text(v))) &&
 		(r.bossHp === undefined || pair(r.bossHp, 'left', 'max')) && (r.dead === undefined || pair(r.dead, 'count', 'of')) &&
 		(r.partyDamage === undefined || finite(r.partyDamage)) &&
+		(r.gearAdditionalDamage === undefined || finite(r.gearAdditionalDamage) && r.gearAdditionalDamage >= 0 && r.gearAdditionalDamage <= 1000) &&
+		(r.evolutionDamageValue === undefined || finite(r.evolutionDamageValue) && r.evolutionDamageValue > 0 && r.evolutionDamageValue <= 1) &&
 		(r.arkGridOrder === undefined || (record(r.arkGridOrder) && Object.values(r.arkGridOrder).every(finite))) &&
 		(r.arkPassives === undefined || (record(r.arkPassives) && Object.values(r.arkPassives).every((list) => Array.isArray(list) && list.length <= 100 && list.every((p) => pair(p, 'id', 'lv')))));
 }
@@ -63,7 +66,7 @@ const idMapLike = (x: unknown) => record(x) && numbers(x, 3);
  */
 export function shareableRun(run: RunSummary): RunSummary {
 	const { partyDamage: _party, dead: _dead, loadoutHash: _hash, upstreamId: _log, support: _support, ...rest } = run;
-	return { ...rest, id: 0, start: Math.floor(run.start / 86_400_000) * 86_400_000 + 43_200_000, meterVersion: null };
+	return { ...rest, skills: rest.skills.map(({statWindows: _windows, ...skill}) => skill), id: 0, start: Math.floor(run.start / 86_400_000) * 86_400_000 + 43_200_000, meterVersion: null };
 }
 
 /**

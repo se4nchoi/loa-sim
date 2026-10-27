@@ -1,4 +1,5 @@
 // Messages between the page and the LOA Logs worker.
+import type { CombatStatWindow } from './combat-stat-windows';
 
 export interface EncounterRow {
 	id: number;
@@ -110,6 +111,10 @@ export interface RunSkill {
 	/** Damage dealt by frontal and back attacks; unknown on old imports. */
 	front?: number;
 	back?: number;
+	/** Complete hit-trace intersections of stat buffs, compacted during import. Unknown on older imports. */
+	statWindows?: CombatStatWindow[];
+	/** Fractional damage per +1 percentage point, independently reconstructed from gear and stat windows. */
+	gearAttackPowerPct?: number;
 }
 
 /**
@@ -163,6 +168,10 @@ export interface RunSummary extends EncounterRow {
 	skills: RunSkill[];
 	/** The meter's per-stat values for this run; null in low performance mode and on old logs. */
 	statValues: StatValues | null;
+	/** Baseline Additional Damage reconstructed from a matching snapshot in DPS mode; carried in share links. */
+	gearAdditionalDamage?: number;
+	/** Percent gain per +1 pp Evolution damage recovered from this run's passive-efficiency record. */
+	evolutionDamageValue?: number;
 	/** Meter recorded Blunt Thorn converting crit over the cap into evolution damage. */
 	critConversion: boolean;
 	meterVersion: string | null;

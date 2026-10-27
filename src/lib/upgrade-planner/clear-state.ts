@@ -9,6 +9,7 @@ import { orbChoices, orbName, orbOfRun, orbSeason } from './paradise';
 import { coreVariant, GEM_EFFECT_TYPE, initSimState, simulate, type SimCore, type SimState } from './simulate';
 import { decodeCore } from './tables';
 import { STONE_LEVEL_NODES } from './stones';
+import { PartType } from './cp';
 import type { Loadout } from './types';
 
 export interface ClearState {
@@ -27,7 +28,9 @@ export function clearState(loadout: Loadout, snap: ClearSnapshot, runSkills?: { 
 	const notes: string[] = [];
 	const base = initSimState(loadout);
 	// Item- and core-based parts: read straight from a loadout carrying the snapshot's items, cores and karma.
-	const items = initSimState({ ...loadout, items: snap.items ?? loadout.items, arkGridCores: snap.arkGridCores ?? loadout.arkGridCores, karma: snap.karma ?? loadout.karma });
+	const items = initSimState({ ...loadout, items: snap.items ?? loadout.items, arkGridCores: snap.arkGridCores ?? loadout.arkGridCores, karma: snap.karma ?? loadout.karma,
+		// A current CP quality part must not override the historical weapon's own quality stat.
+		battlePoint: { ...loadout.battlePoint, parts: loadout.battlePoint.parts.filter(p => p.type !== PartType.WeaponQuality) } });
 	const state: SimState = {
 		...base,
 		gear: items.gear, quality: items.quality, accessories: items.accessories, accessoryStats: items.accessoryStats,

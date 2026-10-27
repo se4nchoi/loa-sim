@@ -36,7 +36,7 @@ export function gridStats(loadout: Loadout, state: SimState): GridStats {
 		const info = decodeCore(id), slot = decodeCore(core.id);
 		if (!info || !slot || info.attr !== 'chaos') continue;
 		const points = simCorePoints(loadout, state, base, core.id);
-		for (const line of CHAOS_CORE_LINES[swappedCoreId(id, core.grade ?? slot.grade)] ?? []) {
+		for (const line of CHAOS_CORE_LINES[swappedCoreId(id, core.grade ?? slot.grade, core.variant)] ?? []) {
 			if (points < line.points) continue;
 			out.damage += line.damage ?? 0; out.critHit += line.critHit ?? 0; out.boss += line.boss ?? 0; out.addDmg += line.addDmg ?? 0;
 			out.critRate += line.critRate ?? 0; out.critDamage += line.critDamage ?? 0; out.atkPct += line.atkPct ?? 0; out.wpPct += line.wpPct ?? 0;

@@ -2,13 +2,12 @@
 // didn't compute stat values for (LOA Logs skips them in low performance mode).
 //
 // Damage ∝ attack × (1 + additional damage) × (1 + evolution damage) × crit × (everything else, fixed), with
-//   attack = (√(main stat × Weapon Power / 6) × (1 + base attack %) + flat attack) × (1 + Atk. Power %),
-// of which only the player's own share α grows (support buffs add attack that doesn't).
+//   attack = ((√(main stat × Weapon Power / 6) + Basic flat attack) × (1 + base attack %) + flat + support attack) × (1 + Atk. Power %).
+// The fitted root share α dilutes root-stat gains; Atk. Power % multiplies the support addend too.
 //
-// The bucket totals belong to the gear, not the fight: across a build's runs the meter's values give the same
-// additional-damage total (e.g. 48.8% over two weeks of different raids), and near-identical evolution, attack,
-// Weapon Power, main stat and crit damage values. So they're read back from the build's recent runs that have the
-// meter's values and applied to every gate. +1% of a bucket at total T is worth 100 / (100 + T) %.
+// Read effective bucket totals from measured marginals. Dynamic buffs, support and crit conversion can vary by run;
+// borrowing another run remains an approximation. Independently reconstructed buckets are projected before this fallback.
+// +1 pp of a fixed bucket at total T is worth 100 / (100 + T) %.
 // Crit rate is the exception: what +1% is worth swings by fight (crit buffs, the cap), from 0.04% to 0.67% for one
 // build, and can't be recovered from hits (a capped player still shows some non-crits). It needs the gate's own values.
 
@@ -16,7 +15,7 @@ import type { RunSummary, StatValues } from '$lib/logs/protocol';
 import { combineStatValues } from './dps-gates';
 import type { StatDeltas } from './dps-stats';
 
-/** In-fight bucket totals in percent; ownAttack is α, the player's own share of their attack (0–1). */
+/** Effective in-fight totals; ownAttack is the root term's damage-weighted share (0–1), fitted from Weapon Power. */
 export interface Buckets {
 	additionalDamage: number;
 	evoDamage: number;
@@ -35,8 +34,8 @@ export function bucketsFrom(values: StatValues, weaponPower: number): Buckets | 
 	const sqrtGain = Math.sqrt(1 + 1000 / weaponPower) - 1;
 	const ownAttack = weaponPower > 0 && values.weaponPower > 0 ? Math.min(1, values.weaponPower / 100 / sqrtGain) : null;
 	if (additionalDamage === null || evoDamage === null || ownAttack === null || !(values.attackPowerPct > 0) || !(values.critDamage > 0)) return null;
-	// +1% Atk. Power is worth α × 100 / (100 + A) percent.
-	return { additionalDamage, evoDamage, attackPowerPct: (ownAttack / values.attackPowerPct - 1) * 100, ownAttack, critDamage: values.critDamage };
+	// Atk. Power % multiplies the support addend too; only the root-stat gains are diluted by α.
+	return { additionalDamage, evoDamage, attackPowerPct: totalFor(values.attackPowerPct)!, ownAttack, critDamage: values.critDamage };
 }
 
 /** The build's runs with the meter's values: the newest one's, plus any within 1% CP of it (same gear). */
@@ -55,14 +54,15 @@ export interface ModelInput {
 	weaponPower: number;
 	/** Base attack % already on the character (T4 gems, bracer). */
 	baseAttackPct: number;
+	baseAttackFlat?: number;
 }
 
-export function modelInput(allRuns: RunSummary[], gateRuns: RunSummary[], mainStat: number, weaponPower: number, baseAttackPct: number) {
+export function modelInput(allRuns: RunSummary[], gateRuns: RunSummary[], mainStat: number, weaponPower: number, baseAttackPct: number, baseAttackFlat = 0) {
 	const build = buildRuns(allRuns);
 	const values = combineStatValues(build.map(r => r.statValues));
 	const gate = combineStatValues(gateRuns.map(r => r.statValues));
 	return {
-		input: { buckets: values ? bucketsFrom(values, weaponPower) : null, critRate: gate?.statSamples?.critRate ? gate.critRate : null, mainStat, weaponPower, baseAttackPct } satisfies ModelInput,
+		input: { buckets: values ? bucketsFrom(values, weaponPower) : null, critRate: gate?.statSamples?.critRate ? gate.critRate : null, mainStat, weaponPower, baseAttackPct, baseAttackFlat } satisfies ModelInput,
 		build,
 		gateValued: gateRuns.filter(r => r.statValues).length
 	};
@@ -90,13 +90,17 @@ export function modelGain(d: StatDeltas, input: ModelInput): ModelGain {
 	const b = input.buckets;
 	const parts: GainPart[] = [];
 	const missing: string[] = [];
-	if (!b && (d.mainStat || d.weaponPower || d.attackPower || d.attackPowerPct || d.baseAttackPct || d.additionalDamage || d.evolutionDamage || d.critDamage))
+	if (!b && (d.mainStat || d.weaponPower || d.attackPower || d.baseAttackFlat || d.attackPowerPct || d.baseAttackPct || d.additionalDamage || d.evolutionDamage || d.critDamage))
 		missing.push('No recent run with the meter\'s stat values, so your gear\'s damage buckets are unknown.');
-	if (b && (d.mainStat || d.weaponPower || d.attackPower || d.attackPowerPct || d.baseAttackPct)) {
+	if (b && (d.mainStat || d.weaponPower || d.attackPower || d.baseAttackFlat || d.attackPowerPct || d.baseAttackPct)) {
 		const before = Math.sqrt(input.mainStat * input.weaponPower / 6) * (1 + input.baseAttackPct / 100);
-		const after = Math.sqrt((input.mainStat + d.mainStat) * (input.weaponPower + d.weaponPower) / 6) * (1 + (input.baseAttackPct + (d.baseAttackPct ?? 0)) / 100) + d.attackPower;
-		const attackPct = (after / before * (1 + (b.attackPowerPct + d.attackPowerPct) / 100) / (1 + b.attackPowerPct / 100) - 1) * 100;
-		parts.push({ key: 'attack', change: attackPct, gainPct: b.ownAttack * attackPct });
+		const nextBase = 1 + (input.baseAttackPct + (d.baseAttackPct ?? 0)) / 100;
+		const after = Math.sqrt((input.mainStat + d.mainStat) * (input.weaponPower + d.weaponPower) / 6) * nextBase
+			+ (d.baseAttackFlat ?? 0) * nextBase + (input.baseAttackFlat ?? 0) * (d.baseAttackPct ?? 0) / 100 + d.attackPower;
+		const rootGain = b.ownAttack * (after / before - 1);
+		const rateGain = d.attackPowerPct / (100 + b.attackPowerPct);
+		const attackPct = ((1 + rootGain) * (1 + rateGain) - 1) * 100;
+		parts.push({ key: 'attack', change: attackPct, gainPct: attackPct });
 	}
 	if (b && d.additionalDamage) parts.push({ key: 'additionalDamage', change: d.additionalDamage, gainPct: d.additionalDamage / (100 + b.additionalDamage) * 100 });
 	if (b && d.evolutionDamage) parts.push({ key: 'evoDamage', change: d.evolutionDamage, gainPct: d.evolutionDamage / (100 + b.evoDamage) * 100 });

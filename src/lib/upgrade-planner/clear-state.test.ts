@@ -11,6 +11,13 @@ const asSnapshot = (l: Loadout): ClearSnapshot => structuredClone({ classId: l.c
 const cp = (s: ReturnType<typeof initSimState>) => simulate(loadout, s).cp;
 
 describe('a clear snapshot as a Simulator state', () => {
+	it('reads historical weapon quality instead of carrying today’s CP quality part into the snapshot', () => {
+		const snap = asSnapshot(loadout);
+		const weapon = snap.items!.find(i => i.slot === 'weapon')!;
+		weapon.data.stats!.find(s => s.type === 2 && s.index === 50 && s.base)!.value = 1500; // Quality 50.
+		expect(initSimState(loadout).quality.weapon).toBe(100);
+		expect(clearState(loadout, snap).state.quality.weapon).toBe(50);
+	});
 	it('the loadout\'s own setup scores the loadout\'s CP', () => {
 		const { state } = clearState(loadout, asSnapshot(loadout));
 		const base = initSimState(loadout);

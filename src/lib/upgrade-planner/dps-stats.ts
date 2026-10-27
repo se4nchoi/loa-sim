@@ -23,6 +23,8 @@ export interface StatDeltas {
 	attackPowerPct: number;
 	/** Flat Atk. Power. */
 	attackPower: number;
+	/** Flat Basic Atk. Power, before the base-attack multiplier (vambraces stat 114). */
+	baseAttackFlat?: number;
 	/** T4 gem base-attack multiplier; separate from accessory Atk. Power %. */
 	baseAttackPct?: number;
 	/** Evolution-damage percentage points, used by the explicit per-hit model. */
@@ -59,6 +61,16 @@ function lineTotals(state: SimState): Partial<Record<keyof StatDeltas, number>> 
 	return out;
 }
 
+/** Equipment's absolute damage-stat lines, before passives, engravings and the Ark Grid. */
+export function equipmentDamageStats(state: SimState): Partial<Record<keyof StatDeltas, number>> {
+	const out = lineTotals(state);
+	for (const [key, value] of Object.entries(braceletTotals(state, true).stats) as [keyof StatDeltas, number][])
+		out[key] = (out[key] ?? 0) + value;
+	if (state.quality.weapon !== undefined) out.additionalDamage = (out.additionalDamage ?? 0) + qualityStat('weapon', state.quality.weapon) / 100;
+	out.baseAttackFlat = bracerStats(state.bracer).attackFlat;
+	return out;
+}
+
 const changed = (a: unknown, b: unknown) => JSON.stringify(a) !== JSON.stringify(b);
 
 // These T4 families have one variable stat and an identical secondary bonus at every roll.
@@ -73,6 +85,8 @@ export interface BraceletPart {
 	stats: Partial<Record<keyof StatDeltas, number>>;
 	/** Outgoing Damage, On Crit Hit damage, back / frontal attack damage, non-directional skill damage. */
 	outgoing: number; critHit: number; back: number; front: number; nonDirectional: number;
+	/** Species damage, additive with card-book bonuses; the meter resolves it per gate. */
+	demon: number;
 	unvalued: string[];
 }
 const EFFECT_TEXT = new Map(BRACELET_EFFECTS.filter((e) => e.t4).map((e) => [e.key, e.text]));
@@ -81,12 +95,12 @@ const IGNORED_SENTENCE = /^(?:Weapon Power \+[\d,]+\.$|\(Max\. \d+ stacks\)|This
 /**
  * A current (T4) bracelet effect sentence by sentence: Crit Rate / Crit Damage / Additional Damage as stats, stacking
  * "On hit, Weapon Power" at full stacks, Outgoing / Crit Hit / back / frontal / non-directional damage as damage terms;
- * anything conditional (to Staggered foes, vs. Demons, cooldown, target debuffs, speed) listed. null for older effects.
+ * Demon / Archdemon damage as a separate term; other conditions listed. null for older effects.
  */
 export function braceletPart(key: string): BraceletPart | null {
 	const text = EFFECT_TEXT.get(key);
 	if (!text) return null;
-	const out: BraceletPart = { stats: {}, outgoing: 0, critHit: 0, back: 0, front: 0, nonDirectional: 0, unvalued: [] };
+	const out: BraceletPart = { stats: {}, outgoing: 0, critHit: 0, back: 0, front: 0, nonDirectional: 0, demon: 0, unvalued: [] };
 	const stacks = Number(text.match(/\(Max\. (\d+) stacks\)/)?.[1] ?? 1);
 	const num = (v: string) => Number(v.replace(/,/g, ''));
 	// Sentences end at a period, but not "Bonus vs. Demon" or "Ally Atk. Power".
@@ -101,6 +115,7 @@ export function braceletPart(key: string): BraceletPart | null {
 		else if ((m = sentence.match(/^Back Attack Damage \+([\d.]+)%\.$/))) out.back += num(m[1]);
 		else if ((m = sentence.match(/^Frontal Attack Damage \+([\d.]+)%\.$/))) out.front += num(m[1]);
 		else if ((m = sentence.match(/^Non-directional Skill Damage \+([\d.]+)%\.$/))) out.nonDirectional += num(m[1]);
+		else if ((m = sentence.match(/^Bonus vs\. Demon\/Archdemon \+([\d.]+)%\.$/))) out.demon += num(m[1]);
 		else if ((m = sentence.match(/^On hit, Weapon Power \+([\d,]+), (.+?) for \d+s\.$/))) {
 			out.stats.weaponPower = (out.stats.weaponPower ?? 0) + num(m[1]) * stacks;
 			out.unvalued.push(m[2]);
@@ -111,11 +126,12 @@ export function braceletPart(key: string): BraceletPart | null {
 
 /** The bracelet's effects for the meter: their damage terms summed, and the texts it can't value. */
 export function braceletDamage(s: SimState): Omit<BraceletPart, 'stats'> {
-	const out = { outgoing: 0, critHit: 0, back: 0, front: 0, nonDirectional: 0, unvalued: [] as string[] };
+	const out = { outgoing: 0, critHit: 0, back: 0, front: 0, nonDirectional: 0, demon: 0, unvalued: [] as string[] };
 	for (const key of braceletEffects(s.bracelet)) {
 		const p = braceletPart(key);
 		if (!p) continue;
 		out.outgoing += p.outgoing; out.critHit += p.critHit; out.back += p.back; out.front += p.front; out.nonDirectional += p.nonDirectional;
+		out.demon += p.demon;
 		out.unvalued.push(...p.unvalued);
 	}
 	for (const x of braceletStats(s.bracelet)) if ((x.type ?? 2) === 2 && COMBAT_STATS[x.index]) out.unvalued.push(`${COMBAT_STATS[x.index]} +${x.value}`);
@@ -188,7 +204,8 @@ function rawDeltas(l: Loadout, from: SimState, to: SimState, base: SimState, met
 		critRate: line('critRate'),
 		critDamage: line('critDamage'),
 		attackPowerPct: line('attackPowerPct'),
-		attackPower: line('attackPower') + bracerStats(to.bracer).attackFlat - bracerStats(from.bracer).attackFlat,
+		attackPower: line('attackPower'),
+		...(bracerStats(to.bracer).attackFlat !== bracerStats(from.bracer).attackFlat ? { baseAttackFlat: bracerStats(to.bracer).attackFlat - bracerStats(from.bracer).attackFlat } : {}),
 		...(bracerStats(to.bracer).attackPercent !== bracerStats(from.bracer).attackPercent ? { baseAttackPct: bracerStats(to.bracer).attackPercent - bracerStats(from.bracer).attackPercent } : {})
 	};
 }
@@ -235,11 +252,12 @@ export function statDeltasAtLeast(l: Loadout, from: SimState, to: SimState, base
 }
 
 /** DPS change in percent: each stat delta times its value (per point, or per 1,000 for flat stats). */
-export function dpsGainPct(d: StatDeltas, v: StatValues): number {
+export function dpsGainPct(d: StatDeltas, v: StatValues, baseAttackPct = 0): number {
 	return (
 		(d.mainStat / 1000) * v.mainStat +
 		(d.weaponPower / 1000) * v.weaponPower +
 		(d.attackPower / 1000) * v.attackPower +
+		((d.baseAttackFlat ?? 0) * (1 + baseAttackPct / 100) / 1000) * v.attackPower +
 		d.additionalDamage * v.additionalDamage +
 		d.critRate * v.critRate +
 		d.critDamage * v.critDamage +

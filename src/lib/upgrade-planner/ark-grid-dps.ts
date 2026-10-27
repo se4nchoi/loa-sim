@@ -6,6 +6,7 @@
 //     Dead: Stygian Skill Damage +54% for 2 casts"): only the share of the skill's damage LOA Logs recorded under that
 //     buff changes, by (1 + new) / (1 + old). A state or buff this clear never had can't be placed in it, so it isn't
 //     valued (said so); neither is a state the logs don't record ("With Possession").
+//   - explicitly assumed stack / timer lines: full stacks / uptime on their named skills; no reconstructed windows.
 // Anything else a core does (cooldowns, casting speed, meters) isn't valued yet and is named.
 import type { RunSummary } from '$lib/logs/protocol';
 import { ORDER_CORE_EFFECTS, ORDER_CORES, TRIPOD_TIERS, type OrderCoreEffect } from './order-cores';
@@ -33,7 +34,7 @@ export function orderCoreOf(core: SimCore): number | null {
  * Where an effect applies: always (''), under a named buff or state ('state:Destiny: Footsteps of the Dead',
  * 'state:Deathlord Mode'), or under an unnamed Destiny buff by its feature id ('buff:34622').
  */
-const whereOf = (e: OrderCoreEffect) => (e.buff ? `state:${e.buff}` : e.feature ? `buff:${Math.floor(e.feature / 100)}` : e.when ? `state:${e.when}` : '');
+const whereOf = (e: OrderCoreEffect) => (e.assumed ? '' : e.buff ? `state:${e.buff}` : e.feature ? `buff:${Math.floor(e.feature / 100)}` : e.when ? `state:${e.when}` : '');
 /** And on which part of a skill's damage: all of it (''), its crits, or its frontal / back attacks. */
 const keyOf = (e: OrderCoreEffect) => `${whereOf(e)}#${e.crit ? 'crit' : e.position ?? ''}`;
 const splitKey = (key: string) => { const i = key.lastIndexOf('#'); return { where: key.slice(0, i), portion: key.slice(i + 1) }; };
@@ -179,11 +180,13 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 		const name = where.match(/^state:([A-Z][\w' ]+?) Mode$/)?.[1];
 		return name && Object.values(SKILL_GROUPS[cls] ?? {}).some((g) => g.includes(name)) ? name : null;
 	};
-	const changedKeys = (slot: (typeof slots)[number]) => [...new Set([...slot.before.effects.keys(), ...slot.after.effects.keys()])];
+	// An unchanged buff bucket cancels. It doesn't need a recorded window just to upgrade another line on the core.
+	const changedKeys = new Map(slots.map(slot => [slot, [...new Set([...slot.before.effects.keys(), ...slot.after.effects.keys()])]
+		.filter(key => JSON.stringify(slot.before.effects.get(key)) !== JSON.stringify(slot.after.effects.get(key)))]));
 	for (const slot of slots) {
 		const all = [...slot.before.effects.values(), ...slot.after.effects.values()].flat();
 		if (!SKILL_GROUPS[slot.cls] && all.some((e) => e.groups)) missing.add(`skill groups for ${slot.name}'s class`);
-		for (const key of changedKeys(slot)) {
+		for (const key of changedKeys.get(slot)!) {
 			const { where, portion } = splitKey(key);
 			if ((portion === 'front' || portion === 'back') && !run.skills.some((s) => s.front !== undefined)) reimport = true;
 			if (!where) continue;
@@ -198,7 +201,7 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 		let m = 1;
 		for (const slot of slots) {
 			const groups = SKILL_GROUPS[slot.cls]?.[s.id];
-			for (const key of changedKeys(slot)) {
+			for (const key of changedKeys.get(slot)!) {
 				const [a, b] = [slot.after.effects.get(key), slot.before.effects.get(key)];
 				let ratio = bonus(a, s.id, groups, took) / bonus(b, s.id, groups, took);
 				const addRate = critAdd(a, 'critRate', s.id, groups, took) - critAdd(b, 'critRate', s.id, groups, took);

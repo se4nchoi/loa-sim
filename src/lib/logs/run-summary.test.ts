@@ -5,6 +5,17 @@ const row = { id: 7, start: 1, boss: 'Kazeros', difficulty: 'Hard', cleared: tru
 const pair = (a: number, b: number) => ({ damageDoneByStat: a, damageDoneByStatPlusValue: b });
 
 describe('run summary', () => {
+	it('keeps compact buff intersections and recovers Evolution without ordinary stat measurements', () => {
+		const r = runSummary(row, {skills: {
+			a: {id: 1, totalDamage: 1000, critDamage: 1000, skillCastLog: [{hits: [{damage: 1000, crit: true, buffedBy: [32380]}]}]},
+			b: {id: 2, totalDamage: 500, isHyperAwakening: true}, c: {id: 171000907, totalDamage: 100}
+		}, arkPassiveData: {evolution: [{id: 1040100, lv: 2}]}}, {contributionSplits: [{name: 'Shanzkii', damageDoneWithoutUltimateAwakening: 1000,
+			bluntThornEfficiency: pair(100, 300)}]}, {})!;
+		expect(r.statValues).toBeNull();
+		expect(r.evolutionDamageValue).toBe(.5);
+		expect(r.skills[0].statWindows).toEqual([{damage: 1000, critDamage: 1000, attackPowerPct: 30, critDamagePct: 0, states: []}]);
+		expect(r.skills[0]).not.toHaveProperty('skillCastLog');
+	});
 	it('keeps skill totals, gem levels and the meter values', () => {
 		const names: Record<number, [string, string]> = {};
 		const misc = { version: '1.51.2', contributionSplits: [{ name: 'shanzkii', criticalDamageRate1percentDamage: pair(100, 100.4), criticalHitRate1percentDamage: pair(100, 100.1), bluntThornEfficiency: { damageDoneByStat: 5 } }] };

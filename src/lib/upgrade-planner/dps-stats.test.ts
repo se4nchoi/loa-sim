@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import soulshan from './fixtures/na-soulshan.json';
-import { dpsGainPct, statDeltas, statDeltasAtLeast } from './dps-stats';
+import { braceletPart, dpsGainPct, statDeltas, statDeltasAtLeast } from './dps-stats';
 import { initSimState, simulate, type DpsLine } from './simulate';
 import type { StatValues } from '$lib/logs/protocol';
 import type { Loadout } from './types';
@@ -21,6 +21,23 @@ const values: StatValues = {
 };
 
 describe('DPS from the meter stat values', () => {
+	it('keeps vambrace Basic attack separate from accessory flat attack', () => {
+		const base = initSimState(loadout); base.bracer = {grade: 'epic', honing: 4};
+		const to = structuredClone(base); to.bracer!.honing = 5;
+		const d = statDeltas(loadout, base, to, base)!;
+		expect(d.baseAttackFlat).toBe(850);
+		expect(d.attackPower).toBe(0);
+		expect(dpsGainPct(d, values, 20)).toBeCloseTo(850 * 1.2 / 1000 * values.attackPower, 10);
+	});
+	it('separates species damage from Additional Damage and keeps stagger damage unvalued', () => {
+		const demon = braceletPart('3:11041')!;
+		expect(demon.stats.additionalDamage).toBe(3.5);
+		expect(demon.demon).toBe(2.5);
+		expect(demon.unvalued).toEqual([]);
+		const stagger = braceletPart('4:605100031')!;
+		expect(stagger.outgoing).toBe(3);
+		expect(stagger.unvalued).toEqual(['Outgoing Damage +5% to Staggered foes']);
+	});
 	it('weapon honing is Weapon Power only', () => {
 		const base = initSimState(loadout);
 		const to = structuredClone(base);

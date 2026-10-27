@@ -138,6 +138,23 @@ describe('shared DPS builds', () => {
 		expect(opened!.plan.dps!.enrage).toBe(true);
 	});
 
+	it('preserves reconstructed gear totals and rejects invalid totals in a shared DPS run', () => {
+		expect(sharedPlan(dpsPlan({...good(), run: {...run, gearAdditionalDamage: 48.88}})).dps!.run.gearAdditionalDamage).toBe(48.88);
+		for (const gearAdditionalDamage of [-1, 1001, 'unknown'])
+			expect(() => sharedPlan(dpsPlan({...good(), run: {...run, gearAdditionalDamage}}))).toThrow();
+	});
+	it('shares derived marginals without buff windows and bounds untrusted coefficients', () => {
+		const skill = {...run.skills[0], gearAttackPowerPct: .0088, statWindows: [{damage: 6e11, critDamage: 3e11, states: [460501]}]};
+		const shared = sharedPlan(dpsPlan({...good(), run: {...run, evolutionDamageValue: .45, skills: [skill]}})).dps!.run;
+		expect(shared.evolutionDamageValue).toBe(.45);
+		expect(shared.skills[0].gearAttackPowerPct).toBe(.0088);
+		expect(shared.skills[0].statWindows).toBeUndefined();
+		for (const value of [-1, 2, 'unknown']) {
+			expect(() => sharedPlan(dpsPlan({...good(), run: {...run, skills: [{...skill, gearAttackPowerPct: value}]}}))).toThrow();
+			expect(() => sharedPlan(dpsPlan({...good(), run: {...run, evolutionDamageValue: value}}))).toThrow();
+		}
+	});
+
 	it('leaves out the party, the log ids and the time of day', () => {
 		const shared = sharedPlan(dpsPlan({...good(), run: {...run, start: Date.UTC(2026, 9, 24, 3, 13)}})).dps!.run;
 		for (const key of ['partyDamage', 'dead', 'upstreamId', 'loadoutHash'] as const) expect(shared[key]).toBeUndefined();

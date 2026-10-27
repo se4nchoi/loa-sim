@@ -21,6 +21,73 @@ const run = (id: number, extra: Partial<RunSummary> = {}): RunSummary => ({ id, 
 	statValues: meter, critConversion: false, meterVersion: null, ...extra }) as RunSummary;
 
 describe('DPS meter', () => {
+	it('uses each skill’s reconstructed Atk. Power marginal and leaves Hyper/procs fixed', () => {
+		const r = run(1, {statValues: null, gearAdditionalDamage: 50, skills: [
+			{id: gemSkill, damage: 600, critDamage: 0, hits: 1, crits: 0, casts: 1, gearAttackPowerPct: .009},
+			{id: 99999, damage: 200, critDamage: 0, hits: 1, crits: 0, casts: 1, gearAttackPowerPct: .007},
+			{id: 46640, damage: 100, critDamage: 0, hits: 1, crits: 0, casts: 1, hyper: true},
+			{id: 171000907, damage: 100, critDamage: 0, hits: 1, crits: 0, casts: 1}
+		]});
+		const state = structuredClone(base);
+		state.bracelet!.lines.push({kind: 'stat', index: 49, value: 100}, {kind: 'stat', index: 50, value: 100});
+		const m = dpsMeter(loadout, base, state, [], [r])!;
+		expect(m.after).toBeCloseTo((600 * 1.009 + 200 * 1.007) * 151 / 150 + 200, 9);
+		expect(m.statPct).toBeCloseTo((m.after / r.damage - 1) * 100, 9);
+		expect(meterGain(loadout, base, base, state, [], [r]).atLeast).toBe(false);
+		const incomplete = {...r, skills: r.skills.map(s => ({...s, gearAttackPowerPct: undefined}))};
+		expect(dpsMeter(loadout, base, state, [], [incomplete])!.statPct).toBeNull();
+		const mixed = structuredClone(state); mixed.gear.weapon!.honing++;
+		expect(dpsMeter(loadout, base, mixed, [], [r])!.statPct).toBeNull();
+	});
+	it('does not override own measured attack values or extrapolate outside the skill list', () => {
+		const state = structuredClone(base); state.bracelet!.lines.push({kind: 'stat', index: 49, value: 100});
+		const r = run(1), augmented = {...r, skills: r.skills.map(s => ({...s, gearAttackPowerPct: .5}))};
+		expect(dpsMeter(loadout, base, state, [r], [augmented])!.after).toBe(dpsMeter(loadout, base, state, [r], [r])!.after);
+		expect(dpsMeter(loadout, base, state, [], [{...augmented, statValues: null, damage: 1100}])!.statPct).toBeNull();
+	});
+	it('uses reconstructed Additional Damage when this run has no stat values, without borrowing that bucket', () => {
+		const r = run(1, {statValues: null, gearAdditionalDamage: 50});
+		const state = structuredClone(base);
+		state.bracelet!.lines.push({kind: 'stat', index: 50, value: 100});
+		const m = dpsMeter(loadout, base, state, [], [r])!;
+		expect(m.after / m.before).toBeCloseTo(151 / 150, 9);
+		expect(m.statPct).toBeCloseTo(100 / 150, 9);
+		expect(m.notes).toEqual(['Additional Damage: gear estimate.']);
+		expect(dpsMeter(loadout, base, state, [run(2)], [r])!.after).toBeCloseTo(m.after, 9);
+		const ranked = meterGain(loadout, base, base, state, [], [r]);
+		expect(ranked.gainPct).toBeCloseTo(100 / 150, 9);
+		expect(ranked.atLeast).toBe(false);
+	});
+	it('keeps own measured values ahead of reconstruction and does not invent missing attack context', () => {
+		const state = structuredClone(base); state.bracelet!.lines.push({kind: 'stat', index: 50, value: 100});
+		const measured = run(1), withGear = {...measured, gearAdditionalDamage: 999};
+		expect(dpsMeter(loadout, base, state, [measured], [withGear])!.after).toBe(dpsMeter(loadout, base, state, [measured], [measured])!.after);
+		const missing = run(1, {statValues: null, gearAdditionalDamage: 50});
+		state.gear.weapon!.honing++;
+		const partial = dpsMeter(loadout, base, state, [], [missing])!;
+		expect(partial.statPct).toBeNull();
+		expect(partial.after).toBeGreaterThan(partial.before); // Known Additional Damage still counts.
+		expect(partial.notes.some(n => n.startsWith('Other stat edits'))).toBe(true);
+		expect(meterGain(loadout, base, base, state, [], [missing]).gainPct).toBeNull();
+	});
+	it('uses configured totals ahead of the automatic Additional Damage fallback', () => {
+		const context = {mainStat: 700000, weaponPower: 260000, baseAttackPct: 10, attackPowerPct: 0,
+			flatAttack: 0, supportAttack: 0, additionalDamage: 40, evolutionDamage: 80, critRate: 70, critDamage: 200, critCap: 100};
+		const state = structuredClone(base); state.bracelet!.lines.push({kind: 'stat', index: 50, value: 100});
+		const r = run(1, {statValues: null, gearAdditionalDamage: 999});
+		expect(dpsMeter(loadout, base, state, [], [r], undefined, context)!.after / r.damage).toBeCloseTo(141 / 140, 9);
+	});
+	it('applies reconstructed damage only to ordinary skills, leaving Hyper Awakening and Paradise fixed', () => {
+		const state = structuredClone(base); state.bracelet!.lines.push({kind: 'stat', index: 50, value: 100});
+		const r = run(1, {statValues: null, gearAdditionalDamage: 50, skills: [
+			{id: gemSkill, damage: 800, critDamage: 0, hits: 1, crits: 0, casts: 1},
+			{id: 46640, damage: 100, critDamage: 0, hits: 1, crits: 0, casts: 1, hyper: true},
+			{id: 171000907, damage: 100, critDamage: 0, hits: 1, crits: 0, casts: 1}
+		]});
+		const m = dpsMeter(loadout, base, state, [], [r])!;
+		expect(m.after).toBeCloseTo(800 * 151 / 150 + 200, 9);
+		expect(m.statPct).toBeCloseTo((m.after / m.before - 1) * 100, 9);
+	});
 	it('uses configured totals for a failed pull with no log stat values', () => {
 		const context = {mainStat: 700000, weaponPower: 260000, baseAttackPct: 10, attackPowerPct: 0,
 			flatAttack: 0, supportAttack: 0, additionalDamage: 40, evolutionDamage: 80, critRate: 70, critDamage: 200, critCap: 100};
@@ -169,6 +236,47 @@ describe('meter gain (Next Upgrades in DPS mode)', () => {
 		] });
 		const lines = (s: SimState) => s.bracelet!.lines;
 		const effect = (s: SimState, prefix: string) => lines(s).find((x): x is { kind: 'effect'; key: string } => x.kind === 'effect' && x.key.startsWith(prefix))!;
+		// Remove just the conditional part, preserving the same Additional Damage as a plain stat line.
+		const withoutDemon = () => {
+			const state = structuredClone(base);
+			const line = effect(state, '3:1104');
+			lines(state).splice(lines(state).indexOf(line), 1, { kind: 'stat', index: 50, value: braceletPart(line.key)!.stats.additionalDamage! * 100 });
+			return state;
+		};
+		it('does not flag an inactive Demon bonus on known non-Demon gates', () => {
+			const without = withoutDemon();
+			// Also upgrade a plain damage line: it remains a complete estimate on these gates.
+			const up = structuredClone(base);
+			lines(up).push({ kind: 'stat', index: 50, value: 100 });
+			for (const boss of ['Witch of Agony, Serca', 'Corvus Tul Rak', 'Belgardin, Arbiter of Death']) {
+				const r = run(1, { boss });
+				const unchanged = dpsMeter(loadout, without, base, [r], [r])!;
+				expect(unchanged.after).toBeCloseTo(unchanged.before, 9);
+				expect(unchanged.notInMeter).toEqual([]);
+				const gain = meterGain(loadout, without, without, up, [r], [r]);
+				expect(gain.gainPct).toBeGreaterThan(0);
+				expect(gain.atLeast).toBe(false);
+			}
+		});
+		it('keeps added and removed Demon bonuses uncounted without card-book totals', () => {
+			const without = withoutDemon();
+			for (const boss of ['Phantom Legion Commander Brelshaza', 'Abyss Lord Kazeros']) {
+				const r = run(1, { boss });
+				for (const [from, to] of [[without, base], [base, without]]) {
+					const m = dpsMeter(loadout, from, to, [r], [r])!;
+					expect(m.after).toBeCloseTo(m.before, 9);
+					expect(m.notInMeter).toEqual(['Bracelet: Demon/Archdemon bonus (card-book total unavailable)']);
+					expect(meterGain(loadout, from, from, to, [r], [r]).gainPct).toBeNull();
+				}
+			}
+		});
+		it('does not treat the last boss of a mixed-race gate, or an unknown boss, as the whole run', () => {
+			for (const boss of ['Death Incarnate Kazeros', 'Archdemon Kazeros', 'Abyss Monarch Aegir', 'Unknown']) {
+				const r = run(1, { boss });
+				const m = dpsMeter(loadout, withoutDemon(), base, [r], [r])!;
+				expect(m.notInMeter).toEqual(['Bracelet: Demon/Archdemon bonus (mixed or unknown targets)']);
+			}
+		});
 		it('swaps non-directional damage for back attack damage on the skills each applies to', () => {
 			const up = structuredClone(base);
 			const nd = braceletPart(effect(base, '4:6051001').key)!.nonDirectional;
@@ -276,7 +384,20 @@ describe('clear baseline', () => {
 describe('chaos cores and astrogem options', async () => {
 	const { orderCoreEffect } = await import('./ark-grid-dps');
 	const { gridStats } = await import('./dealer-grid-stats');
+	const { decodeCore } = await import('./tables');
+	const { swappedCoreId } = await import('./support');
 	const r = run(1, { skills: [{ id: gemSkill, damage: 600, critDamage: 300, hits: 1, crits: 1, casts: 1 }, { id: 99999, damage: 400, critDamage: 0, hits: 1, crits: 0, casts: 1 }] });
+	it('reads a historical chaos variant the same way as that core’s explicit item id', () => {
+		const variant = structuredClone(base);
+		const index = variant.arkGrid.findIndex(c => String(c.id).startsWith('6731000'));
+		variant.arkGrid[index].variant = 1;
+		const explicit = structuredClone(variant);
+		const core = explicit.arkGrid[index];
+		core.as = swappedCoreId(core.id, core.grade ?? decodeCore(core.id)!.grade, 1);
+		delete core.variant;
+		expect(gridStats(loadout, variant)).toEqual(gridStats(loadout, explicit));
+		expect(gridStats(loadout, variant)).not.toEqual(gridStats(loadout, base));
+	});
 	it("reads the chaos cores' lines at their points, and the astrogem options", () => {
 		const g = gridStats(loadout, base);
 		expect(g.damage).toBeGreaterThan(0); // Flashy Attack / Absorbing Strike: Damage to foes

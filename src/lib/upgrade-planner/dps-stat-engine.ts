@@ -9,6 +9,7 @@ export interface DamageContext {
 	baseAttackPct: number;
 	attackPowerPct: number;
 	flatAttack: number;
+	baseAttackFlat?: number;
 	supportAttack: number;
 	additionalDamage: number;
 	evolutionDamage: number;
@@ -22,11 +23,28 @@ export interface DamageContext {
 export const ZERO_DELTA: StatDeltas = {mainStat: 0, weaponPower: 0, attackPower: 0, attackPowerPct: 0,
 	additionalDamage: 0, critRate: 0, critDamage: 0};
 
+/** Project independently known buckets; leave all other edits for the measured model. */
+export function gearStatProjection(delta: StatDeltas, totals: Partial<DamageContext>) {
+	const remaining = { ...delta };
+	let factor = 1, additional = false, evolution = false;
+	const valid = (value: unknown, change: number | undefined): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1000 && !!change && Number.isFinite(change) && value + change > -100;
+	if (valid(totals.additionalDamage, delta.additionalDamage)) {
+		factor *= (100 + totals.additionalDamage + delta.additionalDamage) / (100 + totals.additionalDamage);
+		remaining.additionalDamage = 0; additional = true;
+	}
+	const evolutionOnly = !delta.mainStat && !delta.weaponPower && !delta.attackPower && !delta.baseAttackFlat && !delta.baseAttackPct && !delta.attackPowerPct && !delta.critRate && !delta.critDamage;
+	if (evolutionOnly && valid(totals.evolutionDamage, delta.evolutionDamage)) {
+		factor *= (100 + totals.evolutionDamage + delta.evolutionDamage!) / (100 + totals.evolutionDamage);
+		remaining.evolutionDamage = 0; evolution = true;
+	}
+	return {factor, remaining, used: additional || evolution, additional, evolution};
+}
+
 export function validDamageContext(c: DamageContext): boolean {
 	return !!c && [c.mainStat, c.weaponPower, c.baseAttackPct, c.attackPowerPct, c.flatAttack, c.supportAttack,
-		c.additionalDamage, c.evolutionDamage, c.critRate, c.critDamage, c.critCap].every(Number.isFinite) &&
+		c.baseAttackFlat ?? 0, c.additionalDamage, c.evolutionDamage, c.critRate, c.critDamage, c.critCap].every(Number.isFinite) &&
 		c.mainStat > 0 && c.weaponPower > 0 && c.baseAttackPct > -100 && c.attackPowerPct > -100 &&
-		c.flatAttack >= 0 && c.supportAttack >= 0 && c.additionalDamage > -100 && c.evolutionDamage > -100 &&
+		c.flatAttack >= 0 && (c.baseAttackFlat ?? 0) >= 0 && c.supportAttack >= 0 && c.additionalDamage > -100 && c.evolutionDamage > -100 &&
 		c.critRate >= 0 && c.critDamage >= 100 && c.critCap >= 0 && c.critCap <= 100 &&
 		(!c.critConversion || validCritConversion(c.critConversion));
 }
@@ -34,7 +52,7 @@ export function validDamageContext(c: DamageContext): boolean {
 /** A normalized damage factor, not an absolute skill-damage/DPS prediction. */
 export function damageFactor(c: DamageContext): number | null {
 	if (!validDamageContext(c)) return null;
-	const attack = (Math.sqrt(c.mainStat * c.weaponPower / 6) * (1 + c.baseAttackPct / 100) + c.flatAttack) * (1 + c.attackPowerPct / 100) + c.supportAttack;
+	const attack = ((Math.sqrt(c.mainStat * c.weaponPower / 6) + (c.baseAttackFlat ?? 0)) * (1 + c.baseAttackPct / 100) + c.flatAttack + c.supportAttack) * (1 + c.attackPowerPct / 100);
 	const cap = c.critConversion ? c.critConversion.threshold * 100 : c.critCap;
 	const crit = 1 + Math.min(c.critRate, cap) / 100 * (c.critDamage / 100 - 1);
 	const evolution = 1 + c.evolutionDamage / 100 + (c.critConversion ? critEvolutionBonus(c.critRate / 100, c.critConversion) : 0);
@@ -45,6 +63,7 @@ export function damageFactor(c: DamageContext): number | null {
 export function changedContext(c: DamageContext, d: StatDeltas): DamageContext {
 	return {...c, mainStat: c.mainStat + d.mainStat, weaponPower: c.weaponPower + d.weaponPower,
 		flatAttack: c.flatAttack + d.attackPower, attackPowerPct: c.attackPowerPct + d.attackPowerPct,
+		baseAttackFlat: (c.baseAttackFlat ?? 0) + (d.baseAttackFlat ?? 0),
 		baseAttackPct: c.baseAttackPct + (d.baseAttackPct ?? 0), additionalDamage: c.additionalDamage + d.additionalDamage,
 		evolutionDamage: c.evolutionDamage + (d.evolutionDamage ?? 0), critRate: c.critRate + d.critRate, critDamage: c.critDamage + d.critDamage};
 }

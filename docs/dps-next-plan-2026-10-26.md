@@ -26,38 +26,53 @@ or touch `main` unless the user asks.
 
 ## Tasks, in order
 
-### 1. Bracelet conditions the logs can answer (small, less fuzziness)
+### 1. Bracelet conditions (audited 10-27; safe portion implemented)
 
-`src/lib/upgrade-planner/dps-stats.ts` `braceletPart` lists these as `unvalued`; the meter shows them under "not
-counted" on many runs.
+- `braceletPart` now separates the Demon/Archdemon bonus from Additional Damage. Race comes from the game's NPC
+  species in LOA Logs' `Npc.json`, baked with `scripts/bake-boss-species.mjs`; Maxroll's `npc` table is rapport NPCs.
+- `gateDemonSpecies` checks every listed boss/phase. Known non-Demon gates no longer flag an inactive bonus as
+  uncounted. It assumes scalable damage hits those bosses; adds aren't reconstructed. Unknown classifications stay
+  unknown. Kazeros G2 and Aegir G1 have mixed races: the final boss's species cannot stand in for the whole run.
+- The bonus uses stats 126/136, not Additional Damage (50). Card books use the same species stats. Adding 2.5 pp
+  to a 6% species bucket gives `1.085 / 1.06`, not `1.025`. The snapshot doesn't contain the card-book total.
+  **User decision 10-27: leave card-book inputs out.** Their damage is already in the recorded run. Changed species
+  bonuses on Demon/Archdemon or unresolved gates therefore remain uncounted; unchanged bonuses cancel on roll upgrades.
+- **Stagger remains uncounted.** `stagger_log` is gauge progress, not confirmed stagger windows, and the upstream
+  recorder is commented out. Do not use elapsed fight-time share as damage share. Newer `npcWindows` contribution
+  pairs aggregate the effect's damage contribution, not a reusable per-skill damage-during-stagger split.
+- Tests: `boss-species.test.ts`, `dps-meter.test.ts`, `dps-stats.test.ts`. See the validation addendum for source links.
 
-- **"Bonus vs. Demon/Archdemon +x%"**: the boss's race decides it, always on or always off. Needs a boss → demon flag
-  (per raid / gate; LOA Logs `current_boss` names; a small table in `src/lib/logs/raids.ts` or next to it, sourced from
-  game data if the Maxroll feed has NPC race — check `cache/maxroll-stats.json` `npc` / `npcGrade` first, else a hand
-  list confirmed by the user). Value it as an Additional-Damage-like multiplier on the run when the boss is a demon,
-  nothing otherwise, and drop it from `unvalued`.
-- **"Outgoing Damage +x% to Staggered foes"**: the encounter keeps `stagger_log` (column in `encounter`). Read the share of
-  the player's damage dealt while the boss was staggered (time windows from `stagger_log` against hits is not available
-  per hit in summaries; use the fight-time share as the proxy, stated as an assumption) in `logs-worker.ts`
-  `runSummaries`, store it on `RunSummary`, and value the line on that share. Older imports without it: keep "not
-  counted".
-- Tests in `dps-meter.test.ts` (`describe('bracelet effects')` has the pattern).
+### 2. Full-uptime assumptions for run-dependent lines (implemented 10-27)
 
-### 2. Full-uptime assumptions for run-dependent lines (medium)
-
-- **Order cores**: `scripts/bake-order-cores.mjs` keeps `per stack`, `for Ns`, `next … for N uses` lines as `text`.
-  Parse them into effects with an `assumed: 'max-stacks' | 'full-uptime'` flag: per stack → `pct × max stacks` (the
-  "(Max N stacks)" / "Up to N stacks" text is stripped today in `effectsOf` — keep N before stripping); timed and
-  next-N → as if always on. Cooldown-for-damage trades and skill-tree conditions stay text (rotation changes).
-  `ark-grid-dps.ts` values `assumed` effects like the rest; the Limits fold lists "assumed at full stacks / uptime" once.
-  Re-bake (`node scripts/bake-order-cores.mjs`) and compare per-class coverage before/after (the session used a small
-  script: count options fully valued and damage lines left as text per class; make sure nothing previously valued is
-  lost — compare option by option, not by index).
-- **Engravings**: the engraving damage table (`tables.ts` `ENGRAVING_TABLE`, from inven) already assumes full stacks
-  (Adrenaline 6 stacks, Ether Predator 30). Keep; just name it in the Limits fold.
-- Check the "not counted" list on Soulshan's runs before/after (dev audit below).
+- `scripts/order-core-assumptions.mjs` retains explicit stack caps before description cleanup; per-stack damage is
+  multiplied by that cap. Selected timer and next-use damage lines assume full uptime. Missing/conflicting caps,
+  unresolved skill targets, combined cooldown trades, forced-position changes and alternative trigger bonuses stay text.
+- Re-baked `order-cores.ts`: 40 assumed effects across 38 options / 17 classes (38 newly valued damage lines; two
+  existing max-stack threshold bonuses explicitly reclassified). The 2,160 core definitions are unchanged. Comparison
+  by option id / effect contents confirms no previously valued effect is lost. Full per-class counts are in validation.
+- `ark-grid-dps.ts` applies these assumptions on their named skills without needing buff windows. Feature-level
+  replacements still work (e.g. Eternal Blood's 17P line replaces its lower Sinister bonus). Existing counted windows
+  remain recorded, including Footsteps of the Dead. Unchanged buff buckets cancel and no longer request a re-import.
+- Limits names the core assumptions once, alongside Adrenaline 6 stacks / Ether Predator 30 and bracelet Weapon Power.
+  No extra casts, core-swap simulation, or rotation reconstruction added.
+- 818 tests pass, one opt-in audit skipped; Svelte/TypeScript and production build pass. No new real-run backtest was
+  performed in this pass. Next substantial work is task 3, automatic combat totals from gear.
 
 ### 3. Our own per-stat gain engine (the main assumption; larger)
+
+**10-27 progress / current boundary:** Additional Damage is automatic (63 comparisons, mean relative marginal error
+0.0520%, max 0.1851%). Soul Eater AP% uses actual complete buff intersections (22 comparisons, mean 0.2776%, max
+0.4836%), only for independent AP edits. Evolution efficiency recovers a uniform marginal in 197/198 extracted
+runs, including 109 without ordinary stat values; all 88 measured runs agree within 0.00004% relative error. No new
+passive editor. Corrected support/AP and vambrace Basic-flat placement. DPS mode, rankings and shares use the same
+accepted coefficients. The full automatic context is still not enabled.
+
+**Blocked after trying every remaining stat bucket:** root/flat attack needs historical support attack amounts;
+primary Crit Damage needs cast-time skill/effect conditions (prototype still ~7.1% off); Crit Rate/Blunt Thorn edits
+need uncapped rate distributions. Full details, data coverage and resumption inputs:
+[implementation and validation](dps-gear-context-2026-10-27.md). Other classes/incomplete traces keep the fallback.
+Do not replace these unknowns with zero support, observed crit rate, or a fitted constant. The remaining bullets
+below describe the full goal, not completed features.
 
 The user thought this was already the plan: build it. Today stat edits use LOA Logs' per-stat values
 (`contributionSplits.*1percentDamage`, `src/lib/logs/stat-values.ts`); 56% of Soulshan's runs lack them and borrow from

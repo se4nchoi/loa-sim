@@ -78,14 +78,21 @@ const gateLabel = (raid: string, gate: number) => {
 };
 
 const BY_BOSS = new Map<string, RaidGate>();
+const GATE_BOSSES = new Map<string, readonly string[]>();
 RAIDS.forEach(([raid, gates], order) =>
 	gates.forEach((bosses, i) => {
-		for (const boss of bosses) BY_BOSS.set(boss, { raid, gate: i + 1, label: gateLabel(raid, i + 1), order });
+		for (const boss of bosses) {
+			BY_BOSS.set(boss, { raid, gate: i + 1, label: gateLabel(raid, i + 1), order });
+			GATE_BOSSES.set(boss, bosses);
+		}
 	})
 );
 
 /** The raid and gate a boss belongs to, or null for bosses outside the list (guardians, trials, new raids). */
 export const raidGateOf = (boss: string): RaidGate | null => BY_BOSS.get(boss) ?? null;
+
+/** All known phases / bosses in the encounter's gate. Unknown encounters need target-level data. */
+export const gateBossesOf = (boss: string): readonly string[] | null => GATE_BOSSES.get(boss) ?? null;
 
 /** The raids from Aegir (Act 1) on, newest first, as raid lists name them ("Armoche", without "(Act 4)"). */
 export const currentRaids = (): string[] => {

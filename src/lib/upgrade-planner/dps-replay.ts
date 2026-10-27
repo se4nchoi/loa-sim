@@ -10,6 +10,7 @@ export interface HitContext {
 	attackPowerPct: number;
 	baseAttackPct: number;
 	flatAttack: number;
+	baseAttackFlat?: number;
 	supportAttack: number;
 	additionalDamage: number;
 	critRate: number;
@@ -23,7 +24,7 @@ export interface HitContext {
 }
 
 const cap = (rate: number, limit: number) => Math.max(0, Math.min(limit, rate));
-const attack = (c: HitContext) => (Math.sqrt(c.mainStat * c.weaponPower / 6) * (1 + c.baseAttackPct) + c.flatAttack + c.supportAttack) * (1 + c.attackPowerPct);
+const attack = (c: HitContext) => ((Math.sqrt(c.mainStat * c.weaponPower / 6) + (c.baseAttackFlat ?? 0)) * (1 + c.baseAttackPct) + c.flatAttack + c.supportAttack) * (1 + c.attackPowerPct);
 
 /** Same-hit stat replay. Buff/defense/directional factors unchanged by these deltas cancel in the ratio.
  * Crit rate is expected value at the explicitly provided rate/cap, never a re-roll of observed hits. */
@@ -31,10 +32,11 @@ export function replayHitRatio(hit: ReplayHit, context: HitContext, delta: StatD
 	if (hit.hyper) return 1;
 	const fields = Object.values(context).filter(v => typeof v !== 'object');
 	if (fields.some(v => !Number.isFinite(v)) || Object.values(delta).some(v => !Number.isFinite(v)) || context.mainStat <= 0 || context.weaponPower <= 0 || context.baseAttackPct <= -1 || context.flatAttack < 0 || context.supportAttack < 0 ||
-		context.critMultiplier < 1 || context.critCap < 0 || context.critCap > 1 || context.additionalDamage <= -1 || context.attackPowerPct <= -1 ||
+		(context.baseAttackFlat ?? 0) < 0 || context.critMultiplier < 1 || context.critCap < 0 || context.critCap > 1 || context.additionalDamage <= -1 || context.attackPowerPct <= -1 ||
 		(context.evolutionDamage ?? 0) <= -1 || (context.primaryCritDamageRate ?? 0) <= -1 || context.critConversion && !validCritConversion(context.critConversion)) return null;
 	const next: HitContext = { ...context, mainStat: context.mainStat + delta.mainStat, weaponPower: context.weaponPower + delta.weaponPower,
 		flatAttack: context.flatAttack + delta.attackPower, attackPowerPct: context.attackPowerPct + delta.attackPowerPct / 100,
+		baseAttackFlat: (context.baseAttackFlat ?? 0) + (delta.baseAttackFlat ?? 0),
 		baseAttackPct: context.baseAttackPct + (delta.baseAttackPct ?? 0) / 100,
 		additionalDamage: context.additionalDamage + delta.additionalDamage / 100,
 		critRate: context.critRate + delta.critRate / 100,
@@ -42,7 +44,7 @@ export function replayHitRatio(hit: ReplayHit, context: HitContext, delta: StatD
 			: context.critMultiplier * (1+context.primaryCritDamageRate+delta.critDamage/100)/(1+context.primaryCritDamageRate),
 		...(context.primaryCritDamageRate !== undefined ? {primaryCritDamageRate:context.primaryCritDamageRate+delta.critDamage/100} : {}),
 		evolutionDamage: (context.evolutionDamage ?? 0) + (delta.evolutionDamage ?? 0) / 100 };
-	if (next.mainStat <= 0 || next.weaponPower <= 0 || next.baseAttackPct <= -1 || next.critMultiplier < 1 || next.attackPowerPct <= -1 || next.additionalDamage <= -1 || attack(context) <= 0 || attack(next) <= 0) return null;
+	if (next.mainStat <= 0 || next.weaponPower <= 0 || (next.baseAttackFlat ?? 0) < 0 || next.flatAttack < 0 || next.baseAttackPct <= -1 || next.critMultiplier < 1 || next.attackPowerPct <= -1 || next.additionalDamage <= -1 || attack(context) <= 0 || attack(next) <= 0) return null;
 	const critCap = context.critConversion?.threshold ?? context.critCap;
 	const beforeCrit = 1 + cap(context.critRate, critCap) * (context.critMultiplier - 1);
 	const afterCrit = 1 + cap(next.critRate, critCap) * (next.critMultiplier - 1);

@@ -1,0 +1,2045 @@
+{
+  "source": {
+    "encounterId": 5120,
+    "hash": "v3/0268b1f3905454445253a78b589b95f351200325f517ac239d657a616707761c",
+    "additionalDamagePerPoint": 0.6718766112378871,
+    "attackPowerPctPerPoint": 0.886734377130094,
+    "evolutionDamagePerPoint": 0.45215075760045575
+  },
+  "passives": {
+    "evolution": [
+      {
+        "id": 1010100,
+        "lv": 10
+      },
+      {
+        "id": 1010200,
+        "lv": 30
+      },
+      {
+        "id": 1020200,
+        "lv": 2
+      },
+      {
+        "id": 1020500,
+        "lv": 1
+      },
+      {
+        "id": 1030200,
+        "lv": 2
+      },
+      {
+        "id": 1032100,
+        "lv": 1
+      },
+      {
+        "id": 1032200,
+        "lv": 1
+      },
+      {
+        "id": 1040100,
+        "lv": 2
+      }
+    ],
+    "enlightenment": [
+      {
+        "id": 2460000,
+        "lv": 3
+      },
+      {
+        "id": 2460100,
+        "lv": 3
+      },
+      {
+        "id": 2460300,
+        "lv": 3
+      },
+      {
+        "id": 2460400,
+        "lv": 2
+      },
+      {
+        "id": 2460500,
+        "lv": 3
+      }
+    ],
+    "leap": [
+      {
+        "id": 2465300,
+        "lv": 5
+      },
+      {
+        "id": 2465400,
+        "lv": 4
+      },
+      {
+        "id": 2465500,
+        "lv": 2
+      },
+      {
+        "id": 2465600,
+        "lv": 3
+      }
+    ]
+  },
+  "snapshot": {
+    "class": 405,
+    "combat_power": {
+      "id": 1,
+      "score": 6172.73
+    },
+    "equipped_cards": [
+      {
+        "id": 3200001,
+        "level": 5
+      },
+      {
+        "id": 3200008,
+        "level": 5
+      },
+      {
+        "id": 3200015,
+        "level": 5
+      },
+      {
+        "id": 3200016,
+        "level": 5
+      },
+      {
+        "id": 3200021,
+        "level": 5
+      },
+      {
+        "id": 3200022,
+        "level": 5
+      }
+    ],
+    "ark_passive_points": {
+      "leap": 70,
+      "enlightenment": 101,
+      "evolution": 140
+    },
+    "skills": [
+      {
+        "id": 46200,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46210,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46220,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46230,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46240,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46250,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46400,
+        "rune_id": 65111012,
+        "level": 14,
+        "tripods": [
+          1,
+          2,
+          1
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46410,
+        "rune_id": 65111004,
+        "level": 10,
+        "tripods": [
+          1,
+          1,
+          1
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46420,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46430,
+        "rune_id": 65111013,
+        "level": 14,
+        "tripods": [
+          3,
+          2,
+          1
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46440,
+        "rune_id": 65111003,
+        "level": 11,
+        "tripods": [
+          1,
+          3,
+          2
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46450,
+        "rune_id": 65104004,
+        "level": 7,
+        "tripods": [
+          1,
+          2,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46500,
+        "rune_id": 65101004,
+        "level": 14,
+        "tripods": [
+          2,
+          3,
+          2
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46510,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46520,
+        "rune_id": 65111022,
+        "level": 14,
+        "tripods": [
+          2,
+          1,
+          2
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46530,
+        "rune_id": 65101014,
+        "level": 14,
+        "tripods": [
+          1,
+          2,
+          1
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46600,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46610,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46620,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46630,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46640,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      },
+      {
+        "id": 46650,
+        "rune_id": null,
+        "level": 1,
+        "tripods": [
+          0,
+          0,
+          0
+        ],
+        "tripod_levels": {}
+      }
+    ],
+    "transcendence": [],
+    "elixirs": [],
+    "gems": [
+      {
+        "slot": 0,
+        "id": 65031090,
+        "effects": [
+          {
+            "addon_type": 5,
+            "id": 46400,
+            "value": 4000
+          },
+          {
+            "addon_type": 2,
+            "id": 150,
+            "value": 100
+          }
+        ]
+      },
+      {
+        "slot": 1,
+        "id": 65031090,
+        "effects": [
+          {
+            "addon_type": 5,
+            "id": 46500,
+            "value": 4000
+          },
+          {
+            "addon_type": 2,
+            "id": 150,
+            "value": 100
+          }
+        ]
+      },
+      {
+        "slot": 2,
+        "id": 65031090,
+        "effects": [
+          {
+            "addon_type": 5,
+            "id": 46520,
+            "value": 4000
+          },
+          {
+            "addon_type": 2,
+            "id": 150,
+            "value": 100
+          }
+        ]
+      },
+      {
+        "slot": 3,
+        "id": 65031090,
+        "effects": [
+          {
+            "addon_type": 5,
+            "id": 46530,
+            "value": 4000
+          },
+          {
+            "addon_type": 2,
+            "id": 150,
+            "value": 100
+          }
+        ]
+      },
+      {
+        "slot": 4,
+        "id": 65032090,
+        "effects": [
+          {
+            "addon_type": 27,
+            "id": 46400,
+            "value": 2200
+          },
+          {
+            "addon_type": 2,
+            "id": 150,
+            "value": 100
+          }
+        ]
+      },
+      {
+        "slot": 5,
+        "id": 65031100,
+        "effects": [
+          {
+            "addon_type": 5,
+            "id": 46430,
+            "value": 4400
+          },
+          {
+            "addon_type": 2,
+            "id": 150,
+            "value": 120
+          }
+        ]
+      },
+      {
+        "slot": 6,
+        "id": 65032090,
+        "effects": [
+          {
+            "addon_type": 27,
+            "id": 46450,
+            "value": 2200
+          },
+          {
+            "addon_type": 2,
+            "id": 150,
+            "value": 100
+          }
+        ]
+      },
+      {
+        "slot": 7,
+        "id": 65032090,
+        "effects": [
+          {
+            "addon_type": 27,
+            "id": 46410,
+            "value": 2200
+          },
+          {
+            "addon_type": 2,
+            "id": 150,
+            "value": 100
+          }
+        ]
+      },
+      {
+        "slot": 8,
+        "id": 65032090,
+        "effects": [
+          {
+            "addon_type": 27,
+            "id": 46530,
+            "value": 2200
+          },
+          {
+            "addon_type": 2,
+            "id": 150,
+            "value": 100
+          }
+        ]
+      },
+      {
+        "slot": 9,
+        "id": 65032090,
+        "effects": [
+          {
+            "addon_type": 27,
+            "id": 46440,
+            "value": 2200
+          },
+          {
+            "addon_type": 2,
+            "id": 150,
+            "value": 100
+          }
+        ]
+      },
+      {
+        "slot": 10,
+        "id": 65032090,
+        "effects": [
+          {
+            "addon_type": 27,
+            "id": 46430,
+            "value": 2200
+          },
+          {
+            "addon_type": 2,
+            "id": 150,
+            "value": 100
+          }
+        ]
+      }
+    ],
+    "equipped_skills": {
+      "awakening_skill_id": 46610,
+      "hyper_technique_skill_id": 46640,
+      "quick_slot_layers": [
+        {
+          "slots": [
+            {
+              "index": 0,
+              "id": 46430
+            },
+            {
+              "index": 1,
+              "id": 46400
+            },
+            {
+              "index": 2,
+              "id": 46520
+            },
+            {
+              "index": 3,
+              "id": 46500
+            },
+            {
+              "index": 4,
+              "id": 46410
+            },
+            {
+              "index": 5,
+              "id": 46440
+            },
+            {
+              "index": 6,
+              "id": 46450
+            },
+            {
+              "index": 7,
+              "id": 46530
+            }
+          ],
+          "layer_type": 0
+        }
+      ]
+    },
+    "equipped_items": [
+      {
+        "id": 134621440,
+        "slot": 0,
+        "item_data": {
+          "type": "equipment",
+          "advanced_honing_state": {
+            "unlocked": false,
+            "stage": 40
+          },
+          "honing_level": 23,
+          "honing_experience": 1722000,
+          "honing_unlocked": false,
+          "honing_limit_break_unlocked": false,
+          "esther_weapon": null,
+          "rolled_stats": [
+            {
+              "addon_type": 2,
+              "tree_id": 10144000,
+              "is_base_stat": true,
+              "index": 50,
+              "value": 3000
+            }
+          ]
+        }
+      },
+      {
+        "id": 134621441,
+        "slot": 1,
+        "item_data": {
+          "type": "equipment",
+          "advanced_honing_state": {
+            "unlocked": false,
+            "stage": 40
+          },
+          "honing_level": 20,
+          "honing_experience": 719000,
+          "honing_unlocked": true,
+          "honing_limit_break_unlocked": false,
+          "esther_weapon": null,
+          "rolled_stats": [
+            {
+              "addon_type": 2,
+              "tree_id": 10144001,
+              "is_base_stat": true,
+              "index": 137,
+              "value": 1345
+            }
+          ]
+        }
+      },
+      {
+        "id": 134621442,
+        "slot": 2,
+        "item_data": {
+          "type": "equipment",
+          "advanced_honing_state": {
+            "unlocked": false,
+            "stage": 40
+          },
+          "honing_level": 20,
+          "honing_experience": 719000,
+          "honing_unlocked": true,
+          "honing_limit_break_unlocked": false,
+          "esther_weapon": null,
+          "rolled_stats": [
+            {
+              "addon_type": 2,
+              "tree_id": 10144001,
+              "is_base_stat": true,
+              "index": 137,
+              "value": 1264
+            }
+          ]
+        }
+      },
+      {
+        "id": 134621443,
+        "slot": 3,
+        "item_data": {
+          "type": "equipment",
+          "advanced_honing_state": {
+            "unlocked": false,
+            "stage": 40
+          },
+          "honing_level": 20,
+          "honing_experience": 719000,
+          "honing_unlocked": true,
+          "honing_limit_break_unlocked": false,
+          "esther_weapon": null,
+          "rolled_stats": [
+            {
+              "addon_type": 2,
+              "tree_id": 10144001,
+              "is_base_stat": true,
+              "index": 137,
+              "value": 1345
+            }
+          ]
+        }
+      },
+      {
+        "id": 134621444,
+        "slot": 4,
+        "item_data": {
+          "type": "equipment",
+          "advanced_honing_state": {
+            "unlocked": false,
+            "stage": 40
+          },
+          "honing_level": 22,
+          "honing_experience": 868000,
+          "honing_unlocked": true,
+          "honing_limit_break_unlocked": false,
+          "esther_weapon": null,
+          "rolled_stats": [
+            {
+              "addon_type": 2,
+              "tree_id": 10144001,
+              "is_base_stat": true,
+              "index": 137,
+              "value": 1291
+            }
+          ]
+        }
+      },
+      {
+        "id": 134621445,
+        "slot": 5,
+        "item_data": {
+          "type": "equipment",
+          "advanced_honing_state": {
+            "unlocked": false,
+            "stage": 40
+          },
+          "honing_level": 21,
+          "honing_experience": 791000,
+          "honing_unlocked": true,
+          "honing_limit_break_unlocked": false,
+          "esther_weapon": null,
+          "rolled_stats": [
+            {
+              "addon_type": 2,
+              "tree_id": 10144001,
+              "is_base_stat": true,
+              "index": 137,
+              "value": 1345
+            }
+          ]
+        }
+      },
+      {
+        "id": 213400220,
+        "slot": 6,
+        "item_data": {
+          "type": "tier4_accessory",
+          "stats": [
+            {
+              "addon_type": 57,
+              "tree_id": 6013,
+              "is_base_stat": true,
+              "index": 1,
+              "value": 13
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6013,
+              "is_base_stat": true,
+              "index": 6,
+              "value": 4083
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6013,
+              "is_base_stat": true,
+              "index": 4,
+              "value": 17670
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6013,
+              "is_base_stat": true,
+              "index": 3,
+              "value": 17670
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6013,
+              "is_base_stat": true,
+              "index": 5,
+              "value": 17670
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6009,
+              "is_base_stat": false,
+              "index": 50,
+              "value": 260
+            },
+            {
+              "addon_type": 4,
+              "tree_id": 6009,
+              "is_base_stat": false,
+              "index": 621000001,
+              "value": 0
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6009,
+              "is_base_stat": false,
+              "index": 46,
+              "value": 215
+            }
+          ],
+          "upgrade_level": 3
+        }
+      },
+      {
+        "id": 213400221,
+        "slot": 7,
+        "item_data": {
+          "type": "tier4_accessory",
+          "stats": [
+            {
+              "addon_type": 57,
+              "tree_id": 6113,
+              "is_base_stat": true,
+              "index": 1,
+              "value": 12
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6113,
+              "is_base_stat": true,
+              "index": 6,
+              "value": 2745
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6113,
+              "is_base_stat": true,
+              "index": 3,
+              "value": 13556
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6113,
+              "is_base_stat": true,
+              "index": 4,
+              "value": 13556
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6113,
+              "is_base_stat": true,
+              "index": 5,
+              "value": 13556
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6109,
+              "is_base_stat": false,
+              "index": 49,
+              "value": 155
+            },
+            {
+              "addon_type": 51,
+              "tree_id": 6109,
+              "is_base_stat": false,
+              "index": 0,
+              "value": 210
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6109,
+              "is_base_stat": false,
+              "index": 152,
+              "value": 180
+            }
+          ],
+          "upgrade_level": 3
+        }
+      },
+      {
+        "id": 213400211,
+        "slot": 8,
+        "item_data": {
+          "type": "tier4_accessory",
+          "stats": [
+            {
+              "addon_type": 57,
+              "tree_id": 6103,
+              "is_base_stat": true,
+              "index": 1,
+              "value": 12
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6103,
+              "is_base_stat": true,
+              "index": 6,
+              "value": 2869
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6103,
+              "is_base_stat": true,
+              "index": 5,
+              "value": 13765
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6103,
+              "is_base_stat": true,
+              "index": 3,
+              "value": 13765
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6103,
+              "is_base_stat": true,
+              "index": 4,
+              "value": 13765
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6109,
+              "is_base_stat": false,
+              "index": 49,
+              "value": 40
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6109,
+              "is_base_stat": false,
+              "index": 152,
+              "value": 300
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6109,
+              "is_base_stat": false,
+              "index": 124,
+              "value": 80
+            }
+          ],
+          "upgrade_level": 3
+        }
+      },
+      {
+        "id": 224400012,
+        "slot": 9,
+        "item_data": {
+          "type": "tier4_accessory",
+          "stats": [
+            {
+              "addon_type": 57,
+              "tree_id": 6223,
+              "is_base_stat": true,
+              "index": 1,
+              "value": 12
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6223,
+              "is_base_stat": true,
+              "index": 6,
+              "value": 2326
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6223,
+              "is_base_stat": true,
+              "index": 3,
+              "value": 12220
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6223,
+              "is_base_stat": true,
+              "index": 4,
+              "value": 12220
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6223,
+              "is_base_stat": true,
+              "index": 5,
+              "value": 12220
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6209,
+              "is_base_stat": false,
+              "index": 76,
+              "value": 400
+            },
+            {
+              "addon_type": 59,
+              "tree_id": 6209,
+              "is_base_stat": false,
+              "index": 16000001,
+              "value": 450
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6209,
+              "is_base_stat": false,
+              "index": 74,
+              "value": 95
+            }
+          ],
+          "upgrade_level": 3
+        }
+      },
+      {
+        "id": 213400222,
+        "slot": 10,
+        "item_data": {
+          "type": "tier4_accessory",
+          "stats": [
+            {
+              "addon_type": 57,
+              "tree_id": 6213,
+              "is_base_stat": true,
+              "index": 1,
+              "value": 12
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6213,
+              "is_base_stat": true,
+              "index": 6,
+              "value": 2246
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6213,
+              "is_base_stat": true,
+              "index": 4,
+              "value": 12452
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6213,
+              "is_base_stat": true,
+              "index": 3,
+              "value": 12452
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6213,
+              "is_base_stat": true,
+              "index": 5,
+              "value": 12452
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6209,
+              "is_base_stat": false,
+              "index": 76,
+              "value": 400
+            },
+            {
+              "addon_type": 54,
+              "tree_id": 6209,
+              "is_base_stat": false,
+              "index": 0,
+              "value": 135
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 6209,
+              "is_base_stat": false,
+              "index": 74,
+              "value": 95
+            }
+          ],
+          "upgrade_level": 3
+        }
+      },
+      {
+        "id": 9104550,
+        "slot": 11,
+        "item_data": {
+          "type": "ability_stone",
+          "engravings": [
+            {
+              "id": 247,
+              "nodes": 7
+            },
+            {
+              "id": 254,
+              "nodes": 9
+            },
+            {
+              "id": 802,
+              "nodes": 4
+            }
+          ]
+        }
+      },
+      {
+        "id": 213400033,
+        "slot": 26,
+        "item_data": {
+          "type": "bracelet",
+          "stats": [
+            {
+              "addon_type": 2,
+              "tree_id": 213400023,
+              "is_base_stat": false,
+              "index": 15,
+              "value": 86,
+              "fixed": true,
+              "locked": false
+            },
+            {
+              "addon_type": 2,
+              "tree_id": 213400023,
+              "is_base_stat": false,
+              "index": 16,
+              "value": 77,
+              "fixed": true,
+              "locked": false
+            },
+            {
+              "addon_type": 4,
+              "tree_id": 213400023,
+              "is_base_stat": false,
+              "index": 605100173,
+              "value": 0,
+              "fixed": false,
+              "locked": false
+            },
+            {
+              "addon_type": 3,
+              "tree_id": 213400023,
+              "is_base_stat": false,
+              "index": 11043,
+              "value": 5,
+              "fixed": false,
+              "locked": true
+            },
+            {
+              "addon_type": 3,
+              "tree_id": 213400023,
+              "is_base_stat": false,
+              "index": 11051,
+              "value": 5,
+              "fixed": false,
+              "locked": true
+            }
+          ]
+        }
+      }
+    ],
+    "loadout": {
+      "type": "ark_passive",
+      "enlightenment_points": [
+        {
+          "id": 2460000,
+          "level": 3
+        },
+        {
+          "id": 2460100,
+          "level": 3
+        },
+        {
+          "id": 2460300,
+          "level": 3
+        },
+        {
+          "id": 2460400,
+          "level": 2
+        },
+        {
+          "id": 2460500,
+          "level": 3
+        }
+      ],
+      "evolution_points": [
+        {
+          "id": 1010100,
+          "level": 10
+        },
+        {
+          "id": 1010200,
+          "level": 30
+        },
+        {
+          "id": 1020200,
+          "level": 2
+        },
+        {
+          "id": 1020500,
+          "level": 1
+        },
+        {
+          "id": 1030200,
+          "level": 2
+        },
+        {
+          "id": 1032100,
+          "level": 1
+        },
+        {
+          "id": 1032200,
+          "level": 1
+        },
+        {
+          "id": 1040100,
+          "level": 2
+        }
+      ],
+      "leap_points": [
+        {
+          "id": 2465300,
+          "level": 5
+        },
+        {
+          "id": 2465400,
+          "level": 4
+        },
+        {
+          "id": 2465500,
+          "level": 2
+        },
+        {
+          "id": 2465600,
+          "level": 3
+        }
+      ],
+      "karma": {
+        "levels": [
+          {
+            "id": 10000,
+            "level": 23,
+            "rank": 6
+          },
+          {
+            "id": 20000,
+            "level": 28,
+            "rank": 6
+          },
+          {
+            "id": 30000,
+            "level": 28,
+            "rank": 6
+          }
+        ]
+      },
+      "engravings": [
+        {
+          "id": 1299,
+          "grade": 5,
+          "progress": 0
+        },
+        {
+          "id": 1247,
+          "grade": 5,
+          "progress": 0
+        },
+        {
+          "id": 1254,
+          "grade": 5,
+          "progress": 0
+        },
+        {
+          "id": 1141,
+          "grade": 5,
+          "progress": 0
+        },
+        {
+          "id": 1118,
+          "grade": 5,
+          "progress": 0
+        }
+      ]
+    },
+    "ark_grid": {
+      "cores": [
+        {
+          "id": 673012435,
+          "base_tree_id": 10001,
+          "astro_gems": [
+            {
+              "id": 67401025,
+              "active": true,
+              "index": 0,
+              "willpower_cost_reduction": 4,
+              "core_points": 5,
+              "options": [
+                {
+                  "id": 2001,
+                  "level": 3
+                },
+                {
+                  "id": 2012,
+                  "level": 4
+                }
+              ]
+            },
+            {
+              "id": 67401124,
+              "active": true,
+              "index": 1,
+              "willpower_cost_reduction": 5,
+              "core_points": 5,
+              "options": [
+                {
+                  "id": 2001,
+                  "level": 4
+                },
+                {
+                  "id": 2011,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "id": 67401025,
+              "active": true,
+              "index": 2,
+              "willpower_cost_reduction": 4,
+              "core_points": 4,
+              "options": [
+                {
+                  "id": 2002,
+                  "level": 5
+                },
+                {
+                  "id": 2001,
+                  "level": 4
+                }
+              ]
+            },
+            {
+              "id": 67401024,
+              "active": true,
+              "index": 3,
+              "willpower_cost_reduction": 5,
+              "core_points": 3,
+              "options": [
+                {
+                  "id": 2002,
+                  "level": 2
+                },
+                {
+                  "id": 2001,
+                  "level": 4
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 673002435,
+          "base_tree_id": 10002,
+          "astro_gems": [
+            {
+              "id": 67401026,
+              "active": true,
+              "index": 0,
+              "willpower_cost_reduction": 5,
+              "core_points": 4,
+              "options": [
+                {
+                  "id": 2001,
+                  "level": 5
+                },
+                {
+                  "id": 2012,
+                  "level": 5
+                }
+              ]
+            },
+            {
+              "id": 67401025,
+              "active": true,
+              "index": 1,
+              "willpower_cost_reduction": 5,
+              "core_points": 3,
+              "options": [
+                {
+                  "id": 2002,
+                  "level": 5
+                },
+                {
+                  "id": 2012,
+                  "level": 4
+                }
+              ]
+            },
+            {
+              "id": 67401024,
+              "active": true,
+              "index": 2,
+              "willpower_cost_reduction": 5,
+              "core_points": 5,
+              "options": [
+                {
+                  "id": 2012,
+                  "level": 1
+                },
+                {
+                  "id": 2002,
+                  "level": 4
+                }
+              ]
+            },
+            {
+              "id": 67401125,
+              "active": true,
+              "index": 3,
+              "willpower_cost_reduction": 3,
+              "core_points": 5,
+              "options": [
+                {
+                  "id": 2001,
+                  "level": 3
+                },
+                {
+                  "id": 2003,
+                  "level": 5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 673022435,
+          "base_tree_id": 10003,
+          "astro_gems": [
+            {
+              "id": 67401024,
+              "active": true,
+              "index": 0,
+              "willpower_cost_reduction": 5,
+              "core_points": 4,
+              "options": [
+                {
+                  "id": 2002,
+                  "level": 1
+                },
+                {
+                  "id": 2001,
+                  "level": 4
+                }
+              ]
+            },
+            {
+              "id": 67401025,
+              "active": true,
+              "index": 1,
+              "willpower_cost_reduction": 5,
+              "core_points": 5,
+              "options": [
+                {
+                  "id": 2011,
+                  "level": 5
+                },
+                {
+                  "id": 2001,
+                  "level": 3
+                }
+              ]
+            },
+            {
+              "id": 67401126,
+              "active": true,
+              "index": 2,
+              "willpower_cost_reduction": 5,
+              "core_points": 4,
+              "options": [
+                {
+                  "id": 2011,
+                  "level": 5
+                },
+                {
+                  "id": 2003,
+                  "level": 5
+                }
+              ]
+            },
+            {
+              "id": 67401125,
+              "active": true,
+              "index": 3,
+              "willpower_cost_reduction": 4,
+              "core_points": 5,
+              "options": [
+                {
+                  "id": 2003,
+                  "level": 5
+                },
+                {
+                  "id": 2013,
+                  "level": 2
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 673100006,
+          "base_tree_id": 10004,
+          "astro_gems": [
+            {
+              "id": 67411324,
+              "active": true,
+              "index": 0,
+              "willpower_cost_reduction": 4,
+              "core_points": 4,
+              "options": [
+                {
+                  "id": 2002,
+                  "level": 3
+                },
+                {
+                  "id": 2001,
+                  "level": 4
+                }
+              ]
+            },
+            {
+              "id": 67411325,
+              "active": true,
+              "index": 1,
+              "willpower_cost_reduction": 5,
+              "core_points": 4,
+              "options": [
+                {
+                  "id": 2002,
+                  "level": 5
+                },
+                {
+                  "id": 2011,
+                  "level": 4
+                }
+              ]
+            },
+            {
+              "id": 67411325,
+              "active": true,
+              "index": 2,
+              "willpower_cost_reduction": 4,
+              "core_points": 5,
+              "options": [
+                {
+                  "id": 2002,
+                  "level": 5
+                },
+                {
+                  "id": 2011,
+                  "level": 2
+                }
+              ]
+            },
+            {
+              "id": 67411526,
+              "active": true,
+              "index": 3,
+              "willpower_cost_reduction": 4,
+              "core_points": 5,
+              "options": [
+                {
+                  "id": 2013,
+                  "level": 5
+                },
+                {
+                  "id": 2003,
+                  "level": 5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 673111006,
+          "base_tree_id": 10005,
+          "astro_gems": [
+            {
+              "id": 67411325,
+              "active": true,
+              "index": 0,
+              "willpower_cost_reduction": 5,
+              "core_points": 4,
+              "options": [
+                {
+                  "id": 2001,
+                  "level": 4
+                },
+                {
+                  "id": 2002,
+                  "level": 4
+                }
+              ]
+            },
+            {
+              "id": 67411425,
+              "active": true,
+              "index": 1,
+              "willpower_cost_reduction": 5,
+              "core_points": 5,
+              "options": [
+                {
+                  "id": 2001,
+                  "level": 2
+                },
+                {
+                  "id": 2003,
+                  "level": 5
+                }
+              ]
+            },
+            {
+              "id": 67411324,
+              "active": true,
+              "index": 2,
+              "willpower_cost_reduction": 4,
+              "core_points": 5,
+              "options": [
+                {
+                  "id": 2012,
+                  "level": 1
+                },
+                {
+                  "id": 2002,
+                  "level": 5
+                }
+              ]
+            },
+            {
+              "id": 67411324,
+              "active": true,
+              "index": 3,
+              "willpower_cost_reduction": 2,
+              "core_points": 4,
+              "options": [
+                {
+                  "id": 2002,
+                  "level": 5
+                },
+                {
+                  "id": 2001,
+                  "level": 3
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 673120005,
+          "base_tree_id": 10006,
+          "astro_gems": [
+            {
+              "id": 67411324,
+              "active": true,
+              "index": 0,
+              "willpower_cost_reduction": 5,
+              "core_points": 4,
+              "options": [
+                {
+                  "id": 2002,
+                  "level": 4
+                },
+                {
+                  "id": 2001,
+                  "level": 2
+                }
+              ]
+            },
+            {
+              "id": 67411324,
+              "active": true,
+              "index": 1,
+              "willpower_cost_reduction": 4,
+              "core_points": 4,
+              "options": [
+                {
+                  "id": 2002,
+                  "level": 5
+                },
+                {
+                  "id": 2012,
+                  "level": 2
+                }
+              ]
+            },
+            {
+              "id": 67411324,
+              "active": true,
+              "index": 2,
+              "willpower_cost_reduction": 4,
+              "core_points": 5,
+              "options": [
+                {
+                  "id": 2012,
+                  "level": 4
+                },
+                {
+                  "id": 2001,
+                  "level": 2
+                }
+              ]
+            },
+            {
+              "id": 67411325,
+              "active": true,
+              "index": 3,
+              "willpower_cost_reduction": 4,
+              "core_points": 5,
+              "options": [
+                {
+                  "id": 2001,
+                  "level": 4
+                },
+                {
+                  "id": 2011,
+                  "level": 3
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "skills": [
+    {
+      "id": 46640,
+      "damage": 52264409530,
+      "critDamage": 51833371245,
+      "hits": 16,
+      "crits": 12,
+      "casts": 4,
+      "timeAvailable": 84680,
+      "front": 0,
+      "back": 0,
+      "statWindows": [
+        {
+          "damage": 52264409530,
+          "critDamage": 51833371245,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": [
+            460501
+          ]
+        }
+      ]
+    },
+    {
+      "id": 46430,
+      "damage": 43719728185,
+      "critDamage": 41696163534,
+      "hits": 17,
+      "crits": 14,
+      "casts": 21,
+      "timeAvailable": 146813,
+      "damageGem": 10,
+      "cooldownGem": 9,
+      "front": 0,
+      "back": 0,
+      "statWindows": [
+        {
+          "damage": 37767486808,
+          "critDamage": 36260804688,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": [
+            460501
+          ]
+        },
+        {
+          "damage": 5952241377,
+          "critDamage": 5435358846,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": []
+        }
+      ]
+    },
+    {
+      "id": 46520,
+      "damage": 29099849315,
+      "critDamage": 28680762345,
+      "hits": 15,
+      "crits": 13,
+      "casts": 17,
+      "timeAvailable": 76928,
+      "damageGem": 9,
+      "front": 0,
+      "back": 0,
+      "statWindows": [
+        {
+          "damage": 23574607742,
+          "critDamage": 23574607742,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": [
+            460501
+          ]
+        },
+        {
+          "damage": 5525241573,
+          "critDamage": 5106154603,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": []
+        }
+      ]
+    },
+    {
+      "id": 46530,
+      "damage": 26132420244,
+      "critDamage": 21955705705,
+      "hits": 57,
+      "crits": 37,
+      "casts": 30,
+      "timeAvailable": 122237,
+      "damageGem": 9,
+      "cooldownGem": 9,
+      "front": 0,
+      "back": 0,
+      "statWindows": [
+        {
+          "damage": 7769617695,
+          "critDamage": 6029718016,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": []
+        },
+        {
+          "damage": 18362802549,
+          "critDamage": 15925987689,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": [
+            460501
+          ]
+        }
+      ]
+    },
+    {
+      "id": 46400,
+      "damage": 24468727422,
+      "critDamage": 22777511400,
+      "hits": 37,
+      "crits": 29,
+      "casts": 24,
+      "timeAvailable": 161646,
+      "damageGem": 9,
+      "cooldownGem": 9,
+      "front": 2651547042,
+      "back": 0,
+      "statWindows": [
+        {
+          "damage": 19675588759,
+          "critDamage": 18481052608,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": [
+            460501
+          ]
+        },
+        {
+          "damage": 4793138663,
+          "critDamage": 4296458792,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": []
+        }
+      ]
+    },
+    {
+      "id": 46500,
+      "damage": 6977846814,
+      "critDamage": 5825426071,
+      "hits": 9,
+      "crits": 7,
+      "casts": 11,
+      "timeAvailable": 134099,
+      "damageGem": 9,
+      "front": 0,
+      "back": 4386290529,
+      "statWindows": [
+        {
+          "damage": 2998234169,
+          "critDamage": 2723860204,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": []
+        },
+        {
+          "damage": 3979612645,
+          "critDamage": 3101565867,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": [
+            460501
+          ]
+        }
+      ]
+    },
+    {
+      "id": 46610,
+      "damage": 5239475634,
+      "critDamage": 5239475634,
+      "hits": 9,
+      "crits": 9,
+      "casts": 1,
+      "timeAvailable": 11081,
+      "front": 0,
+      "back": 0,
+      "statWindows": [
+        {
+          "damage": 5239475634,
+          "critDamage": 5239475634,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": [
+            460501
+          ]
+        }
+      ]
+    },
+    {
+      "id": 46410,
+      "damage": 3184399010,
+      "critDamage": 2952202680,
+      "hits": 98,
+      "crits": 79,
+      "casts": 24,
+      "timeAvailable": 123472,
+      "cooldownGem": 9,
+      "front": 0,
+      "back": 0,
+      "statWindows": [
+        {
+          "damage": 2711344422,
+          "critDamage": 2539400517,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": []
+        },
+        {
+          "damage": 473054588,
+          "critDamage": 412802163,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": [
+            460501
+          ]
+        }
+      ]
+    },
+    {
+      "id": 46440,
+      "damage": 1761872643,
+      "critDamage": 1625886316,
+      "hits": 57,
+      "crits": 44,
+      "casts": 22,
+      "timeAvailable": 129014,
+      "cooldownGem": 9,
+      "front": 0,
+      "back": 0,
+      "statWindows": [
+        {
+          "damage": 1761872643,
+          "critDamage": 1625886316,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": []
+        }
+      ]
+    },
+    {
+      "id": 46450,
+      "damage": 1371955457,
+      "critDamage": 1275563553,
+      "hits": 96,
+      "crits": 76,
+      "casts": 20,
+      "timeAvailable": 124638,
+      "cooldownGem": 9,
+      "front": 0,
+      "back": 0,
+      "statWindows": [
+        {
+          "damage": 1371955457,
+          "critDamage": 1275563553,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": []
+        }
+      ]
+    },
+    {
+      "id": 170000801,
+      "damage": 827627274,
+      "critDamage": 0,
+      "hits": 18,
+      "crits": 0,
+      "casts": 1,
+      "front": 0,
+      "back": 0
+    },
+    {
+      "id": 46050,
+      "damage": 46678932,
+      "critDamage": 46678932,
+      "hits": 7,
+      "crits": 7,
+      "casts": 7,
+      "timeAvailable": 304233,
+      "front": 0,
+      "back": 0,
+      "statWindows": [
+        {
+          "damage": 46678932,
+          "critDamage": 46678932,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": []
+        }
+      ]
+    },
+    {
+      "id": 46000,
+      "damage": 13810346,
+      "critDamage": 9877290,
+      "hits": 6,
+      "crits": 3,
+      "casts": 15,
+      "front": 0,
+      "back": 0,
+      "statWindows": [
+        {
+          "damage": 13810346,
+          "critDamage": 9877290,
+          "attackPowerPct": 2,
+          "critDamagePct": 0,
+          "states": []
+        }
+      ]
+    }
+  ],
+  "evolutionRecord": {
+    "damageDoneWithoutUltimateAwakening": 194281173532,
+    "bluntThornEfficiency": {
+      "damageDoneByStat": 50466065086,
+      "damageDoneByStatPlusValue": 52706640629
+    }
+  }
+}

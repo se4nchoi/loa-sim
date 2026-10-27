@@ -14,6 +14,22 @@ const hit: ReplayHit = {skill:1,damage:100,crit:false,hyper:false};
 const run = real as ReplayRun;
 
 describe('per-hit stat replay with explicit contexts', () => {
+	it('distinguishes Basic flat attack from additive attack and rejects negative Basic attack', () => {
+		const c = {...context, baseAttackFlat: 3690, baseAttackPct: .2, supportAttack: 40000};
+		const total = (Math.sqrt(c.mainStat * c.weaponPower / 6) + 3690) * 1.2 + 40000;
+		expect(replayHitRatio(hit, c, delta({baseAttackFlat: 1000}))).toBeCloseTo(1 + 1200 / total, 12);
+		expect(replayHitRatio(hit, c, delta({attackPower: 1000}))).toBeCloseTo(1 + 1000 / total, 12);
+		expect(replayHitRatio(hit, c, delta({baseAttackFlat: -4000}))).toBeNull();
+	});
+	it('cannot identify primary Crit Damage from a combined crit multiplier', () => {
+		// Both contexts produce x3 crits. One is x2 primary times x1.5 secondary; the other x3 primary.
+		const a = {...context, critMultiplier: 3, primaryCritDamageRate: 1};
+		const b = {...context, critMultiplier: 3, primaryCritDamageRate: 2};
+		const crit = {...hit, crit: true};
+		expect(replayHitRatio(crit, a, delta())).toBe(replayHitRatio(crit, b, delta()));
+		expect(replayHitRatio(crit, a, delta({critDamage: 1}))).toBeCloseTo(1.005, 12);
+		expect(replayHitRatio(crit, b, delta({critDamage: 1}))).toBeCloseTo(1 + .01 / 3, 12);
+	});
 	it('preserves the baseline including incomplete hit coverage', () => {
 		const result = replayStats([run],delta(),()=>context);
 		expect(result.gainPct).toBe(0);

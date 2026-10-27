@@ -28,7 +28,7 @@ export function baseAttackOf(loadout: Loadout, state: SimState): number {
 /** The stat model for this plan: its main stat, Weapon Power and base attack, with buckets from the runs. */
 export function planModel(loadout: Loadout, state: SimState, base: SimState, allRuns: RunSummary[], gateRuns: RunSummary[]) {
 	const sim = simulate(loadout, state, base);
-	return modelInput(allRuns, gateRuns, sim.mainStat, sim.weaponPower, baseAttackOf(loadout, state));
+	return modelInput(allRuns, gateRuns, sim.mainStat, sim.weaponPower, baseAttackOf(loadout, state), bracerStats(state.bracer).attackFlat);
 }
 
 export interface GemChoice {

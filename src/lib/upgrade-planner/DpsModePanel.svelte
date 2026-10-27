@@ -38,6 +38,7 @@
 	import { wipeGap, wipeStory } from './dps-wipe';
 	import type { Loadout } from './types';
 	import { shareableRun, type SharedDps } from './shared-dps';
+	import { gearDamageContext } from './gear-damage-context';
 
 	let { loadout, simState, characterKey, characterName, snapshots = [], onsimulate, shared }: {
 		loadout: Loadout;
@@ -258,17 +259,26 @@
 	});
 	// A support's sim is the party damage their buffs added (support-meter.ts); a dealer's, their own skills' damage.
 	const isSupport = $derived(loadout.battlePoint.isSupport);
-	const meter = $derived(!isSupport && runs.length ? dpsMeter(loadout, clearSetup?.state ?? base, baselineReady ? plain : clearSetup?.state ?? base, buildRuns, runs, arkGrid) : null);
+	const meterRuns = $derived.by(() => {
+		if (shared || isSupport || !setup?.snap || !clearSetup || !baselineReady) return runs;
+		const snapshot = setup.snap, baseline = clearSetup.state;
+		return runs.map(run => {
+			const context = gearDamageContext(loadout, baseline, run, snapshot), total = context.totals.additionalDamage;
+			return total === undefined ? run : { ...run, gearAdditionalDamage: total,
+				skills: run.skills.map(skill => context.skills[skill.id] ? {...skill, gearAttackPowerPct: context.skills[skill.id].attackPowerPct} : skill) };
+		});
+	});
+	const meter = $derived(!isSupport && meterRuns.length ? dpsMeter(loadout, clearSetup?.state ?? base, baselineReady ? plain : clearSetup?.state ?? base, buildRuns, meterRuns, arkGrid) : null);
 	// What a share link carries from here: this run, its baseline, its skills' names and icons (shared-dps.ts).
 	const share = $derived.by<SharedDps | undefined>(() => {
 		if (!clear || !baselineReady || isSupport) return undefined;
 		const skills = Object.fromEntries(clear.skills.map((s) => [s.id, [skillName(s.id), skillsBook?.[s.id]?.[1] || GEM_SKILLS[s.id]?.[1] || '']])) as SharedDps['skills'];
 		const tripods = clearSkills?.filter((s) => clear.skills.some((x) => x.id === s.id)).map((s) => ({ id: s.id, ...(s.tripods ? { tripods: s.tripods } : {}) }));
-		return { run: shareableRun($state.snapshot(clear) as RunSummary), baseline: $state.snapshot(clearSetup?.state ?? base) as SimState, skills, ...(tripods?.length ? { arkSkills: tripods } : {}), ...(clear.cleared === false && isEnrage(clear) ? { enrage: true } : {}) };
+		return { run: shareableRun($state.snapshot(meterRuns[0] ?? clear) as RunSummary), baseline: $state.snapshot(clearSetup?.state ?? base) as SimState, skills, ...(tripods?.length ? { arkSkills: tripods } : {}), ...(clear.cleared === false && isEnrage(clear) ? { enrage: true } : {}) };
 	});
 	const selection = $derived<DpsSelection | null>(!runs.length || !baselineReady ? null
 		: isSupport ? (clear?.support ? { baseline: clearSetup?.state ?? base, buildRuns: [], runs, support: true } : null)
-		: { baseline: clearSetup?.state ?? base, buildRuns, runs, arkGrid, share });
+		: { baseline: clearSetup?.state ?? base, buildRuns, runs: meterRuns, arkGrid, share });
 	// Shared with Next Upgrades, which ranks upgrades on this meter.
 	$effect(() => {
 		const key = characterKey;

@@ -27,7 +27,15 @@ describe('damage gains without logs', () => {
 	it('models fixed support attack explicitly and lets it dilute main-stat gains', () => {
 		const delta = {...ZERO_DELTA, mainStat: 10000};
 		expect(statGain({...context, supportAttack: 50000}, delta)).toBeLessThan(statGain(context, delta)!);
-		expect(statGain({...context, supportAttack: 50000}, {...ZERO_DELTA, attackPowerPct: 1})).toBeLessThan(statGain(context, {...ZERO_DELTA, attackPowerPct: 1})!);
+		// The rate bucket multiplies both personal and support attack.
+		expect(statGain({...context, supportAttack: 50000}, {...ZERO_DELTA, attackPowerPct: 1})).toBeCloseTo(statGain(context, {...ZERO_DELTA, attackPowerPct: 1})!, 10);
+	});
+	it('applies Basic flat attack before the base multiplier and accessory flat attack after it', () => {
+		const c = {...context, baseAttackFlat: 3690, baseAttackPct: 20, supportAttack: 40000};
+		const total = (Math.sqrt(c.mainStat * c.weaponPower / 6) + 3690) * 1.2 + c.flatAttack + 40000;
+		expect(statGain(c, {...ZERO_DELTA, baseAttackFlat: 1000})).toBeCloseTo(1200 / total * 100, 10);
+		expect(statGain(c, {...ZERO_DELTA, attackPower: 1000})).toBeCloseTo(1000 / total * 100, 10);
+		expect(statGain(c, {...ZERO_DELTA, baseAttackFlat: -3691})).toBeNull();
 	});
 	it('handles configured crit-to-evolution conversion without adding it twice', () => {
 		const c = {...context, critRate: 100, critConversion: {threshold: .8, ratio: 1.5, maxBonus: .6}};

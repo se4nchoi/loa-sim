@@ -3,6 +3,8 @@
 
 import type { EncounterRow, RunSkill, RunSummary, SupportKind, SupportRun, SupportUptime } from './protocol';
 import { averageStatValues, splitOf } from './stat-values';
+import { combatStatWindows, type StatWindowHit } from './combat-stat-windows';
+import { evolutionValue } from './evolution-value';
 
 export interface LoggedRunSkill {
 	id?: number; name?: string; icon?: string;
@@ -13,6 +15,7 @@ export interface LoggedRunSkill {
 	/** Damage dealt under each buff, by buff id. */
 	buffedBy?: Record<string, number>;
 	frontAttackDamage?: number; backAttackDamage?: number;
+	skillCastLog?: {hits?: StatWindowHit[]}[];
 }
 
 export interface LoggedEntity {
@@ -33,6 +36,8 @@ export interface LoggedEntity {
 	upstreamId?: unknown;
 	/** A support's contribution (supportRunOf). */
 	support?: SupportRun | null;
+	/** Observed buff id → source skill id, to resolve meter-composed buff identifiers. */
+	statBuffSources?: Record<number, number>;
 }
 
 /** The LOA Logs effect type a support buff works through ("attack_power_addend_/$@[16,314184]") → what scales it. */
@@ -106,6 +111,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 		const damage = Number(s.totalDamage ?? s.total_damage ?? 0);
 		if (!Number.isFinite(id) || !(damage > 0)) continue;
 		names[id] ??= [s.name ?? `Skill ${id}`, (s.icon ?? '').replace(/\.png$/i, '')];
+		const statWindows = combatStatWindows(s.skillCastLog, damage, num(s.critDamage) ?? 0, entity.statBuffSources);
 		skills.push({
 			id, damage, critDamage: num(s.critDamage) ?? 0, hits: num(s.hits) ?? 0, crits: num(s.crits) ?? 0, casts: num(s.casts) ?? 0,
 			...(s.isHyperAwakening === true ? {hyper: true} : {}),
@@ -114,7 +120,8 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 			...(num(s.gemCooldown) !== null ? { cooldownGem: s.gemCooldown } : {}),
 			...buffsOf(s, entity.keptBuffs),
 			...(num(s.frontAttackDamage) !== null ? { front: s.frontAttackDamage } : {}),
-			...(num(s.backAttackDamage) !== null ? { back: s.backAttackDamage } : {})
+			...(num(s.backAttackDamage) !== null ? { back: s.backAttackDamage } : {}),
+			...(statWindows ? {statWindows} : {})
 		});
 	}
 	if (!skills.length) return null;
@@ -141,6 +148,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 	const split = splitOf(misc, row.player);
 	const thorn = (split as { bluntThornEfficiency?: { damageDoneByStat?: number } } | null)?.bluntThornEfficiency?.damageDoneByStat ?? 0;
 	const version = (misc as { version?: unknown } | null)?.version;
+	const evoValue = evolutionValue(split, arkPassives.evolution, skills.filter(skill => !skill.hyper && !(skill.id >= 170_000_000 && skill.id < 172_000_000)).reduce((sum, skill) => sum + skill.damage, 0));
 	// The listing's snapshot hash; the entity's own is kept below.
 	const { loadoutHash: _listed, ...listed } = row;
 	return {
@@ -161,6 +169,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 		damage: skills.reduce((sum, s) => sum + s.damage, 0),
 		skills: skills.sort((a, b) => b.damage - a.damage),
 		statValues: averageStatValues([split]),
+		...(evoValue !== undefined ? {evolutionDamageValue: evoValue} : {}),
 		critConversion: thorn > 0,
 		meterVersion: typeof version === 'string' ? version : null
 	};

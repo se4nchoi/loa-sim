@@ -26,7 +26,8 @@ import { gridStats, isParadiseProc, paradiseFactor, procSeason } from './dealer-
 import { orbSeason } from './paradise';
 import { KARMA_ENLIGHTENMENT_WEAPON_PCT_PER_LEVEL, KARMA_LEAP_HYPER_PCT_PER_LEVEL } from './tables';
 import type { Loadout } from './types';
-import { statGain, type DamageContext } from './dps-stat-engine';
+import { gearStatProjection, statGain, type DamageContext } from './dps-stat-engine';
+import { gateDemonSpecies } from '$lib/logs/boss-species';
 
 export interface MeterSkill {
 	id: number;
@@ -56,6 +57,9 @@ const LABELS: Partial<Record<keyof SimState, string>> = { arkGrid: 'Ark Grid', k
 const OWN_LINES = ['outgoing_dmg', 'bracelet'] as const;
 const NON_DIRECTIONAL = new Set(NON_DIRECTIONAL_SKILLS);
 const DROPPED_EDITS = 'Some gear edits';
+const GEAR_STATS_NOTE = 'Additional Damage: gear estimate.';
+const GEAR_ATTACK_NOTE = 'Atk. Power: gear and recorded buff windows.';
+const EVOLUTION_NOTE = 'Evolution Damage: this run’s efficiency record.';
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 /**
@@ -194,13 +198,37 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	const bySkill = new Map<number, MeterSkill>();
 	let before = 0, after = 0, durationMs = 0, statWeighted = 0, outsideDamage = 0, statKnown = true;
 	const unvalued = new Set<string>();
+	let gearStatsUsed = false, gearAttackUsed = false, evolutionUsed = false, borrowedStatsUsed = false;
 	runs.forEach((run, i) => {
+		if (braA.demon !== braB.demon) {
+			const species = gateDemonSpecies(run.boss);
+			// Non-Demon gates need no card total: the bonus is inactive. Otherwise changing this line needs the
+			// species bucket (including card books) and, in mixed gates, damage by target; neither is in the loadout.
+			if (species !== 'other') notInMeter.push(`Bracelet: Demon/Archdemon bonus (${species ? 'card-book total unavailable' : 'mixed or unknown targets'})`);
+		}
+		const evo = !context && !run.statValues && typeof run.evolutionDamageValue === 'number' && run.evolutionDamageValue > 0 && run.evolutionDamageValue <= 1
+			&& !gemEffects.length && same(state.arkGrid, base.arkGrid) && same(state.engravings, base.engravings) && !bracelet.critHit && !bracelet.back && !bracelet.front && bracelet.nonDirectional === 1
+			? 100 / run.evolutionDamageValue - 100 : undefined;
+		const projected = gearStatProjection(delta, { additionalDamage: !context && !run.statValues ? run.gearAdditionalDamage : undefined, evolutionDamage: evo });
+		const ordinary = run.skills.filter(skill => !skill.hyper && !isParadiseProc(skill.id) && skill.damage > 0);
+		// A different attack/crit/evolution bucket can correlate with these windows; don't invent that joint context.
+		const attackOnly = !delta.mainStat && !delta.weaponPower && !delta.attackPower && !delta.baseAttackFlat && !delta.baseAttackPct && !delta.critRate && !delta.critDamage && !delta.evolutionDamage;
+		const autoAttack = !context && !run.statValues && !!delta.attackPowerPct && attackOnly && ordinary.length > 0
+			&& same(state.arkGrid, base.arkGrid) && same(state.engravings, base.engravings) && !bracelet.critHit && !bracelet.back && !bracelet.front
+			&& ordinary.every(skill => typeof skill.gearAttackPowerPct === 'number' && Number.isFinite(skill.gearAttackPowerPct) && skill.gearAttackPowerPct >= 0 && skill.gearAttackPowerPct <= 1)
+			&& ordinary.every(skill => 1 + delta.attackPowerPct * skill.gearAttackPowerPct! > 0)
+			&& Math.abs(run.skills.reduce((sum, skill) => sum + skill.damage, 0) - run.damage) <= 1;
+		if (autoAttack) { projected.remaining.attackPowerPct = 0; gearAttackUsed = true; }
+		const remainingStats = Object.values(projected.remaining).some(v => v);
 		const gain = hasStats ? context
 			? run.critConversion && !context.critConversion && (delta.critRate || delta.critDamage || delta.evolutionDamage) ? null : statGain(context, delta)
-			: modelGain(delta, { ...model, critRate: crit.perRun[i] }).gainPct : 0;
+			: modelGain(projected.remaining, { ...model, critRate: crit.perRun[i] }).gainPct : 0;
 		if (gain === null) statKnown = false;
-		const stat = 1 + (gain ?? 0) / 100;
-		statWeighted += Math.max(0, run.damage - run.skills.filter((s) => s.hyper).reduce((sum, s) => sum + s.damage, 0)) * (gain ?? 0);
+		gearStatsUsed ||= projected.additional;
+		evolutionUsed ||= projected.evolution;
+		borrowedStatsUsed ||= !context && !run.statValues && remainingStats && gain !== null;
+		const stat = projected.factor * (1 + (gain ?? 0) / 100);
+		statWeighted += ordinary.reduce((sum, skill) => sum + skill.damage * (stat * (autoAttack ? 1 + delta.attackPowerPct * skill.gearAttackPowerPct! : 1) - 1) * 100, 0);
 		outsideDamage += Math.max(0, run.damage - run.skills.reduce((sum, s) => sum + s.damage, 0)) * stat * gridDamage * parts * bracelet.outgoing;
 		durationMs += run.duration;
 		const cores = arkGrid && !same(state.arkGrid, base.arkGrid) ? arkGrid(loadout, base, state, run) : null;
@@ -211,7 +239,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 			const row = bySkill.get(skill.id) ?? { id: skill.id, before: 0, after: 0 };
 			row.before += skill.damage;
 			// A Paradise orb's proc hits for a fixed amount (no crits, the same at any gear): only Paradise power moves it.
-			row.after += skill.damage * (isParadiseProc(skill.id) ? paradise(skill.id) : skill.hyper ? leap : stat * gems * gridOf(skill) * parts * braceletOf(skill));
+			row.after += skill.damage * (isParadiseProc(skill.id) ? paradise(skill.id) : skill.hyper ? leap : stat * (autoAttack ? 1 + delta.attackPowerPct * (skill.gearAttackPowerPct ?? 0) : 1) * gems * gridOf(skill) * parts * braceletOf(skill));
 			bySkill.set(skill.id, row);
 		}
 		before += run.damage;
@@ -220,8 +248,11 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	// Damage outside the per-skill list (if any) is scaled by the stat part alone.
 	after += outsideDamage;
 	notes.push(...unvalued);
-	if (hasStats && !statKnown) notes.push(context ? 'Configured totals do not cover this run’s crit conversion; stat edits are left out.' : "Stat edits need a run recorded with LOA Logs' stat values, or configured combat totals; they're left out.");
-	const lender = hasStats && statKnown && !context && !runs.some((r) => r.statValues) ? buildRuns.find((r) => r.statValues) : undefined;
+	if (gearStatsUsed) notes.push(GEAR_STATS_NOTE);
+	if (gearAttackUsed) notes.push(GEAR_ATTACK_NOTE);
+	if (evolutionUsed) notes.push(EVOLUTION_NOTE);
+	if (hasStats && !statKnown) notes.push(context ? 'Configured totals do not cover this run’s crit conversion; stat edits are left out.' : `${gearStatsUsed || gearAttackUsed || evolutionUsed ? 'Other stat edits' : 'Stat edits'} need a run recorded with LOA Logs' stat values, or configured combat totals; they're left out.`);
+	const lender = borrowedStatsUsed && statKnown && !context && !runs.some((r) => r.statValues) ? buildRuns.find((r) => r.statValues) : undefined;
 	if (lender) notes.push(`Stat values from the ${runDate(lender.start)} run: this one didn't record them.`);
 	return {
 		before, after, durationMs,
@@ -268,7 +299,7 @@ export function meterGain(loadout: Loadout, baseline: SimState, from: SimState, 
 	// that moves nothing is unknown, not zero; one that moves something but touches an unvalued part is a floor.
 	const unvalued = unvaluedParts(loadout, from, to, !!arkGrid).length > 0;
 	if (Math.abs(gainPct) < 1e-6 && !same(from, to)) return { gainPct: null, atLeast: false };
-	return { gainPct, atLeast: newNotes.length > 0 || unvalued };
+	return { gainPct, atLeast: newNotes.some(note => note !== GEAR_STATS_NOTE && note !== GEAR_ATTACK_NOTE && note !== EVOLUTION_NOTE) || unvalued };
 }
 
 /** A snapshot the Simulator can switch to, for matching a clear's gear. */

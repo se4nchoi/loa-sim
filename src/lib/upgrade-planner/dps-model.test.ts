@@ -33,6 +33,18 @@ describe('DPS stat model', () => {
 		const wp50 = modelGain({ ...zero, weaponPower: 50_000 }, input).gainPct!;
 		expect(wp50).toBeLessThan(50 * wp);
 	});
+	it('multiplies Atk. Power % after support dilution, including a simultaneous honing edit', () => {
+		const wp = modelGain({...zero, weaponPower: 1000}, input).gainPct!;
+		const rate = modelGain({...zero, attackPowerPct: 1}, input).gainPct!;
+		expect(rate).toBeCloseTo(meter.attackPowerPct, 10);
+		expect(modelGain({...zero, weaponPower: 1000, attackPowerPct: 1}, input).gainPct).toBeCloseTo(((1 + wp / 100) * (1 + rate / 100) - 1) * 100, 10);
+	});
+	it('keeps vambrace Basic flat attack on the base-multiplier side', () => {
+		const a = modelGain({...zero, attackPower: 1000}, input).gainPct!;
+		const b = modelGain({...zero, baseAttackFlat: 1000}, input).gainPct!;
+		expect(b).toBeCloseTo(a * 1.1, 10);
+		expect(modelGain({...zero, baseAttackFlat: 1000}, {...input, buckets: null}).gainPct).toBeNull();
+	});
 
 	it('multiplies buckets and lists each part', () => {
 		const g = modelGain({ ...zero, additionalDamage: 2, weaponPower: 5000 }, input);

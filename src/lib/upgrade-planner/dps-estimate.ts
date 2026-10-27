@@ -4,6 +4,8 @@ import { gemDpsGainPct } from './dps';
 import { dpsGainPct, statDeltas, type StatDeltas } from './dps-stats';
 import { gemParts, simulate, type SimState } from './simulate';
 import type { Loadout } from './types';
+import { baseAttackOf } from './dps-explain';
+import { bracerStats } from './bracer';
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const STAT_FIELDS = ['bracer', 'sidereal', 'gear', 'quality', 'accessories', 'accessoryStats', 'skins', 'bracelet'] as const;
@@ -67,12 +69,12 @@ export function estimateDps(loadout: Loadout, from: SimState, to: SimState, base
 	if (Math.abs(delta.mainStat) > current.mainStat * 0.05 || Math.abs(delta.weaponPower) > current.weaponPower * 0.05)
 		limitations.push('Large stat change: the meter marginal is linear, but attack power scales with the square root.');
 	if (delta.baseAttackPct) limitations.push('Base-attack changes use snapshot totals; in-fight main stat and Weapon Power are not saved.');
-	const addedAttack = (delta.baseAttackPct ?? 0) / 100 * Math.sqrt(current.mainStat * current.weaponPower / 6);
+	const addedAttack = (delta.baseAttackPct ?? 0) / 100 * (Math.sqrt(current.mainStat * current.weaponPower / 6) + bracerStats(from.bracer).attackFlat);
 	const coveredDelta = { ...delta };
 	let anyMeasuredStat = false;
 	for (const [key, amount] of Object.entries(delta)) {
 		if (!amount || key === 'baseAttackPct') continue;
-		const sampleKey = key === 'evolutionDamage' ? 'evoDamage' : key;
+		const sampleKey = key === 'evolutionDamage' ? 'evoDamage' : key === 'baseAttackFlat' ? 'attackPower' : key;
 		if (values?.statSamples && !values.statSamples[sampleKey]) {
 			excluded.push(`${key} (missing meter values)`);
 			coveredDelta[key as keyof StatDeltas] = 0;
@@ -81,7 +83,7 @@ export function estimateDps(loadout: Loadout, from: SimState, to: SimState, base
 	const baseAttackKnown = !delta.baseAttackPct || !values?.statSamples || !!values.statSamples.attackPower;
 	if (!baseAttackKnown) excluded.push('base attack (missing flat-attack values)');
 	if (delta.baseAttackPct && baseAttackKnown && values) anyMeasuredStat = true;
-	const statPct = values ? (hasStats || gemAttack) && !anyMeasuredStat ? null : dpsGainPct(coveredDelta, values) + (baseAttackKnown ? addedAttack / 1000 * values.attackPower : 0) : hasStats || gemAttack ? null : 0;
+	const statPct = values ? (hasStats || gemAttack) && !anyMeasuredStat ? null : dpsGainPct(coveredDelta, values, baseAttackOf(loadout, to)) + (baseAttackKnown ? addedAttack / 1000 * values.attackPower : 0) : hasStats || gemAttack ? null : 0;
 	const usable = statPct !== null || gemPct !== null;
 	const hasCoveredChange = (hasStats && statPct !== null) || (gemsChanged && gemPct !== null) || (!!gemAttack && statPct !== null);
 	const noChanges = !hasStats && !gemsChanged && !excluded.length;

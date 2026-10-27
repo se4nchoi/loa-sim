@@ -21,6 +21,18 @@ function setup() {
 }
 
 describe('combined DPS estimate', () => {
+	it('uses the flat-attack measurement for Basic flat attack, including its base multiplier', () => {
+		const base = initSimState(loadout); base.bracer = {grade: 'epic', honing: 4};
+		const to = structuredClone(base); to.bracer!.honing++;
+		const result = estimateDps(loadout, base, to, base, values);
+		const parts = gemParts(loadout);
+		const basePct = base.gems.reduce((sum, g, i) => sum + ((g.tier ?? parts[i]?.tier) === 'T4' ? GEM_BASE_ATTACK[g.level - 1] : 0), 0);
+		expect(result.statDelta!.baseAttackFlat).toBe(850);
+		expect(result.statPct).toBeCloseTo(850 * (1 + basePct / 100) / 1000 * values.attackPower, 10);
+		const absent = estimateDps(loadout, base, to, base, {...values, statSamples: {weaponPower: 1}});
+		expect(absent.statPct).toBeNull();
+		expect(absent.excluded).toContain('baseAttackFlat (missing meter values)');
+	});
 	it('reproduces measured marginal values from the real Deskaluda run', () => {
 		const measured = averageStatValues([realRun.split])!;
 		expect(measured.mainStat).toBeCloseTo(0.05346, 5);
