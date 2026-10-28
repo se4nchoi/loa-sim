@@ -5,6 +5,7 @@ import type { EncounterRow, RunSkill, RunSummary, SupportKind, SupportRun, Suppo
 import { averageStatValues, splitOf } from './stat-values';
 import { combatStatWindows, type StatWindowHit } from './combat-stat-windows';
 import { evolutionValue } from './evolution-value';
+import { stackReplay } from './stack-replay';
 
 export interface LoggedRunSkill {
 	id?: number; name?: string; icon?: string;
@@ -15,7 +16,7 @@ export interface LoggedRunSkill {
 	/** Damage dealt under each buff, by buff id. */
 	buffedBy?: Record<string, number>;
 	frontAttackDamage?: number; backAttackDamage?: number;
-	skillCastLog?: {hits?: StatWindowHit[]}[];
+	skillCastLog?: {timestamp?: number; hits?: (StatWindowHit & {timestamp?: number})[]}[];
 }
 
 export interface LoggedEntity {
@@ -125,6 +126,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 		});
 	}
 	if (!skills.length) return null;
+	const stackDamage = entity.keptBuffs ? stackReplay(Object.entries(entity.skills).map(([key, s]) => ({ id: Number(s.id ?? key), name: s.name ?? '', casts: s.skillCastLog ?? [] })), entity.keptBuffs) : undefined;
 	let engravings: unknown = entity.engravings;
 	try { if (typeof engravings === 'string') engravings = JSON.parse(engravings); } catch { engravings = null; }
 	let passiveData: unknown = entity.arkPassiveData;
@@ -161,6 +163,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 		...(Object.keys(arkGridOrder).length ? { arkGridOrder } : {}),
 		...(typeof entity.loadoutHash === 'string' && entity.loadoutHash ? { loadoutHash: entity.loadoutHash } : {}),
 		...(entity.keptBuffs ? { buffNames: Object.fromEntries(entity.keptBuffs) } : {}),
+		...(stackDamage ? { stackDamage } : {}),
 		...(entity.bossHp && entity.bossHp.max > 0 ? { bossHp: entity.bossHp } : {}),
 		...(entity.partyDamage && entity.partyDamage > 0 ? { partyDamage: entity.partyDamage } : {}),
 		...(entity.dead ? { dead: entity.dead } : {}),

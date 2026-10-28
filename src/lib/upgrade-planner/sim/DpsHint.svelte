@@ -27,10 +27,11 @@
 		{ key: 'paradise', label: 'Paradise orb swaps', kind: 'Not valued', look: paradise, tldr: 'Orb swaps aren’t counted (another proc); Paradise power on the same orb is.', points: [
 			'The run’s proc hits scale with its orb’s season power; how often it procs stays as recorded.'
 		] },
-		{ key: 'stacks', label: 'Stacked buffs', kind: 'Assumed', look: adrenaline, tldr: 'Core damage bonuses with untracked stacks or timers assume full stacks or uptime.', points: [
+		{ key: 'stacks', label: 'Stacked buffs', kind: 'Assumed', look: adrenaline, tldr: 'Core stack bonuses are counted per cast from the run’s own casts where the logs show them; the rest assume full stacks or uptime.', points: [
+			'Replayed per cast: Slaughter Spectacle, Demon Fire, Hidden Fang, Lawless Land, TA-64 Reaper Bolt, Thunder, SMG Agent, Titan Suit, Utter Carnage, Manifest, Earth Collapse, Ravening Nightmare. Older imports need a re-import.',
 			'Adrenaline assumes 6 stacks, Ether Predator 30; stacking bracelet Weapon Power uses full stacks.',
 			'Gear-derived Additional Damage assumes Master at 5 stacks and the pet’s +1% Additional Damage, as LOA Logs does.',
-			'Next-use core bonuses are assumed ready. Stack build-up and drop-off aren’t replayed; existing logged buff windows still apply to other core effects.'
+			'Assumed at full: Power Drive, Eternal Blood, Supreme Connection, Dimensional Annihilation, Pulse Nova, Quasar Cannon Suit, Art Master, Overheated Shell, Infinity Deck, Yeon-Style Slash.'
 		] },
 		{ key: 'summons', label: 'Summons & DoTs', kind: 'Unverified', look: bleeding, tldr: 'Scaled like other damage; core bonuses aimed at them (Heavy Bleeding) aren’t counted.', points: [
 			'Their hits and ticks stay as recorded; only the damage per hit scales.'

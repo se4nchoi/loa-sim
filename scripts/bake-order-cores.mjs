@@ -240,7 +240,7 @@ function effectsOf(option, cls) {
 			const inheritedBuff = !destiny && feature
 				? strip(options[feature.index]?.desc ?? '').match(/(Destiny: [^:,.]+): /)?.[1] : undefined;
 			out.push({ pct: Math.round(Number(assumedFoes?.[1] ?? assumedSkill?.[2]) / 100 * assumption.scale * 1e12) / 1e12, ...assumedTarget,
-				assumed: assumption.assumed, ...(assumption.stacks ? { stacks: assumption.stacks } : {}),
+				assumed: assumption.assumed, ...(assumption.stacks ? { stacks: assumption.stacks } : {}), ...(threshold ? { atMax: true } : {}),
 				...(except.length ? { except: [...new Set(except)] } : {}),
 				...((destiny || inheritedBuff) && feature ? { feature: feature.index, level: feature.value } : {}),
 				...(inBuff && buffName ? { buff: buffName } : inheritedBuff ? { buff: inheritedBuff } : {}),
@@ -273,6 +273,8 @@ export interface OrderCoreEffect {
 	assumed?: 'max-stacks' | 'full-uptime';
 	/** Explicit cap from the option; pct already includes it for a per-stack bonus. */
 	stacks?: number;
+	/** Only at the cap ("At max stacks, Timeline Collapse Damage +20%"): pct is the whole bonus. */
+	atMax?: true;
 	/** Skill groups the damage applies to; null = every skill. */
 	groups?: string[] | null;
 	/** And/or these skills (ids). */

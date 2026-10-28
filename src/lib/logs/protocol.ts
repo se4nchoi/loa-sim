@@ -153,6 +153,9 @@ export interface RunSummary extends EncounterRow {
 	loadoutHash?: string;
 	/** Names of the buffs in the skills' `buffs`. */
 	buffNames?: Record<number, string>;
+	/** Order cores whose stacks the run's casts show (stack-replay): per core ("blaster:Demon Fire"), per bonus skill,
+	 *  damage by the stacks each cast went out with. Unknown on old imports. */
+	stackDamage?: Record<string, Record<number, Record<string, number>>>;
 	/** The boss's HP at the end (0 on a clear), and its max; unknown on old imports. */
 	bossHp?: { left: number; max: number };
 	/** Players dead at the end, of how many. */

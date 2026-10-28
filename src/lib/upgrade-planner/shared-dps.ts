@@ -48,6 +48,7 @@ function run(r: unknown): r is RunSummary {
 		(r.loadoutHash === undefined || text(r.loadoutHash, 80)) && (r.buffNames === undefined || idMap(r.buffNames, (v) => text(v))) &&
 		(r.bossHp === undefined || pair(r.bossHp, 'left', 'max')) && (r.dead === undefined || pair(r.dead, 'count', 'of')) &&
 		(r.partyDamage === undefined || finite(r.partyDamage)) &&
+		(r.stackDamage === undefined || (record(r.stackDamage) && Object.keys(r.stackDamage).length <= 20 && Object.keys(r.stackDamage).every((k) => text(k, 80)) && numbers(r.stackDamage, 3))) &&
 		(r.gearAdditionalDamage === undefined || finite(r.gearAdditionalDamage) && r.gearAdditionalDamage >= 0 && r.gearAdditionalDamage <= 1000) &&
 		(r.evolutionDamageValue === undefined || finite(r.evolutionDamageValue) && r.evolutionDamageValue > 0 && r.evolutionDamageValue <= 1) &&
 		(r.arkGridOrder === undefined || (record(r.arkGridOrder) && Object.values(r.arkGridOrder).every(finite))) &&

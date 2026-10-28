@@ -46,6 +46,17 @@ describe('order core effects', () => {
 		expect(e.factor(r.skills[1])).toBe(1);
 		expect(e.unvalued).toEqual([]); // Unchanged logged buff buckets cancel, even on an older import.
 	});
+	it("values a replayed stack line per cast at that cast's stacks", () => {
+		// SMG Agent relic → ancient: Annihilation Mode +9% → +10% per stack, max 5. Half its damage went out at 5 stacks,
+		// half at 1; without the replay, every cast is at 5.
+		const r = { ...run([skill(35130, 1000)], {}), stackDamage: { 'scouter:SMG Agent': { 35130: { '5': 500, '1': 500 } } } } as RunSummary;
+		const e = orderCoreEffect(loadout, coreState('SMG Agent'), coreState('SMG Agent', 'ancient'), r);
+		expect(e.factor(r.skills[0])).toBeCloseTo(0.5 * 1.5 / 1.45 + 0.5 * 1.1 / 1.09, 9);
+		// "At max stacks" lines count only on casts at the cap: Dimensional Annihilation's +20% doesn't change by grade.
+		const dm = { ...run([skill(2050932, 1000)], {}), stackDamage: { 'dimensionmaster:Dimensional Annihilation': { 2050932: { '4': 1000 } } } } as RunSummary;
+		const d = orderCoreEffect(loadout, coreState('Dimensional Annihilation'), coreState('Dimensional Annihilation', 'ancient'), dm);
+		expect(d.factor(dm.skills[0])).toBeCloseTo(1.064 / 1.04, 9);
+	});
 	it('values a newly unlocked stacking line only when its point threshold is reached', () => {
 		const after = coreState('Power Drive');
 		const before = structuredClone(after);

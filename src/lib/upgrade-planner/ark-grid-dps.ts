@@ -6,7 +6,8 @@
 //     Dead: Stygian Skill Damage +54% for 2 casts"): only the share of the skill's damage LOA Logs recorded under that
 //     buff changes, by (1 + new) / (1 + old). A state or buff this clear never had can't be placed in it, so it isn't
 //     valued (said so); neither is a state the logs don't record ("With Possession").
-//   - explicitly assumed stack / timer lines: full stacks / uptime on their named skills; no reconstructed windows.
+//   - stack lines ("+4% per stack, consumed on Napalm Shot"): each cast at the stacks the run's casts gave it
+//     (stack-replay); without a replay for the core, full stacks / uptime on their named skills.
 // Anything else a core does (cooldowns, casting speed, meters) isn't valued yet and is named.
 import type { RunSummary } from '$lib/logs/protocol';
 import { ORDER_CORE_EFFECTS, ORDER_CORES, TRIPOD_TIERS, type OrderCoreEffect } from './order-cores';
@@ -86,8 +87,13 @@ export function tripodsOf(loadout: Loadout): TripodCheck {
 const applies = (e: OrderCoreEffect, skill: number, groups: string[] | undefined, took: TripodCheck) =>
 	!e.except?.includes(skill) && (!e.tripod || took(skill, e.tripod)) &&
 	(e.groups === null || !!e.skills?.includes(skill) || !!e.groups?.some((g) => groups?.includes(g)));
-const bonus = (effects: OrderCoreEffect[] | undefined, skill: number, groups: string[] | undefined, took: TripodCheck) =>
-	(effects ?? []).reduce((m, e) => (!e.stat && applies(e, skill, groups, took) ? m * (1 + (e.pct ?? 0)) : m), 1);
+/** An effect's bonus on a cast with `stacks` (undefined: the effect's assumption, full stacks / uptime). */
+const valueAt = (e: OrderCoreEffect, stacks: number | undefined) =>
+	stacks === undefined || !e.assumed ? (e.pct ?? 0)
+	: e.atMax ? (stacks >= (e.stacks ?? 1) ? (e.pct ?? 0) : 0)
+	: (e.pct ?? 0) * Math.min(stacks, e.stacks ?? 1) / (e.stacks ?? 1);
+const bonus = (effects: OrderCoreEffect[] | undefined, skill: number, groups: string[] | undefined, took: TripodCheck, stacks?: number) =>
+	(effects ?? []).reduce((m, e) => (!e.stat && applies(e, skill, groups, took) ? m * (1 + valueAt(e, stacks)) : m), 1);
 /** Crit Rate / Crit Damage the effects add to a skill (percentage points as fractions: 0.25 = +25%). */
 const critAdd = (effects: OrderCoreEffect[] | undefined, stat: 'critRate' | 'critDamage', skill: number, groups: string[] | undefined, took: TripodCheck) =>
 	(effects ?? []).reduce((sum, e) => (e.stat === stat && applies(e, skill, groups, took) ? sum + (e.pct ?? 0) : sum), 0);
@@ -203,7 +209,12 @@ export function orderCoreEffect(loadout: Loadout, base: SimState, state: SimStat
 			const groups = SKILL_GROUPS[slot.cls]?.[s.id];
 			for (const key of changedKeys.get(slot)!) {
 				const [a, b] = [slot.after.effects.get(key), slot.before.effects.get(key)];
-				let ratio = bonus(a, s.id, groups, took) / bonus(b, s.id, groups, took);
+				// Stack lines with a replay: each cast's damage at its own stacks.
+				const replay = [...(a ?? []), ...(b ?? [])].some((e) => e.assumed) ? run.stackDamage?.[`${slot.cls}:${slot.name}`]?.[s.id] : undefined;
+				const total = replay ? Object.values(replay).reduce((t, d) => t + d, 0) : 0;
+				let ratio = replay && total > 0
+					? Object.entries(replay).reduce((t, [k, d]) => t + (d / total) * bonus(a, s.id, groups, took, Number(k)) / bonus(b, s.id, groups, took, Number(k)), 0)
+					: bonus(a, s.id, groups, took) / bonus(b, s.id, groups, took);
 				const addRate = critAdd(a, 'critRate', s.id, groups, took) - critAdd(b, 'critRate', s.id, groups, took);
 				const addDamage = critAdd(a, 'critDamage', s.id, groups, took) - critAdd(b, 'critDamage', s.id, groups, took);
 				if (addRate || addDamage) {
