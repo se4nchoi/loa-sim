@@ -5,7 +5,6 @@
 	import type { SimState } from '../simulate';
 	import ItemIcon from './ItemIcon.svelte';
 	import LinePicker from './LinePicker.svelte';
-	import NoDpsChip from './NoDpsChip.svelte';
 	import SimCard from './SimCard.svelte';
 	import { btn, btnAccent, type PickOption, type PreviewEdit, type SectionDelta } from './ui';
 
@@ -35,7 +34,8 @@
 						textColor: RELIC,
 						iconUrl: iconUrl(orbIcon(o)),
 						group: `Season ${orbSeason(o) ?? '?'}`,
-						detail: { label: `${formatPct(shareOf(orb, o))}% CP${better ? ' ▲' : ''}${runOrb !== null && o !== runOrb ? ' · no DPS' : ''}`, color: better ? '#38bdf8' : '#a1a1aa' }
+						detail: { label: `${formatPct(shareOf(orb, o))}% CP${better ? ' ▲' : ''}`, color: better ? '#38bdf8' : '#a1a1aa' },
+						...(runOrb !== null && o !== runOrb ? { disabled: "Not the run's orb: its proc isn't in the run" } : {})
 					};
 				})
 			: []
@@ -85,7 +85,6 @@
 						onpick={(o) => (sim.paradise = { ...sim.paradise!, orb: Number(o) })}
 						preview={(o) => previewOrb(Number(o))}
 					/>
-					{#if runOrb !== null && orb.orb !== runOrb}<NoDpsChip limit="paradise" title="Another orb than the run's: its proc isn't in this run, so the swap isn't counted" />{/if}
 				{/if}
 			</div>
 			{#if orb.flat}

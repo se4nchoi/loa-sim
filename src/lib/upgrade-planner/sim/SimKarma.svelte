@@ -10,7 +10,6 @@
 	} from '../tables';
 	import SimCard from './SimCard.svelte';
 	import Stepper from './Stepper.svelte';
-	import NoDpsChip from './NoDpsChip.svelte';
 	import { btn, btnAccent, type SectionDelta } from './ui';
 
 	let { sim = $bindable(), base, delta, dpsBase = null }: { sim: SimState; base: SimState; delta: SectionDelta; /** DPS mode: Evolution Karma isn't counted. */ dpsBase?: SimState | null } = $props();
@@ -68,14 +67,14 @@
 							title={`Rank ${rank}`}>{rank}</span
 						>
 						<div class="flex min-w-0 flex-1 flex-col">
-							<span class="flex items-center gap-1.5 text-sm font-semibold" style:color={t.color}>{t.name}{#if dpsBase && t.key === 'evolution'}<NoDpsChip limit="karma" title="Evolution Karma gives HP and CP, no damage" />{/if}</span>
+							<span class="flex items-center gap-1.5 text-sm font-semibold" style:color={t.color}>{t.name}</span>
 							<span class="text-xs text-surface-400">Rank {rank} · Lv. {level}</span>
 						</div>
 					</div>
-					<div class="flex flex-row items-center gap-1.5">
+					<fieldset class="flex min-w-0 flex-row items-center gap-1.5 disabled:opacity-40" disabled={!!dpsBase && t.key === 'evolution'} title={dpsBase && t.key === 'evolution' ? 'No DPS value: HP and CP only' : undefined}>
 						<Stepper bind:value={sim.karma[t.key]!} min={0} max={KARMA_MAX_LEVEL} prefix="Lv. " {changed} label={`${t.name} karma level`} width="w-6" />
 						<button type="button" class="{btnAccent} shrink-0" onclick={() => (sim.karma[t.key] = KARMA_MAX_LEVEL)}>Max</button>
-					</div>
+					</fieldset>
 					<ul class="flex flex-col gap-0.5 text-xs">
 						{#each effects(t.key, level) as e (e.label)}
 							<li class="flex flex-row justify-between gap-2">

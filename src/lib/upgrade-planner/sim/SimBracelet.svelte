@@ -119,7 +119,10 @@
 		l.kind === 'empty' ? 'yes'
 		: l.kind === 'effect' ? dpsCount(l.key)
 		: isStatEffect(l) ? (COUNTED_STAT_EFFECTS.has(statKey(l)) ? 'yes' : 'no')
-		: isMainStat(statKey(l)) || statKey(l) === '2:15' ? 'yes' : 'no';
+		: statCounted(statKey(l)) ? 'yes' : 'no';
+	const NO_DPS = 'No DPS value';
+	/** A stat line the meter counts: main stat and Crit. */
+	const statCounted = (key: string) => isMainStat(key) || key === '2:15';
 	/** "Outgoing Damage +3%." → short label for the family heading. */
 	const shortText = (t: string) => (t.length > 70 ? `${t.slice(0, 68)}…` : t);
 	// Dealers and supports roll the same effects but score them differently; supports list their own table.
@@ -132,7 +135,8 @@
 			label: shortText(e.text),
 			color: GRADE_COLORS[e.grade] ?? ROLL_COLORS.none,
 			group: 'Special effects',
-			...(dpsBase && dpsCount(e.key) !== 'yes' ? { detail: { label: dpsCount(e.key) === 'no' ? 'no DPS' : 'partly', color: '#fcd34d' } } : {})
+			...(dpsBase && dpsCount(e.key) === 'partly' ? { detail: { label: 'partly', color: '#fcd34d' } } : {}),
+			...(dpsBase && dpsCount(e.key) === 'no' ? { disabled: NO_DPS } : {})
 		})),
 		...Object.entries(STAT_EFFECTS).flatMap(([key, e]) =>
 			e.values.toReversed().map((v, i) => ({
@@ -140,7 +144,7 @@
 				label: statEffectLabel(key, v),
 				color: TIER_COLORS[2 - i],
 				group: 'Stat effects',
-				...(dpsBase && !COUNTED_STAT_EFFECTS.has(key) ? { detail: { label: 'no DPS', color: '#fcd34d' } } : {})
+				...(dpsBase && !COUNTED_STAT_EFFECTS.has(key) ? { disabled: NO_DPS } : {})
 			}))
 		)
 	]);
@@ -190,10 +194,10 @@
 			(before && kindOf(before) === 'effect' && usedFamilies(i).has(familyOf(effectValue(before))));
 		if (before && kindOf(before) === kind && !taken) sim.bracelet!.lines[i] = structuredClone($state.snapshot(before));
 		else if (kind === 'stat') {
-			const key = STAT_CHOICES.find((k) => !usedStats(i).has(k) && !(COMBAT.has(k) && combatFull(i))) ?? '2:6';
+			const key = STAT_CHOICES.find((k) => !usedStats(i).has(k) && !(COMBAT.has(k) && combatFull(i)) && !(dpsBase && !statCounted(k))) ?? '2:6';
 			sim.bracelet!.lines[i] = { kind, ...parseKey(key), value: DEFAULT_VALUE[key] ?? 100 };
 		} else if (kind === 'effect') {
-			const v = OPTIONS.find((o) => !usedFamilies(i).has(familyOf(String(o.value))))?.value ?? OPTIONS[0].value;
+			const v = OPTIONS.find((o) => !o.disabled && !usedFamilies(i).has(familyOf(String(o.value))))?.value ?? OPTIONS[0].value;
 			sim.bracelet!.lines[i] = lineFromValue(String(v));
 		} else sim.bracelet!.lines[i] = { kind };
 	}
@@ -256,7 +260,7 @@
 									onchange={(e) => setStat(i, line, e.currentTarget.value)}
 									aria-label={`Bracelet line ${i + 1} stat`}
 								>
-									{#each statChoices(i, statKey(line)) as k (k)}<option value={k} title={statName(k)}>{statShort(k)}</option>{/each}
+									{#each statChoices(i, statKey(line)) as k (k)}<option value={k} title={dpsBase && !statCounted(k) && k !== statKey(line) ? NO_DPS : statName(k)} disabled={!!dpsBase && !statCounted(k) && k !== statKey(line)}>{statShort(k)}</option>{/each}
 								</select>
 								<span class="-ml-px">
 									<Stepper
@@ -272,8 +276,8 @@
 						{:else}
 							<span class="text-xs text-surface-500">No line</span>
 						{/if}
-						{#if dpsBase && !sameLine(dpsBase.bracelet?.lines[i], line) && lineCount(line) !== 'yes'}
-							<NoDpsChip limit="bracelet" label={lineCount(line) === 'no' ? 'no DPS' : 'partly'} title={lineCount(line) === 'no' ? "The DPS meter doesn't count this line (conditional, a combat stat, or no damage)" : 'Only its plain stat and damage parts count; its conditional parts don’t'} />
+						{#if dpsBase && !sameLine(dpsBase.bracelet?.lines[i], line) && lineCount(line) === 'partly'}
+							<NoDpsChip limit="bracelet" label="partly" title="Only its plain stat and damage parts count; its conditional parts don’t" />
 						{/if}
 					</div>
 				{/each}

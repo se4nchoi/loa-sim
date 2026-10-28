@@ -52,6 +52,8 @@ export interface PickOption {
 	textColor?: string;
 	/** A short right-aligned column before the CP preview (e.g. an orb's season and share). */
 	detail?: { label: string; color?: string };
+	/** Not pickable; the reason is its tooltip (DPS mode: a choice the meter can't value). */
+	disabled?: string;
 }
 
 /** lostark.bible's roll colors for accessory lines (high / mid / low), plus grey for lines with no DPS value. */

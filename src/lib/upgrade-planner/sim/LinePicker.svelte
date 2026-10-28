@@ -102,7 +102,7 @@
 						placeholder="Search…"
 						aria-label={`Search ${label}`}
 						class="h-8 w-full rounded-xs border border-surface-600 bg-surface-950 px-2 text-sm text-surface-100 focus:border-accent-500 focus:outline-none"
-						onkeydown={(e) => e.key === 'Enter' && shown[0] && pick(shown[0].value)}
+						onkeydown={(e) => { const first = shown.find((o) => !o.disabled); if (e.key === 'Enter' && first) pick(first.value); }}
 					/>
 				</div>
 			{/if}
@@ -114,7 +114,9 @@
 						type="button"
 						role="option"
 						aria-selected={o.value === value}
-						class="flex w-full flex-row items-center gap-3 px-3 py-2 text-left hover:bg-surface-800 {o.value === value ? 'bg-surface-800/70' : ''}"
+						class="flex w-full flex-row items-center gap-3 px-3 py-2 text-left enabled:hover:bg-surface-800 disabled:cursor-not-allowed disabled:opacity-40 {o.value === value ? 'bg-surface-800/70' : ''}"
+						disabled={!!o.disabled && o.value !== value}
+						title={o.disabled}
 						onclick={() => pick(o.value)}
 					>
 						<span class="flex flex-1 flex-row items-center gap-2 {edge} text-sm" style:border-color={o.color}>
@@ -124,7 +126,7 @@
 						{#if o.detail}<span class="w-24 text-right text-xs whitespace-nowrap tabular-nums" style:color={o.detail.color}>{o.detail.label}</span>{/if}
 						{#if o.value === value}
 							<span class="text-xs text-surface-400">current</span>
-						{:else if previews[o.value] !== undefined}
+						{:else if previews[o.value] !== undefined && !o.disabled}
 							<span class="text-sm font-semibold whitespace-nowrap tabular-nums {previewClass(previews[o.value])}">{formatPct(previews[o.value])}%</span>
 							{#if cpNow}<span class="w-12 text-right text-xs whitespace-nowrap text-surface-400 tabular-nums">{formatPct((cpNow() * previews[o.value]) / 100, 1)}</span>{/if}
 						{/if}
