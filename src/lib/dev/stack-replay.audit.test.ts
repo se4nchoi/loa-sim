@@ -19,7 +19,7 @@ it.skipIf(!process.env.STACK_AUDIT)('replays stack rules on local runs', () => {
 	writeFileSync(out, '');
 	const log = (...a: unknown[]) => appendFileSync(out, a.join(' ') + '\n');
 	const db = new DatabaseSync(process.env.STACK_AUDIT!, { readOnly: true });
-	const rows = db.prepare(`SELECT e.encounter_id, e.name, e.class, e.skills, c.buffs FROM entity e JOIN encounter c ON c.id = e.encounter_id WHERE e.entity_type = 'PLAYER'`).all() as Record<string, unknown>[];
+	const rows = db.prepare(`SELECT e.encounter_id, e.name, e.class, e.skills, c.buffs FROM entity e JOIN encounter c ON c.id = e.encounter_id WHERE e.entity_type = 'PLAYER' AND e.encounter_id >= ?`).all(Number(process.env.STACK_AUDIT_FROM ?? 0)) as Record<string, unknown>[];
 	const totals = new Map<string, { runs: number; byStacks: Record<string, number> }>();
 	for (const row of rows) {
 		const skills = Object.entries(decode(row.skills) as Record<string, { id?: number; name?: string; skillCastLog?: ReplaySkillLog['casts'] }>)

@@ -44,7 +44,7 @@ export const STACK_RULES: StackRule[] = [
 		on: { skills: ['Secret Weapon'] }, consumed: true, while: DESTINY('Hidden Fang') },
 	{ cls: 'devilhunter_female', core: 'Lawless Land', from: { groups: ['Handgun'], except: ['Bullet Rain'] }, per: 'cast', cap: 20,
 		on: { skills: ['Bullet Rain'] }, consumed: true, while: DESTINY('Lawless'), outlasts: true, lastsMs: 30_000 },
-	{ cls: 'hawkeye', core: 'TA-64 Reaper Bolt', from: { skills: ['Silverhawk Basic Attack'] }, per: 'hit', chance: 0.5, cap: 20,
+	{ cls: 'hawkeye', core: 'TA-64 Reaper Bolt', from: { skills: ['Silverhawk Basic Attack', 'Summon Silverhawk (Summon)'] }, per: 'hit', chance: 0.5, cap: 20,
 		on: { skills: ['Charged Shot'] }, consumed: true, while: DESTINY('Compounding Draw') },
 	{ cls: 'warlord', core: 'Thunder', from: { skills: ['Leap Attack'] }, per: 'hit', add: 2, gapMs: 500, cap: 10,
 		on: { skills: ["Guardian's Thundercrack"] }, consumed: true, while: DESTINY('Electric Charge') },
