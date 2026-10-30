@@ -1,6 +1,7 @@
 // Shared reporting labels and bounded dimensions. No server code or secrets in client bundles.
 import type { PlanObservation } from './plan-stats';
 import type { InsightSample } from './stats-insights';
+import type { SamplingAttempt } from './stats-sampling';
 export const ACTIVITY_EVENTS = [
 	['lookup', 'Character loads'], ['sim_open', 'Simulator opens'], ['build_saved', 'Builds saved'],
 	['share_created', 'Shares created'], ['share_opened', 'Share requests']
@@ -8,7 +9,8 @@ export const ACTIVITY_EVENTS = [
 
 export const EXPLORATION_EVENTS = [
 	['budget_opened', 'Budgets opened'], ['upgrade_applied', 'Upgrades applied'], ['build_imported', 'Builds imported'],
-	['opportunity_sampled','Recommendation samples'],['budget_sampled','Budget samples'],['decision_sampled','Upgrade choices sampled']
+	['opportunity_sampled','Recommendation samples'],['budget_sampled','Budget samples'],['decision_sampled','Upgrade choices sampled'],
+	['sample_skipped','Excluded samples'],['budget_closed','Budgets closed'],['budget_abandoned','Budgets unmounted']
 ] as const;
 
 export const UPGRADE_CATEGORIES = ['honing', 'quality', 'gem', 'core', 'astrogem', 'engraving', 'accessory', 'karma', 'skin'] as const;
@@ -24,7 +26,8 @@ export interface CountEvent {
 	category?: UpgradeCategory;
 	plan?: PlanObservation;
 	insight?: InsightSample;
-	v?: 2;
+	sampling?: SamplingAttempt;
+	v?: 2 | 3;
 }
 export interface StatsDay { date: string; distinctCharacters: number; counts: Record<string, number> }
 export interface StatsReport {

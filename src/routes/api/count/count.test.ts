@@ -41,4 +41,17 @@ describe('stats ingestion boundary', () => {
 		expect(response.status).toBe(429);
 		expect(response.headers.get('retry-after')).toBe('60');
 	});
+	it('accepts a mixed cached-v2 and current-v3 batch without relabeling its models',async()=>{
+		const {CP_STATS_MODEL}=await import('$lib/stats-versions');
+		const cohort={start:'1760to1789',region:'NA',classId:'souleater',role:'dealer',model:'cp-2026-10-25'};
+		const legacy={event:'opportunity_sampled',v:2,id:crypto.randomUUID(),insight:{kind:'opportunity',cohort,best:'gem',coverage:'partial',assumption:'standard',offers:[{band:'100k',category:'gem',gain:'under1'}]}};
+		const current={event:'upgrade_applied',v:3,id:crypto.randomUUID(),category:'gem',sampling:{kind:'decision',model:CP_STATS_MODEL,reason:'baseline-mismatch'}};
+		const events=[legacy,current];
+		expect((await POST(request(JSON.stringify({events})))).status).toBe(204);
+		expect(persist.mock.calls[0][0]).toEqual(events);
+		persist.mockClear();
+		const unknown={...legacy,insight:{...legacy.insight,cohort:{...cohort,model:'unknown'}}};
+		await expect(POST(request(JSON.stringify({events:[current,unknown]})))).rejects.toMatchObject({status:400});
+		expect(persist).not.toHaveBeenCalled();
+	});
 });

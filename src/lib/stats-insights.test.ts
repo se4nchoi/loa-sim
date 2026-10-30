@@ -1,5 +1,6 @@
 import {describe,expect,it} from 'vitest';
-import {budgetSample,cleanInsight,completeUpgradeCost,decisionSample,goldBucket,insightCohort,insightFields,opportunitySample,observe,unpricedBudgetEdits} from './stats-insights';
+import {budgetSample,cleanInsight,completeUpgradeCost,decisionSample,goldBucket,insightCohort,insightFields,opportunitySample,observe,unpricedBudgetEdits,insightObservation,cohortSkipReason} from './stats-insights';
+import {CP_STATS_MODEL} from './stats-versions';
 import {UPGRADE_CATEGORIES} from './stats-model';
 import type {Upgrade} from './upgrade-planner/upgrades';
 import type {BudgetLine} from './upgrade-planner/sim-budget';
@@ -76,9 +77,41 @@ describe('insight collection',()=>{
 	});
 	it('preserves joint context for later cost-to-CP analysis',()=>{
 		const fields=insightFields(budgetSample(cohort,[line()],100,105)!);
-		expect(fields).toContain('budget:curve:cp-2026-10-25:NA:souleater:dealer:1760to1789:100to500k:5to10:na:standard');
+		expect(fields).toContain(`budget:curve:${CP_STATS_MODEL}:NA:souleater:dealer:1760to1789:100to500k:5to10:na:standard`);
 		expect(fields.join()).not.toMatch(/soulshan/i);
 		expect(cohort).not.toHaveProperty('name');
+	});
+	it('retains coverage and each winner\'s own assumption, rather than the pooled flag',()=>{
+		const quality=upgrade('quality','quality',3);
+		const sample=opportunitySample(cohort,[acc,quality,books],{acc:10000,quality:200000},{},{})!;
+		expect(sample).toMatchObject({best:'accessory',bestAssumption:'standard',coverage:'partial',assumption:'unlimited-stones',offers:[
+			{band:'100k',category:'accessory',assumption:'standard'},
+			{band:'500k',category:'quality',assumption:'unlimited-stones'},
+			{band:'1m',category:'quality',assumption:'unlimited-stones'}]});
+		const fields=insightFields(sample);
+		expect(fields).toContain(`opportunity:outcome:3:${CP_STATS_MODEL}:NA:souleater:dealer:1760to1789:partial:standard:accessory`);
+		expect(fields).toContain(`opportunity:offer-context:3:${CP_STATS_MODEL}:NA:souleater:dealer:1760to1789:partial:unlimited-stones:500k:quality:3to5`);
+		const choice=decisionSample(cohort,quality,'gold',[acc,quality,books],{acc:10000,quality:200000},{},{})!;
+		expect(insightFields(choice)).toContain(`decision:comparison:3:${CP_STATS_MODEL}:NA:souleater:dealer:1760to1789:gold:partial:unlimited-stones:accessory:quality:other:3to5:100to500k`);
+	});
+	it('accepts cached legacy samples without assigning unrecorded per-winner assumptions',()=>{
+		const current=opportunitySample(cohort,rows,costs,{}, {})!;
+		const {bestAssumption:_,...legacy}=current;
+		legacy.cohort={...cohort,model:'cp-2026-10-25'};
+		legacy.offers=legacy.offers.map(({assumption:_,...offer})=>offer);
+		expect(cleanInsight(legacy,UPGRADE_CATEGORIES,2)).toEqual(legacy);
+		expect(cleanInsight(legacy,UPGRADE_CATEGORIES,3)).toBeUndefined();
+		expect(insightFields(legacy,2)).toContain('opportunity:outcome:2:cp-2026-10-25:NA:souleater:dealer:1760to1789:complete:unrecorded:accessory');
+		expect(cleanInsight({...current,cohort:{...cohort,model:'arbitrary'}},UPGRADE_CATEGORIES)).toBeUndefined();
+	});
+	it('reports bounded exclusions and observation errors without private error text',()=>{
+		expect(cohortSkipReason('bad','NA/a',1780)).toBe('unknown-class');
+		expect(cohortSkipReason('souleater','KR/a',1780)).toBe('unknown-region');
+		expect(cohortSkipReason('souleater','NA/a',NaN)).toBe('invalid-item-level');
+		expect(insightObservation('decision',()=>undefined,()=> 'baseline-mismatch')).toEqual({insight:undefined,sampling:{kind:'decision',model:CP_STATS_MODEL,reason:'baseline-mismatch'}});
+		const failed=insightObservation('decision',()=>{throw new Error('private details');},()=> 'no-context');
+		expect(failed.sampling.reason).toBe('observation-error');
+		expect(JSON.stringify(failed)).not.toContain('private');
 	});
 	it('rejects arbitrary properties, invalid cohorts, duplicate budget bands and false completeness',()=>{
 		const good=opportunitySample(cohort,rows,costs,{}, {})!;

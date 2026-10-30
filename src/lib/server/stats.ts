@@ -4,7 +4,8 @@ import { env } from '$env/dynamic/private';
 import { REGIONS } from '$lib/bible-data';
 import { CP_BUCKETS, LEVEL_BUCKETS, LEVEL_MILESTONES, PLAN_SECTIONS, type PlanObservation } from '$lib/plan-stats';
 import { cleanInsight, insightFields } from '$lib/stats-insights';
-import { CP_STATS_MODEL } from '$lib/stats-versions';
+import { isCpStatsModel } from '$lib/stats-versions';
+import { cleanSampling, samplingFields } from '$lib/stats-sampling';
 import { EXPLORATION_EVENTS, UPGRADE_CATEGORIES, type CountEvent, type StatsDay, type StatsReport } from '$lib/stats-model';
 import { className, resolveClass } from '$lib/upgrade-planner/class-names';
 import { command, pipeline, redisConfig } from './redis';
@@ -21,10 +22,10 @@ export const statsEnabled = () => !env.VERCEL_ENV || env.VERCEL_ENV === 'product
 
 export function cleanEvent(body: unknown): CountEvent | null {
 	if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
-	const { event, region, name, class: cls, id, source, category, plan, insight, v } = body as Record<string, unknown>;
+	const { event, region, name, class: cls, id, source, category, plan, insight, sampling, v } = body as Record<string, unknown>;
 	if (typeof event !== 'string' || !CLIENT_EVENTS.includes(event)) return null;
 	const out: CountEvent = { event: event as CountEvent['event'] };
-	if (v!==undefined) { if(v!==2) return null; out.v=2; }
+	if (v!==undefined) { if(v!==2 && v!==3) return null; out.v=v; }
 	if (id !== undefined) {
 		if (typeof id !== 'string' || !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id)) return null;
 		out.id = id;
@@ -52,7 +53,7 @@ export function cleanEvent(body: unknown): CountEvent | null {
 			!CP_BUCKETS.some(([k]) => k === p.cp) || !LEVEL_BUCKETS.some(([k]) => k === p.target) ||
 			typeof p.role !== 'string' || !['dealer', 'support'].includes(p.role)) return null;
 		out.plan = {cp:p.cp, target:p.target, role:p.role} as PlanObservation;
-		if(p.model!==undefined){if(p.model!==CP_STATS_MODEL)return null;out.plan.model=CP_STATS_MODEL;}
+		if(p.model!==undefined){if(!isCpStatsModel(p.model))return null;out.plan.model=p.model;}
 		if(p.classId!==undefined){if(typeof p.classId!=='string'||resolveClass(p.classId)!==p.classId)return null;out.plan.classId=p.classId;}
 		if(p.region!==undefined){if(p.region!=='NA'&&p.region!=='CE')return null;out.plan.region=p.region;}
 		if (p.start!==undefined) {if(!LEVEL_BUCKETS.some(([k])=>k===p.start)) return null;out.plan.start=p.start as PlanObservation['start'];}
@@ -65,10 +66,31 @@ export function cleanEvent(body: unknown): CountEvent | null {
 		for (const key of ['dominant','shape','weapon','gems'] as const) if(p[key]!==undefined){if(!(choices[key] as readonly unknown[]).includes(p[key]))return null;Object.assign(out.plan,{[key]:p[key]});}
 	}
 	if (insight!==undefined) {
-		const sample=cleanInsight(insight,UPGRADE_CATEGORIES);
-		if(!sample || `${sample.kind==='opportunity'?'opportunity':sample.kind}_sampled`!==event || !out.id || v!==2)return null;
+		const sample=cleanInsight(insight,UPGRADE_CATEGORIES,v===3?3:2);
+		if(!sample || !out.id || (v!==2 && v!==3))return null;
+		const inline=v===3 && ((event==='upgrade_applied' && sample.kind==='decision' && sample.chosen===category) ||
+			(event==='budget_closed' && sample.kind==='budget'));
+		if(`${sample.kind}_sampled`!==event && !inline)return null;
 		out.insight=sample;
 	} else if (['opportunity_sampled','budget_sampled','decision_sampled'].includes(event)) return null;
+	if (sampling!==undefined) {
+		const attempt=cleanSampling(sampling);
+		if(!attempt || v!==3 || !out.id)return null;
+		const expected=event==='build_saved'?'plan':event==='upgrade_applied'?'decision':
+			['budget_closed','budget_abandoned'].includes(event)?'budget':
+			event==='opportunity_sampled'||event==='sample_skipped'?'opportunity':undefined;
+		if(attempt.kind!==expected)return null;
+		const sample=out.insight??out.plan;
+		if(attempt.reason ? !!sample : !sample)return null;
+		if(out.insight && attempt.model!==out.insight.cohort.model)return null;
+		if(out.plan && attempt.model!==out.plan.model)return null;
+		if(event==='sample_skipped'&&!attempt.reason)return null;
+		if(event==='budget_abandoned'&&attempt.reason!=='unmounted')return null;
+		out.sampling=attempt;
+	}
+	if(v===3 && ['build_saved','upgrade_applied','budget_closed','budget_abandoned','opportunity_sampled','sample_skipped'].includes(event) && !out.sampling)return null;
+	if(['budget_closed','budget_abandoned','sample_skipped'].includes(event) && v!==3)return null;
+	if(v===3 && ['decision_sampled','budget_sampled'].includes(event))return null;
 	return out;
 }
 
@@ -109,11 +131,16 @@ function recordCommand(e: CountEvent, at: number, address?: string): (string | n
 	}
 	if (e.category) fields.push(`upgrade:${e.category}`);
 	if (e.plan) fields.push('plan:count', `plan:cp:${e.plan.cp}`, `plan:level:${e.plan.target}`, `plan:role:${e.plan.role}`);
+	if(e.plan?.model)fields.push(`plan:model:${e.plan.model}`);
 	if (e.plan?.start) fields.push(`plan:progression:${e.plan.model??'legacy'}:${e.plan.region??'unknown'}:${e.plan.classId??'unknown'}:${e.plan.role}:${e.plan.start}:${e.plan.target}`,`plan:headroom:${e.plan.model??'legacy'}:${e.plan.region??'unknown'}:${e.plan.classId??'unknown'}:${e.plan.role}:${e.plan.start}:${e.plan.cp}`);
 	for (const section of e.plan?.sections??[]) fields.push(`plan:section:${section}`);
 	for (const milestone of e.plan?.milestones??[]) fields.push(`plan:milestone:${milestone}`);
 	for(const key of ['dominant','shape','weapon','gems'] as const) if(e.plan?.[key]) fields.push(`plan:${key}:${e.plan[key]}`);
-	if(e.insight) fields.push(...insightFields(e.insight));
+	if(e.insight) {
+		fields.push(...insightFields(e.insight,e.v===3?3:2));
+		if(e.event==='upgrade_applied'||e.event==='budget_closed')fields.push(`${e.insight.kind}_sampled`);
+	}
+	if(e.sampling)fields.push(...samplingFields(e.sampling));
 	const hash = (s: string) => createHash('sha256').update(s).digest('hex');
 	const character = e.event === 'lookup' && e.region && e.name ? hash(`${e.region}/${e.name}`.toLowerCase()).slice(0, 16) : '';
 	const id = e.id ? hash(e.id) : '';

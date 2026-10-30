@@ -1,8 +1,9 @@
 <script lang="ts">
 	import ModalClose from './sim/ModalClose.svelte';
 	import DrawerHandle from './sim/DrawerHandle.svelte';
-	import { getContext, onMount, tick } from 'svelte';
-	import { budgetSample, observe, type InsightScope } from '$lib/stats-insights';
+	import { getContext, onMount, onDestroy, tick } from 'svelte';
+	import { budgetSample, insightObservation, observe, type InsightScope } from '$lib/stats-insights';
+	import { samplingAttempt } from '$lib/stats-sampling';
 	import { sheetDialog, sheetDrag } from './sim/sheet-drag';
 	import { formatCp } from './format';
 	import { bookPricesFor, materialPricesFor, costsForCharacter, formatGold, gold, loadGold, parsePrice, setBookPrice, setGoldCost } from './gold-costs.svelte';
@@ -25,14 +26,18 @@
 	let priceInput = $state<HTMLInputElement>();
 	const insights=getContext<InsightScope|undefined>('loa-sim:insights');
 	let sampled=false;
+	let mounted=false;
 	function closed(){
 		if(!sampled){
 			sampled=true;
-			observe(()=>{const cohort=insights?.cohort();const sample=cohort?budgetSample(cohort,lines,current,simulated,insights?.unpricedBudgetEdits()):undefined;if(sample)insights?.emit(sample);});
+			observe(()=>insights?.emit({event:'budget_closed',...insightObservation('budget',()=>{
+				const cohort=insights.cohort();return cohort?budgetSample(cohort,lines,current,simulated,insights.unpricedBudgetEdits()):undefined;
+			},()=>insights.skipReason()??'invalid-values')}));
 		}
 		onclose();
 	}
-	onMount(() => { loadGold(); dialog.showModal(); dialog.focus(); });
+	onMount(() => { loadGold(); dialog.showModal(); dialog.focus(); mounted=true; });
+	onDestroy(()=>{if(mounted&&!sampled)observe(()=>insights?.emit({event:'budget_abandoned',sampling:samplingAttempt('budget','unmounted')}));});
 	const characterCosts = $derived(costsForCharacter(characterKey));
 	const materialPrices = $derived(materialPricesFor(characterKey));
 	const books = $derived(bookPricesFor(characterKey));
