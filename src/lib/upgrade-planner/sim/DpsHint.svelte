@@ -17,7 +17,12 @@
 	// Use the latest dealer orb in the game's table, rather than a past season's or support orb.
 	const latestDealerOrb = Object.entries(PARADISE_ORBS).filter(([, orb]) => !orb.support).sort(([a], [b]) => Number(b) - Number(a))[0]?.[1];
 	const paradise: ItemLook = { icon: iconUrl(latestDealerOrb?.icon), grade: latestDealerOrb?.grade, name: latestDealerOrb?.name };
-	type Factor = { key?: DpsLimitKey; label: string; kind: 'Not valued' | 'Assumed' | 'Unverified'; look?: ItemLook; tldr: string; points: string[] };
+	type Factor = { key?: DpsLimitKey; label: string; kind: 'Not valued' | 'Assumed' | 'Unverified'; look?: ItemLook; tldr: string; points: string[]; link?: { href: string; label: string } };
+	// Checked on the runs in the author's own encounters (theirs and their parties'); the thinnest classes are named.
+	const coverage: Factor = { label: 'Class coverage', kind: 'Unverified', tldr: 'Checked on the author’s own encounters; classes seen in fewer runs may be less accurate.', points: [
+		'Fewest runs checked: Machinist, Reaper, Destroyer, Dimensionalist, Glaivier.',
+		'Recent runs help most: send a lostark.bible log link.'
+	], link: { href: 'https://github.com/se4nchoi/loa-sim/issues/new?title=DPS%20sim%20log', label: 'Send a log' } };
 	const dealerFactors: Factor[] = [
 		{ key: 'cores', label: 'Order core swaps', kind: 'Not valued', look: order, tldr: 'Core swaps aren’t counted (another build); same-build core upgrades (Relic → Ancient) are.', points: [
 			'Other cores play another rotation and trigger other Destinies, which this run can’t show.',
@@ -46,14 +51,16 @@
 			'Stagger bonuses aren’t counted: the logs don’t give usable damage during stagger.',
 			'Not counted: HP-gated Weapon Power, speed and cooldown lines (when they applied isn’t logged).',
 			'Combat stats (Specialization, Swiftness, …) aren’t counted (what they do depends on the class).'
-		] }
+		] },
+		coverage
 	];
 	const supportFactors: Factor[] = [
 		{ label: 'Buff uptime & cooldowns', kind: 'Assumed', look: blazing, tldr: 'Buff strength changes; uptime and dealers’ damage stay as recorded.', points: [
 			'Cooldown gems add no buff casts; their base attack still counts.'
 		] },
 		{ label: 'Ark Passive party buffs & orbs', kind: 'Assumed', look: paradise, tldr: 'Kept as recorded (not moved by gear).', points: [] },
-		{ label: 'New Destiny effects', kind: 'Not valued', look: order, tldr: 'A Destiny effect the run didn’t have isn’t counted (nothing recorded to scale).', points: [] }
+		{ label: 'New Destiny effects', kind: 'Not valued', look: order, tldr: 'A Destiny effect the run didn’t have isn’t counted (nothing recorded to scale).', points: [] },
+		coverage
 	];
 	const factorColumns = $derived.by(() => {
 		const factors = support ? supportFactors : dealerFactors;
@@ -106,6 +113,7 @@
 									{#each factor.points as point (point)}<li class="pl-0.5">{point}</li>{/each}
 								</ul>
 							{/if}
+							{#if factor.link}<a href={factor.link.href} target="_blank" rel="noopener" class="mt-3 inline-block text-accent-300 underline underline-offset-2 hover:text-accent-200">{factor.link.label} ↗</a>{/if}
 						</div>
 					</details>
 				</li>
