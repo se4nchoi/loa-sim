@@ -54,7 +54,7 @@ Exclusion reasons are a fixed allowlist: missing context, baseline mismatch, exc
 
 ## Storage, privacy and reporting
 
-Samples become daily marginal and selected joint counters in Redis. Receipts deduplicate delivery retries; no persistent visitor identity or raw insight-event journal is introduced. Joint cells are generated only when observed, never preallocated as a Cartesian product. Enum validation bounds every dimension and prevents arbitrary keys or private text from becoming retained fields.
+Samples are written in batches to the dedicated Postgres database, with daily marginal and selected joint counters updated in the same transaction. Event IDs deduplicate delivery retries. Validated, bucketed observation rows are retained for 90 days; daily summaries remain. No persistent visitor identity, raw character name, raw address, or full loadout is stored. Joint cells are generated only when observed, never preallocated as a Cartesian product. Enum validation bounds every dimension and prevents arbitrary keys or private text from becoming retained fields.
 
 Rich cohort cells remain on the owner-key-protected API. This collection-only release adds no public reporting endpoint or navigation tab. The deferred preview has a fixed allowlist of coarse aggregates. Public facts should be curated with their denominator, sample count, date range and assumptions; use at least 20 qualifying observations per displayed cohort as an editorial floor, not a statistical guarantee.
 

@@ -1,7 +1,7 @@
 import {beforeEach,describe,expect,it,vi} from 'vitest';
 const env=vi.hoisted(()=>({STATS_KEY:'owner-test-key'}));
 vi.mock('$env/dynamic/private',()=>({env}));
-vi.mock('$lib/server/redis',()=>({redisConfig:()=>({url:'https://redis.example',token:'test-only'})}));
+vi.mock('$lib/server/stats-postgres',()=>({statsConfigured:()=>true}));
 vi.mock('$lib/server/stats',()=>({MAX_STATS_DAYS:3660,readStats:vi.fn()}));
 const {readStats}=await import('$lib/server/stats');
 const {GET}=await import('./+server');

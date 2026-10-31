@@ -1,51 +1,30 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {beforeAll, afterAll, beforeEach, describe, expect, it, vi} from 'vitest';
+import {PGlite} from '@electric-sql/pglite';
+import {readFileSync} from 'node:fs';
 
 const env: Record<string,string> = {};
 vi.mock('$env/dynamic/private', () => ({env}));
+let pg: PGlite;
+const query = vi.fn(async (sql: string, params: unknown[] = []) => (await pg.query(sql, params)).rows);
+vi.mock('./stats-postgres', () => ({statsConfigured: () => !!env.STATS_DATABASE_URL, statsQuery: (...args: Parameters<typeof query>) => query(...args)}));
+beforeAll(async () => {
+ pg = new PGlite();
+ await pg.exec(readFileSync('migrations/001-stats-postgres.sql', 'utf8'));
+});
+afterAll(async () => { await pg.close(); });
 const {cleanEvent, count, record, isBot, readStats} = await import('./stats');
 const {budgetSample,insightCohort}=await import('$lib/stats-insights');
 const {CP_STATS_MODEL}=await import('$lib/stats-versions');
 const {samplingAttempt}=await import('$lib/stats-sampling');
 
-// A tiny Redis: hashes and "HyperLogLogs" as exact sets, behind Upstash's /pipeline endpoint.
-function fakeRedis() {
-	const hashes = new Map<string, Map<string, number>>();
-	const sets = new Map<string, Set<string>>();
-	const urls: string[] = [];
-	const strings = new Map<string, string>();
-	const fetchFn = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-		urls.push(String(url));
-		const parsed = JSON.parse(String(init?.body));
-		if (parsed[0] === 'EVAL') {
-			const [, , , key, chars, receipt, rate, since, id, character, fieldsJson, started, limited] = parsed;
-			if (id && strings.has(receipt)) return Response.json({ result: 0 });
-			if (limited === 'limited') {
-				const n = Number(strings.get(rate) ?? 0) + 1;
-				strings.set(rate, String(n));
-				if (n > 120) return Response.json({ result: -1 });
-			}
-			const h = hashes.get(key) ?? new Map<string, number>();
-			hashes.set(key, h);
-			for (const field of JSON.parse(fieldsJson)) h.set(field, (h.get(field) ?? 0) + 1);
-			if (character) { const s = sets.get(chars) ?? new Set<string>(); sets.set(chars, s); s.add(character); }
-			if (id) strings.set(receipt, '1');
-			if (started && !strings.has(since)) strings.set(since, started);
-			return Response.json({ result: 1 });
-		}
-		const cmds = parsed as string[][];
-		return new Response(JSON.stringify(cmds.map(([op, key, ...rest]) => {
-			if (op === 'HINCRBY') { const h = hashes.get(key) ?? new Map(); hashes.set(key, h); h.set(rest[0], (h.get(rest[0]) ?? 0) + Number(rest[1])); return {result: h.get(rest[0])}; }
-			if (op === 'PFADD') { const s = sets.get(key) ?? new Set(); sets.set(key, s); rest.forEach((v) => s.add(v)); return {result: 1}; }
-			if (op === 'HGETALL') return {result: [...(hashes.get(key) ?? [])].flatMap(([f, v]) => [f, String(v)])};
-			if (op === 'PFCOUNT') return {result: new Set([key, ...rest].flatMap((k) => [...(sets.get(k) ?? [])])).size};
-			if (op === 'GET') return {result: strings.get(key) ?? null};
-			return {error: 'unknown'};
-		})));
-	}) as unknown as typeof fetch;
-	return {hashes, sets, urls, fetchFn};
-}
+function database() { return {fetchFn: vi.fn() as unknown as typeof fetch}; }
 const day1 = Date.parse('2026-10-21T12:00:00Z'), day2 = Date.parse('2026-10-22T12:00:00Z');
-beforeEach(() => { for (const key of Object.keys(env)) delete env[key]; env.STORAGE_KV_REST_API_URL = 'https://redis.example'; env.STORAGE_KV_REST_API_TOKEN = 'secret'; });
+beforeEach(async () => {
+ for (const key of Object.keys(env)) delete env[key];
+ env.STATS_DATABASE_URL = 'postgres://test-only';
+ await pg.exec('TRUNCATE loa_stats_events, loa_stats_counters, loa_stats_characters, loa_stats_rates, loa_stats_meta, loa_stats_legacy_days, loa_stats_legacy_ranges');
+ query.mockClear();
+});
 
 describe('usage stats', () => {
 	it('accepts only known browser events with valid fields', () => {
@@ -59,15 +38,14 @@ describe('usage stats', () => {
 	});
 
 	it('counts per day by event, region and class, and distinct characters without storing names', async () => {
-		const db = fakeRedis();
+		const db = database();
 		await count({event: 'lookup', region: 'NA', name: 'Soulshan', class: 'souleater'}, db.fetchFn, day1);
 		await count({event: 'lookup', region: 'NA', name: 'soulshan', class: 'made_up'}, db.fetchFn, day1);
 		await count({event: 'lookup', region: 'CE', name: 'Other', class: 'bard'}, db.fetchFn, day2);
 		await count({event: 'share_created'}, db.fetchFn, day2);
-		expect(db.urls[0]).toBe('https://redis.example');
-		expect(Object.fromEntries(db.hashes.get('loa-sim:stats:2026-10-21')!)).toEqual({lookup: 2, 'lookup:NA': 2, 'class:Souleater': 1, 'class:Unknown': 1, 'unknown:unrecognized': 1});
-		expect(db.sets.get('loa-sim:stats:characters:2026-10-21')!.size).toBe(1);
-		expect([...db.sets.values()].flatMap((s) => [...s]).join()).not.toMatch(/soulshan/i);
+		const stored = await pg.query<{character_hash:string;fields:string[]}>('SELECT character_hash, fields FROM loa_stats_events');
+		expect(new Set(stored.rows.filter(r=>r.character_hash).map(r=>r.character_hash)).size).toBe(2);
+		expect(JSON.stringify(stored.rows)).not.toMatch(/soulshan/i);
 
 		const report = await readStats(30, db.fetchFn, day2);
 		expect(report.from).toBe('2026-10-20');
@@ -78,7 +56,7 @@ describe('usage stats', () => {
 	});
 
 	it('does not count retried IDs again, including across UTC midnight', async () => {
-		const db = fakeRedis();
+		const db = database();
 		const event = {event: 'budget_opened', id: crypto.randomUUID()} as const;
 		await record(event, db.fetchFn, day1);
 		await record(event, db.fetchFn, day2);
@@ -88,7 +66,7 @@ describe('usage stats', () => {
 	});
 
 	it('recognizes display names and records missing metadata separately from unrecognized metadata', async () => {
-		const db = fakeRedis();
+		const db = database();
 		await record({ event: 'lookup', region: 'NA', name: 'A', class: 'Soul Eater', source: 'paste' }, db.fetchFn, day1);
 		await record({ event: 'lookup', region: 'NA', name: 'B' }, db.fetchFn, day1);
 		const report = await readStats(7, db.fetchFn, day1);
@@ -106,7 +84,7 @@ describe('usage stats', () => {
 		expect(cleanEvent({event:'build_saved',plan:{...plan,gear:'private'}})).toBeNull();
 		expect(cleanEvent({event:'build_saved',plan:{...plan,role:{toString:'invalid'}}})).toBeNull();
 		expect(cleanEvent({event:'sim_open',plan})).toBeNull();
-		const db = fakeRedis();
+		const db = database();
 		await record({event:'build_saved',plan},db.fetchFn,day1);
 		expect((await readStats(7,db.fetchFn,day1)).totals).toMatchObject({'plan:count':1,'plan:cp:10to20':1,'plan:level:1790to1819':1,'plan:role:dealer':1});
 	});
@@ -116,15 +94,17 @@ describe('usage stats', () => {
 		expect(cleanEvent(event)).toEqual(event);
 		expect(cleanEvent({...event,v:undefined})).toBeNull();
 		expect(cleanEvent({...event,event:'sim_open'})).toBeNull();
-		const db=fakeRedis();await record(event,db.fetchFn,day1);await record(event,db.fetchFn,day1);
+		const db=database();await record(event,db.fetchFn,day1);await record(event,db.fetchFn,day1);
 		const report=await readStats(7,db.fetchFn,day1);
 		expect(report.totals).toMatchObject({budget_sampled:1,'budget:coverage:complete':1,'budget:cost:100to500k':1});
 		expect(Object.keys(report.totals)).toContain(`budget:curve:${CP_STATS_MODEL}:NA:souleater:dealer:1760to1789:100to500k:5to10:na:standard`);
 	});
 
 	it('strict ingestion surfaces outages, while product actions remain best effort', async () => {
-		const down = vi.fn(async () => new Response(null, {status: 500})) as unknown as typeof fetch;
+		const down = fetch;
+		query.mockRejectedValueOnce(new Error('offline'));
 		await expect(record({event: 'sim_open'}, down)).rejects.toThrow();
+		query.mockRejectedValueOnce(new Error('offline'));
 		await expect(count({event: 'sim_open'}, down)).resolves.toBeUndefined();
 	});
 	it('atomically counts an applied choice or its exclusion, including retries across midnight',async()=>{
@@ -133,7 +113,7 @@ describe('usage stats', () => {
 		const insight=decisionSample(insightCohort('souleater','NA/A',1780,false)!,upgrade,'gold',[upgrade],{gem:100000},{},{})!;
 		const event={event:'upgrade_applied',category:'gem',v:3,id:crypto.randomUUID(),insight,sampling:samplingAttempt('decision')} as const;
 		expect(cleanEvent(event)).toEqual(event);
-		const db=fakeRedis();
+		const db=database();
 		await record(cleanEvent(event)!,db.fetchFn,day1);await record(cleanEvent(event)!,db.fetchFn,day2);
 		const skipped={...event,id:crypto.randomUUID(),insight:undefined,sampling:samplingAttempt('decision','baseline-mismatch')};
 		expect(cleanEvent(skipped)).toEqual(skipped);
@@ -150,7 +130,7 @@ describe('usage stats', () => {
 		const closed={event:'budget_closed',v:3,id:crypto.randomUUID(),insight,sampling:samplingAttempt('budget')} as const;
 		const abandoned={event:'budget_abandoned',v:3,id:crypto.randomUUID(),sampling:samplingAttempt('budget','unmounted')} as const;
 		expect(cleanEvent(closed)).toEqual(closed);expect(cleanEvent(abandoned)).toEqual(abandoned);
-		const db=fakeRedis();await record(cleanEvent(closed)!,db.fetchFn,day1);await record(cleanEvent(abandoned)!,db.fetchFn,day1);
+		const db=database();await record(cleanEvent(closed)!,db.fetchFn,day1);await record(cleanEvent(abandoned)!,db.fetchFn,day1);
 		expect((await readStats(7,db.fetchFn,day1)).totals).toMatchObject({budget_closed:1,budget_abandoned:1,budget_sampled:1,'budget:coverage:empty':1,
 			[`sampling:attempt:${CP_STATS_MODEL}:budget`]:2,[`sampling:outcome:${CP_STATS_MODEL}:budget:unmounted`]:1});
 	});
@@ -174,24 +154,26 @@ describe('usage stats', () => {
 	});
 	it('does not mix preview share activity into production counters', async () => {
 		env.VERCEL_ENV = 'preview';
-		const db = fakeRedis();
+		const db = database();
 		await count({event: 'share_created'}, db.fetchFn, day1);
-		expect(db.fetchFn).not.toHaveBeenCalled();
+		expect(query).not.toHaveBeenCalled();
 	});
 
 	it('limits browser bursts without counting rejected events', async () => {
-		const db = fakeRedis();
+		const db = database();
 		for (let i = 0; i < 120; i++) await record({ event: 'sim_open' }, db.fetchFn, day1, 'test-address');
 		expect(await record({ event: 'sim_open' }, db.fetchFn, day1, 'test-address')).toBe('limited');
 		expect((await readStats(7, db.fetchFn, day1)).totals.sim_open).toBe(120);
 	});
 
-	it('never fails the caller when storage is missing or down', async () => {
-		const down = vi.fn(async () => new Response('', {status: 500})) as unknown as typeof fetch;
-		await expect(count({event: 'sim_open'}, down)).resolves.toBeUndefined();
-		delete env.STORAGE_KV_REST_API_URL;
-		await count({event: 'sim_open'}, down);
-		expect(down).toHaveBeenCalledTimes(1);
+	it('never falls back to Redis when Postgres is unavailable', async () => {
+		const send = vi.fn() as unknown as typeof fetch;
+		query.mockRejectedValueOnce(new Error('offline'));
+		await expect(count({event:'sim_open'},send)).resolves.toBeUndefined();
+		delete env.STATS_DATABASE_URL;
+		await expect(count({event:'sim_open'},send)).resolves.toBeUndefined();
+		expect(query).toHaveBeenCalledTimes(1);
+		expect(send).not.toHaveBeenCalled();
 	});
 
 	it('recognises link-preview bots', () => {
@@ -199,4 +181,46 @@ describe('usage stats', () => {
 		expect(isBot(null)).toBe(true);
 		expect(isBot('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/141.0 Safari/537.36')).toBe(false);
 	});
+});
+
+
+describe('Postgres batch atomicity and retention', () => {
+ it('deduplicates within a batch and across concurrent submissions', async () => {
+  const {recordBatch} = await import('./stats');
+  const e = {event:'sim_open', id:crypto.randomUUID()} as const;
+  await Promise.all([recordBatch([e,e],fetch,day1,'a'),recordBatch([e],fetch,day1,'b')]);
+  expect((await readStats(7,fetch,day1)).totals.sim_open).toBe(1);
+ });
+ it('rolls back a broken batch without partial counters or receipts', async () => {
+  const {observation} = await import('./stats');
+  const valid = observation({event:'sim_open',id:crypto.randomUUID()},day1);
+  const bad = {...observation({event:'sim_open',id:crypto.randomUUID()},day1),day:'invalid-date'};
+  await expect(pg.query('SELECT loa_stats_ingest($1::jsonb,NULL,$2::timestamptz)',[JSON.stringify([valid,bad]),new Date(day1).toISOString()])).rejects.toThrow();
+  expect((await readStats(7,fetch,day1)).totals).toEqual({});
+  expect((await pg.query('SELECT * FROM loa_stats_events')).rows).toHaveLength(0);
+ });
+ it('does not charge retries against the limiter, and rejects oversized bursts as a batch', async () => {
+  const {recordBatch} = await import('./stats');
+  const events=Array.from({length:16},()=>({event:'sim_open',id:crypto.randomUUID()} as const));
+  for(let i=0;i<10;i++) expect(await recordBatch(events,fetch,day1,'a')).toBe('accepted');
+  expect((await readStats(7,fetch,day1)).totals.sim_open).toBe(16);
+  for(let i=0;i<104;i++) await record({event:'sim_open'},fetch,day1,'a');
+  expect(await record({event:'sim_open'},fetch,day1,'a')).toBe('limited');
+ });
+ it('retains aggregate history after detailed events expire', async () => {
+  await record({event:'lookup',region:'NA',name:'Private',id:crypto.randomUUID()},fetch,day1);
+  const later=day1+91*86400000;
+  await record({event:'sim_open'},fetch,later);
+  expect((await pg.query('SELECT * FROM loa_stats_events')).rows).toHaveLength(1);
+  expect((await readStats(120,fetch,later)).totals.lookup).toBe(1);
+ });
+ it('combines imported summaries without relabeling or duplicating their counters', async () => {
+  await pg.query('INSERT INTO loa_stats_legacy_days VALUES($1,$2::jsonb,$3)', ['2026-10-21',JSON.stringify({sim_open:4,lookup:2}),2]);
+  await pg.query('INSERT INTO loa_stats_legacy_ranges VALUES($1,$1,$2)', ['2026-10-21',2]);
+  await record({event:'sim_open'},fetch,day1);
+  const report=await readStats(7,fetch,day1);
+  expect(report.totals).toEqual({sim_open:5,lookup:2});
+  expect(report.distinctCharacters).toBe(2);
+  expect(report.legacyDistinct).toBe(true);
+ });
 });

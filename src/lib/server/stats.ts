@@ -1,5 +1,5 @@
-// Aggregate counters only. Existing keys and character sketches remain compatible with legacy data.
-import { createHash } from 'node:crypto';
+// Validated, anonymous usage observations. Redis is reserved for simulation sharing.
+import { createHash, randomUUID } from 'node:crypto';
 import { env } from '$env/dynamic/private';
 import { REGIONS } from '$lib/bible-data';
 import { CP_BUCKETS, LEVEL_BUCKETS, LEVEL_MILESTONES, PLAN_SECTIONS, type PlanObservation } from '$lib/plan-stats';
@@ -8,16 +8,13 @@ import { isCpStatsModel } from '$lib/stats-versions';
 import { cleanSampling, samplingFields } from '$lib/stats-sampling';
 import { EXPLORATION_EVENTS, UPGRADE_CATEGORIES, type CountEvent, type StatsDay, type StatsReport } from '$lib/stats-model';
 import { className, resolveClass } from '$lib/upgrade-planner/class-names';
-import { command, pipeline, redisConfig } from './redis';
+import { statsQuery, statsConfigured } from './stats-postgres';
 export type { CountEvent, StatsDay, StatsReport } from '$lib/stats-model';
 
 export const STATS_START = '2026-10-20';
 export const MAX_STATS_DAYS = 3660;
 const CLIENT_EVENTS = ['lookup', 'lookup_fail', 'sim_open', 'build_saved', ...EXPLORATION_EVENTS.map(([event])=>event)];
 const dayOf = (at: number) => new Date(at).toISOString().slice(0, 10);
-const countsKey = (day: string) => `loa-sim:stats:${day}`;
-const charactersKey = (day: string) => `loa-sim:stats:characters:${day}`;
-const SINCE_KEY = 'loa-sim:stats:exploration-since';
 export const statsEnabled = () => !env.VERCEL_ENV || env.VERCEL_ENV === 'production';
 
 export function cleanEvent(body: unknown): CountEvent | null {
@@ -94,33 +91,8 @@ export function cleanEvent(body: unknown): CountEvent | null {
 	return out;
 }
 
-// Check types and counters before mutation. The receipt is set last, inside the same serialized script.
-export const COUNT_SCRIPT = `
-local expected = {'hash', 'string', 'string', 'string', 'string'}
-for i, key in ipairs(KEYS) do
-  local kind = redis.call('TYPE', key).ok
-  if kind ~= 'none' and kind ~= expected[i] then return redis.error_reply('stats key type mismatch') end
-end
-if ARGV[1] ~= '' and redis.call('EXISTS', KEYS[3]) == 1 then return 0 end
-if ARGV[5] == 'limited' then
-  local rate = redis.call('INCR', KEYS[4])
-  if rate == 1 then redis.call('EXPIRE', KEYS[4], 60) end
-  if rate > 120 then return -1 end
-end
-if ARGV[2] ~= '' then redis.call('PFCOUNT', KEYS[2]) end
-local fields = cjson.decode(ARGV[3])
-for _, field in ipairs(fields) do
-  local old = redis.call('HGET', KEYS[1], field)
-  if old and (not string.match(old, '^%d+$') or tonumber(old) > 9007199254740000) then return redis.error_reply('invalid stats counter') end
-end
-for _, field in ipairs(fields) do redis.call('HINCRBY', KEYS[1], field, 1) end
-if ARGV[2] ~= '' then redis.call('PFADD', KEYS[2], ARGV[2]) end
-if ARGV[4] ~= '' then redis.call('SET', KEYS[5], ARGV[4], 'NX') end
-if ARGV[1] ~= '' then redis.call('SET', KEYS[3], '1', 'EX', 604800) end
-return 1`;
-
-/** Strict ingestion: acknowledge persisted events. Product callers use the best-effort wrapper below. */
-function recordCommand(e: CountEvent, at: number, address?: string): (string | number)[] {
+/** Expand only bounded, validated dimensions; never persist names, raw addresses or arbitrary payloads. */
+export function observation(e: CountEvent, at: number) {
 	const fields: string[] = [e.event];
 	if (e.region) fields.push(`${e.event}:${e.region}`);
 	if (e.event === 'lookup') {
@@ -143,28 +115,25 @@ function recordCommand(e: CountEvent, at: number, address?: string): (string | n
 	if(e.sampling)fields.push(...samplingFields(e.sampling));
 	const hash = (s: string) => createHash('sha256').update(s).digest('hex');
 	const character = e.event === 'lookup' && e.region && e.name ? hash(`${e.region}/${e.name}`.toLowerCase()).slice(0, 16) : '';
-	const id = e.id ? hash(e.id) : '';
-	const rate = address ? hash(address) : `server:${e.event}`;
-	const exploration = EXPLORATION_EVENTS.some(([event])=>event===e.event);
-	return ['EVAL', COUNT_SCRIPT, 5, countsKey(dayOf(at)), charactersKey(dayOf(at)),
-		`loa-sim:stats:receipt:${id || 'legacy'}`, `loa-sim:stats:rate:${rate}`, SINCE_KEY,
-		id, character, JSON.stringify(fields), exploration ? dayOf(at) : '', address ? 'limited' : 'trusted'];
+	return {id: hash(e.id ?? randomUUID()), at: new Date(at).toISOString(), day: dayOf(at), fields,
+		character, exploration: EXPLORATION_EVENTS.some(([event])=>event===e.event),
+		sample: e.insight ?? e.plan ?? null, sampling: e.sampling ?? null, version: e.v ?? 1};
 }
 
-export async function record(e: CountEvent, fetchFn: typeof fetch, at = Date.now(), address?: string): Promise<'accepted' | 'limited'> {
-	if (!redisConfig()) throw new Error('Stats storage is unavailable.');
-	const result = await command(recordCommand(e, at, address), fetchFn, 2_000);
-	if (result === -1) return 'limited';
-	if (result !== 0 && result !== 1) throw new Error('Stats storage returned an unexpected result.');
-	return 'accepted';
+/** One atomic SQL call per batch, including receipts and rate limiting. No Redis fallback. */
+export async function recordBatch(events: CountEvent[], _fetch: typeof fetch, at: number, address?: string): Promise<'accepted' | 'limited'> {
+	if (!statsConfigured()) throw new Error('Stats storage is unavailable.');
+	if (!events.length || events.length > 16) throw new Error('Invalid stats batch.');
+	const rate = address ? createHash('sha256').update(address).digest('hex') : null;
+	const rows = await statsQuery('SELECT loa_stats_ingest($1::jsonb, $2::text, $3::timestamptz) AS status',
+		[JSON.stringify(events.map(e => observation(e, at))), rate, new Date(at).toISOString()], 4_000);
+	const status = rows[0]?.status;
+	if (status !== 'accepted' && status !== 'limited') throw new Error('Invalid stats receipt.');
+	return status;
 }
 
-/** One network round trip per batch. Each event's script is atomic; retries safely finish partial batches. */
-export async function recordBatch(events: CountEvent[], fetchFn: typeof fetch, at: number, address: string) {
-	if (!redisConfig()) throw new Error('Stats storage is unavailable.');
-	const results = await pipeline(events.map(e => recordCommand(e, at, address)), fetchFn, 2_000);
-	if (results.length !== events.length || results.some(r => r !== 0 && r !== 1 && r !== -1)) throw new Error('Invalid stats receipt.');
-	return results.includes(-1) ? 'limited' : 'accepted';
+export async function record(e: CountEvent, fetchFn: typeof fetch, at = Date.now(), address?: string) {
+	return recordBatch([e], fetchFn, at, address);
 }
 
 export async function count(e: CountEvent, fetchFn: typeof fetch, at = Date.now()): Promise<void> {
@@ -185,23 +154,24 @@ export async function readStats(days: number, fetchFn: typeof fetch, now = Date.
 		dates.push(day);
 	}
 	if (!dates.length) dates.push(dayOf(now));
-	const commands = [...dates.map(d => ['HGETALL', countsKey(d)]), ...dates.map(d => ['PFCOUNT', charactersKey(d)])];
-	const results: unknown[] = [];
-	// Bound Redis REST pipeline requests as the history grows.
-	for (let i = 0; i < commands.length; i += 100) results.push(...await pipeline(commands.slice(i, i + 100), fetchFn));
-	const [distinct, since] = await pipeline([['PFCOUNT', ...dates.map(charactersKey)], ['GET', SINCE_KEY]], fetchFn);
+	const rows = await statsQuery(`SELECT loa_stats_report($1::date, $2::date) AS report`, [dates.at(-1), dates[0]]);
+	const data = rows[0]?.report as {counts: {day: string; field: string; value: number}[]; characters: {day: string; value: number}[];
+		distinct: number; since: string | null; legacy: boolean} | undefined;
+	if (!data || !Array.isArray(data.counts) || !Array.isArray(data.characters)) throw new Error('Invalid stats report.');
 	const totals: Record<string, number> = {};
-	const out = dates.map((date, i): StatsDay => {
-		const flat = Array.isArray(results[i]) ? results[i] as string[] : [];
-		const counts: Record<string, number> = {};
-		for (let j = 0; j + 1 < flat.length; j += 2) {
-			const n = Number(flat[j + 1]);
-			if (!Number.isSafeInteger(n) || n < 0) continue;
-			counts[flat[j]] = n;
-			totals[flat[j]] = (totals[flat[j]] ?? 0) + n;
-		}
-		return { date, distinctCharacters: Number(results[dates.length + i]) || 0, counts };
-	});
-	return { from: dates.at(-1)!, to: dates[0], distinctCharacters: Number(distinct) || 0, totals,
-		days: out, updatedAt: new Date(now).toISOString(), explorationSince: typeof since === 'string' ? since : null };
+	const out: StatsDay[] = dates.map(date => ({date, distinctCharacters: 0, counts: {}}));
+	const byDate = new Map(out.map(d => [d.date, d]));
+	for (const row of data.counts) {
+		const day = byDate.get(row.day), n = Number(row.value);
+		if (!day || !Number.isSafeInteger(n) || n < 0) throw new Error('Invalid stats counter.');
+		day.counts[row.field] = n;
+		totals[row.field] = (totals[row.field] ?? 0) + n;
+	}
+	for (const row of data.characters) {
+		const day = byDate.get(row.day);
+		if (day) day.distinctCharacters = Number(row.value);
+	}
+	return {from: dates.at(-1)!, to: dates[0], distinctCharacters: Number(data.distinct), totals, days: out,
+		updatedAt: new Date(now).toISOString(), explorationSince: data.since,
+		...(data.legacy ? {legacyDistinct: true} : {})};
 }

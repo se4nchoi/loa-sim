@@ -12,3 +12,20 @@ Open `/stats` directly and enter the existing `STATS_KEY`. There is no Stats nav
 All production values come from the existing authenticated stats endpoint. Missing samples show empty states; nothing is backfilled or synthesized. New metrics accumulate only from their deployment onward. The event definitions and limitations are in `stats-insights.md`.
 
 Budget and saved-plan overview histograms are labeled as pooled history. Their joint tables and raw counters retain model-specific context. The historical `cp-2026-10-25` tag spans the Vambraces correction and cannot be repaired retrospectively. Key protection, noindex, header-only authorization and production ingestion behavior are unchanged by this UI release.
+
+## Postgres storage
+
+Usage collection and `/api/stats` use the dedicated Neon database. Configure `STATS_DATABASE_URL` (or the Vercel integration's `STATS_URL`) and the existing `STATS_KEY`. The sharing Redis credentials are never a stats fallback. Preview deployments do not ingest production events.
+
+Apply `migrations/001-stats-postgres.sql` once before deploying, using `node --env-file=<private env file> scripts/stats-db.mjs migrate`. `verify` checks the connection and schema without writing events. The Neon driver sends parameterized SQL over HTTPS; each browser batch becomes one transactional database function call, including retry receipts and the address limiter. Only bounded counter dimensions, validated bucketed samples, hashed character identifiers and event IDs are retained; raw character names and addresses are not stored. Hashed rate buckets are pruned during maintenance.
+
+Detailed observations and their retry receipts expire after 90 days, with cleanup on the next ingestion after the UTC day changes. Daily counters and character hashes remain for reporting. Summary retention is separate from the 30-day shared-link expiry.
+
+### Redis history cutover
+
+1. Deploy the Postgres ingestion change, then let old invocations drain. Stats traffic must no longer write to Redis before the final export.
+2. With the existing Redis credentials and Neon connection available only in a private local env file, run `scripts/stats-db.mjs export-redis <private backup.json>`. It reads only known stats keys; shared links are never exported, modified or deleted.
+3. Run `scripts/stats-db.mjs import <private backup.json>`. Imports replace the separate historical summary rows transactionally, so rerunning an export/import updates the history without double counting it. Keep the backup outside Git. Existing Redis keys stay intact.
+4. Verify the private dashboard and a shared link. Do not remove the project's Redis integration.
+
+The export includes daily HLL estimates and each historical date-range union estimate. These remain estimates. Summing the imported range estimate and new Postgres distinct characters can count a character on both sides of the cutover; the dashboard flags mixed historical reports. Counter totals preserve the original model tags and dimensions, with no invented raw events or backfilled samples.

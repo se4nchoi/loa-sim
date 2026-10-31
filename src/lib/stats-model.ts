@@ -31,6 +31,8 @@ export interface CountEvent {
 }
 export interface StatsDay { date: string; distinctCharacters: number; counts: Record<string, number> }
 export interface StatsReport {
+	/** Historical HLL estimates and new exact counts may overlap across the storage migration. */
+	legacyDistinct?: boolean;
 	from: string;
 	to: string;
 	distinctCharacters: number;
