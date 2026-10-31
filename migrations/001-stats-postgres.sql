@@ -87,6 +87,10 @@ BEGIN
   IF cleanup_due THEN
     DELETE FROM loa_stats_events WHERE occurred_at < at_time - interval '90 days';
     DELETE FROM loa_stats_rates WHERE bucket < at_time - interval '2 minutes';
+    IF to_regclass('loa_shared_simulations') IS NOT NULL THEN
+      EXECUTE 'DELETE FROM loa_shared_simulations WHERE expires_at <= $1' USING at_time;
+      EXECUTE 'DELETE FROM loa_share_limits WHERE expires_at <= $1' USING at_time;
+    END IF;
   END IF;
   RETURN 'accepted';
 END $$;

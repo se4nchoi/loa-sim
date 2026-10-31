@@ -1,7 +1,7 @@
 import {beforeEach,describe,expect,it,vi} from 'vitest';
 
 const service = vi.hoisted(() => ({
-	redisConfig:vi.fn(() => ({url:'https://redis.example',token:'secret'})),
+	sharingConfigured:vi.fn(() => ({url:'https://redis.example',token:'secret'})),
 	sharedPlan:vi.fn(() => ({id:'test'})),
 	allowShare:vi.fn(async () => true),
 	createSharedSimulation:vi.fn(async () => ({path:'/s/Soulshan/abcdefgh',expiresAt:1234}))

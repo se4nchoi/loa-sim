@@ -6,7 +6,7 @@ const env: Record<string,string> = {};
 vi.mock('$env/dynamic/private', () => ({env}));
 let pg: PGlite;
 const query = vi.fn(async (sql: string, params: unknown[] = []) => (await pg.query(sql, params)).rows);
-vi.mock('./stats-postgres', () => ({statsConfigured: () => !!env.STATS_DATABASE_URL, statsQuery: (...args: Parameters<typeof query>) => query(...args)}));
+vi.mock('./postgres', () => ({postgresConfigured: () => !!env.STATS_DATABASE_URL, postgresQuery: (...args: Parameters<typeof query>) => query(...args)}));
 beforeAll(async () => {
  pg = new PGlite();
  await pg.exec(readFileSync('migrations/001-stats-postgres.sql', 'utf8'));

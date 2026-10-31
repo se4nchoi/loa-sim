@@ -8,7 +8,7 @@ import { isCpStatsModel } from '$lib/stats-versions';
 import { cleanSampling, samplingFields } from '$lib/stats-sampling';
 import { EXPLORATION_EVENTS, UPGRADE_CATEGORIES, type CountEvent, type StatsDay, type StatsReport } from '$lib/stats-model';
 import { className, resolveClass } from '$lib/upgrade-planner/class-names';
-import { statsQuery, statsConfigured } from './stats-postgres';
+import { postgresQuery, postgresConfigured } from './postgres';
 export type { CountEvent, StatsDay, StatsReport } from '$lib/stats-model';
 
 export const STATS_START = '2026-10-20';
@@ -122,10 +122,10 @@ export function observation(e: CountEvent, at: number) {
 
 /** One atomic SQL call per batch, including receipts and rate limiting. No Redis fallback. */
 export async function recordBatch(events: CountEvent[], _fetch: typeof fetch, at: number, address?: string): Promise<'accepted' | 'limited'> {
-	if (!statsConfigured()) throw new Error('Stats storage is unavailable.');
+	if (!postgresConfigured()) throw new Error('Stats storage is unavailable.');
 	if (!events.length || events.length > 16) throw new Error('Invalid stats batch.');
 	const rate = address ? createHash('sha256').update(address).digest('hex') : null;
-	const rows = await statsQuery('SELECT loa_stats_ingest($1::jsonb, $2::text, $3::timestamptz) AS status',
+	const rows = await postgresQuery('SELECT loa_stats_ingest($1::jsonb, $2::text, $3::timestamptz) AS status',
 		[JSON.stringify(events.map(e => observation(e, at))), rate, new Date(at).toISOString()], 4_000);
 	const status = rows[0]?.status;
 	if (status !== 'accepted' && status !== 'limited') throw new Error('Invalid stats receipt.');
@@ -154,7 +154,7 @@ export async function readStats(days: number, fetchFn: typeof fetch, now = Date.
 		dates.push(day);
 	}
 	if (!dates.length) dates.push(dayOf(now));
-	const rows = await statsQuery(`SELECT loa_stats_report($1::date, $2::date) AS report`, [dates.at(-1), dates[0]]);
+	const rows = await postgresQuery(`SELECT loa_stats_report($1::date, $2::date) AS report`, [dates.at(-1), dates[0]]);
 	const data = rows[0]?.report as {counts: {day: string; field: string; value: number}[]; characters: {day: string; value: number}[];
 		distinct: number; since: string | null; legacy: boolean} | undefined;
 	if (!data || !Array.isArray(data.counts) || !Array.isArray(data.characters)) throw new Error('Invalid stats report.');

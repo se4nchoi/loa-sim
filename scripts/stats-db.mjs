@@ -13,7 +13,8 @@ export function statements(source) {
 }
 try {
  if(mode==='migrate') {
-  for(const query of statements(await readFile(new URL('../migrations/001-stats-postgres.sql',import.meta.url),'utf8'))) await sql.query(query);
+  for(const file of ['001-stats-postgres.sql','002-sharing-postgres.sql'])
+   for(const query of statements(await readFile(new URL('../migrations/'+file,import.meta.url),'utf8'))) await sql.query(query);
   console.log('Stats schema applied.');
  } else if(mode==='verify') {
   const [row]=await sql.query("SELECT current_database() AS database, to_regclass('loa_stats_events') IS NOT NULL AS events, to_regprocedure('loa_stats_ingest(jsonb,text,timestamp with time zone)') IS NOT NULL AS ingest");

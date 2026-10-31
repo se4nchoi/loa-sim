@@ -1,11 +1,11 @@
 import { error, json } from '@sveltejs/kit';
-import { allowShare, createSharedSimulation, MAX_SHARE_BYTES, redisConfig, sharedPlan } from '$lib/server/shared-simulations';
+import { allowShare, createSharedSimulation, MAX_SHARE_BYTES, sharingConfigured, sharedPlan } from '$lib/server/shared-simulations';
 import { count } from '$lib/server/stats';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({request,url,fetch,getClientAddress}) => {
 	if (request.headers.get('origin') !== url.origin) error(403, 'Please share from loa-sim.');
-	if (!redisConfig()) error(503, 'Simulation sharing is not configured yet.');
+	if (!sharingConfigured()) error(503, 'Simulation sharing is not configured yet.');
 	// Bound streamed bodies too; Content-Length alone can be missing or untrusted.
 	const reader = request.body?.getReader();
 	if (!reader) error(400, 'A simulation is required.');

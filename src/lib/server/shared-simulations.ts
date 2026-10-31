@@ -1,4 +1,5 @@
 import { command, redisConfig } from './redis';
+import { postgresQuery, postgresConfigured } from './postgres';
 import { createHash, randomBytes } from 'node:crypto';
 import { deflateSync, inflateSync } from 'node:zlib';
 import { normalizeName } from '$lib/bible-data';
@@ -17,13 +18,30 @@ export interface SharedSimulation {
  calculatedCp?: number;
 }
 
-export { redisConfig };
+export const sharingConfigured = postgresConfigured;
+// All Redis builds created before cutover have expired by then. No Redis reads after this deadline.
+export const LEGACY_SHARE_UNTIL = Date.parse('2026-12-02T00:00:00Z');
 
 /** A short-lived counter, shared across function instances; never stores the raw address. */
-export async function allowShare(address: string, fetchFn: typeof fetch): Promise<boolean> {
-	const key = 'loa-sim:share-limit:' + createHash('sha256').update(address).digest('hex');
-	const count = await command(['EVAL', "local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('EXPIRE', KEYS[1], 600) end; return n", 1, key], fetchFn);
-	return typeof count === 'number' && count <= 10;
+export async function allowShare(address: string, _fetch: typeof fetch, now = Date.now()): Promise<boolean> {
+	const key = createHash('sha256').update(address).digest('hex');
+	const rows = await postgresQuery(`INSERT INTO loa_share_limits(subject_hash,hits,expires_at)
+		VALUES($1,1,$2::timestamptz+interval '10 minutes')
+		ON CONFLICT(subject_hash) DO UPDATE SET
+			hits=CASE WHEN loa_share_limits.expires_at <= $2::timestamptz THEN 1 ELSE least(11,loa_share_limits.hits+1) END,
+			expires_at=CASE WHEN loa_share_limits.expires_at <= $2::timestamptz THEN $2::timestamptz+interval '10 minutes' ELSE loa_share_limits.expires_at END
+		RETURNING hits`, [key,new Date(now).toISOString()]);
+	return Number(rows[0]?.hits) <= 10;
+}
+
+async function storeShare(id: string, character: string, payload: string, expiresAt: number, now: number) {
+	return postgresQuery(`WITH expired AS (
+		DELETE FROM loa_shared_simulations WHERE id IN (SELECT id FROM loa_shared_simulations WHERE expires_at <= $5::timestamptz LIMIT 100)
+	), old_limits AS (
+		DELETE FROM loa_share_limits WHERE subject_hash IN (SELECT subject_hash FROM loa_share_limits WHERE expires_at <= $5::timestamptz LIMIT 100)
+	)
+	INSERT INTO loa_shared_simulations(id,character,payload,expires_at) VALUES($1,$2,$3,$4::timestamptz)
+	ON CONFLICT(id) DO NOTHING RETURNING id`, [id,character,payload,new Date(expiresAt).toISOString(),new Date(now).toISOString()]);
 }
 
 export function sharedPlan(json: string): SavedSimulation {
@@ -35,24 +53,37 @@ export function sharedPlan(json: string): SavedSimulation {
 	return {version:1,id:'shared',name:parsed.name,characterKey:key,savedAt:Date.now(),loadout:parsed.loadout,state:parsed.state};
 }
 
-export async function createSharedSimulation(plan: SavedSimulation, fetchFn: typeof fetch, now = Date.now()) {
+export async function createSharedSimulation(plan: SavedSimulation, _fetch: typeof fetch, now = Date.now()) {
 	const expiresAt = now + SHARE_TTL * 1000;
 	const entry: SharedSimulation = {version:1,plan:{...plan,savedAt:now},expiresAt,originalCp:simulationCP(plan)};
 	const value = deflateSync(JSON.stringify(entry)).toString('base64url');
 	for (let attempt = 0; attempt < 3; attempt++) {
 		const id = randomBytes(6).toString('base64url');
-		// NX prevents overwriting an existing build or extending its expiry on collision.
-		const result = await command(['SET', `loa-sim:share:${id}`, value, 'EX', SHARE_TTL, 'NX'], fetchFn);
-		if (result === 'OK') return {path:`/s/${encodeURIComponent(normalizeName(plan.characterKey.split('/')[1]))}/${id}`,expiresAt};
-		if (result !== null) throw new Error('Sharing storage returned an unexpected result.');
+		// Conflicts never overwrite builds or extend expiry.
+		const result = await storeShare(id, plan.characterKey.split('/')[1].toLowerCase(), value, expiresAt, now);
+		if (result.length === 1) return {path:`/s/${encodeURIComponent(normalizeName(plan.characterKey.split('/')[1]))}/${id}`,expiresAt};
 	}
 	throw new Error('Could not create a unique link. Please try again.');
 }
 
 export async function getSharedSimulation(id: string, name: string, fetchFn: typeof fetch, now = Date.now()): Promise<SharedSimulation | null> {
 	if (!/^[A-Za-z0-9_-]{8}$/.test(id)) return null;
+	const rows = await postgresQuery('SELECT payload, expires_at FROM loa_shared_simulations WHERE id=$1', [id]);
+	if (rows.length) {
+		if (new Date(String(rows[0].expires_at)).getTime() <= now) return null;
+		return decodeShare(rows[0].payload, id, name, now);
+	}
+	if (now >= LEGACY_SHARE_UNTIL || !redisConfig()) return null;
+	// Temporary, read-only recovery path for old links. New shares never touch Redis.
 	const value = await command(['GET', `loa-sim:share:${id}`], fetchFn);
 	if (value === null) return null;
+	const entry = decodeShare(value,id,name,now);
+	if (!entry) return null;
+	await storeShare(id,name.toLowerCase(),value as string,entry.expiresAt,now);
+	return entry;
+}
+
+function decodeShare(value: unknown, id: string, name: string, now: number): SharedSimulation | null {
  if (typeof value !== 'string' || value.length > MAX_SHARE_ENCODED_CHARS) throw new Error('Invalid shared simulation.');
  const entry = JSON.parse(inflateSync(Buffer.from(value, 'base64url'), {maxOutputLength:MAX_SHARE_RECORD_BYTES}).toString()) as SharedSimulation;
  if (!entry || entry.version !== 1 || !Number.isFinite(entry.expiresAt) || !Number.isFinite(entry.originalCp)) throw new Error('Invalid shared simulation.');
