@@ -13,7 +13,7 @@ vi.mock('$env/dynamic/private', () => ({env}));
 let pg: PGlite;
 const query = vi.fn(async (sql:string,params:unknown[]=[]) => (await pg.query(sql,params)).rows);
 vi.mock('./postgres',()=>({postgresConfigured:()=>!!env.STATS_DATABASE_URL,postgresQuery:(...args:Parameters<typeof query>)=>query(...args)}));
-beforeAll(async()=>{pg=new PGlite();await pg.exec(readFileSync('migrations/002-sharing-postgres.sql','utf8'));});
+beforeAll(async()=>{pg=new PGlite();await pg.exec(readFileSync('migrations/001-stats-postgres.sql','utf8'));await pg.exec(readFileSync('migrations/002-sharing-postgres.sql','utf8'));});
 afterAll(async()=>{await pg.close();});
 async function payload(id:string){return (await pg.query<{payload:string}>('SELECT payload FROM loa_shared_simulations WHERE id=$1',[id])).rows[0]?.payload;}
 async function setPayload(id:string,value:string){await pg.query('INSERT INTO loa_shared_simulations VALUES($1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET payload=EXCLUDED.payload',[id,'soulshan',value,new Date(Date.now()+86400000)]);}
@@ -41,7 +41,7 @@ function fakeRedis() {
 beforeEach(async () => {
  for (const key of Object.keys(env)) delete env[key];
  env.STATS_DATABASE_URL='postgres://test-only';env.STORAGE_KV_REST_API_URL='https://redis.example';env.STORAGE_KV_REST_API_TOKEN='secret';
- await pg.exec('TRUNCATE loa_shared_simulations, loa_share_limits');query.mockClear();
+ await pg.exec('TRUNCATE loa_shared_simulations, loa_share_limits, loa_stats_meta');query.mockClear();
 });
 
 describe('shared simulations', () => {
@@ -181,5 +181,12 @@ it('enforces database expiry and cleans expired shares without deleting active o
  expect(await payload(activeId)).toBeDefined();
  await pg.query('UPDATE loa_shared_simulations SET expires_at=$1 WHERE id=$2',[new Date(now),activeId]);
  expect(await getSharedSimulation(activeId,'Soulshan',db.fetchFn,now)).toBeNull();
+ expect(db.calls).toHaveLength(0);
+});
+
+it('never consults Redis after the verified bulk import marker is set',async()=>{
+ const db=fakeRedis();
+ await pg.query("INSERT INTO loa_stats_meta VALUES('redis-shares-imported','2026-10-31')");
+ expect(await getSharedSimulation('abcdefgh','Soulshan',db.fetchFn)).toBeNull();
  expect(db.calls).toHaveLength(0);
 });

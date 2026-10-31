@@ -74,6 +74,8 @@ export async function getSharedSimulation(id: string, name: string, fetchFn: typ
 		return decodeShare(rows[0].payload, id, name, now);
 	}
 	if (now >= LEGACY_SHARE_UNTIL || !redisConfig()) return null;
+	const imported = await postgresQuery("SELECT value FROM loa_stats_meta WHERE key='redis-shares-imported'");
+	if (imported.length) return null;
 	// Temporary, read-only recovery path for old links. New shares never touch Redis.
 	const value = await command(['GET', `loa-sim:share:${id}`], fetchFn);
 	if (value === null) return null;
