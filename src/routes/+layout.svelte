@@ -72,7 +72,7 @@
 		<div class="mx-auto flex max-w-[1680px] flex-col gap-4 px-4 py-6 text-xs text-surface-400 sm:flex-row sm:items-center sm:justify-between">
 			<div class="flex flex-col gap-1.5">
 				<span class="text-sm">
-					Made with <span class="text-red-400">♥</span> by <b class="text-surface-100">Soulshan@Inanna</b>.
+					Made with <span class="text-red-400">♥</span> by <b class="text-surface-100">Soulshan@Inanna</b>.<br />
 					Come find me at the
 					<a class="text-[#7289da] hover:underline" href="https://lostark.bible/discord" target="_blank" rel="noopener">ramen shop Discord</a>.
 				</span>
