@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ params, fetch, setHeaders }) => {
 	if (!Number.isInteger(n) || n < 1) error(404, 'No such report');
 	try {
 		const report = await getReport(n, fetch);
-		setHeaders({ 'cache-control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600' });
+		setHeaders({ 'cache-control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=600' });
 		return { report, dev: DEV_NAME };
 	} catch (e) {
 		if (e instanceof NotFound) error(404, 'No such report');

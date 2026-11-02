@@ -9,7 +9,7 @@ import { env } from '$env/dynamic/private';
 import { REPORT_KINDS } from '$lib/report';
 import type { ReportDetail, ReportEvent, ReportStatus, ReportSummary } from '$lib/reports';
 
-const TTL_MS = 5 * 60 * 1000;
+const TTL_MS = 60 * 1000;
 const SITE_MARK = '_Sent from the loa-sim Report dialog._';
 /** The repo owner's name on the site. */
 export const DEV_NAME = 'Soulshan';
