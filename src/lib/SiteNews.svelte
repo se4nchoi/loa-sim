@@ -3,7 +3,7 @@
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
 	import Segmented from '$lib/upgrade-planner/sim/Segmented.svelte';
-	import { ISSUES, ISSUES_URL, UPDATES, type IssueStatus, type UpdateKind } from '$lib/site-news';
+	import { ISSUES, UPDATES, type IssueStatus, type UpdateKind } from '$lib/site-news';
 	import { isFresh, readNewsSeen } from '$lib/news-seen.svelte';
 	import ReportDialog from '$lib/ReportDialog.svelte';
 
@@ -127,7 +127,7 @@
 		<span>Found a bug or want something?</span>
 		<div class="flex flex-row gap-3">
 			<button type="button" class="text-accent-300 underline hover:text-accent-200" aria-haspopup="dialog" onclick={() => (reporting = true)}>Report it</button>
-			<a class="text-surface-400 underline hover:text-surface-100" href={ISSUES_URL} target="_blank" rel="noopener">All reports ↗</a>
+			<a class="text-surface-400 underline hover:text-surface-100" href="/reports">All reports</a>
 		</div>
 	</div>
 </section>

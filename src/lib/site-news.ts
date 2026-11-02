@@ -208,5 +208,6 @@ export const ISSUES: SiteIssue[] = [
 	}
 ];
 
-export const ISSUES_URL = 'https://github.com/se4nchoi/loa-sim/issues';
 export const NEW_ISSUE_URL = 'https://github.com/se4nchoi/loa-sim/issues/new';
+/** The footer's support button. */
+export const KOFI_URL = 'https://ko-fi.com/soulshan';
