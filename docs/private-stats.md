@@ -15,7 +15,7 @@ Budget and saved-plan overview histograms are labeled as pooled history. Their j
 
 ## Postgres storage
 
-Usage collection and `/api/stats` use the dedicated Neon database. Configure `STATS_DATABASE_URL` (or the Vercel integration's `STATS_URL`) and the existing `STATS_KEY`. Redis credentials are never a stats fallback. Shared simulations and sharing rate limits also use this Postgres database. Preview deployments do not ingest production events.
+Usage collection and `/api/stats` use the dedicated Neon database. Configure `STATS_DATABASE_URL` and `STATS_KEY` as **Secrets** on the Cloudflare Pages project (Settings → Variables and Secrets): `wrangler.toml` manages plain variables, so plain ones set in the dashboard never reach the server. Redeploy after changing them. Redis credentials are never a stats fallback. Shared simulations and sharing rate limits also use this Postgres database. Preview deployments do not ingest production events.
 
 Apply the schemas in `migrations/` once before deploying, using `node --env-file=<private env file> scripts/stats-db.mjs migrate`. `verify` checks the connection and schema without writing events. The Neon driver sends parameterized SQL over HTTPS; each browser batch becomes one transactional database function call, including retry receipts and the address limiter. Only bounded counter dimensions, validated bucketed samples, hashed character identifiers and event IDs are retained; raw character names and addresses are not stored. Hashed rate buckets are pruned during maintenance.
 

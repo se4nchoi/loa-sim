@@ -4,7 +4,7 @@ The CP Simulator card's Share simulation button captures the full original loado
 
 ## Storage configuration
 
-Set the Upstash Redis REST credentials as encrypted variables on the Cloudflare Pages project (Production and Preview). Supported server-only credential pairs:
+Set the Upstash Redis REST credentials as Secrets on the Cloudflare Pages project (Production and Preview); plain dashboard variables are ignored because `wrangler.toml` manages them. Supported server-only credential pairs:
 
 - `STORAGE_REST_API_URL` / `STORAGE_REST_API_TOKEN`
 - `STORAGE_KV_REST_API_URL` / `STORAGE_KV_REST_API_TOKEN`
