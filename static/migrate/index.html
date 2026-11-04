@@ -5,12 +5,33 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="data:,">
 <title>loa-sim</title>
+<style>
+html { background: oklch(14.5% 0 0); color-scheme: dark; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; color: oklch(91% 0 0); }
+main { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 24px; text-align: center; }
+.brand { font-size: 15px; font-weight: 700; color: oklch(72% 0 0); letter-spacing: 0.01em; }
+.spin { width: 140px; height: 140px; box-sizing: border-box; border-radius: 50%; border: 11px solid oklch(32% 0 0); border-top-color: oklch(72.3% 0.15 293.69); animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.4s; } }
+h1 { margin: 0; font-size: 24px; font-weight: 700; }
+h1 a { color: oklch(80.28% 0.105 295.74); text-decoration: none; }
+#s { margin: 0; min-height: 1.4em; font-size: 14px; color: oklch(62% 0 0); }
+</style>
+</head>
+<body>
+<main>
+<div class="brand">loa-sim</div>
+<div class="spin" role="progressbar" aria-label="Moving"></div>
+<h1>Moving to <a href="https://loa-sim.pages.dev/">loa-sim.pages.dev</a></h1>
+<p id="s"></p>
+</main>
 <script>
 // Receives a visitor's saved data from the old site (loa-sim.vercel.app; see vercel-moved/index.html; served at /migrate/), in chunks
 // carried in the URL hash. Fills only keys this browser doesn't have yet, once, then hands back to the old site so
 // it stops sending. Any failure just opens the app.
 (async () => {
 	const OLD = 'https://loa-sim.vercel.app';
+	const status = (t) => { const el = document.getElementById('s'); if (el) el.textContent = t; };
 	const DONE = 'loa-sim:imported';
 	const BUF = 'loa-sim:import-buffer';
 	const h = new URLSearchParams(location.hash.slice(1));
@@ -25,6 +46,7 @@
 		if (localStorage.getItem(DONE)) return back({ lsm: 'done' });
 		const n = Number(h.get('n')), of = Number(h.get('of')), len = Number(h.get('len')), d = h.get('d') ?? '';
 		if (!(n >= 0 && n < of && len > 0)) return location.replace(to);
+		status(`Moving your saved data · ${n + 1}/${of}`);
 		const prev = n === 0 ? { len, data: '' } : JSON.parse(sessionStorage.getItem(BUF) ?? 'null');
 		if (!prev || prev.len !== len) return location.replace(to);
 		const data = prev.data + d;
@@ -48,6 +70,5 @@
 	}
 })();
 </script>
-</head>
-<body></body>
+</body>
 </html>
