@@ -30,7 +30,7 @@
 				<span class="relative inline-flex size-2.5 rounded-full bg-neutral-950"></span>
 			</span>
 			<p class="flex-1">
-				<b>loa-sim moved to loa-sim.pages.dev</b> · update your bookmark{#if carried}; your saved data came along{/if}
+				<b>loa-sim moved to loa-sim.pages.dev</b> · update your bookmark{#if carried}. Your browser data from the previous site was migrated safely!{/if}
 			</p>
 			<button type="button" onclick={dismiss} class="-mr-1 rounded-sm px-2 py-0.5 text-lg leading-none hover:bg-neutral-950/10" aria-label="Dismiss" title="Dismiss">×</button>
 		</div>
