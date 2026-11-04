@@ -153,7 +153,7 @@ describe('usage stats', () => {
 		])expect(cleanEvent(bad)).toBeNull();
 	});
 	it('does not mix preview share activity into production counters', async () => {
-		env.VERCEL_ENV = 'preview';
+		env.DEPLOY_ENV = 'preview';
 		const db = database();
 		await count({event: 'share_created'}, db.fetchFn, day1);
 		expect(query).not.toHaveBeenCalled();

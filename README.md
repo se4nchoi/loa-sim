@@ -6,7 +6,7 @@
 
 Load your character, change your gear, and see exactly what each change does to your Combat Power.
 
-**[loa-sim.vercel.app](https://loa-sim.vercel.app)** · [ramen shop Discord](https://lostark.bible/discord) · character data from [lostark.bible](https://lostark.bible)
+**[loa-sim.pages.dev](https://loa-sim.pages.dev)** · [ramen shop Discord](https://lostark.bible/discord) · character data from [lostark.bible](https://lostark.bible)
 
 <img src="docs/screenshots/next-upgrades.png" alt="Simulator: equipment honing, gems, and Next Upgrades ranked by gold per 1% CP" width="900" />
 
@@ -33,7 +33,7 @@ Load your character, change your gear, and see exactly what each change does to 
 
 ## How to use
 
-1. Open **[loa-sim.vercel.app](https://loa-sim.vercel.app)**.
+1. Open **[loa-sim.pages.dev](https://loa-sim.pages.dev)**.
 2. Pick your region and type your character name (or paste a lostark.bible link), or sign in with lostark.bible to
    load your roster.
 3. Change things and watch the CP. Use **Next Upgrades** to see what to do next.
@@ -122,5 +122,5 @@ plus `from-site`, so players don't need a GitHub account. A hidden spam-trap fie
 
 The selected region is remembered in localStorage; an explicit region in a reload link takes precedence.
 
-OAuth redirect URIs registered with lostark.bible: `https://loa-sim.vercel.app` (production client) and
+OAuth redirect URIs registered with lostark.bible: `https://loa-sim.pages.dev` (production client) and
 `http://localhost:5173/oauth-test` (development client; `/oauth-test` also hosts a dev-only API inspector).

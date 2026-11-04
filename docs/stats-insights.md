@@ -58,7 +58,7 @@ Samples are written in batches to the dedicated Postgres database, with daily ma
 
 Rich cohort cells remain on the owner-key-protected API. This collection-only release adds no public reporting endpoint or navigation tab. The deferred preview has a fixed allowlist of coarse aggregates. Public facts should be curated with their denominator, sample count, date range and assumptions; use at least 20 qualifying observations per displayed cohort as an editorial floor, not a statistical guarantee.
 
-The byte-aware client batcher keeps UTF-8 requests under the 8 KiB ingestion limit. Collection remains memory-only, best effort, disabled in development and excluded from Vercel previews. Stats never block saving, applying an upgrade, or closing a budget.
+The byte-aware client batcher keeps UTF-8 requests under the 8 KiB ingestion limit. Collection remains memory-only, best effort, disabled in development and excluded from preview deploys (`DEPLOY_ENV=preview`). Stats never block saving, applying an upgrade, or closing a budget.
 
 Richer dimensions increase storage beyond the original simple-counter estimate. Measure populated fields/day, bytes/day and Redis read/write costs before broadening cohorts. A retained event journal and long-term compaction remain the next architecture stage if volume or new questions require them. Aggregates cannot reconstruct dimensions that were never collected.
 

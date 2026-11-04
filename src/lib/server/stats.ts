@@ -15,7 +15,8 @@ export const STATS_START = '2026-10-20';
 export const MAX_STATS_DAYS = 3660;
 const CLIENT_EVENTS = ['lookup', 'lookup_fail', 'sim_open', 'build_saved', ...EXPLORATION_EVENTS.map(([event])=>event)];
 const dayOf = (at: number) => new Date(at).toISOString().slice(0, 10);
-export const statsEnabled = () => !env.VERCEL_ENV || env.VERCEL_ENV === 'production';
+/** DEPLOY_ENV is set per Cloudflare Pages environment (production / preview); unset counts. */
+export const statsEnabled = () => !env.DEPLOY_ENV || env.DEPLOY_ENV === 'production';
 
 export function cleanEvent(body: unknown): CountEvent | null {
 	if (!body || typeof body !== 'object' || Array.isArray(body)) return null;

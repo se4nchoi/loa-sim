@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="origin">
+<link rel="icon" href="data:,">
+<link rel="canonical" href="https://loa-sim.pages.dev/">
+<title>loa-sim moved to loa-sim.pages.dev</title>
+<script>
+// The only page loa-sim.vercel.app serves now (see /vercel.json). Every path redirects to the same path on
+// loa-sim.pages.dev. A browser with saved data first sends it along (static/migrate/index.html receives it),
+// in URL-hash chunks that ping-pong between the two sites; after that it redirects straight away.
+// Hash protocol: lsm=part&part=N (send chunk N), lsm=done (received; stop sending); to the new site lsm=arrive
+// (no data to send). `to` keeps the original path.
+(async () => {
+	const NEW = 'https://loa-sim.pages.dev';
+	const CHUNK = 100000;
+	const MOVED = 'loa-sim:moved';
+	const TRIES = 'loa-sim:move-tries';
+	const h = new URLSearchParams(location.hash.slice(1));
+	const lsm = h.get('lsm');
+	const safe = (p) => (p && p[0] === '/' && p[1] !== '/' && p[1] !== '\\' ? p : '/');
+	const to = safe(lsm ? h.get('to') : location.pathname + location.search + location.hash);
+	// Every redirect passes /migrate/ so the new site can show its "moved" bar.
+	const go = () => location.replace(NEW + '/migrate/#' + new URLSearchParams({ lsm: 'arrive', to }));
+	try {
+		if (lsm === 'done') {
+			localStorage.setItem(MOVED, '1');
+			return go();
+		}
+		if (localStorage.getItem(MOVED)) return go();
+		const part = lsm === 'part' ? Number(h.get('part')) : 0;
+		if (part === 0) {
+			// A browser that never gets through (e.g. referrers stripped) stops trying after 3 visits.
+			const tries = Number(localStorage.getItem(TRIES) ?? 0);
+			if (tries >= 3) return go();
+			localStorage.setItem(TRIES, String(tries + 1));
+		}
+		const entries = {};
+		for (let i = 0; i < localStorage.length; i++) {
+			const k = localStorage.key(i);
+			if (/^loa-(sim|eff):/.test(k) && k !== MOVED && k !== TRIES) entries[k] = localStorage.getItem(k);
+		}
+		if (!Object.keys(entries).length) return go();
+		const text = JSON.stringify(entries);
+		let bytes, kind;
+		if (typeof CompressionStream === 'function') {
+			bytes = new Uint8Array(await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
+			kind = 'z';
+		} else {
+			bytes = new TextEncoder().encode(text);
+			kind = 'j';
+		}
+		let bin = '';
+		for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+		const data = kind + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+		const of = Math.ceil(data.length / CHUNK);
+		if (!(part >= 0 && part < of)) return go();
+		const q = new URLSearchParams({ n: part, of, len: data.length, to });
+		location.replace(NEW + '/migrate/#' + q + '&d=' + data.slice(part * CHUNK, (part + 1) * CHUNK));
+	} catch {
+		go();
+	}
+})();
+</script>
+</head>
+<body><a href="https://loa-sim.pages.dev/">loa-sim.pages.dev</a></body>
+</html>
