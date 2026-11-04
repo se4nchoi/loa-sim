@@ -16,6 +16,9 @@
 	const h = new URLSearchParams(location.hash.slice(1));
 	const safe = (p) => (p && p[0] === '/' && p[1] !== '/' && p[1] !== '\\' ? p : '/');
 	const to = safe(h.get('to'));
+	// Arrivals from the old address, for the "moved" bar (src/lib/MovedNotice.svelte).
+	try { localStorage.setItem('loa-sim:arrived-from-old', String(Date.now())); } catch {}
+	if (h.get('lsm') === 'arrive') return location.replace(to);
 	const back = (q) => location.replace(OLD + '/#' + new URLSearchParams({ lsm: q.lsm, ...(q.part != null ? { part: q.part } : {}), to }));
 	try {
 		if (!document.referrer.startsWith(OLD + '/')) return location.replace(to);

@@ -11,7 +11,8 @@
 // The only page loa-sim.vercel.app serves now (see /vercel.json). Every path redirects to the same path on
 // loa-sim.pages.dev. A browser with saved data first sends it along (static/migrate/index.html receives it),
 // in URL-hash chunks that ping-pong between the two sites; after that it redirects straight away.
-// Hash protocol: lsm=part&part=N (send chunk N), lsm=done (received; stop sending). `to` keeps the original path.
+// Hash protocol: lsm=part&part=N (send chunk N), lsm=done (received; stop sending); to the new site lsm=arrive
+// (no data to send). `to` keeps the original path.
 (async () => {
 	const NEW = 'https://loa-sim.pages.dev';
 	const CHUNK = 100000;
@@ -21,7 +22,8 @@
 	const lsm = h.get('lsm');
 	const safe = (p) => (p && p[0] === '/' && p[1] !== '/' && p[1] !== '\\' ? p : '/');
 	const to = safe(lsm ? h.get('to') : location.pathname + location.search + location.hash);
-	const go = () => location.replace(NEW + to);
+	// Every redirect passes /migrate/ so the new site can show its "moved" bar.
+	const go = () => location.replace(NEW + '/migrate/#' + new URLSearchParams({ lsm: 'arrive', to }));
 	try {
 		if (lsm === 'done') {
 			localStorage.setItem(MOVED, '1');

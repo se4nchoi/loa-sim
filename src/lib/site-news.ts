@@ -15,6 +15,15 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-11-04',
+		kind: 'improved',
+		title: 'New address',
+		points: [
+			'loa-sim moved to loa-sim.pages.dev; old loa-sim.vercel.app links redirect here',
+			'Saved characters, runs and prices come along on your first visit through the old address'
+		]
+	},
+	{
 		date: '2026-10-26',
 		kind: 'fix',
 		title: 'Vambraces calc',
