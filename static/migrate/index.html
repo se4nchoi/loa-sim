@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<title>loa-sim</title>
+<script>
+// Receives a visitor's saved data from the old site (loa-sim.vercel.app; see vercel-moved/index.html; served at /migrate/), in chunks
+// carried in the URL hash. Fills only keys this browser doesn't have yet, once, then hands back to the old site so
+// it stops sending. Any failure just opens the app.
+(async () => {
+	const OLD = 'https://loa-sim.vercel.app';
+	const DONE = 'loa-sim:imported';
+	const BUF = 'loa-sim:import-buffer';
+	const h = new URLSearchParams(location.hash.slice(1));
+	const safe = (p) => (p && p[0] === '/' && p[1] !== '/' && p[1] !== '\\' ? p : '/');
+	const to = safe(h.get('to'));
+	const back = (q) => location.replace(OLD + '/#' + new URLSearchParams({ lsm: q.lsm, ...(q.part != null ? { part: q.part } : {}), to }));
+	try {
+		if (!document.referrer.startsWith(OLD + '/')) return location.replace(to);
+		if (localStorage.getItem(DONE)) return back({ lsm: 'done' });
+		const n = Number(h.get('n')), of = Number(h.get('of')), len = Number(h.get('len')), d = h.get('d') ?? '';
+		if (!(n >= 0 && n < of && len > 0)) return location.replace(to);
+		const prev = n === 0 ? { len, data: '' } : JSON.parse(sessionStorage.getItem(BUF) ?? 'null');
+		if (!prev || prev.len !== len) return location.replace(to);
+		const data = prev.data + d;
+		if (n + 1 < of) {
+			sessionStorage.setItem(BUF, JSON.stringify({ len, data }));
+			return back({ lsm: 'part', part: n + 1 });
+		}
+		sessionStorage.removeItem(BUF);
+		if (data.length !== len) return location.replace(to);
+		const bytes = Uint8Array.from(atob(data.slice(1).replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+		const stream = new Blob([bytes]).stream();
+		const json = await new Response(data[0] === 'z' ? stream.pipeThrough(new DecompressionStream('deflate-raw')) : stream).text();
+		const entries = JSON.parse(json);
+		for (const [k, v] of Object.entries(entries)) {
+			if (/^loa-(sim|eff):/.test(k) && typeof v === 'string' && localStorage.getItem(k) === null) localStorage.setItem(k, v);
+		}
+		localStorage.setItem(DONE, '1');
+		back({ lsm: 'done' });
+	} catch {
+		location.replace(to);
+	}
+})();
+</script>
+</head>
+<body></body>
+</html>

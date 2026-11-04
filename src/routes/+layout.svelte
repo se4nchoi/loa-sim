@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { page } from '$app/state';
-	import { injectAnalytics } from '@vercel/analytics/sveltekit';
 	import { onDestroy, onMount } from 'svelte';
 	import { installTouchTips } from '$lib/touch-tips';
 	import { loadSavedCharacter } from '$lib/saved-character';
@@ -9,8 +8,6 @@
 	import '../app.css';
 	// The Latin Geist file the stylesheet uses: preloaded so text isn't held back until the CSS has been parsed.
 	import geistLatin from '@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url';
-
-	injectAnalytics({ mode: dev ? 'development' : 'production' });
 
 	let { children } = $props();
 	onMount(installTouchTips);

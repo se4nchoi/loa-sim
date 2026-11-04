@@ -4,3 +4,5 @@ build
 cache
 out
 .env
+/dev-server.*.log
+.wrangler
