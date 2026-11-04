@@ -20,6 +20,7 @@ export const UPDATES: SiteUpdate[] = [
 		title: 'New address',
 		points: [
 			'loa-sim moved to loa-sim.pages.dev; old loa-sim.vercel.app links redirect here',
+			'Traffic outgrew the old host’s free plan; the new one keeps the site free and up',
 			'Saved characters, runs and prices come along on your first visit through the old address'
 		]
 	},
