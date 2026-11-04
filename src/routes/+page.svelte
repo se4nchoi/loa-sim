@@ -209,6 +209,7 @@
 	<meta name="description" content="Lost Ark Combat Power simulator for NA and EUC. Load your character from lostark.bible, change honing, gems, accessories, engravings, ark grid and more, and see the CP change. Next Upgrades ranks your best upgrades by CP or by gold." />
 	<link rel="canonical" href="https://loa-sim.pages.dev/" />
 	<meta name="google-site-verification" content="AkbK2dowunRF4576qIMFXciNLrINRR_7sBLEcygkbMo" />
+	<meta name="google-site-verification" content="t0DO9aw-SHwKsbaWLZkCJmmkRfOlv1rcckTJdCivZT4" />
 	<meta property="og:type" content="website" />
 	<meta property="og:site_name" content="loa-sim" />
 	<meta property="og:title" content="loa-sim · Lost Ark Combat Power Simulator" />
