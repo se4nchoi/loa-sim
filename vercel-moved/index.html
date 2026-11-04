@@ -43,8 +43,15 @@ h1 a { color: oklch(80.28% 0.105 295.74); text-decoration: none; }
 	const lsm = h.get('lsm');
 	const safe = (p) => (p && p[0] === '/' && p[1] !== '/' && p[1] !== '\\' ? p : '/');
 	const to = safe(lsm ? h.get('to') : location.pathname + location.search + location.hash);
+	// The first screen of a visit stays up HOLD_MS from navigation start, long enough to read the new address;
+	// the hops while data travels (lsm set) leave at once.
+	const HOLD_MS = 3500;
+	const leave = async (url) => {
+		if (!lsm) await new Promise((r) => setTimeout(r, Math.max(0, HOLD_MS - performance.now())));
+		location.replace(url);
+	};
 	// Every redirect passes /migrate/ so the new site can show its "moved" bar.
-	const go = () => location.replace(NEW + '/migrate/#' + new URLSearchParams({ lsm: 'arrive', to }));
+	const go = () => leave(NEW + '/migrate/#' + new URLSearchParams({ lsm: 'arrive', to }));
 	try {
 		if (lsm === 'done') {
 			localStorage.setItem(MOVED, '1');
@@ -80,7 +87,7 @@ h1 a { color: oklch(80.28% 0.105 295.74); text-decoration: none; }
 		if (!(part >= 0 && part < of)) return go();
 		status(`Moving your saved data · ${part + 1}/${of}`);
 		const q = new URLSearchParams({ n: part, of, len: data.length, to });
-		location.replace(NEW + '/migrate/#' + q + '&d=' + data.slice(part * CHUNK, (part + 1) * CHUNK));
+		leave(NEW + '/migrate/#' + q + '&d=' + data.slice(part * CHUNK, (part + 1) * CHUNK));
 	} catch {
 		go();
 	}
