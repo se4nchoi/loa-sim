@@ -90,7 +90,7 @@
 				<svg class="size-6 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h14v7a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5zm14 1.5h1.5a2.75 2.75 0 0 1 0 5.5H17v-1.8h1.5a.95.95 0 0 0 0-1.9H17zM9.9 9.2c-.9-.9-2.4-.3-2.4 1 0 1.3 2.4 3 2.4 3s2.4-1.7 2.4-3c0-1.3-1.5-1.9-2.4-1z" /></svg>
 				<span class="flex flex-col leading-tight">
 					<span class="text-sm font-bold">Support me on Ko-fi !</span>
-					<span class="text-[11px] text-surface-300">Help loa-sim get its own domain :)</span>
+					<span class="text-[11px] text-surface-300">Help loa-sim get its own domain 🙏</span>
 				</span>
 			</a>
 		</div>
