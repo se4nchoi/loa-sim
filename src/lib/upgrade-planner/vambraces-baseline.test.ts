@@ -7,11 +7,41 @@ import { simulationBaseline } from './roles';
 import { initSimState, simulate } from './simulate';
 import { supportCombatPower } from './support';
 import type { Loadout } from './types';
+import { HONING_TABLE, AEGIR_HONING_TABLE } from './honing-data';
+import { SIDEREAL_STAGES, SIDEREAL_ADVANCED } from './sidereal-data';
 
 // Public character responses loaded on 2026-10-26; only CP inputs and equipped Vambraces are retained.
 const loadout = (name: keyof typeof roster) => structuredClone(roster[name]) as unknown as Loadout;
 
 describe('released Vambraces baseline regression', () => {
+	it.each([
+		['Serca', 134621110, 12, 40, HONING_TABLE.weapon.honing[12]],
+		['Aegir', 134611110, 20, 20, AEGIR_HONING_TABLE.weapon.honing[20] + AEGIR_HONING_TABLE.weapon.advanced[20]],
+		['Sidereal', 113513110, 8, 40, SIDEREAL_STAGES[2][8].weaponPower + SIDEREAL_ADVANCED[1][40]],
+		['Elgic III', 113514110, 8, 40, SIDEREAL_STAGES[3][8].weaponPower]
+	] as const)('preserves permanent %s weapon power and removes only an added feast', (_name, id, honing, advancedHoning, permanent) => {
+		for (const feast of [0, 400, 800]) {
+			const wp = permanent + feast;
+			const baseAttackPower = Math.sqrt(300000 * wp / 6);
+			const l = {
+				items: [{ id, slot: 'weapon', data: { type: 'equipment', honing, advancedHoning } }],
+				stats: [{ type: 151, value: wp }, { type: 152, value: 10000 }],
+				battlePoint: { isSupport: false, parts: [{ type: PartType.BaseAttack, mainStat: 300000,
+					weaponPower: wp, attackPowerMultiplier: 0, baseAttackPower, value: baseAttackPower * 2.88 }] }
+			} as unknown as Loadout;
+			expect(baselineParts(l)[0].weaponPower).toBe(permanent);
+			if (!feast) expect(baselineParts(l)).toBe(l.battlePoint.parts);
+		}
+	});
+	it('does not infer a feast from an unsupported weapon', () => {
+		const l = loadout('Kamehameshaan');
+		l.items = [{ id: 1, slot: 'weapon', data: { type: 'equipment', honing: 20 } }];
+		l.stats = [{ type: 151, value: 100000 }, { type: 152, value: 10000 }];
+		const attack = l.battlePoint.parts.find(p => p.type === PartType.BaseAttack)!;
+		Object.assign(attack, { mainStat: 300000, weaponPower: 100000, attackPowerMultiplier: 0,
+			baseAttackPower: Math.sqrt(300000 * 100000 / 6), value: Math.sqrt(300000 * 100000 / 6) * 2.88 });
+		expect(baselineParts(l)).toBe(l.battlePoint.parts);
+	});
 	it.each([
 		['Soulshann', 5610.81, 5676.22],
 		['Shanzkii', 4339.96, 4363.34],

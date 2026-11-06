@@ -1,6 +1,7 @@
 import type { BattlePointPart, Loadout } from './types';
 import { HONING_TABLE, AEGIR_HONING_TABLE } from './honing-data';
-import { SIDEREAL_ITEMS, SIDEREAL_STAGES, SIDEREAL_ADVANCED } from './sidereal-data';
+import { SIDEREAL_ITEMS } from './sidereal-data';
+import { readSidereal, siderealWeaponPower } from './sidereal';
 import { bracerStats, readBracer } from './bracer';
 import { BRACELET_EFFECTS } from './game-data';
 import { supportWeaponCoreStats } from './tables';
@@ -113,27 +114,21 @@ export function permanentUnscaledWeaponPower(l: Loadout): number {
 	if (weapon) {
 		const sidereal = SIDEREAL_ITEMS[weapon.id];
 		if (sidereal) {
-			const evo = weapon.data.honing;
-			const adv = weapon.data.advancedHoning ?? 0;
-			if (sidereal.infusion === 3) {
-				wp += SIDEREAL_STAGES[3][evo]?.weaponPower ?? 0;
-			} else {
-				const advTable = SIDEREAL_ADVANCED[sidereal.infusion >= 2 ? 1 : 0];
-				const base = SIDEREAL_STAGES[sidereal.infusion]?.[evo]?.weaponPower ?? 0;
-				wp += base - (advTable ? advTable[advTable.length - 1] : 0) + (advTable?.[adv] ?? 0);
-			}
+			const stage = readSidereal(l);
+			if (!stage) return NaN;
+			wp += siderealWeaponPower(stage);
 		} else {
 			const prefix = Math.floor(weapon.id / 1000);
 			const isSerca = prefix === 134621;
+			if (!isSerca && prefix !== 134611 && prefix !== 134613) return NaN;
 			const table = (isSerca ? HONING_TABLE : AEGIR_HONING_TABLE).weapon;
 			const h = weapon.data.honing;
-			const adv = isSerca ? 40 : (weapon.data.advancedHoning ?? 0);
-			const hVal = table.honing[h] ?? 0;
-			if (isSerca) {
-				wp += hVal - table.advanced[40] + (table.advanced[adv] ?? 0);
-			} else {
-				wp += hVal + (table.advanced[adv] ?? 0);
-			}
+			const rawAdvanced = weapon.data.advancedHoning;
+			const adv = isSerca ? 40 : typeof rawAdvanced === 'number' ? rawAdvanced : 0;
+			if (typeof h !== 'number' || !Number.isInteger(h) || !Number.isInteger(adv)
+				|| table.honing[h] === undefined || table.advanced[adv] === undefined) return NaN;
+			// Serca's baked absolute weapon stat already includes its inherited advanced honing.
+			wp += table.honing[h] + (isSerca ? 0 : table.advanced[adv]);
 		}
 	}
 
@@ -163,8 +158,9 @@ export function permanentUnscaledWeaponPower(l: Loadout): number {
 
 	// Ark Grid Weapon Cores
 	for (const core of l.arkGridCores ?? []) {
-		const pts = (l.battlePoint?.parts?.find((p) => p.id === core.id)?.points)
-			?? core.gems?.reduce((s, g) => s + g.corePoints, 0) ?? 0;
+		const recordedPoints = l.battlePoint?.parts?.find((p) => p.id === core.id)?.points;
+		const pts = typeof recordedPoints === 'number' ? recordedPoints
+			: core.gems?.reduce((s, g) => s + g.corePoints, 0) ?? 0;
 		wp += supportWeaponCoreStats(core.id, pts).flat;
 	}
 

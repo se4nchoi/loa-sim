@@ -15,6 +15,12 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-11-06',
+		kind: 'fix',
+		title: 'CP calculation',
+		points: ['Food and weapon power feast buffs no longer inflate simulated CP']
+	},
+	{
 		date: '2026-11-04',
 		kind: 'improved',
 		title: 'New address',
