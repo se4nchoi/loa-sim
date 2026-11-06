@@ -1,4 +1,4 @@
-import { PartType, partHigh, partRatio, ratioToPct } from './cp';
+import { PartType, baselineParts, partHigh, partRatio, ratioToPct } from './cp';
 import { ENGRAVING_ICONS, GEM_BASE_ATTACK, GEM_REGULAR } from './game-data';
 import { constantEngravingTable, ZERO_ENGRAVING_TABLE } from './engraving-catalog';
 import { engravingPartTypes, roleOf, type RoleTables } from './roles';
@@ -91,7 +91,7 @@ export function gainIn(l: Loadout): (from: number, to: number, defense?: boolean
 }
 
 export function weaponPowerOf(l: Loadout): number {
-	const base = l.battlePoint.parts.find((p) => p.type === PartType.BaseAttack);
+	const base = baselineParts(l).find((p) => p.type === PartType.BaseAttack);
 	return (base && num(base, 'weaponPower')) ?? 0;
 }
 

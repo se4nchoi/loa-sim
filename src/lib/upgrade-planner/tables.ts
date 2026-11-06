@@ -1,3 +1,5 @@
+import { SUPPORT_BP } from './support-data';
+
 // Battle-point tables used to price "next step" upgrades. Units are battle points:
 // 1e4 = +100% combat power, so 704 means +7.04%.
 //
@@ -86,6 +88,15 @@ export function coreValue(info: CoreInfo, points: number, _weaponPower: number):
 	// Ancient cores add +100 from 17P on, except the chaos "Weapon" star [agl adjustCoeff].
 	const ancientBonus = info.grade === 'ancient' && idx >= 2 && !info.weaponCore && !info.supportOnly ? 100 : 0;
 	return curve[idx] + ancientBonus;
+}
+
+/** Weapon cores affect base attack for both roles, rather than a separate battle-point part. */
+export function supportWeaponCoreStats(id: number, points: number): { flat: number; percent: number } {
+	const rows = (SUPPORT_BP.weaponCores as Record<string, number[][]>)[id] ?? [];
+	const info = decodeCore(id);
+	const capped = Math.min(points, info ? CORE_GRADE_CAP[info.grade] : 20);
+	return rows.reduce((sum, [threshold, flat, percent]) => threshold <= capped
+		? { flat: sum.flat + flat, percent: sum.percent + percent / 100 } : sum, { flat: 0, percent: 0 });
 }
 
 /** Astrogem option ids as they appear in bible's `arkGridCores[].gems[].opts[].id` and part 31 ids. */

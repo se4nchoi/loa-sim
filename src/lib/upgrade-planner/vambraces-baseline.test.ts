@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import roster from './fixtures/vambraces-cp-roster.json';
+import shawtiezFixture from './fixtures/ce-shawtiez.json';
+import yktraFixture from './fixtures/ce-yktra.json';
 import { PartType, baselineParts, combatPower } from './cp';
 import { simulationBaseline } from './roles';
 import { initSimState, simulate } from './simulate';
@@ -57,5 +59,39 @@ describe('released Vambraces baseline regression', () => {
 		expect(after.buff).toBeGreaterThan(before.buff);
 		expect(after.shieldHeal).toBe(before.shieldHeal);
 		expect(simulationBaseline(l)).toMatchObject({ cp: 3623.26, reported: 3623.26, mismatch: false });
+	});
+	it('normalizes Shawtíez feast-buffed raid snapshot and matches reported score with Vambraces', () => {
+		const l0 = structuredClone(shawtiezFixture.most_recent_raid) as unknown as Loadout;
+		expect(combatPower(l0.battlePoint.parts).max).toBeCloseTo(2926.95, 2);
+		expect(combatPower(baselineParts(l0)).max).toBeCloseTo(2975.91, 2);
+		const base0 = initSimState(l0);
+		expect(simulate(l0, base0, base0).cp).toBeCloseTo(2975.91, 2);
+		expect(simulationBaseline(l0).mismatch).toBe(false);
+		expect(simulationBaseline(l0).cp).toBe(2975.91);
+
+		const l1 = structuredClone(shawtiezFixture.raid_merged) as unknown as Loadout;
+		expect(combatPower(l1.battlePoint.parts).max).toBeCloseTo(6982.84, 2);
+		expect(combatPower(baselineParts(l1)).max).toBeCloseTo(7099.63, 1);
+		const base1 = initSimState(l1);
+		expect(simulate(l1, base1, base1).cp).toBeCloseTo(7099.63, 1);
+		expect(simulationBaseline(l1).mismatch).toBe(false);
+		expect(simulationBaseline(l1).cp).toBe(7099.63);
+
+		// Idempotency: baselineParts called again on stripped parts does not strip again
+		l1.battlePoint.parts = baselineParts(l1);
+		expect(baselineParts(l1)).toBe(l1.battlePoint.parts);
+	});
+	it('normalizes Yktra food-buffed snapshot to food-less baseline matching reported score', () => {
+		const l = structuredClone(yktraFixture) as unknown as Loadout;
+		expect(combatPower(l.battlePoint.parts).max).toBeCloseTo(5732.28, 2);
+		expect(combatPower(baselineParts(l)).max).toBeCloseTo(5706.41, 2);
+		const base = initSimState(l);
+		expect(simulate(l, base, base).cp).toBeCloseTo(5706.41, 2);
+		expect(simulationBaseline(l).mismatch).toBe(false);
+		expect(simulationBaseline(l).cp).toBe(5706.41);
+
+		// Idempotency
+		l.battlePoint.parts = baselineParts(l);
+		expect(baselineParts(l)).toBe(l.battlePoint.parts);
 	});
 });
