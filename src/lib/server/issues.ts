@@ -44,6 +44,9 @@ interface GhEvent {
 }
 
 const cache = new Map<string, { at: number; value: unknown }>();
+/** Report numbers GitHub said don't exist, so repeated requests for them cost no API calls. */
+const missing = new Map<number, number>();
+const MAX_ENTRIES = 500;
 /** Drops the cached list (a report was just filed). */
 export const forgetReports = () => cache.delete('list');
 
@@ -52,6 +55,7 @@ async function cached<T>(key: string, load: () => Promise<T>, now = Date.now()):
 	if (hit && now - hit.at < TTL_MS) return hit.value as T;
 	try {
 		const value = await load();
+		if (cache.size >= MAX_ENTRIES) cache.clear();
 		cache.set(key, { at: now, value });
 		return value;
 	} catch (e) {
@@ -142,9 +146,20 @@ export const listReports = (fetchFn: typeof fetch) =>
 		return issues.filter((i) => !i.pull_request).map(summarize);
 	});
 
-export const getReport = (n: number, fetchFn: typeof fetch) =>
-	cached(`#${n}`, async () => {
-		const [issue, events] = await Promise.all([gh<GhIssue>(`/issues/${n}`, fetchFn), gh<GhEvent[]>(`/issues/${n}/timeline?per_page=100`, fetchFn)]);
-		if (issue.pull_request) throw new NotFound();
-		return detail(issue, events);
-	});
+export async function getReport(n: number, fetchFn: typeof fetch, now = Date.now()): Promise<ReportDetail> {
+	if (now - (missing.get(n) ?? -Infinity) < TTL_MS) throw new NotFound();
+	try {
+		return await cached(`#${n}`, async () => {
+			// The issue first: a number that doesn't exist costs one call, not two.
+			const issue = await gh<GhIssue>(`/issues/${n}`, fetchFn);
+			if (issue.pull_request) throw new NotFound();
+			return detail(issue, await gh<GhEvent[]>(`/issues/${n}/timeline?per_page=100`, fetchFn));
+		}, now);
+	} catch (e) {
+		if (e instanceof NotFound) {
+			if (missing.size >= MAX_ENTRIES) missing.clear();
+			missing.set(n, now);
+		}
+		throw e;
+	}
+}

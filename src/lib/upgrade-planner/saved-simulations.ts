@@ -130,15 +130,25 @@ export function parseSimulation(json: string): SavedSimulation {
 	} catch { throw new Error('This is not a supported simulation file.'); }
 }
 
-export function savedSimulations(characterKey?: string): SavedSimulation[] {
+/** Stored plans, split into those this version can simulate and the raw entries it can't. */
+function stored(): { plans: SavedSimulation[]; unreadable: unknown[] } {
+	const plans: SavedSimulation[] = [], unreadable: unknown[] = [];
 	try {
 		const values: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]');
-		if (!Array.isArray(values)) return [];
-		return values.flatMap((value) => {
-			try { return [parseSimulation(JSON.stringify(value))]; } catch { return []; }
-		}).filter((s) => !characterKey || s.characterKey.toLowerCase() === characterKey.toLowerCase())
-			.sort((a, b) => b.savedAt - a.savedAt);
-	} catch { return []; }
+		if (Array.isArray(values)) for (const value of values) {
+			try { plans.push(parseSimulation(JSON.stringify(value))); } catch { unreadable.push(value); }
+		}
+	} catch { /* blocked storage or broken JSON: nothing to list */ }
+	return { plans: plans.sort((a, b) => b.savedAt - a.savedAt), unreadable };
+}
+
+/** Writes the list back with the entries this version can't read kept as they were, so an update never erases them. */
+function persist(plans: SavedSimulation[], unreadable: unknown[]) {
+	localStorage.setItem(KEY, JSON.stringify([...plans, ...unreadable]));
+}
+
+export function savedSimulations(characterKey?: string): SavedSimulation[] {
+	return stored().plans.filter((s) => !characterKey || s.characterKey.toLowerCase() === characterKey.toLowerCase());
 }
 
 /** Throws on blocked/full storage so the UI never promises a save that did not persist. */
@@ -147,30 +157,30 @@ export function saveSimulation(characterKey: string, name: string, loadout: Load
 	const trimmed = name.trim();
 	if (!trimmed || trimmed.length > 80) throw new Error('Use a name between 1 and 80 characters.');
 	const s = parseSimulation(JSON.stringify({ version: 1, id: crypto.randomUUID(), name: trimmed, characterKey: characterKey.toLowerCase(), savedAt: Date.now(), loadout, state }));
-	const list = savedSimulations();
+	const { plans: list, unreadable } = stored();
 	const existing = list.find(plan => plan.characterKey === s.characterKey && plan.name === s.name &&
 		sameBaseline(plan.loadout, s.loadout) && JSON.stringify(plan.state) === JSON.stringify(s.state));
 	if (existing) return existing;
 	if (list.length >= LIMIT) throw new Error(`You have ${LIMIT} saved simulations. Delete one before saving another.`);
-	try { localStorage.setItem(KEY, JSON.stringify([s, ...list])); }
+	try { persist([s, ...list], unreadable); }
 	catch { throw new Error('Browser storage is full or blocked. Export a file to keep your changes.'); }
 	return s;
 }
 
 export function deleteSimulation(id: string) {
-	try { localStorage.setItem(KEY, JSON.stringify(savedSimulations().filter((s) => s.id !== id))); }
+	try { const { plans, unreadable } = stored(); persist(plans.filter((s) => s.id !== id), unreadable); }
 	catch { throw new Error('Browser storage is blocked; the simulation could not be deleted.'); }
 }
 
 export function renameSimulation(id: string, name: string): void {
 	const title = name.trim();
 	if (!title || title.length > 80) throw new Error('Use a name between 1 and 80 characters.');
-	const list = savedSimulations();
+	const { plans: list, unreadable } = stored();
 	const saved = list.find(s => s.id === id);
 	if (!saved) throw new Error('This saved simulation no longer exists.');
 	if (saved.name === title) return;
 	saved.name = title;
-	try { localStorage.setItem(KEY, JSON.stringify(list)); }
+	try { persist(list, unreadable); }
 	catch { throw new Error('Browser storage is blocked; the simulation could not be renamed.'); }
 }
 
@@ -208,11 +218,11 @@ export function autosaveSimulation(characterKey: string, loadout: Loadout, state
 
 /** Pinning only changes the shortcut, never the saved baseline or edits. */
 export function pinSimulation(id: string, pinned: boolean) {
- const list = savedSimulations();
+ const { plans: list, unreadable } = stored();
  const plan = list.find(s => s.id === id);
  if (!plan) throw new Error('This saved simulation no longer exists.');
  plan.pinned = pinned;
- try { localStorage.setItem(KEY, JSON.stringify(list)); }
+ try { persist(list, unreadable); }
  catch { throw new Error('Browser storage is blocked; the build shortcut could not be saved.'); }
 }
 export function simulationCP(s: SavedSimulation): number {

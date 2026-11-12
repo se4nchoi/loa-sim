@@ -44,3 +44,11 @@ describe('report dialog server', () => {
 		expect(issueBody(report).startsWith(report.body)).toBe(true);
 	});
 });
+
+describe('mentions', () => {
+	it('stops player text from notifying GitHub users', () => {
+		const body = issueBody({ kind: 'bug', title: 't', body: 'thanks @octocat and a@b.c', contact: '@me' });
+		expect(body).not.toMatch(/@[A-Za-z0-9]/);
+		expect(body).toContain('@​octocat');
+	});
+});

@@ -105,6 +105,7 @@ export function signOut() {
 	memoryToken = null;
 	try {
 		localStorage.removeItem(TOKEN_KEY);
+		localStorage.removeItem(ROSTER_KEY);
 	} catch {
 		/* nothing stored */
 	}
