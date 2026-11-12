@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import CharacterSwitcher from '$lib/CharacterSwitcher.svelte';
+	import CharacterSkeleton from '$lib/character/CharacterSkeleton.svelte';
 	import CharacterView from '$lib/character/CharacterView.svelte';
 	import { parseCharacterInput, type LoadoutKind } from '$lib/bible-data';
 	import { characterKey, eraseSnapshot, loadSavedCharacter, rememberViewed, setLoadoutKind, setSnapshot } from '$lib/saved-character';
@@ -72,14 +73,14 @@
 		return () => document.removeEventListener('visibilitychange', observe);
 	});
 
-	let loadingCharacter = $state(false);
+	let loadingCharacter = $state<{ region: string; name: string } | null>(null);
 	let loadError = $state<string | null>(null);
 	let retry = $state(0);
 	$effect(() => {
 		const key = wanted;
 		void retry;
 		loadError = null;
-		loadingCharacter = false;
+		loadingCharacter = null;
 		if (untrack(() => loadSavedCharacter(key))) return;
 		if (!key) {
 			void goto('/', { replaceState: true });
@@ -94,13 +95,13 @@
 			return;
 		}
 		let active = true;
-		loadingCharacter = true;
+		loadingCharacter = target;
 		void loadCharacter(target.region, target.name).then(() => {
 			if (active) switched = loadSavedCharacter(key);
 		}).catch((e) => {
 			if (active) loadError = e instanceof Error ? e.message : String(e);
 		}).finally(() => {
-			if (active) loadingCharacter = false;
+			if (active) loadingCharacter = null;
 		});
 		return () => { active = false; };
 	});
@@ -125,7 +126,7 @@
 </script>
 
 {#if loadingCharacter}
-	<p role="status" class="text-sm text-surface-300">Loading character from lostark.bible…</p>
+	<CharacterSkeleton picker name={loadingCharacter.name} region={loadingCharacter.region} />
 {:else if loadError}
 	<div class="space-y-3 text-sm">
 		<p role="alert" class="text-red-400">{loadError}</p>
