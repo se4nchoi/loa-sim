@@ -93,6 +93,8 @@
 	/** No character-bound mats entered for this character: honing is priced as if every mat were bought. */
 	const noBound = $derived(materials.every((id) => !bound[id]));
 	const unsetPrices = $derived(materials.every((id) => materialPrices[id] === undefined && bound[id] === undefined));
+	/** Materials the listed honing steps use that have no price and no bound stock: they count as 0 gold. */
+	const unpricedMaterials = $derived(materials.filter((id) => materialPrices[id] === undefined && bound[id] === undefined).length);
 	let pricesOpen = $state(false);
 	const cp = $derived(currentCp ?? loadout.combatPower?.score ?? roleOf(loadout).score(loadout.battlePoint.parts));
 	let dialogOpen = $state(false);
@@ -156,20 +158,27 @@
 			{#if gold.mode === 'gold' && materials.length}
 				<button
 					type="button"
-					class="flex h-7 min-w-0 items-center justify-center gap-1 truncate rounded-xs border px-2 text-xs font-semibold transition {unsetPrices
+					class="flex h-7 min-w-0 items-center justify-center gap-1 truncate rounded-xs border px-2 text-xs font-semibold transition {unpricedMaterials
 						? 'border-dashed border-amber-400/60 text-amber-300 hover:bg-amber-500/10'
 						: 'border-surface-700 bg-surface-800 text-surface-100 hover:border-surface-500 hover:bg-surface-700'}"
 					aria-haspopup="dialog"
 					onclick={() => (pricesOpen = true)}
-					title={noBound
-						? `No character-bound mats set for ${characterName ?? 'this character'}: honing costs assume every mat is bought`
-						: 'Honing material prices (character-bound and market)'}
+					title={unpricedMaterials && !unsetPrices
+						? `${unpricedMaterials} material${unpricedMaterials === 1 ? ' has' : 's have'} no price and count${unpricedMaterials === 1 ? 's' : ''} as 0 gold in honing costs`
+						: noBound
+							? `No character-bound mats set for ${characterName ?? 'this character'}: honing costs assume every mat is bought`
+							: 'Honing material prices (character-bound and market)'}
 				>
 					{#if noBound}
 						<!-- Red badge: honing costs are inflated until this character's bound mats are entered. -->
 						<span class="flex size-4 shrink-0 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white" aria-hidden="true">!</span>
 					{/if}
-					Material prices<span class="font-normal opacity-70">{unsetPrices ? '· all 0' : ''}</span>
+					{#if unpricedMaterials && !unsetPrices}
+						<!-- Short enough for half the card's width, like "N missing prices" beside it. -->
+						{unpricedMaterials} unpriced material{unpricedMaterials === 1 ? '' : 's'}
+					{:else}
+						Material prices<span class="font-normal opacity-70">{unsetPrices ? '· all 0' : ''}</span>
+					{/if}
 				</button>
 			{/if}
 			<button

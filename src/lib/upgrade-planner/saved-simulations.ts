@@ -130,13 +130,34 @@ export function parseSimulation(json: string): SavedSimulation {
 	} catch { throw new Error('This is not a supported simulation file.'); }
 }
 
-/** Stored plans, split into those this version can simulate and the raw entries it can't. */
-function stored(): { plans: SavedSimulation[]; unreadable: unknown[] } {
+/**
+ * Checking a stored plan simulates it, so each stored entry is checked once per page load and remembered by its
+ * exact text (null = this version can't read it). Callers get copies: the remembered plan is never edited.
+ */
+const checked = new Map<string, SavedSimulation | null>();
+function checkedPlan(value: unknown): SavedSimulation | null {
+	const raw = JSON.stringify(value);
+	let plan = checked.get(raw);
+	if (plan === undefined) {
+		try { plan = parseSimulation(raw); } catch { plan = null; }
+		if (checked.size >= 200) checked.clear();
+		checked.set(raw, plan);
+	}
+	return plan && structuredClone(plan);
+}
+
+/**
+ * Stored plans, split into those this version can simulate and the raw entries it can't. With a character, only
+ * that character's entries are checked (the rest are left out of both lists: don't write this result back).
+ */
+function stored(characterKey?: string): { plans: SavedSimulation[]; unreadable: unknown[] } {
 	const plans: SavedSimulation[] = [], unreadable: unknown[] = [];
 	try {
 		const values: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]');
 		if (Array.isArray(values)) for (const value of values) {
-			try { plans.push(parseSimulation(JSON.stringify(value))); } catch { unreadable.push(value); }
+			if (characterKey && record(value) && typeof value.characterKey === 'string' && value.characterKey.toLowerCase() !== characterKey.toLowerCase()) continue;
+			const plan = checkedPlan(value);
+			if (plan) plans.push(plan); else unreadable.push(value);
 		}
 	} catch { /* blocked storage or broken JSON: nothing to list */ }
 	return { plans: plans.sort((a, b) => b.savedAt - a.savedAt), unreadable };
@@ -148,7 +169,7 @@ function persist(plans: SavedSimulation[], unreadable: unknown[]) {
 }
 
 export function savedSimulations(characterKey?: string): SavedSimulation[] {
-	return stored().plans.filter((s) => !characterKey || s.characterKey.toLowerCase() === characterKey.toLowerCase());
+	return stored(characterKey).plans.filter((s) => !characterKey || s.characterKey.toLowerCase() === characterKey.toLowerCase());
 }
 
 /** Throws on blocked/full storage so the UI never promises a save that did not persist. */
@@ -225,8 +246,17 @@ export function pinSimulation(id: string, pinned: boolean) {
  try { persist(list, unreadable); }
  catch { throw new Error('Browser storage is blocked; the build shortcut could not be saved.'); }
 }
+/** A plan's CP. Lists show it for every plan on each redraw, so it's worked out once per snapshot and edits. */
+const cpOf = new Map<string, number>();
 export function simulationCP(s: SavedSimulation): number {
- const base = initSimState(s.loadout);
- const baseline = simulate(s.loadout, base, base).cp;
- return simulationBaseline(s.loadout, baseline).cp * simulate(s.loadout, s.state, base).cp / baseline;
+ const key = JSON.stringify([s.loadout, s.state]);
+ let cp = cpOf.get(key);
+ if (cp === undefined) {
+  const base = initSimState(s.loadout);
+  const baseline = simulate(s.loadout, base, base).cp;
+  cp = simulationBaseline(s.loadout, baseline).cp * simulate(s.loadout, s.state, base).cp / baseline;
+  if (cpOf.size >= 100) cpOf.clear();
+  cpOf.set(key, cp);
+ }
+ return cp;
 }
