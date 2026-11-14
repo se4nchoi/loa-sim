@@ -12,7 +12,6 @@
 	import type { Snapshot } from '$lib/snapshot-history';
 	import MenuPicker from '$lib/upgrade-planner/sim/MenuPicker.svelte';
 	import type { Loadout } from '$lib/upgrade-planner/types';
-	import DpsModePanel from '$lib/upgrade-planner/DpsModePanel.svelte';
 	import type { SnapshotOption } from '$lib/upgrade-planner/dps-meter';
 	import { formatDate } from '$lib/upgrade-planner/format';
 
@@ -67,6 +66,12 @@
 		/** Reloads the character from lostark.bible; resolves whether that brought a snapshot this browser didn't have. */
 		onreload?: () => Promise<boolean>;
 	} = $props();
+
+	// DPS mode's panel (run import, raid art, the damage tables) downloads when DPS mode is first opened.
+	let DpsModePanel = $state<typeof import('$lib/upgrade-planner/DpsModePanel.svelte').default | null>(null);
+	$effect(() => {
+		if (dpsMode && !DpsModePanel) import('$lib/upgrade-planner/DpsModePanel.svelte').then((m) => (DpsModePanel = m.default)).catch(() => {});
+	});
 
 	let edited = $state(false);
 	let planStats = $state<PlanContext | null>(null);
@@ -271,7 +276,7 @@
 				</div>
 			</div>
 		{/if}
-		{#if dpsMode && simulation && (!sharedBuild || sharedDps)}<DpsModePanel shared={sharedBuild ? sharedDps : undefined} {loadout} simState={simulation} characterKey={`${region}/${name}`.toLowerCase()} characterName={name} snapshots={snapshotOptions} onsimulate={(s) => (simulation = s)} />{/if}
+		{#if DpsModePanel && dpsMode && simulation && (!sharedBuild || sharedDps)}<DpsModePanel shared={sharedBuild ? sharedDps : undefined} {loadout} simState={simulation} characterKey={`${region}/${name}`.toLowerCase()} characterName={name} snapshots={snapshotOptions} onsimulate={(s) => (simulation = s)} />{/if}
 		{#if simulation}<Simulator {dpsMode} {onmode} bind:planStats restoreInitial={sharedBuild} initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
 	</div>
 {/if}

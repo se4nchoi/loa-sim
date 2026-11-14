@@ -94,6 +94,50 @@ function damageParts(loadout: Loadout, state: SimState): number {
 		.reduce((m, p) => m * (1 + (p.value ?? 0) / 1e4), 1);
 }
 
+type StatDelta = Parameters<typeof gearStatProjection>[0];
+type RunSkill = RunSummary['skills'][number];
+/** Skills the stat edits scale: not Hyper Awakening (Leap Karma only) and not the Paradise orb's proc (Paradise power only). */
+const ordinarySkill = (skill: RunSkill) => !skill.hyper && !isParadiseProc(skill.id) && skill.damage > 0;
+
+/**
+ * One run's stat part: the multiplier the stat edits (`delta`) put on its ordinary skills, and where it came from.
+ * With configured totals (`context`), from those. With the run's own LOA Logs stat values, from the stat model. A run
+ * without them uses what it did record, where that is sound, and the model (on borrowed values) for the rest:
+ *   - Additional Damage from the gear snapshot;
+ *   - Evolution Damage from the run's efficiency record, when no skill is moved on its own (`skillsUnchanged`);
+ *   - Atk. Power % per skill from the recorded buff windows, when it is the only stat edited and the windows still
+ *     hold (`windowsUnchanged`): another attack / crit / evolution bucket can correlate with those windows.
+ */
+function runStatPart(run: RunSummary, delta: StatDelta, o: { context?: DamageContext; model: Parameters<typeof modelGain>[1]; critRate: number | null; hasStats: boolean; windowsUnchanged: boolean; skillsUnchanged: boolean }) {
+	const own = !o.context && !run.statValues;
+	const evo = own && o.skillsUnchanged && typeof run.evolutionDamageValue === 'number' && run.evolutionDamageValue > 0 && run.evolutionDamageValue <= 1
+		? 100 / run.evolutionDamageValue - 100 : undefined;
+	const projected = gearStatProjection(delta, { additionalDamage: own ? run.gearAdditionalDamage : undefined, evolutionDamage: evo });
+	const ordinary = run.skills.filter(ordinarySkill);
+	const attackOnly = !delta.mainStat && !delta.weaponPower && !delta.attackPower && !delta.baseAttackFlat && !delta.baseAttackPct && !delta.critRate && !delta.critDamage && !delta.evolutionDamage;
+	const attack = own && !!delta.attackPowerPct && attackOnly && o.windowsUnchanged && ordinary.length > 0
+		&& ordinary.every((skill) => typeof skill.gearAttackPowerPct === 'number' && Number.isFinite(skill.gearAttackPowerPct) && skill.gearAttackPowerPct >= 0 && skill.gearAttackPowerPct <= 1)
+		&& ordinary.every((skill) => 1 + delta.attackPowerPct * skill.gearAttackPowerPct! > 0)
+		// Only when the skill list is the whole run: the windows say nothing about damage outside it.
+		&& Math.abs(run.skills.reduce((sum, skill) => sum + skill.damage, 0) - run.damage) <= 1;
+	if (attack) projected.remaining.attackPowerPct = 0;
+	const remaining = Object.values(projected.remaining).some((v) => v);
+	const gain = !o.hasStats ? 0 : o.context
+		? run.critConversion && !o.context.critConversion && (delta.critRate || delta.critDamage || delta.evolutionDamage) ? null : statGain(o.context, delta)
+		: modelGain(projected.remaining, { ...o.model, critRate: o.critRate }).gainPct;
+	return {
+		/** On every ordinary skill (and on damage outside the skill list). */
+		factor: projected.factor * (1 + (gain ?? 0) / 100),
+		/** A skill's own Atk. Power % factor from its buff windows; 1 when those aren't used. */
+		attackOf: (skill: RunSkill) => (attack ? 1 + delta.attackPowerPct * (skill.gearAttackPowerPct ?? 0) : 1),
+		/** false: the stat edits couldn't be valued on this run. */
+		known: gain !== null,
+		additional: projected.additional, evolution: projected.evolution, attack,
+		/** The model ran on another run's stat values. */
+		borrowed: own && remaining && gain !== null
+	};
+}
+
 export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buildRuns: RunSummary[], runs: RunSummary[], arkGrid?: typeof orderCoreEffect, context?: DamageContext): Meter | null {
 	if (!runs.length) return null;
 	const notes: string[] = [];
@@ -199,6 +243,10 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	let before = 0, after = 0, durationMs = 0, statWeighted = 0, outsideDamage = 0, statKnown = true;
 	const unvalued = new Set<string>();
 	let gearStatsUsed = false, gearAttackUsed = false, evolutionUsed = false, borrowedStatsUsed = false;
+	// The run's own records (buff windows, Evolution efficiency) only stand in for stat values while the edits leave the
+	// effects those records were measured under alone: the Ark Grid, engravings and the bracelet's crit / positional terms.
+	const windowsUnchanged = same(state.arkGrid, base.arkGrid) && same(state.engravings, base.engravings) && !bracelet.critHit && !bracelet.back && !bracelet.front;
+	const skillsUnchanged = windowsUnchanged && !gemEffects.length && bracelet.nonDirectional === 1;
 	runs.forEach((run, i) => {
 		if (braA.demon !== braB.demon) {
 			const species = gateDemonSpecies(run.boss);
@@ -206,30 +254,14 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 			// species bucket (including card books) and, in mixed gates, damage by target; neither is in the loadout.
 			if (species !== 'other') notInMeter.push(`Bracelet: Demon/Archdemon bonus (${species ? 'card-book total unavailable' : 'mixed or unknown targets'})`);
 		}
-		const evo = !context && !run.statValues && typeof run.evolutionDamageValue === 'number' && run.evolutionDamageValue > 0 && run.evolutionDamageValue <= 1
-			&& !gemEffects.length && same(state.arkGrid, base.arkGrid) && same(state.engravings, base.engravings) && !bracelet.critHit && !bracelet.back && !bracelet.front && bracelet.nonDirectional === 1
-			? 100 / run.evolutionDamageValue - 100 : undefined;
-		const projected = gearStatProjection(delta, { additionalDamage: !context && !run.statValues ? run.gearAdditionalDamage : undefined, evolutionDamage: evo });
-		const ordinary = run.skills.filter(skill => !skill.hyper && !isParadiseProc(skill.id) && skill.damage > 0);
-		// A different attack/crit/evolution bucket can correlate with these windows; don't invent that joint context.
-		const attackOnly = !delta.mainStat && !delta.weaponPower && !delta.attackPower && !delta.baseAttackFlat && !delta.baseAttackPct && !delta.critRate && !delta.critDamage && !delta.evolutionDamage;
-		const autoAttack = !context && !run.statValues && !!delta.attackPowerPct && attackOnly && ordinary.length > 0
-			&& same(state.arkGrid, base.arkGrid) && same(state.engravings, base.engravings) && !bracelet.critHit && !bracelet.back && !bracelet.front
-			&& ordinary.every(skill => typeof skill.gearAttackPowerPct === 'number' && Number.isFinite(skill.gearAttackPowerPct) && skill.gearAttackPowerPct >= 0 && skill.gearAttackPowerPct <= 1)
-			&& ordinary.every(skill => 1 + delta.attackPowerPct * skill.gearAttackPowerPct! > 0)
-			&& Math.abs(run.skills.reduce((sum, skill) => sum + skill.damage, 0) - run.damage) <= 1;
-		if (autoAttack) { projected.remaining.attackPowerPct = 0; gearAttackUsed = true; }
-		const remainingStats = Object.values(projected.remaining).some(v => v);
-		const gain = hasStats ? context
-			? run.critConversion && !context.critConversion && (delta.critRate || delta.critDamage || delta.evolutionDamage) ? null : statGain(context, delta)
-			: modelGain(projected.remaining, { ...model, critRate: crit.perRun[i] }).gainPct : 0;
-		if (gain === null) statKnown = false;
-		gearStatsUsed ||= projected.additional;
-		evolutionUsed ||= projected.evolution;
-		borrowedStatsUsed ||= !context && !run.statValues && remainingStats && gain !== null;
-		const stat = projected.factor * (1 + (gain ?? 0) / 100);
-		statWeighted += ordinary.reduce((sum, skill) => sum + skill.damage * (stat * (autoAttack ? 1 + delta.attackPowerPct * skill.gearAttackPowerPct! : 1) - 1) * 100, 0);
-		outsideDamage += Math.max(0, run.damage - run.skills.reduce((sum, s) => sum + s.damage, 0)) * stat * gridDamage * parts * bracelet.outgoing;
+		const part = runStatPart(run, delta, { context, model, critRate: crit.perRun[i], hasStats, windowsUnchanged, skillsUnchanged });
+		if (!part.known) statKnown = false;
+		gearStatsUsed ||= part.additional;
+		gearAttackUsed ||= part.attack;
+		evolutionUsed ||= part.evolution;
+		borrowedStatsUsed ||= part.borrowed;
+		statWeighted += run.skills.reduce((sum, skill) => (ordinarySkill(skill) ? sum + skill.damage * (part.factor * part.attackOf(skill) - 1) * 100 : sum), 0);
+		outsideDamage += Math.max(0, run.damage - run.skills.reduce((sum, s) => sum + s.damage, 0)) * part.factor * gridDamage * parts * bracelet.outgoing;
 		durationMs += run.duration;
 		const cores = arkGrid && !same(state.arkGrid, base.arkGrid) ? arkGrid(loadout, base, state, run) : null;
 		for (const u of cores?.unvalued ?? []) unvalued.add(u);
@@ -239,7 +271,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 			const row = bySkill.get(skill.id) ?? { id: skill.id, before: 0, after: 0 };
 			row.before += skill.damage;
 			// A Paradise orb's proc hits for a fixed amount (no crits, the same at any gear): only Paradise power moves it.
-			row.after += skill.damage * (isParadiseProc(skill.id) ? paradise(skill.id) : skill.hyper ? leap : stat * (autoAttack ? 1 + delta.attackPowerPct * (skill.gearAttackPowerPct ?? 0) : 1) * gems * gridOf(skill) * parts * braceletOf(skill));
+			row.after += skill.damage * (isParadiseProc(skill.id) ? paradise(skill.id) : skill.hyper ? leap : part.factor * part.attackOf(skill) * gems * gridOf(skill) * parts * braceletOf(skill));
 			bySkill.set(skill.id, row);
 		}
 		before += run.damage;

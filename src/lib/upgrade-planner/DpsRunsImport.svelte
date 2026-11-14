@@ -66,10 +66,11 @@
 	// couldn't be read.
 	const UNKNOWN = '?';
 	type SnapInfo = { cores: string; ids: number[]; arkPassive: ClearSnapshot['arkPassive']; sameGear: boolean };
-	// The Order core table (large; DPS mode loads it anyway) for the Destiny check.
+	// The Order core model and this class's cores (DPS mode loads them anyway) for the Destiny check.
 	let coreModel = $state<typeof import('./ark-grid-dps') | null>(null);
 	$effect(() => {
-		import('./ark-grid-dps').then((m) => (coreModel = m));
+		const cls = loadout?.classId;
+		Promise.all([import('./ark-grid-dps'), import('./order-cores').then((m) => m.loadOrderCores(cls))]).then(([m]) => (coreModel = m)).catch(() => {});
 	});
 	let snapCores = $state<Record<string, SnapInfo>>({});
 	const hashOf = (e: EncounterRow) => { const h = gearById[e.id]?.hash; return h && isSnapshotHash(h) ? h : null; };
@@ -187,7 +188,7 @@
 		try {
 			const { runs, skills } = await reader.runs(player, clears.map(c => c.id));
 			const book: RunsBook = { player, fileName, importedAt: Date.now(), runs, skills };
-			if (!saveRuns(characterKey, book)) error = 'Your browser refused to save this many runs. They stay loaded until you close the tab.';
+			if (!(await saveRuns(characterKey, book))) error = 'Your browser refused to save this many runs. They stay loaded until you close the tab.';
 			ondone?.(book);
 		} catch (err) {
 			error = err instanceof Error ? err.message : String(err);

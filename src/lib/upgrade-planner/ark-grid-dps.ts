@@ -257,7 +257,8 @@ function destinyBuffsOf(cls: string) {
 		if (core.cls !== cls) continue;
 		for (const [, option] of core.bonuses) for (const e of ORDER_CORE_EFFECTS[option] ?? []) if (e.buff) { found.byName.set(e.buff, core.name); found.byId.set(option, core.name); }
 	}
-	destinyBuffs.set(cls, found);
+	// Not kept while the class's cores haven't loaded (order-cores.ts loads them per class).
+	if (found.byId.size) destinyBuffs.set(cls, found);
 	return found;
 }
 

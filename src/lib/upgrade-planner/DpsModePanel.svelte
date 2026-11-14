@@ -53,14 +53,15 @@
 		shared?: SharedDps;
 	} = $props();
 
-	// The order core model: a large table, so it loads with DPS mode.
+	// The order core model and this class's cores load with DPS mode.
 	let arkGridModel = $state<typeof import('./ark-grid-dps') | null>(null);
 	$effect(() => {
-		import('./ark-grid-dps').then((m) => (arkGridModel = m));
+		const cls = loadout.classId;
+		Promise.all([import('./ark-grid-dps'), import('./order-cores').then((m) => m.loadOrderCores(cls))]).then(([m]) => (arkGridModel = m)).catch(() => {});
 	});
 
 	$effect(() => {
-		if (!shared) loadRuns(characterKey);
+		if (!shared) void loadRuns(characterKey);
 	});
 	const book = $derived(runsBooks.byCharacter[characterKey] ?? null);
 	// Switching to DPS mode puts this panel over the cards: a skeleton for at least a second, so the change reads as

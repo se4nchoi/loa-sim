@@ -3,10 +3,10 @@
 //     Enhancement; hundredths of a percent, like accessory lines), from the Maxroll feed cache (cache/maxroll-stats.json).
 //     The CP tables hold battle points, not these values;
 //   - support Order cores' Ally Atk. Power / Ally Damage Enhancement lines by core id and points, from
-//     src/lib/upgrade-planner/order-cores.ts (bake-order-cores.mjs): for every buff, or one skill's buffs ("Paint: Dragon
+//     src/lib/upgrade-planner/order-cores/ (bake-order-cores.mjs): for every buff, or one skill's buffs ("Paint: Dragon
 //     Engraving's Party Damage Enhancement"), always or while a Destiny effect is up ("Destiny: Sun's Embrace: …").
 //   node scripts/bake-support-buffs.mjs
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const options = JSON.parse(readFileSync('cache/maxroll-stats.json', 'utf8')).arkGridGemOptions;
 const astrogems = {};
@@ -16,9 +16,15 @@ for (const id of [2011, 2012, 2013]) {
 	astrogems[id] = values;
 }
 
-const src = readFileSync('src/lib/upgrade-planner/order-cores.ts', 'utf8').split('\n');
-const grab = (name) => JSON.parse(src.find((l) => l.startsWith(`export const ${name}`)).replace(/^[^=]*= /, '').replace(/;$/, ''));
-const cores = grab('ORDER_CORES'), effects = grab('ORDER_CORE_EFFECTS');
+// The baked Order cores, one file per class (bake-order-cores.mjs).
+const coreDir = 'src/lib/upgrade-planner/order-cores';
+const cores = {}, effects = {};
+for (const file of readdirSync(coreDir)) {
+	const line = readFileSync(`${coreDir}/${file}`, 'utf8').split('\n').find((l) => l.startsWith('const data'));
+	const data = JSON.parse(line.replace(/^[^=]*= /, '').replace(/;$/, ''));
+	for (const [id, core] of Object.entries(data.cores)) cores[id] = { cls: file.replace(/\.ts$/, ''), ...core };
+	Object.assign(effects, data.effects);
+}
 const SUPPORTS = new Set(['bard', 'holyknight', 'holyknight_female', 'yinyangshi']);
 
 /** One line: which stat, how much, and when / on what: { points, stat, pct, skill?, destiny? }; null when it's none. */

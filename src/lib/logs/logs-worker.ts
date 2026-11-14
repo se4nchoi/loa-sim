@@ -162,6 +162,8 @@ async function runGear(player: string, ids: number[]): Promise<Record<number, Ru
 	return out;
 }
 
+/** A buff or debuff as LOA Logs lists it for an encounter. */
+type LoggedBuff = { buffCategory?: string; target?: string; source?: { name?: string; skill?: { id?: number; name?: string } } };
 type LoggedSkill = { id?: number; name?: string; icon?: string; total_damage?: number; totalDamage?: number; timeAvailable?: number };
 
 async function decodeSkills(value: unknown): Promise<Record<string, LoggedSkill>> {
@@ -294,14 +296,19 @@ async function runSummaries(player: string, ids: number[]) {
 	for (const row of encounters) {
 		const [entity] = await query(`SELECT skills, ${pick('class')}, ${pick('combat_power')}, ${pick('gear_score')}, ${pick('spec')}, ${pick('engravings')}, ${pick('ark_passive_data')}, ${pick('loadout_hash')}, ${pick('support_ap')}, ${pick('support_brand')}, ${pick('support_identity')}, ${pick('support_hyper')} FROM entity WHERE encounter_id = ? AND name = ?`, [row.id, player]);
 		if (!entity) continue;
+		// The encounter's own columns in one read (they were three to five separate reads a run); debuffs only for a support.
+		const fields = ['misc', 'buffs', 'total_damage_dealt', ...(SUPPORT_CLASSES.has(String(entity.class)) ? ['debuffs'] : [])].map((c) => (encounterColumns.has(c) ? c : `NULL AS ${c}`)).join(', ');
+		let encounter: Record<string, unknown> | undefined;
+		try { [encounter] = await query(`SELECT ${fields} FROM encounter WHERE id = ?`, [row.id]); } catch { /* old logs */ }
 		let misc: unknown = null;
-		if (hasMisc) try { misc = await decodeSkills((await query(`SELECT misc FROM encounter WHERE id = ?`, [row.id]))[0]?.misc); } catch { /* old/unreadable misc */ }
+		if (hasMisc) try { misc = await decodeSkills(encounter?.misc); } catch { /* old/unreadable misc */ }
 		// Ark Grid, identity and the player's own class/Ark Passive buffs ("Destiny: Footsteps of the Dead", "Deathlord Mode",
 		// "Brawl King Stance"): the meter values Order core effects on the damage dealt under them.
 		let keptBuffs: Map<number, string> | undefined;
 		let statBuffSources: Record<number, number> | undefined;
+		let buffs: Record<string, LoggedBuff> | undefined;
 		if (hasBuffs) try {
-			const buffs = await decodeSkills((await query(`SELECT buffs FROM encounter WHERE id = ?`, [row.id]))[0]?.buffs) as Record<string, { buffCategory?: string; target?: string; source?: { name?: string; skill?: {id?: number} } }>;
+			buffs = await decodeSkills(encounter?.buffs) as Record<string, LoggedBuff>;
 			statBuffSources = Object.fromEntries(Object.entries(buffs).flatMap(([id, buff]) => Number.isSafeInteger(buff?.source?.skill?.id) ? [[Number(id), buff.source!.skill!.id!]] : []));
 			// The player's own states too ("Brawl King Stance", "Level 3 Hype"), not party buffs.
 			const kept = (b: { buffCategory?: string; target?: string }) => b?.buffCategory === 'arkgrid' || b?.buffCategory === 'identity' ||
@@ -316,10 +323,7 @@ async function runSummaries(player: string, ids: number[]) {
 			if (boss && Number(boss.max_hp) > 0) bossHp = { left: Math.max(0, Number(boss.current_hp) || 0), max: Number(boss.max_hp) };
 		} catch { /* old logs */ }
 		// The encounter's total_damage_dealt is every player's damage summed (checked against their damage_stats).
-		if (encounterColumns.has('total_damage_dealt')) try {
-			const [total] = await query(`SELECT total_damage_dealt FROM encounter WHERE id = ?`, [row.id]);
-			if (Number(total?.total_damage_dealt) > 0) partyDamage = Number(total.total_damage_dealt);
-		} catch { /* old logs */ }
+		if (Number(encounter?.total_damage_dealt) > 0) partyDamage = Number(encounter!.total_damage_dealt);
 		// How many players were down at the end (a cheap column; reading each death record would slow the import a lot).
 		let dead: { count: number; of: number } | undefined;
 		if (entityColumns.has('is_dead')) try {
@@ -340,10 +344,9 @@ async function runSummaries(player: string, ids: number[]) {
 			} catch { /* old logs */ }
 			// Each buff's source skill, for core lines that name one ("Paint: Dragon Engraving"); brand is a debuff.
 			const skills = new Map<number, string>();
-			for (const column of ['buffs', 'debuffs']) if (encounterColumns.has(column)) try {
-				const table = await decodeSkills((await query(`SELECT ${column} FROM encounter WHERE id = ?`, [row.id]))[0]?.[column]) as unknown as Record<string, { source?: { skill?: { name?: string } } }>;
-				for (const [id, b] of Object.entries(table ?? {})) if (b?.source?.skill?.name) skills.set(Number(id), b.source.skill.name);
-			} catch { /* old logs */ }
+			let debuffs: Record<string, LoggedBuff> = {};
+			try { debuffs = await decodeSkills(encounter?.debuffs) as Record<string, LoggedBuff>; } catch { /* old logs */ }
+			for (const table of [buffs ?? {}, debuffs]) for (const [id, b] of Object.entries(table)) if (b?.source?.skill?.name) skills.set(Number(id), b.source.skill.name);
 			const up = [entity.support_ap, entity.support_brand, entity.support_identity, entity.support_hyper].map(Number);
 			support = supportRunOf(misc, player, (name) => classes.get(name),
 				up.every((x) => Number.isFinite(x) && x >= 0 && x <= 1) ? { attack: up[0], brand: up[1], identity: up[2], hyper: up[3] } : undefined,
