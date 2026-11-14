@@ -1,0 +1,9 @@
+{
+	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"framework": null,
+	"installCommand": "echo skip",
+	"buildCommand": "echo skip",
+	"outputDirectory": "vercel-moved",
+	"rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+	"headers": [{ "source": "/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }] }]
+}

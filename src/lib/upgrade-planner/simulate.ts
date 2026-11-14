@@ -5,7 +5,7 @@
 // flat-attack contribution (see baselineParts). Every edit is applied as a delta on top
 // of bible's values, which keeps unknown bonuses (titles, karma, etc.) intact.
 
-import { PartType, baseAttackPoint, baselineParts, partHigh } from './cp';
+import { PartType, baseAttackPoint, baselineParts, partHigh, MAIN_STAT_INDICES, mainStatIndex } from './cp';
 import { bracerStats, readBracer, type SimBracer } from './bracer';
 import { ASTROGEM_ITEMS, ASTROGEM_KINDS, BRACELET_EFFECTS, GEM_BASE_ATTACK, GEM_REGULAR, GEM_SKILL_ALIAS } from './game-data';
 import { HONING_SLOTS, HONING_TABLE, AEGIR_HONING_TABLE, type HoningSlot } from './honing-data';
@@ -224,18 +224,7 @@ const effectWeaponPower = (key: string) => {
 
 /** Combat stats that count toward a dealer's Combat Power (Crit, Specialization, Swiftness). */
 export const COMBAT_STAT_INDICES = [15, 16, 18];
-export const MAIN_STAT_INDICES = [3, 4, 5];
-
-/** Which of Str (3) / Dex (4) / Int (5) is this character's main stat. */
-export function mainStatIndex(l: Loadout): number {
-	const base = l.battlePoint.parts.find((p) => p.type === PartType.BaseAttack);
-	const main = base?.mainStat as number | undefined;
-	const stats = l.stats ?? [];
-	const match = stats.find((s) => MAIN_STAT_INDICES.includes(s.type) && s.value === main);
-	if (match) return match.type;
-	const valueOf = (i: number) => stats.find((s) => s.type === i)?.value ?? 0;
-	return MAIN_STAT_INDICES.reduce((best, i) => (valueOf(i) > valueOf(best) ? i : best));
-}
+export { MAIN_STAT_INDICES, mainStatIndex };
 
 /** Every accessory line by key (dealer and support keys don't collide; shared Weapon Power lines are identical). */
 const ALL_LINES: SupportAccessoryLine[] = [...ACCESSORY_LINES, ...SUPPORT_ACCESSORY_LINES];
@@ -500,7 +489,7 @@ export function simulate(l: Loadout, state: SimState, base: SimState = initSimSt
 	// --- Base attack: honing changes main stat (armor) and Weapon Power (weapon); accessories can add Weapon Power.
 	const basePart = parts.find((p) => p.type === PartType.BaseAttack)!;
 	const mainStat0 = (basePart.mainStat as number | undefined) ?? 0;
-	const weapon0 = weaponPowerOf(l);
+	const weapon0 = (basePart.weaponPower as number | undefined) ?? weaponPowerOf(l);
 	const atkPct = (basePart.attackPowerMultiplier as number | undefined) ?? 0;
 	let mainStat = mainStat0;
 	for (const slot of ACCESSORY_SLOTS)

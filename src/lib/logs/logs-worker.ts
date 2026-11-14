@@ -363,8 +363,13 @@ async function runSummaries(player: string, ids: number[]) {
 	return { runs, skills: names };
 }
 
-self.onmessage = async (e: MessageEvent<LogsRequest>) => {
-	const req = e.data;
+// One request at a time: opening another file must not close the database under a query that is still running.
+let queue: Promise<void> = Promise.resolve();
+self.onmessage = (e: MessageEvent<LogsRequest>) => {
+	queue = queue.then(() => handle(e.data));
+};
+
+async function handle(req: LogsRequest) {
 	const reply = (r: LogsResponse) => self.postMessage(r);
 	try {
 		if (req.type === 'open') {

@@ -1,0 +1,6 @@
+# Cloudflare Pages (loa-sim.pages.dev). Build: `npm run build`, output below.
+name = "loa-sim"
+pages_build_output_dir = ".svelte-kit/cloudflare"
+compatibility_date = "2026-11-01"
+# node:crypto and node:zlib in the server routes.
+compatibility_flags = ["nodejs_compat"]

@@ -45,7 +45,8 @@ function storedCharacters(value: unknown): SavedCharacter[] {
 }
 
 function read(): SavedCharacter[] {
-	for (const store of [() => localStorage, () => sessionStorage]) {
+	// sessionStorage only holds a list while localStorage refused the last write (see write): that copy is the newer one.
+	for (const store of [() => sessionStorage, () => localStorage]) {
 		try {
 			const raw = store().getItem(KEY);
    if (raw) {
@@ -67,6 +68,7 @@ function write(list: SavedCharacter[]) {
 	try {
 		localStorage.setItem(KEY, json);
 		localStorage.removeItem(LEGACY_KEY);
+		try { sessionStorage.removeItem(KEY); } catch { /* nothing kept there */ }
 	} catch {
 		// Storage full or blocked (private mode): keep it for this visit at least.
 		try {

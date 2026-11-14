@@ -56,6 +56,7 @@
 </svelte:head>
 
 <div class="mx-auto max-w-7xl space-y-6 text-sm">
+	{#if report?.legacyDistinct}<p class="text-xs text-surface-400" title="Historical Redis character estimates and Postgres characters may overlap across the migration. Combined distinct counts are an upper estimate.">Includes legacy character estimates</p>{/if}
 	<header class="flex flex-wrap items-end justify-between gap-5">
 		<div class="space-y-2">
 			<h1 class="text-3xl font-bold tracking-tight">Simulator stats</h1>

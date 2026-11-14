@@ -20,7 +20,7 @@ async function fetchCharacter(region: string, name: string, fetchFn: typeof fetc
 	let res: Response;
 	try {
 		res = await fetchFn(bibleDataUrl(region, name), {
-			headers: { 'user-agent': 'loa-sim combat power simulator (https://loa-sim.vercel.app; one character per player action)' },
+			headers: { 'user-agent': 'loa-sim combat power simulator (https://loa-sim.pages.dev; one character per player action)' },
 			signal: AbortSignal.timeout(TIMEOUT_MS)
 		});
 	} catch (e) {
@@ -65,7 +65,7 @@ async function fetchSnapshot(hash: string, fetchFn: typeof fetch): Promise<Clear
 	let res: Response;
 	try {
 		res = await fetchFn(url, {
-			headers: { 'user-agent': 'loa-sim combat power simulator (https://loa-sim.vercel.app; one snapshot per player action)' },
+			headers: { 'user-agent': 'loa-sim combat power simulator (https://loa-sim.pages.dev; one snapshot per player action)' },
 			signal: AbortSignal.timeout(TIMEOUT_MS)
 		});
 	} catch (e) {

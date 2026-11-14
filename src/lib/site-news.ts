@@ -15,6 +15,22 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-11-06',
+		kind: 'fix',
+		title: 'CP calculation',
+		points: ['Food and weapon power feast buffs no longer inflate simulated CP']
+	},
+	{
+		date: '2026-11-04',
+		kind: 'improved',
+		title: 'New address',
+		points: [
+			'loa-sim moved to loa-sim.pages.dev; old loa-sim.vercel.app links redirect here',
+			'Traffic outgrew the old host’s free plan; the new one keeps the site free and up',
+			'Saved characters, runs and prices come along on your first visit through the old address'
+		]
+	},
+	{
 		date: '2026-10-26',
 		kind: 'fix',
 		title: 'Vambraces calc',
@@ -210,23 +226,30 @@ export interface SiteIssue {
 // - 2026-10-12 "CP lower than your gear" (known issue: bible lists only two loadouts, neither may have your gear) and
 //   "Pick from saved snapshots" (planned): both resolved by Saved snapshots (snapshot-history.ts).
 // - 2026-10-24 "Market API" (in progress): shipped as the market price import in Material prices (loa-buddy approved).
+// - Support Paradise orbs already contribute their fixed CP; remaining Paradise work concerns power progression.
 export const ISSUES: SiteIssue[] = [
 	{
 		status: 'investigating',
 		title: 'Pet ranch CP',
-		points: ['The collection counts as +0.77% CP; working out how its main stat, damage and HP bonuses add up to that']
+		points: ['Loaded pet ranch bonuses count toward CP; simulating changes to those bonuses still needs verification']
+	},
+	{
+		status: 'in progress',
+		title: 'DPS simulator',
+		points: ['An experimental simulator uses encounter logs to estimate DPS changes and upgrades per gold; validating calculations and class coverage before release']
 	},
 	{
 		status: 'planned',
-		title: 'DPS / support score',
-		points: ['Rank upgrades by actual damage (or buffs) per gold, like Lopec, instead of CP']
+		title: 'Support score',
+		points: ['Compare support upgrades by their effect on buffs per gold']
 	},
 	{
 		status: 'planned',
 		title: 'Paradise items',
-		points: ['Ancient items (Lv. 18, 1-star, 2-star), resonance tiers and support orbs']
+		points: ['Estimate Paradise power gains from Ancient item upgrades and resonance tiers instead of entering power manually']
 	}
 ];
 
-export const ISSUES_URL = 'https://github.com/se4nchoi/loa-sim/issues';
 export const NEW_ISSUE_URL = 'https://github.com/se4nchoi/loa-sim/issues/new';
+/** The footer's support button. */
+export const KOFI_URL = 'https://ko-fi.com/shanzki';

@@ -1,4 +1,4 @@
-// Upstash Redis over its REST API (Vercel's KV / Upstash integration env vars), shared by sharing and usage stats.
+// Upstash Redis over its REST API (Vercel's KV / Upstash integration env vars), used only by the temporary legacy-share recovery path.
 import { env } from '$env/dynamic/private';
 
 export function redisConfig() {

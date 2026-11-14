@@ -203,3 +203,18 @@ it('reports pin failures without claiming the shortcut persisted', () => {
  expect(() => pinSimulation(s.id, true)).toThrow('storage');
  expect(savedSimulations()[0].pinned).toBeUndefined();
 });
+
+it('keeps stored plans this version cannot read when another plan is changed', () => {
+ const a = saveSimulation('na/soulshan', 'A', loadout, initSimState(loadout));
+ const b = saveSimulation('na/soulshan', 'B', loadout, { ...initSimState(loadout), gems: [] });
+ const unreadable = { version: 1, id: 'old', name: 'From a newer catalog', characterKey: 'na/soulshan', savedAt: 1, loadout: {}, state: {} };
+ const key = 'loa-sim:simulations:v1';
+ store.set(key, JSON.stringify([...JSON.parse(store.get(key)!), unreadable]));
+ expect(savedSimulations().map((s) => s.id).sort()).toEqual([a.id, b.id].sort());
+ renameSimulation(a.id, 'A2');
+ pinSimulation(a.id, true);
+ deleteSimulation(b.id);
+ const kept = JSON.parse(store.get(key)!);
+ expect(kept).toContainEqual(unreadable);
+ expect(kept).toHaveLength(2);
+});

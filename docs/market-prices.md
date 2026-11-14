@@ -22,7 +22,7 @@ responses leave saved prices unchanged.
 - The browser reuses successful imports for 10 minutes, including after closing the dialog. Failed requests
   have a 30-second retry delay per region; the button shows the remaining seconds.
 - The server requests a fixed allowlist, validates rows and ignores zero/negative/unavailable prices.
-  It caches and coalesces requests for 10 minutes per region, with a 10-minute Vercel CDN cache.
+  It caches and coalesces requests for 10 minutes per region, with a 10-minute edge cache (Cloudflare, via the adapter).
   Upstream errors leave the browser's prices unchanged; no credentials are required.
 
 Source endpoint: `https://marketdata-api.yrzhao1068589.workers.dev/v1/prices/latest`

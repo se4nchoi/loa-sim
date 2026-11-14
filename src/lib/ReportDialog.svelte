@@ -96,9 +96,9 @@
 		{#if sentUrl !== null}
 			<div class="flex flex-col items-start gap-3 p-4 text-sm">
 				<p class="font-semibold text-green-400">Thanks, it's sent!</p>
-				<p class="text-surface-300">It's now on the issue list, where you can follow it.</p>
+				<p class="text-surface-300">It’s on the Reports page now, where replies show up.</p>
 				<div class="flex flex-row gap-2">
-					{#if sentUrl}<a class={btnAccent} href={sentUrl} target="_blank" rel="noopener">View it ↗</a>{/if}
+					{#if sentUrl}<a class={btnAccent} href={sentUrl} onclick={() => dialog.close()}>View it</a>{/if}
 					<button type="button" class={btn} onclick={() => dialog.close()}>Done</button>
 				</div>
 			</div>

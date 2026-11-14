@@ -207,19 +207,20 @@
 <svelte:head>
 	<title>loa-sim · Lost Ark Combat Power Simulator</title>
 	<meta name="description" content="Lost Ark Combat Power simulator for NA and EUC. Load your character from lostark.bible, change honing, gems, accessories, engravings, ark grid and more, and see the CP change. Next Upgrades ranks your best upgrades by CP or by gold." />
-	<link rel="canonical" href="https://loa-sim.vercel.app/" />
+	<link rel="canonical" href="https://loa-sim.pages.dev/" />
 	<meta name="google-site-verification" content="AkbK2dowunRF4576qIMFXciNLrINRR_7sBLEcygkbMo" />
+	<meta name="google-site-verification" content="t0DO9aw-SHwKsbaWLZkCJmmkRfOlv1rcckTJdCivZT4" />
 	<meta property="og:type" content="website" />
 	<meta property="og:site_name" content="loa-sim" />
 	<meta property="og:title" content="loa-sim · Lost Ark Combat Power Simulator" />
 	<meta property="og:description" content="Lost Ark Combat Power simulator for NA and EUC. Load your character from lostark.bible, change honing, gems, accessories, engravings, ark grid and more, and see the CP change. Next Upgrades ranks your best upgrades by CP or by gold." />
-	<meta property="og:url" content="https://loa-sim.vercel.app/" />
-	<meta property="og:image" content="https://loa-sim.vercel.app/og.png" />
+	<meta property="og:url" content="https://loa-sim.pages.dev/" />
+	<meta property="og:image" content="https://loa-sim.pages.dev/og.png" />
 	<meta property="og:image:width" content="1675" />
 	<meta property="og:image:height" content="905" />
 	<meta property="og:image:alt" content="loa-sim: equipment honing, gems and Next Upgrades ranked by gold per 1% CP" />
 	<meta name="twitter:card" content="summary_large_image" />
-	<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"loa-sim","alternateName":["loa sim","Lost Ark Combat Power Simulator"],"url":"https://loa-sim.vercel.app/"},{"@type":"WebApplication","name":"loa-sim","url":"https://loa-sim.vercel.app/","applicationCategory":"GameApplication","operatingSystem":"Any","description":"Lost Ark Combat Power simulator for NA and EUC characters.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}]}</script>
+	<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"loa-sim","alternateName":["loa sim","Lost Ark Combat Power Simulator"],"url":"https://loa-sim.pages.dev/"},{"@type":"WebApplication","name":"loa-sim","url":"https://loa-sim.pages.dev/","applicationCategory":"GameApplication","operatingSystem":"Any","description":"Lost Ark Combat Power simulator for NA and EUC characters.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}]}</script>
 </svelte:head>
 
 <!-- A placeholder row, the same height as a character row. -->

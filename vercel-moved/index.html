@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="origin">
+<link rel="icon" href="data:,">
+<link rel="canonical" href="https://loa-sim.pages.dev/">
+<title>loa-sim moved to loa-sim.pages.dev</title>
+<style>
+html { background: oklch(14.5% 0 0); color-scheme: dark; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; color: oklch(91% 0 0); }
+main { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 24px; text-align: center; }
+.brand { font-size: 15px; font-weight: 700; color: oklch(72% 0 0); letter-spacing: 0.01em; }
+.spin { width: 140px; height: 140px; box-sizing: border-box; border-radius: 50%; border: 11px solid oklch(32% 0 0); border-top-color: oklch(72.3% 0.15 293.69); animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.4s; } }
+h1 { margin: 0; font-size: 24px; font-weight: 700; }
+h1 a { color: oklch(80.28% 0.105 295.74); text-decoration: none; }
+#s { margin: 0; min-height: 1.4em; font-size: 14px; color: oklch(62% 0 0); }
+</style>
+</head>
+<body>
+<main>
+<div class="brand">loa-sim</div>
+<div class="spin" role="progressbar" aria-label="Moving"></div>
+<h1>Moving to <a href="https://loa-sim.pages.dev/">loa-sim.pages.dev</a></h1>
+<p id="s"></p>
+</main>
+<script>
+// The only page loa-sim.vercel.app serves now (see /vercel.json). Every path redirects to the same path on
+// loa-sim.pages.dev. A browser with saved data first sends it along (static/migrate/index.html receives it),
+// in URL-hash chunks that ping-pong between the two sites; after that it redirects straight away.
+// Hash protocol: lsm=part&part=N (send chunk N), lsm=done (received; stop sending); to the new site lsm=arrive
+// (no data to send). `to` keeps the original path.
+(async () => {
+	const NEW = 'https://loa-sim.pages.dev';
+	const status = (t) => { const el = document.getElementById('s'); if (el) el.textContent = t; };
+	const CHUNK = 100000;
+	const MOVED = 'loa-sim:moved';
+	const TRIES = 'loa-sim:move-tries';
+	const h = new URLSearchParams(location.hash.slice(1));
+	const lsm = h.get('lsm');
+	const safe = (p) => (p && p[0] === '/' && p[1] !== '/' && p[1] !== '\\' ? p : '/');
+	const to = safe(lsm ? h.get('to') : location.pathname + location.search + location.hash);
+	// The first screen of a visit stays up HOLD_MS from navigation start, long enough to read the new address;
+	// the hops while data travels (lsm set) leave at once.
+	const HOLD_MS = 3500;
+	const leave = async (url) => {
+		if (!lsm) await new Promise((r) => setTimeout(r, Math.max(0, HOLD_MS - performance.now())));
+		location.replace(url);
+	};
+	// Every redirect passes /migrate/ so the new site can show its "moved" bar.
+	const go = () => leave(NEW + '/migrate/#' + new URLSearchParams({ lsm: 'arrive', to }));
+	try {
+		if (lsm === 'done') {
+			localStorage.setItem(MOVED, '1');
+			return go();
+		}
+		if (localStorage.getItem(MOVED)) return go();
+		const part = lsm === 'part' ? Number(h.get('part')) : 0;
+		if (part === 0) {
+			// A browser that never gets through (e.g. referrers stripped) stops trying after 3 visits.
+			const tries = Number(localStorage.getItem(TRIES) ?? 0);
+			if (tries >= 3) return go();
+			localStorage.setItem(TRIES, String(tries + 1));
+		}
+		const entries = {};
+		for (let i = 0; i < localStorage.length; i++) {
+			const k = localStorage.key(i);
+			if (/^loa-(sim|eff):/.test(k) && k !== MOVED && k !== TRIES) entries[k] = localStorage.getItem(k);
+		}
+		if (!Object.keys(entries).length) return go();
+		const text = JSON.stringify(entries);
+		let bytes, kind;
+		if (typeof CompressionStream === 'function') {
+			bytes = new Uint8Array(await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
+			kind = 'z';
+		} else {
+			bytes = new TextEncoder().encode(text);
+			kind = 'j';
+		}
+		let bin = '';
+		for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+		const data = kind + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+		const of = Math.ceil(data.length / CHUNK);
+		if (!(part >= 0 && part < of)) return go();
+		status(`Moving your saved data · ${part + 1}/${of}`);
+		const q = new URLSearchParams({ n: part, of, len: data.length, to });
+		leave(NEW + '/migrate/#' + q + '&d=' + data.slice(part * CHUNK, (part + 1) * CHUNK));
+	} catch {
+		go();
+	}
+})();
+</script>
+</body>
+</html>
