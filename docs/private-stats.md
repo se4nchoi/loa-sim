@@ -29,6 +29,8 @@ Detailed observations and their retry receipts expire after 90 days; limiter buc
 2. Run `node --env-file=<private env file> scripts/stats-to-d1.mjs <private out.sql>`. It reads Neon's stats tables without changing them and writes SQL that adds them to D1: events are marked `imported` so the trigger skips them, counters are added to what D1 already recorded, and a `neon-import` marker refuses a second run.
 3. Run `npx wrangler d1 execute STATS_DB --remote --file <private out.sql>`, then check `/stats`. Keep the SQL file outside Git.
 
+Done on 2026-11-16 with counters, character days and the exploration date only: the 50,266 raw events were left out (`grep -v '^INSERT INTO loa_stats_events('`), because they would cost about 100k rows written, the free plan's daily limit, and nothing reads them. Counter history before that day matched Neon exactly (295,189).
+
 Neon's stats tables and `loa_stats_ingest` remain as an untouched backup (`migrations/001-stats-postgres.sql`).
 
 ### Redis history cutover (October 2026, into Neon; its rows came across in the D1 copy)
