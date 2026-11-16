@@ -1,7 +1,9 @@
 import {readFile, writeFile} from 'node:fs/promises';
 import {neon} from '@neondatabase/serverless';
 
-// Run with node --env-file=<private file> scripts/stats-db.mjs migrate|import|verify.
+// Neon now holds shared builds only; stats live in D1 (migrations/d1, scripts/stats-to-d1.mjs).
+// Run with node --env-file=<private file> scripts/stats-db.mjs migrate|verify. The Redis modes below were the
+// one-off October history import into Neon's stats tables and are kept for reference.
 // Never print connection strings, tokens, or event payloads.
 const url=process.env.STATS_DATABASE_URL || process.env.STATS_URL;
 if(!url) throw new Error('Set STATS_DATABASE_URL or STATS_URL.');
@@ -13,12 +15,12 @@ export function statements(source) {
 }
 try {
  if(mode==='migrate') {
-  for(const file of ['001-stats-postgres.sql','002-sharing-postgres.sql'])
+  for(const file of ['002-sharing-postgres.sql'])
    for(const query of statements(await readFile(new URL('../migrations/'+file,import.meta.url),'utf8'))) await sql.query(query);
-  console.log('Stats schema applied.');
+  console.log('Sharing schema applied.');
  } else if(mode==='verify') {
-  const [row]=await sql.query("SELECT current_database() AS database, to_regclass('loa_stats_events') IS NOT NULL AS events, to_regprocedure('loa_stats_ingest(jsonb,text,timestamp with time zone)') IS NOT NULL AS ingest");
-  console.log({connected:true, schemaReady:!!row.events && !!row.ingest});
+  const [row]=await sql.query("SELECT to_regclass('loa_shared_simulations') IS NOT NULL AS shares, to_regclass('loa_share_limits') IS NOT NULL AS limits");
+  console.log({connected:true, schemaReady:!!row.shares && !!row.limits});
  } else if(mode==='import') {
   const file=process.argv[3]; if(!file) throw new Error('Provide an exported Redis stats file.');
   const data=JSON.parse(await readFile(file,'utf8'));

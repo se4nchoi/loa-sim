@@ -1,9 +1,10 @@
 import { error, json } from '@sveltejs/kit';
 import { allowShare, createSharedSimulation, MAX_SHARE_BYTES, sharingConfigured, sharedPlan } from '$lib/server/shared-simulations';
+import { statsDb } from '$lib/server/d1';
 import { count } from '$lib/server/stats';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({request,url,fetch,getClientAddress}) => {
+export const POST: RequestHandler = async ({request,url,fetch,platform,getClientAddress}) => {
 	if (request.headers.get('origin') !== url.origin) error(403, 'Please share from loa-sim.');
 	if (!sharingConfigured()) error(503, 'Simulation sharing is not configured yet.');
 	// Bound streamed bodies too; Content-Length alone can be missing or untrusted.
@@ -28,6 +29,6 @@ export const POST: RequestHandler = async ({request,url,fetch,getClientAddress})
 	let created;
 	try { created = await createSharedSimulation(plan, fetch); }
 	catch { error(503, 'Could not save the shared build. Please try again later.'); }
-	await count({event:'share_created'}, fetch);
+	await count({event:'share_created'}, statsDb(platform));
 	return json(created, {status:201,headers:{'cache-control':'no-store'}});
 };

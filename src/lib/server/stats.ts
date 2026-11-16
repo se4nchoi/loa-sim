@@ -1,4 +1,5 @@
-// Validated, anonymous usage observations. Redis is reserved for simulation sharing.
+// Validated, anonymous usage observations, stored in Cloudflare D1 (migrations/d1). Neon keeps only shared builds,
+// so ordinary visits no longer wake its compute.
 import { createHash, randomUUID } from 'node:crypto';
 import { env } from '$env/dynamic/private';
 import { REGIONS } from '$lib/bible-data';
@@ -8,7 +9,7 @@ import { isCpStatsModel } from '$lib/stats-versions';
 import { cleanSampling, samplingFields } from '$lib/stats-sampling';
 import { EXPLORATION_EVENTS, UPGRADE_CATEGORIES, type CountEvent, type StatsDay, type StatsReport } from '$lib/stats-model';
 import { className, resolveClass } from '$lib/upgrade-planner/class-names';
-import { postgresQuery, postgresConfigured } from './postgres';
+import type { D1Database } from './d1';
 export type { CountEvent, StatsDay, StatsReport } from '$lib/stats-model';
 
 export const STATS_START = '2026-10-20';
@@ -121,32 +122,59 @@ export function observation(e: CountEvent, at: number) {
 		sample: e.insight ?? e.plan ?? null, sampling: e.sampling ?? null, version: e.v ?? 1};
 }
 
-/** One atomic SQL call per batch, including receipts and rate limiting. No Redis fallback. */
-export async function recordBatch(events: CountEvent[], _fetch: typeof fetch, at: number, address?: string): Promise<'accepted' | 'limited'> {
-	if (!postgresConfigured()) throw new Error('Stats storage is unavailable.');
+const RATE_LIMIT = 120;
+const RETAIN_EVENTS_MS = 90 * 86_400_000;
+
+/**
+ * Stores a batch in D1: one read for retry receipts, then one transaction for the limiter, the events and
+ * maintenance. Counters come from a trigger on actual inserts, so duplicate IDs never count twice, even when
+ * two submissions race. No Postgres or Redis fallback.
+ */
+export async function recordBatch(events: CountEvent[], db: D1Database | undefined, at: number, address?: string): Promise<'accepted' | 'limited'> {
+	if (!db) throw new Error('Stats storage is unavailable.');
 	if (!events.length || events.length > 16) throw new Error('Invalid stats batch.');
-	const rate = address ? createHash('sha256').update(address).digest('hex') : null;
-	const rows = await postgresQuery('SELECT loa_stats_ingest($1::jsonb, $2::text, $3::timestamptz) AS status',
-		[JSON.stringify(events.map(e => observation(e, at))), rate, new Date(at).toISOString()], 4_000);
-	const status = rows[0]?.status;
-	if (status !== 'accepted' && status !== 'limited') throw new Error('Invalid stats receipt.');
-	return status;
+	const unique = [...new Map(events.map(e => observation(e, at)).map(o => [o.id, o])).values()];
+	const placeholders = unique.map(() => '?').join(',');
+	const known = new Set((await db.prepare(`SELECT id FROM loa_stats_events WHERE id IN (${placeholders})`)
+		.bind(...unique.map(o => o.id)).all<{id: string}>()).results.map(r => r.id));
+	const pending = unique.filter(o => !known.has(o.id));
+	// Duplicate retries consume no allowance.
+	if (!pending.length) return 'accepted';
+	const rate = address ? createHash('sha256').update(address).digest('hex') : '';
+	const bucket = new Date(Math.floor(at / 60_000) * 60_000).toISOString();
+	const statements = [];
+	if (rate) statements.push(db.prepare(`INSERT INTO loa_stats_rates (subject_hash, bucket, hits) VALUES (?1, ?2, ?3)
+		ON CONFLICT (subject_hash, bucket) DO UPDATE SET hits = min(${RATE_LIMIT + 1}, hits + excluded.hits) RETURNING hits`)
+		.bind(rate, bucket, pending.length));
+	for (const o of pending) statements.push(db.prepare(`INSERT INTO loa_stats_events
+		(id, occurred_at, day, character_hash, fields, sample, sampling, version, exploration)
+		SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9
+		WHERE NOT EXISTS (SELECT 1 FROM loa_stats_rates WHERE subject_hash = ?10 AND bucket = ?11 AND hits > ${RATE_LIMIT})
+		ON CONFLICT (id) DO NOTHING`).bind(o.id, o.at, o.day, o.character, JSON.stringify(o.fields),
+		o.sample ? JSON.stringify(o.sample) : null, o.sampling ? JSON.stringify(o.sampling) : null,
+		o.version, o.exploration ? 1 : 0, rate, bucket));
+	// Keep summaries, but bound detailed observations to 90 days and limiter buckets to two minutes.
+	statements.push(db.prepare('DELETE FROM loa_stats_events WHERE occurred_at < ?').bind(new Date(at - RETAIN_EVENTS_MS).toISOString()));
+	statements.push(db.prepare('DELETE FROM loa_stats_rates WHERE bucket < ?').bind(new Date(at - 120_000).toISOString()));
+	const results = await db.batch<{hits: number}>(statements);
+	return rate && Number(results[0]?.results[0]?.hits) > RATE_LIMIT ? 'limited' : 'accepted';
 }
 
-export async function record(e: CountEvent, fetchFn: typeof fetch, at = Date.now(), address?: string) {
-	return recordBatch([e], fetchFn, at, address);
+export async function record(e: CountEvent, db: D1Database | undefined, at = Date.now(), address?: string) {
+	return recordBatch([e], db, at, address);
 }
 
-export async function count(e: CountEvent, fetchFn: typeof fetch, at = Date.now()): Promise<void> {
+export async function count(e: CountEvent, db: D1Database | undefined, at = Date.now()): Promise<void> {
 	if (!statsEnabled()) return;
-	try { await record(e, fetchFn, at); }
+	try { await record(e, db, at); }
 	catch { /* Product actions must succeed when optional telemetry is unavailable. */ }
 }
 
 export const isBot = (userAgent: string | null) =>
 	!userAgent || /bot|crawl|spider|preview|embed|facebookexternalhit|slack|whatsapp|telegram|discord/i.test(userAgent);
 
-export async function readStats(days: number, fetchFn: typeof fetch, now = Date.now()): Promise<StatsReport> {
+export async function readStats(days: number, db: D1Database | undefined, now = Date.now()): Promise<StatsReport> {
+	if (!db) throw new Error('Stats storage is unavailable.');
 	if (!Number.isInteger(days) || days < 1 || days > MAX_STATS_DAYS) throw new Error('Invalid stats range.');
 	const dates: string[] = [];
 	for (let i = 0; i < days; i++) {
@@ -155,10 +183,30 @@ export async function readStats(days: number, fetchFn: typeof fetch, now = Date.
 		dates.push(day);
 	}
 	if (!dates.length) dates.push(dayOf(now));
-	const rows = await postgresQuery(`SELECT loa_stats_report($1::date, $2::date) AS report`, [dates.at(-1), dates[0]]);
-	const data = rows[0]?.report as {counts: {day: string; field: string; value: number}[]; characters: {day: string; value: number}[];
-		distinct: number; since: string | null; legacy: boolean} | undefined;
-	if (!data || !Array.isArray(data.counts) || !Array.isArray(data.characters)) throw new Error('Invalid stats report.');
+	// One snapshot: counters plus imported Redis summaries, which stay in their own tables.
+	const [counts, characters, summary] = await db.batch([
+		db.prepare(`SELECT day, field, sum(value) AS value FROM (
+			SELECT day, field, value FROM loa_stats_counters WHERE day BETWEEN ?1 AND ?2
+			UNION ALL SELECT d.day, c.key, CAST(c.value AS INTEGER) FROM loa_stats_legacy_days d, json_each(d.counts) c
+				WHERE d.day BETWEEN ?1 AND ?2
+		) GROUP BY day, field`).bind(dates.at(-1), dates[0]),
+		db.prepare(`SELECT day, sum(value) AS value FROM (
+			SELECT day, count(*) AS value FROM loa_stats_characters WHERE day BETWEEN ?1 AND ?2 GROUP BY day
+			UNION ALL SELECT day, characters FROM loa_stats_legacy_days WHERE day BETWEEN ?1 AND ?2
+		) GROUP BY day`).bind(dates.at(-1), dates[0]),
+		db.prepare(`SELECT
+			(SELECT count(DISTINCT character_hash) FROM loa_stats_characters WHERE day BETWEEN ?1 AND ?2)
+			+ coalesce((SELECT r.characters FROM loa_stats_legacy_ranges r,
+				(SELECT min(day) AS first, max(day) AS last FROM loa_stats_legacy_days WHERE day BETWEEN ?1 AND ?2) l
+				WHERE r.first_day = l.first AND r.last_day = l.last), 0) AS distinct_count,
+			EXISTS (SELECT 1 FROM loa_stats_legacy_days WHERE day BETWEEN ?1 AND ?2) AS legacy,
+			(SELECT value FROM loa_stats_meta WHERE key = 'exploration-since') AS since`).bind(dates.at(-1), dates[0]),
+	]);
+	const head = summary?.results[0] as {distinct_count: number; legacy: number; since: string | null} | undefined;
+	if (!counts || !characters || !head) throw new Error('Invalid stats report.');
+	const data = {counts: counts.results as {day: string; field: string; value: number}[],
+		characters: characters.results as {day: string; value: number}[],
+		distinct: head.distinct_count, since: head.since, legacy: !!head.legacy};
 	const totals: Record<string, number> = {};
 	const out: StatsDay[] = dates.map(date => ({date, distinctCharacters: 0, counts: {}}));
 	const byDate = new Map(out.map(d => [d.date, d]));

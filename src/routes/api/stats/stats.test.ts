@@ -1,12 +1,12 @@
 import {beforeEach,describe,expect,it,vi} from 'vitest';
 const env=vi.hoisted(()=>({STATS_KEY:'owner-test-key'}));
 vi.mock('$env/dynamic/private',()=>({env}));
-vi.mock('$lib/server/postgres',()=>({postgresConfigured:()=>true}));
 vi.mock('$lib/server/stats',()=>({MAX_STATS_DAYS:3660,readStats:vi.fn()}));
 const {readStats}=await import('$lib/server/stats');
 const {GET}=await import('./+server');
 const read=vi.mocked(readStats);
-const request=(key?:string,days='30')=>({request:new Request('http://localhost/api/stats',{headers:key?{authorization:`Bearer ${key}`}:{}}),url:new URL(`http://localhost/api/stats?days=${days}`),fetch}) as Parameters<typeof GET>[0];
+const db={} as never;
+const request=(key?:string,days='30')=>({request:new Request('http://localhost/api/stats',{headers:key?{authorization:`Bearer ${key}`}:{}}),url:new URL(`http://localhost/api/stats?days=${days}`),platform:{env:{STATS_DB:db}}}) as unknown as Parameters<typeof GET>[0];
 beforeEach(()=>{read.mockReset();env.STATS_KEY='owner-test-key';});
 
 describe('private dashboard access',()=>{
@@ -23,7 +23,11 @@ describe('private dashboard access',()=>{
 		expect(response.headers.get('cache-control')).toBe('private, no-store');
 		expect(response.headers.get('x-robots-tag')).toBe('noindex');
 		expect((await response.json()).totals).toEqual({budget_sampled:3,'budget:coverage:complete':2});
-		expect(read).toHaveBeenCalledWith(30,fetch);
+		expect(read).toHaveBeenCalledWith(30,db);
+	});
+	it('reports missing storage only after the key matches',async()=>{
+		const unbound={...request('owner-test-key'),platform:{env:{}}} as Parameters<typeof GET>[0];
+		await expect(GET(unbound)).rejects.toMatchObject({status:503});
 	});
 	it('rejects excessive authenticated report ranges before storage reads',async()=>{
 		await expect(GET(request('owner-test-key','999999'))).rejects.toMatchObject({status:400});

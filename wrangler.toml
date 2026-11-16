@@ -4,3 +4,10 @@ pages_build_output_dir = ".svelte-kit/cloudflare"
 compatibility_date = "2026-11-01"
 # node:crypto and node:zlib in the server routes.
 compatibility_flags = ["nodejs_compat"]
+
+# Usage stats (/api/count, /stats). Neon keeps only shared builds. See docs/private-stats.md.
+[[d1_databases]]
+binding = "STATS_DB"
+database_name = "loa-sim-stats"
+database_id = "91ca3975-1344-4d74-b6f5-e3cdcac462ee"
+migrations_dir = "migrations/d1"
