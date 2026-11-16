@@ -13,15 +13,29 @@ All production values come from the existing authenticated stats endpoint. Missi
 
 Budget and saved-plan overview histograms are labeled as pooled history. Their joint tables and raw counters retain model-specific context. The historical `cp-2026-10-25` tag spans the Vambraces correction and cannot be repaired retrospectively. Key protection, noindex, header-only authorization and production ingestion behavior are unchanged by this UI release.
 
-## Postgres storage
+## D1 storage
 
-Usage collection and `/api/stats` use the dedicated Neon database. Configure `STATS_DATABASE_URL` and `STATS_KEY` as **Secrets** on the Cloudflare Pages project (Settings → Variables and Secrets): `wrangler.toml` manages plain variables, so plain ones set in the dashboard never reach the server. Redeploy after changing them. Redis credentials are never a stats fallback. Shared simulations and sharing rate limits also use this Postgres database. Preview deployments do not ingest production events.
+Usage collection and `/api/stats` use the Cloudflare D1 database bound as `STATS_DB` in `wrangler.toml`. Until 2026-11-16 they used Neon, whose free compute is billed for every hour it is awake: each visit's stats batch kept it from sleeping, which used most of the monthly allowance by mid-month. D1 is billed by rows read and written, not by uptime. Neon now holds only shared builds, which wake it rarely.
 
-Apply the schemas in `migrations/` once before deploying, using `node --env-file=<private env file> scripts/stats-db.mjs migrate`. `verify` checks the connection and schema without writing events. The Neon driver sends parameterized SQL over HTTPS; each browser batch becomes one transactional database function call, including retry receipts and the address limiter. Only bounded counter dimensions, validated bucketed samples, hashed character identifiers and event IDs are retained; raw character names and addresses are not stored. Hashed rate buckets are pruned during maintenance.
+`STATS_KEY` is a **Secret** on the Cloudflare Pages project (Settings → Variables and Secrets): `wrangler.toml` manages plain variables, so plain ones set in the dashboard never reach the server. Redeploy after changing it. The D1 binding itself comes from `wrangler.toml`; bindings added in the dashboard are ignored while that file exists. Preview deployments do not ingest production events. There is no D1 in `vite dev`, so nothing is recorded locally.
 
-Detailed observations and their retry receipts expire after 90 days, with cleanup on the next ingestion after the UTC day changes. Daily counters and character hashes remain for reporting. Expired shared builds and sharing limit buckets are also removed by this daily maintenance; creating a share performs additional bounded cleanup. A shared link is rejected at its expiry even before cleanup runs.
+Apply schema changes with `npx wrangler d1 migrations apply STATS_DB --remote` (files in `migrations/d1`). Each browser batch costs one read for retry receipts, then one D1 transaction for the address limiter, the inserts and maintenance. Counters are kept by a trigger that fires only on rows actually inserted, so retries and racing duplicates are never counted twice. Only bounded counter dimensions, validated bucketed samples, hashed character identifiers and event IDs are retained; raw character names and addresses are not stored.
 
-### Redis history cutover
+Detailed observations and their retry receipts expire after 90 days; limiter buckets after two minutes. Both are pruned by the first batch of each UTC day. Daily counters and character hashes remain for reporting.
+
+D1's free plan allows 100k rows written per day, and every index entry and deleted row counts. To stay well under it (live traffic was about 15 rows per event on 2026-11-16): events and limiter buckets are `WITHOUT ROWID` tables with no time index (`migrations/d1/0002_lean_writes.sql`), cleanup runs once a day, and from 2026-11-17 the server stores only detailed counters where summaries can be rebuilt from them (`src/lib/stats-compact.ts`). `/api/stats` rebuilds those summaries per day on read, so reports and the Collected counters list are unchanged.
+
+### Neon to D1 copy (2026-11-16)
+
+1. Deploy the D1 code. From then on, stats go only to D1.
+2. Run `node --env-file=<private env file> scripts/stats-to-d1.mjs <private out.sql>`. It reads Neon's stats tables without changing them and writes SQL that adds them to D1: events are marked `imported` so the trigger skips them, counters are added to what D1 already recorded, and a `neon-import` marker refuses a second run.
+3. Run `npx wrangler d1 execute STATS_DB --remote --file <private out.sql>`, then check `/stats`. Keep the SQL file outside Git.
+
+Done on 2026-11-16 with counters, character days and the exploration date only: the 50,266 raw events were left out (`grep -v '^INSERT INTO loa_stats_events('`), because they would cost about 100k rows written, the free plan's daily limit, and nothing reads them. Counter history before that day matched Neon exactly (295,189).
+
+Neon's stats tables and `loa_stats_ingest` remain as an untouched backup (`migrations/001-stats-postgres.sql`).
+
+### Redis history cutover (October 2026, into Neon; its rows came across in the D1 copy)
 
 1. Deploy the Postgres ingestion change, then let old invocations drain. Stats traffic must no longer write to Redis before the final export.
 2. With the existing Redis credentials and Neon connection available only in a private local env file, run `scripts/stats-db.mjs export-redis <private backup.json>`. It reads only known stats keys; shared links are never exported, modified or deleted.

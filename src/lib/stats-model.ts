@@ -2,6 +2,7 @@
 import type { PlanObservation } from './plan-stats';
 import type { InsightSample } from './stats-insights';
 import type { SamplingAttempt } from './stats-sampling';
+import type { EfficiencyBucket, LevelBucket, PowerBucket, VisitCharacters, VisitUpgrades } from './fun-stats';
 export const ACTIVITY_EVENTS = [
 	['lookup', 'Character loads'], ['sim_open', 'Simulator opens'], ['build_saved', 'Builds saved'],
 	['share_created', 'Shares created'], ['share_opened', 'Share requests']
@@ -15,7 +16,7 @@ export const EXPLORATION_EVENTS = [
 
 export const UPGRADE_CATEGORIES = ['honing', 'quality', 'gem', 'core', 'astrogem', 'engraving', 'accessory', 'karma', 'skin'] as const;
 export type UpgradeCategory = typeof UPGRADE_CATEGORIES[number];
-export type ClientStatsEvent = 'lookup' | 'lookup_fail' | 'sim_open' | 'build_saved' | typeof EXPLORATION_EVENTS[number][0];
+export type ClientStatsEvent = 'lookup' | 'lookup_fail' | 'sim_open' | 'build_saved' | 'visit_end' | typeof EXPLORATION_EVENTS[number][0];
 export interface CountEvent {
 	event: ClientStatsEvent | 'share_created' | 'share_opened';
 	region?: string;
@@ -27,6 +28,14 @@ export interface CountEvent {
 	plan?: PlanObservation;
 	insight?: InsightSample;
 	sampling?: SamplingAttempt;
+	/** Fun-facts ranges: lookups carry item level and CP (with role); applied upgrades carry gold per +1% CP. */
+	level?: LevelBucket;
+	power?: PowerBucket;
+	role?: 'dealer' | 'support';
+	efficiency?: EfficiencyBucket;
+	/** visit_end only. */
+	upgrades?: VisitUpgrades;
+	characters?: VisitCharacters;
 	v?: 2 | 3;
 }
 export interface StatsDay { date: string; distinctCharacters: number; counts: Record<string, number> }
@@ -39,6 +48,9 @@ export interface StatsReport {
 	totals: Record<string, number>;
 	days: StatsDay[];
 	updatedAt?: string;
+	/** Characters loaded on two or more days in the range, and the most days any one character was loaded. */
+	returningCharacters?: number;
+	mostDaysOneCharacter?: number;
 	explorationSince?: string | null;
 }
 

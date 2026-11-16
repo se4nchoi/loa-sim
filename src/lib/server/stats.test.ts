@@ -1,29 +1,23 @@
-import {beforeAll, afterAll, beforeEach, describe, expect, it, vi} from 'vitest';
-import {PGlite} from '@electric-sql/pglite';
-import {readFileSync} from 'node:fs';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {testD1} from './d1-test-db';
+import type {D1Database} from './d1';
 
 const env: Record<string,string> = {};
 vi.mock('$env/dynamic/private', () => ({env}));
-let pg: PGlite;
-const query = vi.fn(async (sql: string, params: unknown[] = []) => (await pg.query(sql, params)).rows);
-vi.mock('./postgres', () => ({postgresConfigured: () => !!env.STATS_DATABASE_URL, postgresQuery: (...args: Parameters<typeof query>) => query(...args)}));
-beforeAll(async () => {
- pg = new PGlite();
- await pg.exec(readFileSync('migrations/001-stats-postgres.sql', 'utf8'));
-});
-afterAll(async () => { await pg.close(); });
+const d1 = testD1();
+/** A binding whose every call fails, like an unreachable database. */
+const offline = {prepare: vi.fn(() => { throw new Error('offline'); }), batch: vi.fn()} as unknown as D1Database;
 const {cleanEvent, count, record, isBot, readStats} = await import('./stats');
 const {budgetSample,insightCohort}=await import('$lib/stats-insights');
 const {CP_STATS_MODEL}=await import('$lib/stats-versions');
 const {samplingAttempt}=await import('$lib/stats-sampling');
 
-function database() { return {fetchFn: vi.fn() as unknown as typeof fetch}; }
+function database() { return d1; }
 const day1 = Date.parse('2026-10-21T12:00:00Z'), day2 = Date.parse('2026-10-22T12:00:00Z');
 beforeEach(async () => {
  for (const key of Object.keys(env)) delete env[key];
- env.STATS_DATABASE_URL = 'postgres://test-only';
- await pg.exec('TRUNCATE loa_stats_events, loa_stats_counters, loa_stats_characters, loa_stats_rates, loa_stats_meta, loa_stats_legacy_days, loa_stats_legacy_ranges');
- query.mockClear();
+ for (const table of ['events','counters','characters','rates','meta','legacy_days','legacy_ranges']) d1.sqlite.exec(`DELETE FROM loa_stats_${table}`);
+ vi.restoreAllMocks();
 });
 
 describe('usage stats', () => {
@@ -39,37 +33,37 @@ describe('usage stats', () => {
 
 	it('counts per day by event, region and class, and distinct characters without storing names', async () => {
 		const db = database();
-		await count({event: 'lookup', region: 'NA', name: 'Soulshan', class: 'souleater'}, db.fetchFn, day1);
-		await count({event: 'lookup', region: 'NA', name: 'soulshan', class: 'made_up'}, db.fetchFn, day1);
-		await count({event: 'lookup', region: 'CE', name: 'Other', class: 'bard'}, db.fetchFn, day2);
-		await count({event: 'share_created'}, db.fetchFn, day2);
-		const stored = await pg.query<{character_hash:string;fields:string[]}>('SELECT character_hash, fields FROM loa_stats_events');
-		expect(new Set(stored.rows.filter(r=>r.character_hash).map(r=>r.character_hash)).size).toBe(2);
-		expect(JSON.stringify(stored.rows)).not.toMatch(/soulshan/i);
+		await count({event: 'lookup', region: 'NA', name: 'Soulshan', class: 'souleater'}, db, day1);
+		await count({event: 'lookup', region: 'NA', name: 'soulshan', class: 'made_up'}, db, day1);
+		await count({event: 'lookup', region: 'CE', name: 'Other', class: 'bard'}, db, day2);
+		await count({event: 'share_created'}, db, day2);
+		const stored = d1.sqlite.prepare('SELECT character_hash, fields FROM loa_stats_events').all() as {character_hash:string}[];
+		expect(new Set(stored.filter(r=>r.character_hash).map(r=>r.character_hash)).size).toBe(2);
+		expect(JSON.stringify(stored)).not.toMatch(/soulshan/i);
 
-		const report = await readStats(30, db.fetchFn, day2);
+		const report = await readStats(30, db, day2);
 		expect(report.from).toBe('2026-10-20');
 		expect(report.to).toBe('2026-10-22');
 		expect(report.distinctCharacters).toBe(2);
-		expect(report.totals).toEqual({'class:Bard': 1, 'class:Unknown': 1, 'unknown:unrecognized': 1, 'class:Souleater': 1, lookup: 3, 'lookup:CE': 1, 'lookup:NA': 2, share_created: 1});
+		expect(report.totals).toEqual({'class:Bard': 1, 'class:Unknown': 1, 'unknown:unrecognized': 1, 'class:Souleater': 1, lookup: 3, 'lookup:CE': 1, 'lookup:NA': 2, 'hour:12': 3, share_created: 1});
 		expect(report.days.map((d) => [d.date, d.distinctCharacters])).toEqual([['2026-10-22', 1], ['2026-10-21', 1], ['2026-10-20', 0]]);
 	});
 
 	it('does not count retried IDs again, including across UTC midnight', async () => {
 		const db = database();
 		const event = {event: 'budget_opened', id: crypto.randomUUID()} as const;
-		await record(event, db.fetchFn, day1);
-		await record(event, db.fetchFn, day2);
-		const report = await readStats(7, db.fetchFn, day2);
+		await record(event, db, day1);
+		await record(event, db, day2);
+		const report = await readStats(7, db, day2);
 		expect(report.totals.budget_opened).toBe(1);
 		expect(report.explorationSince).toBe('2026-10-21');
 	});
 
 	it('recognizes display names and records missing metadata separately from unrecognized metadata', async () => {
 		const db = database();
-		await record({ event: 'lookup', region: 'NA', name: 'A', class: 'Soul Eater', source: 'paste' }, db.fetchFn, day1);
-		await record({ event: 'lookup', region: 'NA', name: 'B' }, db.fetchFn, day1);
-		const report = await readStats(7, db.fetchFn, day1);
+		await record({ event: 'lookup', region: 'NA', name: 'A', class: 'Soul Eater', source: 'paste' }, db, day1);
+		await record({ event: 'lookup', region: 'NA', name: 'B' }, db, day1);
+		const report = await readStats(7, db, day1);
 		expect(report.totals).toMatchObject({'class:Souleater': 1, 'class:Unknown': 1, 'unknown:missing': 1, 'source:paste': 1});
 	});
 
@@ -85,8 +79,8 @@ describe('usage stats', () => {
 		expect(cleanEvent({event:'build_saved',plan:{...plan,role:{toString:'invalid'}}})).toBeNull();
 		expect(cleanEvent({event:'sim_open',plan})).toBeNull();
 		const db = database();
-		await record({event:'build_saved',plan},db.fetchFn,day1);
-		expect((await readStats(7,db.fetchFn,day1)).totals).toMatchObject({'plan:count':1,'plan:cp:10to20':1,'plan:level:1790to1819':1,'plan:role:dealer':1});
+		await record({event:'build_saved',plan},db,day1);
+		expect((await readStats(7,db,day1)).totals).toMatchObject({'plan:count':1,'plan:cp:10to20':1,'plan:level:1790to1819':1,'plan:role:dealer':1});
 	});
 	it('requires v2 receipts for rich samples and keeps cohort relationships in the daily counters',async()=>{
 		const insight=budgetSample(insightCohort('souleater','NA/Soulshan',1784,false)!,[{key:'x',title:'x',detail:'',section:'Equipment',missing:[],average:200000}],100,105)!;
@@ -94,18 +88,16 @@ describe('usage stats', () => {
 		expect(cleanEvent(event)).toEqual(event);
 		expect(cleanEvent({...event,v:undefined})).toBeNull();
 		expect(cleanEvent({...event,event:'sim_open'})).toBeNull();
-		const db=database();await record(event,db.fetchFn,day1);await record(event,db.fetchFn,day1);
-		const report=await readStats(7,db.fetchFn,day1);
+		const db=database();await record(event,db,day1);await record(event,db,day1);
+		const report=await readStats(7,db,day1);
 		expect(report.totals).toMatchObject({budget_sampled:1,'budget:coverage:complete':1,'budget:cost:100to500k':1});
 		expect(Object.keys(report.totals)).toContain(`budget:curve:${CP_STATS_MODEL}:NA:souleater:dealer:1760to1789:100to500k:5to10:na:standard`);
 	});
 
 	it('strict ingestion surfaces outages, while product actions remain best effort', async () => {
-		const down = fetch;
-		query.mockRejectedValueOnce(new Error('offline'));
-		await expect(record({event: 'sim_open'}, down)).rejects.toThrow();
-		query.mockRejectedValueOnce(new Error('offline'));
-		await expect(count({event: 'sim_open'}, down)).resolves.toBeUndefined();
+		await expect(record({event: 'sim_open'}, offline)).rejects.toThrow();
+		await expect(record({event: 'sim_open'}, undefined)).rejects.toThrow();
+		await expect(count({event: 'sim_open'}, offline)).resolves.toBeUndefined();
 	});
 	it('atomically counts an applied choice or its exclusion, including retries across midnight',async()=>{
 		const {decisionSample}=await import('$lib/stats-insights');
@@ -114,11 +106,11 @@ describe('usage stats', () => {
 		const event={event:'upgrade_applied',category:'gem',v:3,id:crypto.randomUUID(),insight,sampling:samplingAttempt('decision')} as const;
 		expect(cleanEvent(event)).toEqual(event);
 		const db=database();
-		await record(cleanEvent(event)!,db.fetchFn,day1);await record(cleanEvent(event)!,db.fetchFn,day2);
+		await record(cleanEvent(event)!,db,day1);await record(cleanEvent(event)!,db,day2);
 		const skipped={...event,id:crypto.randomUUID(),insight:undefined,sampling:samplingAttempt('decision','baseline-mismatch')};
 		expect(cleanEvent(skipped)).toEqual(skipped);
-		await record(cleanEvent(skipped)!,db.fetchFn,day2);
-		const counts=(await readStats(7,db.fetchFn,day2)).totals;
+		await record(cleanEvent(skipped)!,db,day2);
+		const counts=(await readStats(7,db,day2)).totals;
 		expect(counts).toMatchObject({upgrade_applied:2,'upgrade:gem':2,decision_sampled:1,
 			[`sampling:attempt:${CP_STATS_MODEL}:decision`]:2,
 			[`sampling:outcome:${CP_STATS_MODEL}:decision:sampled`]:1,
@@ -130,8 +122,8 @@ describe('usage stats', () => {
 		const closed={event:'budget_closed',v:3,id:crypto.randomUUID(),insight,sampling:samplingAttempt('budget')} as const;
 		const abandoned={event:'budget_abandoned',v:3,id:crypto.randomUUID(),sampling:samplingAttempt('budget','unmounted')} as const;
 		expect(cleanEvent(closed)).toEqual(closed);expect(cleanEvent(abandoned)).toEqual(abandoned);
-		const db=database();await record(cleanEvent(closed)!,db.fetchFn,day1);await record(cleanEvent(abandoned)!,db.fetchFn,day1);
-		expect((await readStats(7,db.fetchFn,day1)).totals).toMatchObject({budget_closed:1,budget_abandoned:1,budget_sampled:1,'budget:coverage:empty':1,
+		const db=database();await record(cleanEvent(closed)!,db,day1);await record(cleanEvent(abandoned)!,db,day1);
+		expect((await readStats(7,db,day1)).totals).toMatchObject({budget_closed:1,budget_abandoned:1,budget_sampled:1,'budget:coverage:empty':1,
 			[`sampling:attempt:${CP_STATS_MODEL}:budget`]:2,[`sampling:outcome:${CP_STATS_MODEL}:budget:unmounted`]:1});
 	});
 	it('preserves old plan model tags and enforces coherent v3 sampling envelopes',()=>{
@@ -154,25 +146,22 @@ describe('usage stats', () => {
 	});
 	it('does not mix preview share activity into production counters', async () => {
 		env.DEPLOY_ENV = 'preview';
-		const db = database();
-		await count({event: 'share_created'}, db.fetchFn, day1);
-		expect(query).not.toHaveBeenCalled();
+		const prepare = vi.spyOn(d1, 'prepare');
+		await count({event: 'share_created'}, d1, day1);
+		expect(prepare).not.toHaveBeenCalled();
 	});
 
 	it('limits browser bursts without counting rejected events', async () => {
 		const db = database();
-		for (let i = 0; i < 120; i++) await record({ event: 'sim_open' }, db.fetchFn, day1, 'test-address');
-		expect(await record({ event: 'sim_open' }, db.fetchFn, day1, 'test-address')).toBe('limited');
-		expect((await readStats(7, db.fetchFn, day1)).totals.sim_open).toBe(120);
+		for (let i = 0; i < 120; i++) await record({ event: 'sim_open' }, db, day1, 'test-address');
+		expect(await record({ event: 'sim_open' }, db, day1, 'test-address')).toBe('limited');
+		expect((await readStats(7, db, day1)).totals.sim_open).toBe(120);
 	});
 
-	it('never falls back to Redis when Postgres is unavailable', async () => {
-		const send = vi.fn() as unknown as typeof fetch;
-		query.mockRejectedValueOnce(new Error('offline'));
-		await expect(count({event:'sim_open'},send)).resolves.toBeUndefined();
-		delete env.STATS_DATABASE_URL;
-		await expect(count({event:'sim_open'},send)).resolves.toBeUndefined();
-		expect(query).toHaveBeenCalledTimes(1);
+	it('never falls back to another store when D1 is unavailable', async () => {
+		const send = vi.spyOn(globalThis, 'fetch');
+		await expect(count({event:'sim_open'},offline)).resolves.toBeUndefined();
+		await expect(count({event:'sim_open'},undefined)).resolves.toBeUndefined();
 		expect(send).not.toHaveBeenCalled();
 	});
 
@@ -184,43 +173,102 @@ describe('usage stats', () => {
 });
 
 
-describe('Postgres batch atomicity and retention', () => {
+describe('D1 batch atomicity and retention', () => {
  it('deduplicates within a batch and across concurrent submissions', async () => {
   const {recordBatch} = await import('./stats');
   const e = {event:'sim_open', id:crypto.randomUUID()} as const;
-  await Promise.all([recordBatch([e,e],fetch,day1,'a'),recordBatch([e],fetch,day1,'b')]);
-  expect((await readStats(7,fetch,day1)).totals.sim_open).toBe(1);
+  await Promise.all([recordBatch([e,e],d1,day1,'a'),recordBatch([e],d1,day1,'b')]);
+  expect((await readStats(7,d1,day1)).totals.sim_open).toBe(1);
  });
  it('rolls back a broken batch without partial counters or receipts', async () => {
-  const {observation} = await import('./stats');
-  const valid = observation({event:'sim_open',id:crypto.randomUUID()},day1);
-  const bad = {...observation({event:'sim_open',id:crypto.randomUUID()},day1),day:'invalid-date'};
-  await expect(pg.query('SELECT loa_stats_ingest($1::jsonb,NULL,$2::timestamptz)',[JSON.stringify([valid,bad]),new Date(day1).toISOString()])).rejects.toThrow();
-  expect((await readStats(7,fetch,day1)).totals).toEqual({});
-  expect((await pg.query('SELECT * FROM loa_stats_events')).rows).toHaveLength(0);
+  const insert = (id:string, day:string) => d1.prepare(`INSERT INTO loa_stats_events(id,occurred_at,day,fields,version) VALUES(?,?,?,?,1)`)
+   .bind(id,new Date(day1).toISOString(),day,'["sim_open"]');
+  await expect(d1.batch([insert('valid','2026-10-21'),insert('bad','invalid-date')])).rejects.toThrow();
+  expect((await readStats(7,d1,day1)).totals).toEqual({});
+  expect(d1.sqlite.prepare('SELECT * FROM loa_stats_events').all()).toHaveLength(0);
  });
  it('does not charge retries against the limiter, and rejects oversized bursts as a batch', async () => {
   const {recordBatch} = await import('./stats');
   const events=Array.from({length:16},()=>({event:'sim_open',id:crypto.randomUUID()} as const));
-  for(let i=0;i<10;i++) expect(await recordBatch(events,fetch,day1,'a')).toBe('accepted');
-  expect((await readStats(7,fetch,day1)).totals.sim_open).toBe(16);
-  for(let i=0;i<104;i++) await record({event:'sim_open'},fetch,day1,'a');
-  expect(await record({event:'sim_open'},fetch,day1,'a')).toBe('limited');
+  for(let i=0;i<10;i++) expect(await recordBatch(events,d1,day1,'a')).toBe('accepted');
+  expect((await readStats(7,d1,day1)).totals.sim_open).toBe(16);
+  for(let i=0;i<104;i++) await record({event:'sim_open'},d1,day1,'a');
+  expect(await record({event:'sim_open'},d1,day1,'a')).toBe('limited');
  });
  it('retains aggregate history after detailed events expire', async () => {
-  await record({event:'lookup',region:'NA',name:'Private',id:crypto.randomUUID()},fetch,day1);
+  await record({event:'lookup',region:'NA',name:'Private',id:crypto.randomUUID()},d1,day1);
   const later=day1+91*86400000;
-  await record({event:'sim_open'},fetch,later);
-  expect((await pg.query('SELECT * FROM loa_stats_events')).rows).toHaveLength(1);
-  expect((await readStats(120,fetch,later)).totals.lookup).toBe(1);
+  await record({event:'sim_open'},d1,later);
+  expect(d1.sqlite.prepare('SELECT * FROM loa_stats_events').all()).toHaveLength(1);
+  expect((await readStats(120,d1,later)).totals.lookup).toBe(1);
  });
  it('combines imported summaries without relabeling or duplicating their counters', async () => {
-  await pg.query('INSERT INTO loa_stats_legacy_days VALUES($1,$2::jsonb,$3)', ['2026-10-21',JSON.stringify({sim_open:4,lookup:2}),2]);
-  await pg.query('INSERT INTO loa_stats_legacy_ranges VALUES($1,$1,$2)', ['2026-10-21',2]);
-  await record({event:'sim_open'},fetch,day1);
-  const report=await readStats(7,fetch,day1);
+  d1.sqlite.prepare('INSERT INTO loa_stats_legacy_days VALUES(?,?,?)').run('2026-10-21',JSON.stringify({sim_open:4,lookup:2}),2);
+  d1.sqlite.prepare('INSERT INTO loa_stats_legacy_ranges VALUES(?1,?1,?2)').run('2026-10-21',2);
+  await record({event:'sim_open'},d1,day1);
+  const report=await readStats(7,d1,day1);
   expect(report.totals).toEqual({sim_open:5,lookup:2});
   expect(report.distinctCharacters).toBe(2);
   expect(report.legacyDistinct).toBe(true);
+ });
+ it('does not recount rows copied from Neon, whose counters arrive separately', async () => {
+  d1.sqlite.prepare(`INSERT INTO loa_stats_events(id,occurred_at,day,character_hash,fields,version,exploration,imported)
+   VALUES('copied',?, '2026-10-21','abc','["sim_open"]',3,1,1)`).run(new Date(day1).toISOString());
+  const report=await readStats(7,d1,day1);
+  expect(report.totals).toEqual({});
+  expect(report.distinctCharacters).toBe(0);
+  expect(report.explorationSince).toBeNull();
+  await record({event:'sim_open',id:'00000000-0000-4000-8000-000000000000'},d1,day1);
+  expect((await readStats(7,d1,day1)).totals).toEqual({sim_open:1});
+ });
+ it('records fun-facts ranges, the UTC hour and visit depth without exact values', async () => {
+  const lookup={event:'lookup',region:'NA',name:'Fun',class:'bard',level:'1760to1789',power:'5to6k',role:'support'} as const;
+  expect(cleanEvent(lookup)).toEqual({...lookup,region:'NA'});
+  expect(cleanEvent({...lookup,level:1765})).toBeNull();
+  expect(cleanEvent({...lookup,power:'5to6k',role:undefined})).toBeNull();
+  expect(cleanEvent({event:'sim_open',level:'1760to1789'})).toBeNull();
+  expect(cleanEvent({event:'upgrade_applied',category:'gem',efficiency:'10to25k'})).toMatchObject({efficiency:'10to25k'});
+  expect(cleanEvent({event:'upgrade_applied',category:'gem',efficiency:12345})).toBeNull();
+  expect(cleanEvent({event:'visit_end',upgrades:'2to4',characters:'1'})).toEqual({event:'visit_end',upgrades:'2to4',characters:'1'});
+  expect(cleanEvent({event:'visit_end',upgrades:'3',characters:'1'})).toBeNull();
+  expect(cleanEvent({event:'sim_open',upgrades:'1',characters:'1'})).toBeNull();
+  await record(cleanEvent(lookup)!,d1,day1);
+  await record(cleanEvent({event:'upgrade_applied',category:'gem',efficiency:'10to25k'})!,d1,day1);
+  await record({event:'visit_end',upgrades:'2to4',characters:'1'},d1,day1);
+  expect((await readStats(7,d1,day1)).totals).toMatchObject({'hour:12':1,'level:1760to1789':1,'level:class:Bard:1760to1789':1,
+   'power:support:5to6k':1,'efficiency:10to25k':1,'efficiency:gem:10to25k':1,'visit:upgrades:2to4':1,'visit:characters:1':1,'lookup:NA':1});
+ });
+ it('reports returning characters and the most days one character was loaded', async () => {
+  for (const at of [day1, day2]) await record({event:'lookup',region:'NA',name:'Regular'},d1,at);
+  await record({event:'lookup',region:'CE',name:'Once'},d1,day2);
+  const report=await readStats(7,d1,day2);
+  expect(report.returningCharacters).toBe(1);
+  expect(report.mostDaysOneCharacter).toBe(2);
+ });
+ it('stores fewer counters from the compaction day yet reports exactly the same totals', async () => {
+  const {decisionSample,opportunitySample}=await import('$lib/stats-insights');
+  const upgrade={key:'gem',category:'gem',gainPct:2,title:'x',detail:'',count:1,approximate:false} as const;
+  const other={...upgrade,key:'acc',category:'accessory',gainPct:3} as const;
+  const cohort=insightCohort('souleater','NA/A',1780,false)!;
+  const events=()=>[
+   {event:'upgrade_applied',category:'gem',v:3,id:crypto.randomUUID(),efficiency:'10to25k',
+    insight:decisionSample(cohort,upgrade,'gold',[upgrade,other],{gem:100000,acc:900000},{},{})!,sampling:samplingAttempt('decision')},
+   {event:'upgrade_applied',category:'gem',v:3,id:crypto.randomUUID(),insight:decisionSample(cohort,upgrade,'cp',[upgrade],{},{},{})!,sampling:samplingAttempt('decision')},
+   {event:'opportunity_sampled',v:3,id:crypto.randomUUID(),insight:opportunitySample(cohort,[upgrade,other],{gem:100000,acc:900000},{},{})!,sampling:samplingAttempt('opportunity')},
+   {event:'upgrade_applied',category:'gem',v:3,id:crypto.randomUUID(),sampling:samplingAttempt('decision','baseline-mismatch')},
+   {event:'lookup',region:'NA',name:'A',class:'bard',level:'1760to1789',power:'5to6k',role:'support'},
+  ].map(e=>cleanEvent(e)!);
+  const full=Date.parse('2026-11-16T12:00:00Z'), lean=Date.parse('2026-11-17T12:00:00Z');
+  for(const e of events()) expect(e).not.toBeNull();
+  for(const e of events()) await record(e,d1,full);
+  for(const e of events()) await record(e,d1,lean);
+  const stored=(day:string)=>(d1.sqlite.prepare('SELECT count(*) AS n FROM loa_stats_counters WHERE day=?').get(day) as {n:number}).n;
+  const fieldsOf=(day:string)=>(d1.sqlite.prepare('SELECT sum(json_array_length(fields)) AS n FROM loa_stats_events WHERE day=?').get(day) as {n:number}).n;
+  expect(fieldsOf('2026-11-17')).toBeLessThan(fieldsOf('2026-11-16')*0.65);
+  expect(stored('2026-11-17')).toBeLessThan(stored('2026-11-16'));
+  const report=await readStats(2,d1,lean);
+  const [day17,day16]=report.days;
+  expect(day17.counts).toEqual(day16.counts);
+  expect(report.totals['decision:rank:gold:best']).toBe(2);
  });
 });

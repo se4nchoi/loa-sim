@@ -4,24 +4,23 @@
 	import StatsTimeline from '$lib/StatsTimeline.svelte';
 	import StatsCollection from '$lib/StatsCollection.svelte';
 	import StatsSampling from '$lib/StatsSampling.svelte';
+	import StatsFun from '$lib/StatsFun.svelte';
+	import { classIconUrl } from '$lib/upgrade-planner/class-icons';
 	import { CP_BUCKETS, LEVEL_BUCKETS } from '$lib/plan-stats';
 	let days = $state('30');
 	let key = $state('');
 	let report = $state<StatsReport | null>(null);
 	let error = $state('');
 	let busy = $state(false);
-	let section = $state<'activity' | 'exploration' | 'plans'>('activity');
+	let section = $state<'fun' | 'activity' | 'dev'>('fun');
+	let devView = $state<'exploration' | 'plans'>('exploration');
 	let metric = $state('sim_open');
-	let classSearch = $state('');
-	let classSort = $state('loads');
 	let counterSearch = $state('');
 	const counters = $derived(Object.entries(report?.totals ?? {}).filter(([name]) => name.toLowerCase().includes(counterSearch.trim().toLowerCase())).sort(([a], [b]) => a.localeCompare(b)));
-	const dailyEvents = $derived(section === 'exploration' ? EXPLORATION_EVENTS : section === 'plans' ? [['plan:count', 'Plan samples'], ['build_saved', 'Builds saved']] as const : ACTIVITY_EVENTS);
+	const dailyEvents = $derived(devView === 'exploration' ? EXPLORATION_EVENTS : devView === 'plans' ? [['plan:count', 'Plan samples'], ['build_saved', 'Builds saved']] as const : ACTIVITY_EVENTS);
 	const fmt = (n: number) => n.toLocaleString();
 	const percent = (n: number, total: number) => total ? `${(n / total * 100).toFixed(1)}%` : '0%';
 	const classes = $derived(statsBreakdown(report?.totals ?? {}, 'class:'));
-	const filteredClasses = $derived(classes.filter(([name]) => name.toLowerCase().includes(classSearch.trim().toLowerCase()))
-		.toSorted((a, b) => classSort === 'name' ? a[0].localeCompare(b[0]) : b[1] - a[1]));
 	const regions = $derived(statsBreakdown(report?.totals ?? {}, 'lookup:'));
 	const upgrades = $derived(statsBreakdown(report?.totals ?? {}, 'upgrade:'));
 	const classTotal = $derived(classes.reduce((n, [, value]) => n + value, 0));
@@ -74,9 +73,9 @@
 	{#if error}<p role="alert" class="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300">{error}</p>{/if}
 	{#if busy && !report}<p role="status" class="text-surface-400">Loading stats…</p>{/if}
 	{#if report}
-		<div class="flex gap-6 border-b border-neutral-800" aria-label="Stats views">
-			{#each [['activity', 'Activity'], ['exploration', 'Exploration'], ['plans', 'Saved plans']] as [value, label]}
-				<button type="button" aria-pressed={section === value} onclick={() => section = value as typeof section} class="border-b-2 pb-3 font-semibold transition {section === value ? 'border-accent-400 text-accent-300' : 'border-transparent text-surface-400 hover:text-surface-100'}">{label}</button>
+		<div class="flex gap-4 overflow-x-auto border-b border-neutral-800 sm:gap-6" aria-label="Stats views">
+			{#each [['fun', 'Fun facts'], ['activity', 'Activity'], ['dev', 'Dev']] as [value, label]}
+				<button type="button" aria-pressed={section === value} onclick={() => section = value as typeof section} class="shrink-0 whitespace-nowrap border-b-2 pb-3 font-semibold transition {section === value ? 'border-accent-400 text-accent-300' : 'border-transparent text-surface-400 hover:text-surface-100'}">{label}</button>
 			{/each}
 		</div>
 		{#if section === 'activity'}
@@ -92,20 +91,19 @@
 				<StatsTimeline days={chart} {metric} label={chartLabel}/>
 			</section>
 			<div class="grid gap-3 sm:grid-cols-2">
-				<div class="rounded-xl border border-amber-300/15 bg-amber-300/[0.025] px-5 py-4"><span class="stat-label">Most loaded class</span><div class="mt-2 flex items-baseline justify-between gap-3"><strong class="text-xl font-semibold text-amber-200">{classTotal >= 20 ? classes.find(([name]) => name !== 'Unknown class')?.[0] ?? '—' : '—'}</strong><span class="text-xs text-surface-400">{classTotal >= 20 ? `${fmt(classes.find(([name]) => name !== 'Unknown class')?.[1] ?? 0)} loads` : '20 loads needed'}</span></div></div>
+				<div class="rounded-xl border border-amber-300/15 bg-amber-300/[0.025] px-5 py-4"><span class="stat-label">Most loaded class</span><div class="mt-2 flex items-baseline justify-between gap-3"><strong class="flex items-center gap-2 text-xl font-semibold text-amber-200">{#if classTotal >= 20 && classIconUrl(classes.find(([name]) => name !== 'Unknown class')?.[0])}<img src={classIconUrl(classes.find(([name]) => name !== 'Unknown class')?.[0])} alt="" class="size-6" />{/if}{classTotal >= 20 ? classes.find(([name]) => name !== 'Unknown class')?.[0] ?? '—' : '—'}</strong><span class="text-xs text-surface-400">{classTotal >= 20 ? `${fmt(classes.find(([name]) => name !== 'Unknown class')?.[1] ?? 0)} loads` : '20 loads needed'}</span></div></div>
 				<div class="rounded-xl border border-neutral-800 bg-neutral-900/40 px-5 py-4"><span class="stat-label">Peak simulator day · complete days</span><div class="mt-2 flex items-baseline justify-between gap-3"><strong class="text-xl font-semibold">{peak && peak.counts.sim_open ? peak.date : '—'}</strong><span class="text-xs text-surface-400">{fmt(peak?.counts.sim_open ?? 0)} opens</span></div></div>
 			</div>
-			<div class="grid items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-				<section class="panel p-5"><div class="mb-4 flex items-center justify-between"><h2 class="font-semibold">Loads by class</h2><span class="text-xs text-surface-400">{fmt(classTotal)} loads</span></div>
-					<div class="mb-5 flex gap-2"><input aria-label="Search classes" bind:value={classSearch} placeholder="Search class" class="{field} min-w-0 flex-1"/><select aria-label="Class sort order" bind:value={classSort} class={field}><option value="loads">Most loads</option><option value="name">A–Z</option></select></div>
-					<div class="grid gap-x-8 gap-y-4 md:grid-cols-2">{#each filteredClasses as [name, count]}<div class="min-w-0"><div class="mb-1.5 flex items-baseline justify-between gap-2"><span class="truncate text-surface-200">{name}</span><span class="shrink-0 tabular-nums">{fmt(count)} <span class="ml-1.5 inline-block w-12 text-right text-xs text-surface-400">{percent(count, classTotal)}</span></span></div><div class="h-1 overflow-hidden rounded-full bg-neutral-800"><div class="h-full rounded-full {name === 'Unknown class' ? 'bg-amber-400/60' : 'bg-accent-500/70'}" style:width={`${count / Math.max(1, classes[0]?.[1] ?? 1) * 100}%`}></div></div></div>{:else}<p class="text-surface-400">{classSearch ? 'No matching classes' : 'No character loads'}</p>{/each}</div>
-				</section>
-				<div class="space-y-5">
-					<section class="panel p-5"><h2 class="mb-5 font-semibold">Loads by region</h2><div class="space-y-5">{#each regions as [name, count]}<div><div class="mb-2 flex justify-between"><span class="text-surface-200">{name === 'NA' ? 'North America' : name === 'CE' ? 'Europe Central' : name}</span><span class="tabular-nums">{fmt(count)}</span></div><div class="h-2 overflow-hidden rounded-full bg-neutral-800"><div class="h-full rounded-full {name === 'NA' ? 'bg-sky-400/70' : 'bg-amber-300/70'}" style:width={percent(count, report.totals.lookup ?? 0)}></div></div></div>{:else}<p class="text-surface-400">No character loads</p>{/each}</div></section>
-					<section class="panel divide-y divide-neutral-800 px-5">{#each [...ACTIVITY_EVENTS.slice(3), ['lookup_fail', 'Failed loads']] as [event, label]}<div class="flex items-center justify-between py-4"><span class="text-surface-300">{label}</span><strong class="tabular-nums">{fmt(report.totals[event] ?? 0)}</strong></div>{/each}</section>
-				</div>
+			<div class="grid items-start gap-5 md:grid-cols-2">
+				<section class="panel p-5"><h2 class="mb-5 font-semibold">Loads by region</h2><div class="space-y-5">{#each regions as [name, count]}<div><div class="mb-2 flex justify-between"><span class="text-surface-200">{name === 'NA' ? 'North America' : name === 'CE' ? 'Europe Central' : name}</span><span class="tabular-nums">{fmt(count)}</span></div><div class="h-2 overflow-hidden rounded-full bg-neutral-800"><div class="h-full rounded-full {name === 'NA' ? 'bg-sky-400/70' : 'bg-amber-300/70'}" style:width={percent(count, report.totals.lookup ?? 0)}></div></div></div>{:else}<p class="text-surface-400">No character loads</p>{/each}</div></section>
+				<section class="panel divide-y divide-neutral-800 px-5">{#each [...ACTIVITY_EVENTS.slice(3), ['lookup_fail', 'Failed loads']] as [event, label]}<div class="flex items-center justify-between py-4"><span class="text-surface-300">{label}</span><strong class="tabular-nums">{fmt(report.totals[event] ?? 0)}</strong></div>{/each}</section>
 			</div>
-		{:else if section === 'exploration'}
+		{:else if section === 'fun'}
+			<StatsFun {report} />
+		{:else}
+			<p class="text-xs text-surface-400">Collection details for tuning the simulator: sampling, cohorts and raw counters.</p>
+			<div class="flex gap-1">{#each [['exploration', 'Exploration'], ['plans', 'Saved plans']] as [value, label]}<button type="button" aria-pressed={devView === value} onclick={() => devView = value as typeof devView} class="rounded-md px-3 py-1.5 text-xs font-semibold transition {devView === value ? 'bg-accent-500/15 text-accent-300' : 'text-surface-400 hover:bg-neutral-800 hover:text-surface-100'}">{label}</button>{/each}</div>
+		{#if devView === 'exploration'}
 			<p class="text-xs text-surface-400">{report.explorationSince ? `Collecting since ${report.explorationSince} · UTC` : 'Awaiting first exploration event'}</p>
 			<div class="grid gap-3 sm:grid-cols-3">{#each EXPLORATION_EVENTS as [event, label]}<div class="stat-card"><span class="stat-label">{label}</span><strong class="stat-value text-accent-300">{report.explorationSince ? fmt(report.totals[event] ?? 0) : '—'}</strong></div>{/each}</div>
 			<section class="panel p-5"><h2 class="mb-5 font-semibold">Applied upgrades</h2><div class="grid gap-x-12 gap-y-5 sm:grid-cols-2">{#each upgrades as [name, count]}<div><div class="mb-2 flex justify-between"><span>{CATEGORY_LABELS[name as UpgradeCategory] ?? name}</span><strong class="tabular-nums text-accent-300">{fmt(count)}</strong></div><div class="h-1.5 overflow-hidden rounded-full bg-neutral-800"><div class="h-full rounded-full bg-accent-500/70" style:width={`${count / Math.max(1, upgrades[0]?.[1] ?? 1) * 100}%`}></div></div></div>{:else}<p class="text-surface-400">No applied upgrades recorded</p>{/each}</div></section>
@@ -135,6 +133,7 @@
 			<li>Unknown class includes historical “Other” loads. Their original classes were not retained.</li>
 			<li>Share requests count server loads with known preview bots filtered; they do not confirm human views.</li>
 			<li>Updated tracking includes pasted loads and visible simulator visits. Earlier simulator opens used tab-level deduplication.</li>
+			<li>Fun facts: item level, CP (with build role), gold per +1% CP and per-visit counts are ranges only, collected from November 16, 2026. Hours are UTC from the server clock. A visit ends the first time its tab is hidden.</li>
 			<li>Exploration counts apply to simulations, not in-game purchases. No historical backfill.</li>
 			<li>Budget costs are estimates from entered prices and bound inventory. Partial budgets are excluded from complete-cost distributions. Single-step offers are not multi-upgrade optimizations.</li>
 			<li>Repeated views and choices can belong to the same character. Cohort tables pool observations while retaining model and cost-assumption labels.</li>
@@ -143,6 +142,7 @@
 			<li>Plan samples include new named saves with settled calculations and no flagged baseline or Willpower error. Samples contain CP-gain and item-level ranges plus build role; no names or equipment.</li>
 			{#if report.updatedAt}<li>Report generated {report.updatedAt.replace('T', ' ').slice(0, 19)} UTC.</li>{/if}
 		</ul></details>
+		{/if}
 	{/if}
 </div>
 

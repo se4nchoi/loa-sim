@@ -1,9 +1,10 @@
 // The browser reports usage events here (see $lib/stats); they become daily counters in $lib/server/stats.
+import { statsDb } from '$lib/server/d1';
 import { cleanEvent, recordBatch, statsEnabled } from '$lib/server/stats';
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request, url, fetch, getClientAddress }) => {
+export const POST: RequestHandler = async ({ request, url, platform, getClientAddress }) => {
 	if (request.headers.get('origin') !== url.origin) error(403, 'Forbidden');
 	if (!statsEnabled()) return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
 	const reader = request.body?.getReader();
@@ -27,7 +28,7 @@ export const POST: RequestHandler = async ({ request, url, fetch, getClientAddre
 	// Old single-event clients remain accepted. Retryable batches require an ID on every event.
 	if (body && typeof body === 'object' && 'events' in body && events.some(e => !e?.id)) error(400, 'Event ID required');
 	let status;
-	try { status = await recordBatch(events as NonNullable<typeof events[number]>[], fetch, Date.now(), getClientAddress()); }
+	try { status = await recordBatch(events as NonNullable<typeof events[number]>[], statsDb(platform), Date.now(), getClientAddress()); }
 	catch { error(503, 'Stats storage is unavailable.'); }
 	if (status === 'limited') return new Response(null, { status: 429, headers: { 'retry-after': '60', 'cache-control': 'no-store' } });
 	return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });

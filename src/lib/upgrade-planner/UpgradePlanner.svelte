@@ -13,7 +13,8 @@
 	import { bookCost, bookPricesFor, materialPricesFor, costsForCharacter, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, missingPriceCount, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { getContext, onMount } from 'svelte';
-	import { decisionSample, opportunitySample, insightObservation, observe, type InsightScope } from '$lib/stats-insights';
+	import { completeUpgradeCost, decisionSample, opportunitySample, insightObservation, observe, type InsightScope } from '$lib/stats-insights';
+	import { efficiencyBucket } from '$lib/fun-stats';
 	import { track } from '$lib/stats';
 	import { liveUpgrades } from './live-upgrades';
 	import { rollsFor, setAccRolls } from './acc-rolls.svelte';
@@ -64,8 +65,9 @@
 		// Capture ranking before Apply changes the state; one receipt includes action and sampling outcome.
 		const observation=insightObservation('decision',()=>{const cohort=insights?.cohort();return cohort?decisionSample(cohort,u,gold.mode,upgrades,costs,auto,materialPrices):undefined;},
 			()=>insights?.skipReason()??(insights?'no-positive-gain':'no-context'));
+		const efficiency=observe(()=>efficiencyBucket(completeUpgradeCost(u,costs,auto,materialPrices),u.gainPct));
 		const ok = onapply?.(u) ?? false;
-		if(ok)observe(()=>track({event:'upgrade_applied',category:u.category,...observation}));
+		if(ok)observe(()=>track({event:'upgrade_applied',category:u.category,...observation,...(efficiency?{efficiency}:{})}));
 		flash = { key: u.key, ok };
 		clearTimeout(flashTimer);
 		flashTimer = setTimeout(() => (flash = null), 1200);

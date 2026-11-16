@@ -1,3 +1,5 @@
+-- RETIRED: stats moved to Cloudflare D1 (migrations/d1) on 2026-11-16. Kept as the record of Neon's old tables;
+-- scripts/stats-to-d1.mjs reads them once. Nothing calls loa_stats_ingest any more.
 -- Anonymous simulator observations. All schema changes are additive and rerunnable.
 CREATE TABLE IF NOT EXISTS loa_stats_events (
   id text PRIMARY KEY,
