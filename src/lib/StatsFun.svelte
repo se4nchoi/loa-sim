@@ -59,14 +59,14 @@
 <section class="panel p-5">
 	<div class="mb-4 flex flex-wrap items-baseline justify-between gap-2">
 		<h2 class="font-semibold">Class popularity</h2>
-		<span class="text-xs text-surface-400">{fmt(classTotal)} character loads · <span class="text-amber-200">gold</span> = support class</span>
+		<span class="text-xs text-surface-400">{fmt(classTotal)} character loads</span>
 	</div>
 	<ol class="gap-x-8 sm:columns-2 lg:columns-3">
 		{#each classes as [c, v], i}
 			<li class="mb-2.5 grid break-inside-avoid grid-cols-[1.5rem_1.75rem_minmax(0,1fr)_3rem] items-center gap-2">
 				<span class="text-right text-xs tabular-nums {i < 3 ? 'font-semibold text-amber-200' : 'text-surface-500'}">{i + 1}</span>
 				{#if classIconUrl(c)}<img src={classIconUrl(c)} alt="" class="size-7" loading="lazy" />{:else}<span></span>{/if}
-				<div class="min-w-0"><div class="truncate text-xs {SUPPORT_CLASSES.includes(c) ? 'text-amber-200' : 'text-surface-200'}">{c}</div><div class="mt-1 h-1 rounded-full bg-neutral-800"><div class="h-full rounded-full {SUPPORT_CLASSES.includes(c) ? 'bg-amber-300/70' : 'bg-accent-500/70'}" style:width="{v / classMax * 100}%"></div></div></div>
+				<div class="min-w-0"><div class="truncate text-xs text-surface-200">{c}</div><div class="mt-1 h-1 rounded-full bg-neutral-800"><div class="h-full rounded-full bg-accent-500/70" style:width="{v / classMax * 100}%"></div></div></div>
 				<span class="text-right text-xs tabular-nums text-surface-400">{pct(v, classTotal)}</span>
 			</li>
 		{/each}
