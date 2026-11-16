@@ -153,7 +153,7 @@
 			{#if planning && !listing}
 				<button type="button" class="{btn} h-8 gap-1.5 px-4" onclick={() => (stopping = true)}><Spinner class="size-3.5" />{plan?.steps.length ?? 0} steps · Stop</button>
 			{:else}
-				<button type="submit" class="{btn} h-8 gap-1.5 px-4" disabled={planning || !selection} title="Adds upgrades one at a time from your current edits, re-measured on this run each time: the biggest DPS gain (Fewest steps) or the least gold per 1% DPS (Least gold), until the target is reached or nothing helps. Empty: the best 15 upgrades.">{#if planning}<Spinner class="size-3.5" />Planning…{:else}Plan{/if}</button>
+				<button type="submit" class="{btn} h-8 gap-1.5 px-4" disabled={planning || !selection} title="One upgrade at a time from your edits, re-measured on this run, until the target is reached or nothing helps. Empty: the best 15.">{#if planning}<Spinner class="size-3.5" />Planning…{:else}Plan{/if}</button>
 			{/if}
 		</div>
 	</form>

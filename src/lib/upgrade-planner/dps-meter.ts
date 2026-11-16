@@ -228,7 +228,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 		if (same(a, b)) continue;
 		notInMeter.push(...(b.length ? b.filter((t) => !a.includes(t)) : a).map((t) => `Bracelet: ${t}${b.length ? '' : ' (removed)'}`));
 	}
-	if ((bracelet.back || bracelet.front) && runs.some((r) => r.skills.some((sk) => sk.damage > 0) && !r.skills.some((sk) => sk.front !== undefined))) notes.push('Back / frontal attack damage needs the logs re-imported; it is left out.');
+	if ((bracelet.back || bracelet.front) && runs.some((r) => r.skills.some((sk) => sk.damage > 0) && !r.skills.some((sk) => sk.front !== undefined))) notes.push('Back / frontal attack damage left out: re-import the logs.');
 	const braceletOf = (skill: { id: number; damage: number; critDamage: number; front?: number; back?: number }) => {
 		const share = (v?: number) => (skill.damage > 0 && v ? v / skill.damage : 0);
 		return bracelet.outgoing * (1 + share(skill.critDamage) * bracelet.critHit) * (1 + share(skill.back) * bracelet.back) * (1 + share(skill.front) * bracelet.front)
@@ -283,7 +283,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	if (gearStatsUsed) notes.push(GEAR_STATS_NOTE);
 	if (gearAttackUsed) notes.push(GEAR_ATTACK_NOTE);
 	if (evolutionUsed) notes.push(EVOLUTION_NOTE);
-	if (hasStats && !statKnown) notes.push(context ? 'Configured totals do not cover this run’s crit conversion; stat edits are left out.' : `${gearStatsUsed || gearAttackUsed || evolutionUsed ? 'Other stat edits' : 'Stat edits'} need a run recorded with LOA Logs' stat values, or configured combat totals; they're left out.`);
+	if (hasStats && !statKnown) notes.push(context ? 'Configured totals do not cover this run’s crit conversion; stat edits are left out.' : `${gearStatsUsed || gearAttackUsed || evolutionUsed ? 'Other stat edits' : 'Stat edits'} left out: this run has no LOA Logs stat values.`);
 	const lender = borrowedStatsUsed && statKnown && !context && !runs.some((r) => r.statValues) ? buildRuns.find((r) => r.statValues) : undefined;
 	if (lender) notes.push(`Stat values from the ${runDate(lender.start)} run: this one didn't record them.`);
 	return {

@@ -19,47 +19,45 @@
 	const paradise: ItemLook = { icon: iconUrl(latestDealerOrb?.icon), grade: latestDealerOrb?.grade, name: latestDealerOrb?.name };
 	type Factor = { key?: DpsLimitKey; label: string; kind: 'Not valued' | 'Assumed' | 'Unverified'; look?: ItemLook; tldr: string; points: string[]; link?: { href: string; label: string } };
 	// Checked on the runs in the author's own encounters (theirs and their parties'); the thinnest classes are named.
-	const coverage: Factor = { label: 'Class coverage', kind: 'Unverified', tldr: 'Checked on the author’s own encounters; classes seen in fewer runs may be less accurate.', points: [
-		'Fewest runs checked: Machinist, Reaper, Destroyer, Dimensionalist, Glaivier.',
-		'Recent runs help most: send a lostark.bible log link.'
-	], link: { href: 'https://github.com/se4nchoi/loa-sim/issues/new?title=DPS%20sim%20log', label: 'Send a log' } };
+	const coverage: Factor = { label: 'Class coverage', kind: 'Unverified', tldr: 'Checked on the author’s own encounters.', points: [
+		'Fewest runs checked: Machinist, Reaper, Destroyer, Dimensionalist, Glaivier.'
+	], link: { href: 'https://github.com/se4nchoi/loa-sim/issues/new?title=DPS%20sim%20log', label: 'Send a lostark.bible log' } };
 	const dealerFactors: Factor[] = [
-		{ key: 'cores', label: 'Order core swaps', kind: 'Not valued', look: order, tldr: 'Core swaps aren’t counted (another build); same-build core upgrades (Relic → Ancient) are.', points: [
-			'Other cores play another rotation and trigger other Destinies, which this run can’t show.',
-			'Upgrades on the same cores count for their damage effects; their speed, cooldown and meter effects don’t (casts stay as recorded).'
+		{ key: 'cores', label: 'Order core swaps', kind: 'Not valued', look: order, tldr: 'A swap is another build. Upgrades on the same cores (Relic → Ancient) count.', points: [
+			'Other cores play another rotation and other Destinies; this run can’t show them.',
+			'Same-core upgrades count their damage lines, not speed, cooldown or meter lines: casts stay as recorded.'
 		] },
-		{ key: 'karma', label: 'Evolution Karma', kind: 'Not valued', look: karma, tldr: 'No DPS (HP and CP only); Enlightenment and Leap Karma are counted.', points: [] },
-		{ key: 'paradise', label: 'Paradise orb swaps', kind: 'Not valued', look: paradise, tldr: 'Orb swaps aren’t counted (another proc); Paradise power on the same orb is.', points: [
-			'The run’s proc hits scale with its orb’s season power; how often it procs stays as recorded.'
+		{ key: 'karma', label: 'Evolution Karma', kind: 'Not valued', look: karma, tldr: 'HP and CP only. Enlightenment and Leap Karma count.', points: [] },
+		{ key: 'paradise', label: 'Paradise orb swaps', kind: 'Not valued', look: paradise, tldr: 'A swap is another proc. Paradise power on the same orb counts.', points: [
+			'Proc hits scale with the orb’s season power; proc count stays as recorded.'
 		] },
-		{ key: 'stacks', label: 'Stacked buffs', kind: 'Assumed', look: adrenaline, tldr: 'Core stack bonuses are counted per cast from the run’s own casts where the logs show them; the rest assume full stacks or uptime.', points: [
-			'Replayed per cast: Slaughter Spectacle, Demon Fire, Hidden Fang, Lawless Land, TA-64 Reaper Bolt, Thunder, SMG Agent, Titan Suit, Utter Carnage, Manifest, Earth Collapse, Ravening Nightmare. Older imports need a re-import.',
-			'Adrenaline assumes 6 stacks, Ether Predator 30; stacking bracelet Weapon Power uses full stacks.',
-			'Gear-derived Additional Damage assumes Master at 5 stacks and the pet’s +1% Additional Damage, as LOA Logs does.',
-			'Assumed at full: Power Drive, Eternal Blood, Supreme Connection, Dimensional Annihilation, Pulse Nova, Quasar Cannon Suit, Art Master, Overheated Shell, Infinity Deck, Yeon-Style Slash.'
+		{ key: 'stacks', label: 'Stacked buffs', kind: 'Assumed', look: adrenaline, tldr: 'Replayed per cast where the logs show stacks; otherwise full stacks or uptime.', points: [
+			'Replayed per cast: Slaughter Spectacle, Demon Fire, Hidden Fang, Lawless Land, TA-64 Reaper Bolt, Thunder, SMG Agent, Titan Suit, Utter Carnage, Manifest, Earth Collapse, Ravening Nightmare (older imports: re-import).',
+			'Full: Adrenaline 6 stacks, Ether Predator 30, stacking bracelet Weapon Power.',
+			'Full: Power Drive, Eternal Blood, Supreme Connection, Dimensional Annihilation, Pulse Nova, Quasar Cannon Suit, Art Master, Overheated Shell, Infinity Deck, Yeon-Style Slash.',
+			'Gear Additional Damage: Master at 5 stacks and the pet’s +1%, as LOA Logs.'
 		] },
-		{ key: 'summons', label: 'Summons & DoTs', kind: 'Unverified', look: bleeding, tldr: 'Scaled like other damage; core bonuses aimed at them (Heavy Bleeding) aren’t counted.', points: [
-			'Their hits and ticks stay as recorded; only the damage per hit scales.'
+		{ key: 'summons', label: 'Summons & DoTs', kind: 'Unverified', look: bleeding, tldr: 'Damage per hit scales; hit and tick counts stay as recorded.', points: [
+			'Core bonuses aimed at them (Heavy Bleeding) aren’t counted.'
 		] },
-		{ key: 'cooldown', label: 'Cooldown gems', kind: 'Assumed', look: blazing, tldr: 'Extra casts from the skill’s time on cooldown in this run; can overstate the gain.', points: [
-			'Each extra cast deals the run’s average for that skill, with nothing else pushed out of the rotation.',
-			'A run without cooldown data counts only the gem’s base attack.'
+		{ key: 'cooldown', label: 'Cooldown gems', kind: 'Assumed', look: blazing, tldr: 'Extra casts from the skill’s time on cooldown; can overstate the gain.', points: [
+			'Each extra cast deals the skill’s average in this run and pushes nothing out of the rotation.',
+			'Without cooldown data: base attack only.'
 		] },
-		{ key: 'bracelet', label: 'Bracelet effects', kind: 'Not valued', look: bracelet, tldr: 'Plain stat and damage lines count; most conditional lines and combat stats don’t.', points: [
-			'Demon/Archdemon bonus: inactive on known non-Demon gates. Changing it on other gates isn’t counted: card-book totals and damage by target aren’t available.',
-			'Boss race assumes damage to the gate’s listed bosses; adds aren’t reconstructed.',
-			'Stagger bonuses aren’t counted: the logs don’t give usable damage during stagger.',
-			'Not counted: HP-gated Weapon Power, speed and cooldown lines (when they applied isn’t logged).',
-			'Combat stats (Specialization, Swiftness, …) aren’t counted (what they do depends on the class).'
+		{ key: 'bracelet', label: 'Bracelet effects', kind: 'Not valued', look: bracelet, tldr: 'Plain stat and damage lines count; most conditional lines don’t.', points: [
+			'Demon/Archdemon: off on known non-Demon gates; not counted elsewhere (no card-book total or damage by target).',
+			'Boss race from the gate’s listed bosses; adds ignored.',
+			'Not counted: stagger bonuses, HP-gated Weapon Power, speed and cooldown lines (not timed in the logs).',
+			'Not counted: combat stats (Specialization, Swiftness, …).'
 		] },
 		coverage
 	];
 	const supportFactors: Factor[] = [
 		{ label: 'Buff uptime & cooldowns', kind: 'Assumed', look: blazing, tldr: 'Buff strength changes; uptime and dealers’ damage stay as recorded.', points: [
-			'Cooldown gems add no buff casts; their base attack still counts.'
+			'Cooldown gems add no buff casts; their base attack counts.'
 		] },
-		{ label: 'Ark Passive party buffs & orbs', kind: 'Assumed', look: paradise, tldr: 'Kept as recorded (not moved by gear).', points: [] },
-		{ label: 'New Destiny effects', kind: 'Not valued', look: order, tldr: 'A Destiny effect the run didn’t have isn’t counted (nothing recorded to scale).', points: [] },
+		{ label: 'Ark Passive party buffs & orbs', kind: 'Assumed', look: paradise, tldr: 'As recorded; gear doesn’t move them.', points: [] },
+		{ label: 'New Destiny effects', kind: 'Not valued', look: order, tldr: 'Not in the run, so nothing to scale.', points: [] },
 		coverage
 	];
 	const factorColumns = $derived.by(() => {
@@ -77,18 +75,14 @@
 		<section class="rounded-xs border border-surface-700/70 bg-surface-950/60 p-4">
 			<h3 class="text-sm font-semibold text-surface-100">What it simulates</h3>
 			<p class="mt-3 border-l-2 border-violet-400/70 pl-3 text-sm leading-relaxed font-medium text-surface-50">
-				<span class="block">If you played a raid run <em class="underline decoration-violet-400/70 underline-offset-4">exactly</em> like this again,</span>
-				<span class="block">with the gear changes in the simulator,</span>
-				<span class="block">{#if support}how much would your buffs add ?{:else}what DPS would it be ?{/if}</span>
+				This run, played <em class="underline decoration-violet-400/70 underline-offset-4">exactly</em> the same, with the Simulator’s gear edits: {#if support}how much party DPS do your buffs add?{:else}what would its DPS be?{/if}
 			</p>
 		</section>
 		<section class="rounded-xs border border-green-500/25 bg-green-500/5 p-4">
-			<h3 class="flex items-center gap-2 text-sm font-semibold text-green-200"><span aria-hidden="true" class="flex size-5 items-center justify-center rounded-full border border-green-400/40 text-xs">!</span>Heads up</h3>
+			<h3 class="text-sm font-semibold text-green-200">Read it as</h3>
 			<ul class="mt-3 list-disc space-y-2 pl-4 leading-relaxed text-surface-300 marker:text-green-400/60">
-				<li>Gear changes tend to move DPS by <span class="font-medium text-surface-100">only a few percent.</span></li>
-				<li>Uptime, positionals and staying alive can matter more, and <span class="font-medium text-green-200">they're free.</span></li>
-				<li>These are estimates from <span class="font-medium text-surface-100">one run;</span> real runs will vary.</li>
-				<li>Best used to <span class="font-medium text-surface-100">compare options,</span> not as a list of things to buy.</li>
+				<li>Gear moves DPS <span class="font-medium text-surface-100">a few percent;</span> uptime, positionals and staying alive often move it more.</li>
+				<li>One run’s estimate: <span class="font-medium text-surface-100">compare options with it,</span> don’t shop by it.</li>
 			</ul>
 		</section>
 	</div>
@@ -107,7 +101,7 @@
 							<span class="ml-auto shrink-0 rounded-xs border px-1.5 py-0.5 text-[10px] {factor.kind === 'Not valued' || factor.kind === 'Unverified' ? 'border-amber-500/25 bg-amber-500/5 text-amber-300' : 'border-surface-600 bg-surface-900/60 text-surface-300'}">{factor.kind}</span>
 						</summary>
 						<div class="border-t border-surface-700/80 px-4 py-4 sm:px-5">
-							<p class="{factor.points.length ? 'mb-3' : ''} border-l-2 border-amber-400/60 pl-2.5 leading-relaxed text-surface-100"><span class="mr-1 font-semibold text-amber-200">TL;DR</span> {factor.tldr}</p>
+							<p class="{factor.points.length ? 'mb-3' : ''} border-l-2 border-amber-400/60 pl-2.5 leading-relaxed text-surface-100">{factor.tldr}</p>
 							{#if factor.points.length}
 								<ul class="list-disc space-y-2.5 pl-3.5 leading-relaxed text-surface-300 marker:text-surface-500">
 									{#each factor.points as point (point)}<li class="pl-0.5">{point}</li>{/each}

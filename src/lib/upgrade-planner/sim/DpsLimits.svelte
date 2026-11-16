@@ -20,7 +20,7 @@
 	</summary>
 	<div class="space-y-2 px-3 pb-3">
 		<ul class="space-y-0.5 text-amber-200/90">
-			{#if notIn.length}<li title="Still counted in CP">Not counted: {notIn.join(', ')}</li>{/if}
+			{#if notIn.length}<li title="Still counted in CP">{notIn.join(', ')}</li>{/if}
 			{#each notes as note (note)}<li>{note}</li>{/each}
 		</ul>
 	</div>

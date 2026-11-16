@@ -607,7 +607,7 @@
 			<DpsLimits notIn={meter.notInMeter} notes={meter.notes} />
 		{:else if supMeter}<div bind:this={meterBox}><SupportMeterView meter={supMeter} color={classColor(loadout.classId) ?? 'var(--color-accent-500)'} /></div>
 			<DpsLimits notIn={supMeter.notInMeter} />
-		{:else if isSupport}<p class="text-sm text-surface-300">No buff data for this run. Re-import to read it; LOA Logs records it on newer runs.</p>{/if}
+		{:else if isSupport}<p class="text-sm text-surface-300">No buff data in this run. Re-import; newer LOA Logs versions record it.</p>{/if}
 		</div>
 		</div>
 		{/if}

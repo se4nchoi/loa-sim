@@ -279,7 +279,7 @@
 				{/each}
 			</div>
 			{#if !pending && !useCurrent && inBuild.length > onGear.length}
-				<p class="text-xs text-amber-300">{onGear.length ? '' : 'No runs on your current gear. '}On a run with other gear, press <span class="font-semibold">Simulate from this setup</span> to plan from that gear.</p>
+				<p class="text-xs text-amber-300">{onGear.length ? '' : 'No runs on your current gear. '}To plan from a run’s own gear, use its <span class="font-semibold">Simulate from this setup</span>.</p>
 			{/if}
 			<div class="flex items-center gap-3">
 				<button class="h-8 rounded-xs bg-accent-700 px-3 text-xs font-semibold text-white hover:bg-accent-600 disabled:opacity-50" disabled={!clears.length || !!busy || pending > 0} onclick={importRuns}>Import {clears.length} {clears.length === 1 ? 'run' : 'runs'}</button>
