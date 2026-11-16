@@ -58,7 +58,7 @@
 		<p class="pb-1.5 text-lg font-semibold tabular-nums {!changed ? 'text-surface-400' : pct > 0 ? 'text-green-400' : 'text-red-400'}">
 			{#if changed}{after >= before ? '+' : ''}{formatDamage(after - before)} <span class="text-sm font-normal">({formatPct(pct)}%)</span>{:else}±0{/if}
 		</p>
-		<button type="button" class="ml-auto self-start text-xs text-surface-400 underline underline-offset-2 hover:text-surface-100" onclick={() => (reporting = true)}>Report numbers</button>
+		<button type="button" class="ml-auto self-start text-xs text-surface-400 underline underline-offset-2 hover:text-surface-100" onclick={() => (reporting = true)}>Feels off ? Report it →</button>
 	</div>
 
 	<ul class="flex flex-col gap-1" aria-label="Skills">

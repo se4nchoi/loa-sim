@@ -24,7 +24,7 @@
 	// Checked on the runs in the author's own encounters (theirs and their parties'); the thinnest classes are named.
 	const coverage: Factor = { label: 'Class coverage', kind: 'Unverified', tldr: 'Checked on the author’s own encounters.', points: [
 		'Fewest runs checked: Machinist, Reaper, Destroyer, Dimensionalist, Glaivier.'
-	], link: { label: 'Send a lostark.bible log' } };
+	], link: { label: 'Feels off ? Report it →' } };
 	const dealerFactors: Factor[] = [
 		{ key: 'cores', label: 'Order core swaps', kind: 'Not valued', look: order, tldr: 'A swap is another build. Upgrades on the same cores (Relic → Ancient) count.', points: [
 			'Other cores play another rotation and other Destinies; this run can’t show them.',

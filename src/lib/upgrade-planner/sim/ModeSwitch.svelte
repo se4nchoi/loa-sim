@@ -55,8 +55,8 @@
 		<!-- pt-2, not a margin: the pointer crosses into the note without leaving the switch. -->
 		<div class="absolute top-full right-0 z-40 pt-2">
 		<div role="status" class="flex w-max max-w-[min(20rem,calc(100vw-2rem))] items-center gap-2 rounded-xs border border-amber-400/40 bg-surface-900 py-1.5 pr-1.5 pl-3 text-xs text-surface-200 shadow-lg shadow-black/50">
-			<span><span class="font-semibold text-amber-300">Beta</span> · Numbers look off?</span>
-			<button type="button" class="{btn} h-7 px-2 text-xs" onclick={() => (reporting = true)}>Report</button>
+			<span class="font-semibold text-amber-300">Beta</span>
+			<button type="button" class="{btn} h-7 px-2 text-xs" onclick={() => (reporting = true)}>Feels off ? Report it →</button>
 			<button type="button" class="flex size-7 shrink-0 items-center justify-center rounded-xs text-surface-400 hover:bg-surface-800 hover:text-surface-50" onclick={closeNote} aria-label="Close" title="Close">×</button>
 		</div>
 		</div>
