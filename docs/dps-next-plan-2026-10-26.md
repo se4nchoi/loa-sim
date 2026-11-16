@@ -107,6 +107,24 @@ supports the buff split and core lines. Wanted: Summoner (Phoenix / Akir / Marir
 Bleeding), a support with Echoing Steel or Echoing Death (their debuff buff ids → `support-meter.ts`
 `gearDebuffFactor`), a Sorceress on the Reflux / Casting Control cores.
 
+### 6. Stacks over time instead of full stacks (noted 11-16; user fixes it)
+
+Today Adrenaline, Ether Predator and stacking bracelet Weapon Power count at full stacks on every hit:
+engraving edits scale every hit by the full-stack table value (`dps-meter.ts` `damageParts`), and the bracelet's "On
+hit, Weapon Power +X" is X × max stacks as permanent Weapon Power (`dps-stats.ts` `braceletPart`). That overstates a
+gain by the run's ramp-up: fight start, after a death, long downtime (phase transitions, invulnerable windows).
+
+- Rebuild stacks from the run's hit timeline: each hit (or pickup) adds a stack up to the cap; stacks expire after the
+  effect's duration without a refresh. Same idea as the per-cast Order core replay already in the Limits list.
+- Logs: each `ReplayHit` has `timestamp` and `buffedBy`. Adrenaline shows as buff ids 521713 / 521733 / 521753
+  (presence, probably not the stack count). The bracelet stacks and Ether Predator likely don't show as their own
+  buffs, so rebuild them from the rules.
+- Import: the worker walks each run's hits once and stores each skill's damage share by stack level (the hit timeline
+  isn't kept after import). Meter: an upgrade applies by stack level (3 of 6 Adrenaline stacks gets half the change).
+- Runs imported before this keep full stacks until re-imported; say so in the Limits "Stacked buffs" card.
+- Expected effect: small (a gain of +2.0% → ~+1.9%), larger for Ether Predator on runs with deaths. Measure the
+  stack-weighted share on real runs first.
+
 ## Tools already in the repo
 
 - `src/lib/dev/dps-backtest.ts`: `coverage(file, player, loadout, newest)` (each run's setup → current gear: what's not
