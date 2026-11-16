@@ -11,6 +11,7 @@ import { clearSnapshot, orderCoreKey } from '$lib/upgrade-planner/clear-snapshot
 import { clearState } from '$lib/upgrade-planner/clear-state';
 import { dpsMeter, statValueRuns } from '$lib/upgrade-planner/dps-meter';
 import { orderCoreEffect } from '$lib/upgrade-planner/ark-grid-dps';
+import { loadOrderCores } from '$lib/upgrade-planner/order-cores';
 import type { SimState } from '$lib/upgrade-planner/simulate';
 import type { Loadout } from '$lib/upgrade-planner/types';
 
@@ -39,6 +40,8 @@ const perHit = (run: RunSummary) =>
 export async function coverage(file: File, player: string, loadout: Loadout, newest = 200): Promise<{ runs: number; snapshots: number; failed: number; counts: Record<string, number> }> {
 	const { supportMeter } = await import('$lib/upgrade-planner/support-meter');
 	const { initSimState } = await import('$lib/upgrade-planner/simulate');
+	// The class's Order cores load on demand (order-cores.ts); without them every core reads as unknown.
+	await loadOrderCores(loadout.classId);
 	const reader = new LoaLogsReader();
 	try {
 		// The newest runs only: each gear snapshot is one request to Mathi's API (cached after).
@@ -79,6 +82,7 @@ export async function coverage(file: File, player: string, loadout: Loadout, new
 }
 
 export async function backtest(file: File, player: string, loadout: Loadout, opts: { maxPairs?: number } = {}): Promise<BacktestPair[]> {
+	await loadOrderCores(loadout.classId);
 	const reader = new LoaLogsReader();
 	try {
 		const theirs = (await reader.open(file)).filter((e) => e.player === player && e.duration > 0 && e.cleared === true);

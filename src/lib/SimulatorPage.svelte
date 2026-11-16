@@ -11,6 +11,7 @@
 	import { loadCharacter } from '$lib/load-character';
 	import { track } from '$lib/stats';
 	import { untrack } from 'svelte';
+	import { useNavMode } from '$lib/nav-mode.svelte';
 	import { formatDateTime } from '$lib/upgrade-planner/format';
 
 	/** CP or DPS: the same simulator, DPS adds a clear from the player's logs and its meter. Kept in the address. */
@@ -21,6 +22,8 @@
 		else url.searchParams.delete('mode');
 		void goto(url, { replaceState: true, keepFocus: true, noScroll: true });
 	}
+	// The switch is in the top bar, while a character is on screen.
+	$effect(() => useNavMode(saved ? { dpsMode: mode === 'dps', onmode: setMode } : null));
 
 	// Shared links also load characters this browser hasn't saved yet.
 	let switched = $state<ReturnType<typeof loadSavedCharacter>>(null);
@@ -147,7 +150,7 @@
 {:else if saved}
  {#if build}<div class="mb-3 flex flex-wrap items-center gap-3 text-sm"><span class="font-semibold text-accent-200">Build: {build.name}</span><a class="text-surface-300 underline" href={`/sim?c=${encodeURIComponent(characterKey(saved))}`}>Back to character</a></div>
  {:else if buildId}<p class="mb-3 text-sm text-surface-300">This saved build is no longer available. Showing your character.</p>{/if}
-	<CharacterSwitcher current={characterKey(saved)} dpsMode={mode === 'dps'} onmode={setMode} />
+	<CharacterSwitcher current={characterKey(saved)} dpsMode={mode === 'dps'} />
 	{#key `${saved.region}/${saved.name}:${build?.id ?? "character"}`}
 		<CharacterView dpsMode={mode === 'dps'} initialBuild={build} name={saved.name} region={saved.region} {subtitle} itemLevel={build ? build.loadout.itemLevel : saved.header?.ilvl} loadout={saved.loadout}
 			cpDistribution={build ? null : saved.cpDistribution}

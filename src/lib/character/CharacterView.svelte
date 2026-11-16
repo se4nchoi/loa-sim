@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Simulator } from '$lib/upgrade-planner';
-	import ModeSwitch from '$lib/upgrade-planner/sim/ModeSwitch.svelte';
 	import Spinner from '$lib/upgrade-planner/sim/Spinner.svelte';
 	import { untrack } from 'svelte';
 	import { initSimState, type SimState } from '$lib/upgrade-planner/simulate';
@@ -17,7 +16,6 @@
 
 	let {
 		dpsMode = false,
-		onmode,
 		initialBuild,
 		sharedBuild = false,
 		sharedDps,
@@ -38,7 +36,6 @@
 		onreload
 	}: {
 		dpsMode?: boolean;
-		onmode?: (mode: 'cp' | 'dps') => void;
 		initialBuild?: import('$lib/upgrade-planner/saved-simulations').SavedSimulation;
 		sharedBuild?: boolean;
 		/** A shared DPS build's run: the DPS panel shows it instead of this browser's logs. */
@@ -207,7 +204,7 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<!-- The character on the left; CP / DPS on the right, up here so opening the DPS sim below never moves it. -->
+<!-- The character (CP / DPS is in the top bar, nav-mode.svelte.ts). -->
 <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
 <!-- Takes the row's free space: the snapshot and plan pickers fill up to their max width, and their menus fit them. -->
 <div class="flex min-w-0 flex-1 flex-col gap-1">
@@ -258,7 +255,6 @@
 		</div>
 	{/if}
 </div>
-	{#if onmode && loadout}<div class="shrink-0"><ModeSwitch {dpsMode} {onmode} /></div>{/if}
 </div>
 {#if !loadout}
 	<p class="text-surface-300">This character has no Ark Passive loadout with combat power data yet.</p>
@@ -277,6 +273,6 @@
 			</div>
 		{/if}
 		{#if DpsModePanel && dpsMode && simulation && (!sharedBuild || sharedDps)}<DpsModePanel shared={sharedBuild ? sharedDps : undefined} {loadout} simState={simulation} characterKey={`${region}/${name}`.toLowerCase()} characterName={name} snapshots={snapshotOptions} onsimulate={(s) => (simulation = s)} />{/if}
-		{#if simulation}<Simulator {dpsMode} {onmode} bind:planStats restoreInitial={sharedBuild} initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
+		{#if simulation}<Simulator {dpsMode} bind:planStats restoreInitial={sharedBuild} initialState={initialBuild?.state} workspaceKey={initialBuild ? `${region}/${name}:build:${initialBuild.id}`.toLowerCase() : undefined} bind:sim={simulation} bind:edited {loadout} {cpDistribution} characterName={name} characterKey={`${region}/${name}`.toLowerCase()} />{/if}
 	</div>
 {/if}

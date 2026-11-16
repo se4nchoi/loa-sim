@@ -6,16 +6,14 @@
 	import { ordered, readOrder } from '$lib/character-order';
 	import { cachedRoster, hiddenRosterKeys } from '$lib/bible-oauth';
 	import { characterKey, listSavedCharacters, type SavedCharacter } from '$lib/saved-character';
-	import ModeSwitch from '$lib/upgrade-planner/sim/ModeSwitch.svelte';
 	import { classIconUrl } from '$lib/upgrade-planner/class-icons';
 	import { hasStoredRuns } from '$lib/logs/runs-store.svelte';
 
-	let { current, dpsMode = false, onmode }: {
+	let { current, dpsMode = false }: {
 		/** Key of the character on screen ("na/soulshan"). */
 		current: string;
 		/** In DPS mode now: kept for a character with runs in this browser. */
 		dpsMode?: boolean;
-		onmode: (mode: 'cp' | 'dps') => void;
 	} = $props();
 
 	// Read from this browser's storage; recomputed when the shown character changes.
@@ -37,10 +35,10 @@
 </script>
 
 <div class="mb-4 flex flex-col gap-2">
-	<!-- One row: character chips scroll sideways, the CP / DPS switch stays put (own row on phones). -->
+	<!-- One row: character chips scroll sideways. -->
 	<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 		{#if lists.chips.length > 1}
-			<!-- No visible scrollbar (it would make the row taller than the switch); the mouse wheel scrolls sideways. -->
+			<!-- No visible scrollbar (it would make the row taller); the mouse wheel scrolls sideways. -->
 			<div
 				class="flex min-w-0 flex-1 flex-row items-center gap-2 overflow-x-auto [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
 				aria-label="Your characters"
@@ -68,6 +66,5 @@
 			{/each}
 			</div>
 		{/if}
-		<div class="shrink-0 self-end sm:ml-auto"><ModeSwitch {dpsMode} {onmode} /></div>
 	</div>
 </div>

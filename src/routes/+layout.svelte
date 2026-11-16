@@ -5,6 +5,8 @@
 	import { installTouchTips } from '$lib/touch-tips';
 	import { loadSavedCharacter } from '$lib/saved-character';
 	import MovedNotice from '$lib/MovedNotice.svelte';
+	import ModeSwitch from '$lib/upgrade-planner/sim/ModeSwitch.svelte';
+	import { navMode } from '$lib/nav-mode.svelte';
 	import { KOFI_URL } from '$lib/site-news';
 	import '../app.css';
 	// The Latin Geist file the stylesheet uses: preloaded so text isn't held back until the CSS has been parsed.
@@ -44,18 +46,20 @@
 	<!-- Fixed height: the phone CP bar docks right under it (top-12). -->
 	<header class="sticky top-0 z-50 h-12 bg-neutral-900/80 shadow-sm shadow-neutral-800 backdrop-blur">
 		<nav class="mx-auto flex h-full max-w-[1680px] items-stretch gap-1 px-3 text-sm font-semibold sm:px-4">
-			<a href="/" class="mr-2 flex items-center text-base whitespace-nowrap hover:opacity-80 sm:mr-4">loa-sim</a>
+			<a href="/" class="mr-1 flex items-center text-base whitespace-nowrap hover:opacity-80 max-sm:text-sm sm:mr-4">loa-sim</a>
 			{#each tabs as t (t.href)}
 				{@const on = t.active(page.url.pathname)}
 				<a
 					href={t.href !== '/' && page.url.searchParams.has('c') ? `${t.href}?c=${encodeURIComponent(page.url.searchParams.get('c')!)}` : t.href}
 					onclick={(event) => openTab(event, t.href)}
-					class="flex items-center border-b-2 px-2 transition sm:px-3 {on ? 'border-accent-500 text-surface-50' : 'border-transparent text-surface-300 hover:text-surface-50'}"
+					class="flex items-center border-b-2 px-2 transition max-sm:px-1.5 sm:px-3 {on ? 'border-accent-500 text-surface-50' : 'border-transparent text-surface-300 hover:text-surface-50'}"
 					aria-current={on ? 'page' : undefined}
 				>
 					{t.label}
 				</a>
 			{/each}
+			<!-- CP / DPS for the character on screen (nav-mode.svelte.ts): only on pages that simulate one. -->
+			{#if navMode.current}<div class="ml-auto flex shrink-0 items-center"><ModeSwitch dpsMode={navMode.current.dpsMode} onmode={navMode.current.onmode} /></div>{/if}
 		</nav>
 	</header>
 	<div role="status" aria-live="polite" aria-atomic="true" class="pointer-events-none fixed top-14 left-1/2 z-[60] -translate-x-1/2">

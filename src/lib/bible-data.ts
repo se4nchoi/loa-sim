@@ -27,10 +27,14 @@ export interface CharacterData {
 export const bibleDataUrl = (region: string, name: string) =>
 	`https://lostark.bible/character/${encodeURIComponent(region)}/${encodeURIComponent(name)}/__data.json?x-sveltekit-invalidated=011`;
 
-/** A loadout snapshot LOA Logs links each clear to ("v3/<64 hex>", its `loadout_hash`). */
-export const isSnapshotHash = (hash: string) => /^v\d{1,2}\/[0-9a-f]{64}$/.test(hash);
+/**
+ * A loadout snapshot LOA Logs links each clear to ("v3/<64 hex>", its `loadout_hash`) that we can read. Runs from before
+ * late March 2026 carry v1/v2 hashes, which Mathi's loadout API doesn't serve: those count as runs without a snapshot,
+ * so the loaded gear stands in instead of an error.
+ */
+export const isSnapshotHash = (hash: string) => /^v3\/[0-9a-f]{64}$/.test(hash);
 export const bibleSnapshotUrl = (hash: string) => {
-	if (!isSnapshotHash(hash) || !hash.startsWith('v3/')) throw new Error('Unsupported snapshot version');
+	if (!isSnapshotHash(hash)) throw new Error('Unsupported snapshot version');
 	return `https://loadout.mathi.moe/v3/loadouts/by-hash/${hash.slice(3)}`;
 };
 export const bibleSnapshotPage = (hash: string) => `https://lostark.bible/character/snapshot/${hash}`;

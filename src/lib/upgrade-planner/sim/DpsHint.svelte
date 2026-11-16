@@ -3,6 +3,7 @@
 	import { PARADISE_ORBS } from '../game-data';
 	import { engravingIcon, iconUrl, itemLook, t4GemId, type ItemLook } from '../icons';
 	import ItemIcon from './ItemIcon.svelte';
+	import ReportDialog from '$lib/ReportDialog.svelte';
 	import type { DpsLimitKey } from '../dps-limit-link.svelte';
 
 	let { support = false, ondismiss }: { support?: boolean; ondismiss: () => void } = $props();
@@ -17,11 +18,13 @@
 	// Use the latest dealer orb in the game's table, rather than a past season's or support orb.
 	const latestDealerOrb = Object.entries(PARADISE_ORBS).filter(([, orb]) => !orb.support).sort(([a], [b]) => Number(b) - Number(a))[0]?.[1];
 	const paradise: ItemLook = { icon: iconUrl(latestDealerOrb?.icon), grade: latestDealerOrb?.grade, name: latestDealerOrb?.name };
-	type Factor = { key?: DpsLimitKey; label: string; kind: 'Not valued' | 'Assumed' | 'Unverified'; look?: ItemLook; tldr: string; points: string[]; link?: { href: string; label: string } };
+	type Factor = { key?: DpsLimitKey; label: string; kind: 'Not valued' | 'Assumed' | 'Unverified'; look?: ItemLook; tldr: string; points: string[]; link?: { label: string } };
+	/** "Send a log": the site's own report dialog, like the beta note's Report. */
+	let sendingLog = $state(false);
 	// Checked on the runs in the author's own encounters (theirs and their parties'); the thinnest classes are named.
 	const coverage: Factor = { label: 'Class coverage', kind: 'Unverified', tldr: 'Checked on the author’s own encounters.', points: [
 		'Fewest runs checked: Machinist, Reaper, Destroyer, Dimensionalist, Glaivier.'
-	], link: { href: 'https://github.com/se4nchoi/loa-sim/issues/new?title=DPS%20sim%20log', label: 'Send a lostark.bible log' } };
+	], link: { label: 'Send a lostark.bible log' } };
 	const dealerFactors: Factor[] = [
 		{ key: 'cores', label: 'Order core swaps', kind: 'Not valued', look: order, tldr: 'A swap is another build. Upgrades on the same cores (Relic → Ancient) count.', points: [
 			'Other cores play another rotation and other Destinies; this run can’t show them.',
@@ -107,7 +110,7 @@
 									{#each factor.points as point (point)}<li class="pl-0.5">{point}</li>{/each}
 								</ul>
 							{/if}
-							{#if factor.link}<a href={factor.link.href} target="_blank" rel="noopener" class="mt-3 inline-block text-accent-300 underline underline-offset-2 hover:text-accent-200">{factor.link.label} ↗</a>{/if}
+							{#if factor.link}<button type="button" class="mt-3 inline-block text-accent-300 underline underline-offset-2 hover:text-accent-200" onclick={() => (sendingLog = true)}>{factor.link.label}</button>{/if}
 						</div>
 					</details>
 				</li>
@@ -120,3 +123,4 @@
 		<button type="button" class="h-10 min-w-40 rounded-xs bg-accent-700 px-6 text-sm font-semibold text-white hover:bg-accent-600" onclick={ondismiss}>Got it</button>
 	</div>
 </aside>
+{#if sendingLog}<ReportDialog kind="data" title="DPS sim log" bodyHint="The lostark.bible log link (lostark.bible/logs/…), and anything that looks off in it." onclose={() => (sendingLog = false)} />{/if}

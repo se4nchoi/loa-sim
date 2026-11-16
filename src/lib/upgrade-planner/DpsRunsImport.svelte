@@ -1,7 +1,8 @@
 <!--
-	Imports one character's runs from the player's LOA Logs encounters.db into this browser, in three steps: the file,
-	which runs, and which Ark Grid build (the runs' Order cores, read off each run's gear snapshot).
-	The file is read locally in a worker; only compact per-run summaries are kept.
+	Imports one character's runs from the player's LOA Logs encounters.db into this browser, in stages: the file, which
+	runs (read from the file alone), then, once those are confirmed, their builds and gear: each picked run's gear snapshot
+	is fetched only at that point, so a pick of 25 runs costs at most 25 snapshot requests. Then the build, the gear match
+	and the import. The file is read locally in a worker; only compact per-run summaries are kept.
 -->
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
@@ -48,11 +49,19 @@
 		(outcome === 'all' || outcome === 'clear' && e.cleared === true || outcome === 'failed' && e.cleared === false))
 		.toSorted((a, b) => b.start - a.start));
 
-	// Each picked run's build (gear snapshot hash, Order core grades, spec), read from the file once step 2 picks the runs
-	// (the listing leaves them out: reading them for every run in the file is what made opening it slow).
+	/** The runs step 2 picks: the newest that match. Steps 3 and 4 only narrow these. */
+	const candidates = $derived(ranged.slice(0, maxRuns));
+	// Step 2's pick is confirmed with Continue; changing it goes back to step 2, so nothing is read or fetched for runs
+	// the player is still choosing between.
+	const pickKey = $derived(`${player}|${weeks}|${outcome}|${maxRuns}`);
+	let confirmed = $state('');
+	const staged = $derived(!!encounters && confirmed === pickKey && candidates.length > 0);
+
+	// Each picked run's build (gear snapshot hash, Order core grades, spec), read from the file after Continue (the
+	// listing leaves them out: reading them for every run in the file is what made opening it slow).
 	let gearById = $state<Record<number, RunGear>>({});
 	let gearKey = $state('');
-	const missingHashes = $derived(ranged.filter((e) => !(e.id in gearById)).map((e) => e.id));
+	const missingHashes = $derived(staged ? candidates.filter((e) => !(e.id in gearById)).map((e) => e.id) : []);
 	$effect(() => {
 		const ids = missingHashes, who = player, key = `${who}:${ids.join(',')}`;
 		if (!ids.length || !reader || untrack(() => gearKey) === key) return;
@@ -76,7 +85,8 @@
 	const hashOf = (e: EncounterRow) => { const h = gearById[e.id]?.hash; return h && isSnapshotHash(h) ? h : null; };
 	/** Builds change rarely; past this many distinct snapshots the rest count as unknown. */
 	const MAX_SNAPSHOTS = 40;
-	const hashes = $derived([...new Set(ranged.map(hashOf).filter((h): h is string => !!h))].slice(0, MAX_SNAPSHOTS));
+	// Only once the runs' gear is read: the snapshots are the last thing fetched.
+	const hashes = $derived(staged && !missingHashes.length ? [...new Set(candidates.map(hashOf).filter((h): h is string => !!h))].slice(0, MAX_SNAPSHOTS) : []);
 	const pending = $derived(hashes.filter((h) => !(h in snapCores)).length + (missingHashes.length || !coreModel ? 1 : 0));
 	$effect(() => {
 		const all = hashes;
@@ -113,7 +123,7 @@
 	// that spec's runs with a fitting snapshot used most.
 	const specCores = $derived.by(() => {
 		const counts = new Map<string, Map<string, number>>();
-		for (const e of ranged) {
+		for (const e of candidates) {
 			const c = ownCores(e), spec = gearById[e.id]?.spec ?? '';
 			if (c === null) continue;
 			const m = counts.get(spec) ?? counts.set(spec, new Map()).get(spec)!;
@@ -138,7 +148,7 @@
 			.map((c) => ({ ...c, grade: c.shape ? order?.[c.shape] : undefined }));
 	const builds = $derived.by(() => {
 		const groups = new Map<string, EncounterRow[]>();
-		for (const e of ranged) (groups.get(buildOf(e)) ?? groups.set(buildOf(e), []).get(buildOf(e))!).push(e);
+		for (const e of candidates) (groups.get(buildOf(e)) ?? groups.set(buildOf(e), []).get(buildOf(e))!).push(e);
 		return [...groups].map(([key, runs]) => ({
 			key, count: runs.length, newest: runs[0].start,
 			spec: key === UNKNOWN ? null : key.split(SEP)[1] || null,
@@ -150,7 +160,7 @@
 	// Default: the loadout's cores, in the spec played most on them.
 	const current = $derived(known.filter((b) => coresOf(b.key) === cores).toSorted((a, b) => b.count - a.count)[0]?.key);
 	const picked = $derived(build ?? current ?? 'all');
-	const inBuild = $derived(ranged.filter((e) => picked === 'all' || buildOf(e) === picked));
+	const inBuild = $derived(candidates.filter((e) => picked === 'all' || buildOf(e) === picked));
 	// Step 4. A run on the loaded gear: its own snapshot (one that is the setup played) has this gear and gems, so the
 	// meter's edits are upgrades from now. Other runs are replayed with today's gear: from them, plans start at "Simulate
 	// from this setup".
@@ -158,7 +168,7 @@
 	const onGear = $derived(inBuild.filter(onCurrentGear));
 	let gearPick = $state<'current' | 'all' | null>(null);
 	const useCurrent = $derived((gearPick ?? (onGear.length ? 'current' : 'all')) === 'current' && onGear.length > 0);
-	const clears = $derived((useCurrent ? onGear : inBuild).slice(0, maxRuns));
+	const clears = $derived(useCurrent ? onGear : inBuild);
 
 	async function open(e: Event) {
 		const file = (e.currentTarget as HTMLInputElement).files?.[0];
@@ -172,6 +182,7 @@
 			const own = players.find(([name]) => name.toLowerCase() === characterName.toLowerCase());
 			player = own?.[0] ?? players[0]?.[0] ?? '';
 			build = null;
+			confirmed = '';
 			gearById = {};
 			gearKey = '';
 		} catch (err) {
@@ -233,14 +244,19 @@
 				<div><Segmented label="Newest" size={chip} value={maxRuns} options={[10, 25, 50, 100, 200].map((n) => ({ value: n, label: String(n) }))} onselect={(v) => (maxRuns = v)} /></div>
 			</div>
 			{#if player && player.toLowerCase() !== characterName.toLowerCase()}<p class="text-xs text-amber-300">{player} isn't {characterName}.</p>{/if}
+			<div class="flex items-center gap-3">
+				<button class="h-8 rounded-xs px-3 text-xs font-semibold transition disabled:opacity-50 {staged ? 'border border-surface-700 bg-surface-900 text-surface-400' : 'bg-accent-700 text-white hover:bg-accent-600'}" disabled={!candidates.length || staged} onclick={() => ((confirmed = pickKey), (build = null), (gearPick = null))}>Continue with {candidates.length} {candidates.length === 1 ? 'run' : 'runs'}</button>
+				{#if staged && missingHashes.length}<span class="flex items-center gap-2 text-xs text-surface-300" role="status"><Spinner class="size-3.5 text-accent-400" />Reading their gear…</span>
+				{:else if staged && pending}<span class="flex items-center gap-2 text-xs text-surface-300" role="status"><Spinner class="size-3.5 text-accent-400" />Loading gear snapshots… {hashes.length - pending}/{hashes.length}</span>{/if}
+			</div>
 		{/if}
 	</section>
 
 	<section class="space-y-2">
-		{@render step(3, 'Pick the Ark Grid build', !!encounters)}
-		{#if encounters}
+		{@render step(3, 'Pick the Ark Grid build', staged)}
+		{#if staged}
 			<div class="space-y-1.5" role="radiogroup" aria-label="Ark Grid build">
-				{#each [{ key: 'all', count: ranged.length }, ...builds] as b (b.key)}
+				{#each [{ key: 'all', count: candidates.length }, ...builds] as b (b.key)}
 					{@const on = picked === b.key}
 					<button type="button" role="radio" aria-checked={on} disabled={b.key === UNKNOWN}
 						class="flex w-full items-center gap-2 rounded-xs border px-2.5 py-1.5 text-left text-xs transition {on ? 'border-accent-600 bg-accent-700/15 text-surface-100' : 'border-surface-700 bg-surface-950 text-surface-300 hover:border-surface-500'} disabled:cursor-default disabled:opacity-60"
@@ -265,8 +281,8 @@
 	</section>
 
 	<section class="space-y-2">
-		{@render step(4, 'Match your gear', !!encounters)}
-		{#if encounters}
+		{@render step(4, 'Match your gear', staged)}
+		{#if staged}
 			<div class="grid gap-1.5 sm:grid-cols-2" role="radiogroup" aria-label="Runs by gear">
 				{#each [{ key: 'current', label: 'On my current gear', count: onGear.length }, { key: 'all', label: 'All runs', count: inBuild.length }] as o (o.key)}
 					{@const on = (o.key === 'current') === useCurrent}
@@ -283,8 +299,6 @@
 			{/if}
 			<div class="flex items-center gap-3">
 				<button class="h-8 rounded-xs bg-accent-700 px-3 text-xs font-semibold text-white hover:bg-accent-600 disabled:opacity-50" disabled={!clears.length || !!busy || pending > 0} onclick={importRuns}>Import {clears.length} {clears.length === 1 ? 'run' : 'runs'}</button>
-				{#if missingHashes.length}<span class="flex items-center gap-2 text-xs text-surface-300" role="status"><Spinner class="size-3.5 text-accent-400" />Reading gear for {ranged.length.toLocaleString()} {ranged.length === 1 ? 'run' : 'runs'}…</span>
-				{:else if pending}<span class="flex items-center gap-2 text-xs text-surface-300" role="status"><Spinner class="size-3.5 text-accent-400" />Loading gear snapshots… {hashes.length - pending}/{hashes.length}</span>{/if}
 			</div>
 		{/if}
 	</section>

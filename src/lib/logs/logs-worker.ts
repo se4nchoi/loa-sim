@@ -116,11 +116,20 @@ async function encounterTable() {
 
 // Every run in the file, without gear snapshots: those sit after the big skill columns of each entity row, so reading
 // them for every run took ~14 s on a 1.4 GB file (vs ~30 ms for this list). runGear reads them for picked runs only.
-async function listEncounters(): Promise<EncounterRow[]> {
+// With `ids`, only those runs (newest first, like the full list): the importers no longer list the whole file each time.
+async function listEncounters(ids?: number[]): Promise<EncounterRow[]> {
 	const table = await encounterTable();
-	const rows = await query(
-		`SELECT id, fight_start AS start, current_boss AS boss, difficulty, cleared, local_player AS player, duration FROM ${table} e ORDER BY fight_start DESC`
-	);
+	const columns = `SELECT id, fight_start AS start, current_boss AS boss, difficulty, cleared, local_player AS player, duration FROM ${table} e`;
+	let rows: Record<string, unknown>[];
+	if (!ids) rows = await query(`${columns} ORDER BY fight_start DESC`);
+	else {
+		rows = [];
+		for (let i = 0; i < ids.length; i += 200) {
+			const chunk = ids.slice(i, i + 200);
+			rows.push(...(await query(`${columns} WHERE id IN (${chunk.map(() => '?').join(',')})`, chunk)));
+		}
+		rows.sort((a, b) => Number(b.start) - Number(a.start));
+	}
 	return rows.map((r) => ({
 		id: Number(r.id),
 		start: Number(r.start),
@@ -252,8 +261,7 @@ async function statValues(player: string, ids: number[]): Promise<StatValues | n
 }
 
 async function replayRuns(player: string, ids: number[]): Promise<ReplayRun[]> {
-	const wanted = new Set(ids);
-	const encounters = (await listEncounters()).filter(r => wanted.has(r.id));
+	const encounters = await listEncounters(ids);
 	const columns = new Set((await query(`SELECT name FROM pragma_table_info('entity')`)).map(r => r.name));
 	const miscColumns = new Set((await query(`SELECT name FROM pragma_table_info('encounter')`)).map(r => r.name));
 	const cp = columns.has('combat_power') ? 'combat_power' : 'NULL';
@@ -282,8 +290,7 @@ async function replayRuns(player: string, ids: number[]): Promise<ReplayRun[]> {
 
 /** Compact summaries of these runs for the DPS tab. Only the columns it needs; no hit traces. */
 async function runSummaries(player: string, ids: number[]) {
-	const wanted = new Set(ids);
-	const encounters = (await listEncounters()).filter(r => wanted.has(r.id));
+	const encounters = await listEncounters(ids);
 	const columns = new Set((await query(`SELECT name FROM pragma_table_info('entity')`)).map(r => r.name));
 	const pick = (name: string) => columns.has(name) ? name : `NULL AS ${name}`;
 	const entityColumns = columns;
@@ -318,23 +325,32 @@ async function runSummaries(player: string, ids: number[]) {
 		// How far the fight got: the boss's HP at the end, and every player's damage (for this player's share of it).
 		let bossHp: { left: number; max: number } | undefined;
 		let partyDamage: number | undefined;
-		if (entityColumns.has('max_hp') && entityColumns.has('current_hp')) try {
-			const [boss] = await query(`SELECT current_hp, max_hp FROM entity WHERE encounter_id = ? AND name = ? AND entity_type = 'BOSS'`, [row.id, row.boss]);
-			if (boss && Number(boss.max_hp) > 0) bossHp = { left: Math.max(0, Number(boss.current_hp) || 0), max: Number(boss.max_hp) };
+		// The boss and every player in one read: these columns sit before the large skill data in each row, so it's cheap.
+		let others: Record<string, unknown>[] = [];
+		try {
+			others = await query(`SELECT name, entity_type, ${pick('class')}, ${pick('is_dead')}, ${pick('current_hp')}, ${pick('max_hp')} FROM entity WHERE encounter_id = ? AND entity_type IN ('PLAYER', 'BOSS')`, [row.id]);
 		} catch { /* old logs */ }
+		const partyRows = others.filter((r) => r.entity_type === 'PLAYER');
+		if (entityColumns.has('max_hp') && entityColumns.has('current_hp')) {
+			const boss = others.find((r) => r.entity_type === 'BOSS' && r.name === row.boss);
+			if (boss && Number(boss.max_hp) > 0) bossHp = { left: Math.max(0, Number(boss.current_hp) || 0), max: Number(boss.max_hp) };
+		}
 		// The encounter's total_damage_dealt is every player's damage summed (checked against their damage_stats).
 		if (Number(encounter?.total_damage_dealt) > 0) partyDamage = Number(encounter!.total_damage_dealt);
 		// How many players were down at the end (a cheap column; reading each death record would slow the import a lot).
 		let dead: { count: number; of: number } | undefined;
-		if (entityColumns.has('is_dead')) try {
-			const [counts] = await query(`SELECT SUM(is_dead) AS dead, COUNT(*) AS n FROM entity WHERE encounter_id = ? AND entity_type = 'PLAYER'`, [row.id]);
-			if (Number(counts?.n) > 0) dead = { count: Number(counts.dead) || 0, of: Number(counts.n) };
-		} catch { /* old logs */ }
+		if (entityColumns.has('is_dead') && partyRows.length) dead = { count: partyRows.reduce((n, r) => n + (Number(r.is_dead) || 0), 0), of: partyRows.length };
 		// A support: what their buffs added to each dealer (from the contribution splits in misc) and the buffs' uptime.
 		let support: ReturnType<typeof supportRunOf> = null;
 		if (SUPPORT_CLASSES.has(String(entity.class))) try {
-			const players = await query(`SELECT name, class, ${pick('damage_stats')} FROM entity WHERE encounter_id = ? AND entity_type = 'PLAYER'`, [row.id]);
-			const classes = new Map(players.map((r) => [String(r.name), String(r.class)]));
+			const classes = new Map(partyRows.map((r) => [String(r.name), String(r.class)]));
+			// damage_stats sits after each player's large skill data, so it's read only for the players the support's buffs
+			// gave damage to (the ones supportRunOf asks an uptime for), not the whole raid.
+			const splits = (misc as { contributionSplits?: Record<string, { name?: string; partyNumber?: number; damageSplitByName?: Record<string, number> }> } | null)?.contributionSplits;
+			const helped = [...new Set(Object.values(splits ?? {}).flatMap((v) => (v?.name && v.name !== player && (v.partyNumber ?? -1) >= 0 && Number(v.damageSplitByName?.[player]) > 0 ? [v.name] : [])))];
+			const players = helped.length && entityColumns.has('damage_stats')
+				? await query(`SELECT name, damage_stats FROM entity WHERE encounter_id = ? AND entity_type = 'PLAYER' AND name IN (${helped.map(() => '?').join(',')})`, [row.id, ...helped])
+				: [];
 			// Each dealer's uptime on the support's buffs: their damage under them (LOA Logs' buffedBySupport, …) over all of it.
 			const uptimes = new Map<string, { attack: number; brand: number; identity: number; hyper: number }>();
 			for (const r of players) try {

@@ -4,6 +4,7 @@
 	import { normalizeName } from '$lib/bible-data';
 	import { formatDate } from '$lib/upgrade-planner/format';
 	import { raidGateOf } from '$lib/logs/raids';
+	import { useNavMode } from '$lib/nav-mode.svelte';
 	let {data} = $props();
 	const plan = $derived(data.shared.plan);
 	const region = $derived(plan.characterKey.split('/')[0].toUpperCase());
@@ -11,6 +12,7 @@
  const cp = $derived(data.shared.calculatedCp ?? data.shared.originalCp);
 	// A DPS build opens on its run; the switch goes back to CP. Builds without a run stay CP only.
 	let mode = $state<'cp' | 'dps'>(untrack(() => (data.shared.plan.dps ? 'dps' : 'cp')));
+	$effect(() => useNavMode(plan.dps ? { dpsMode: mode === 'dps', onmode: (m) => (mode = m) } : null));
 </script>
 
 <svelte:head><title>{name} — shared simulation | loa-sim</title><meta name="robots" content="noindex,nofollow" /></svelte:head>
@@ -21,5 +23,5 @@
 	{#if Math.abs(cp - data.shared.originalCp) > 0.01}<p class="mt-1 text-xs text-surface-400">Recorded when shared: {data.shared.originalCp.toFixed(2)} CP. Recalculated using the current simulator.</p>{/if}
 </div>
 {#key plan.id}
-	<CharacterView initialBuild={plan} sharedBuild sharedDps={plan.dps} dpsMode={mode === 'dps'} onmode={plan.dps ? (m) => (mode = m) : undefined} {name} {region} loadout={plan.loadout} itemLevel={plan.loadout.itemLevel} subtitle={`Shared ${formatDate(plan.savedAt)}`} />
+	<CharacterView initialBuild={plan} sharedBuild sharedDps={plan.dps} dpsMode={mode === 'dps'} {name} {region} loadout={plan.loadout} itemLevel={plan.loadout.itemLevel} subtitle={`Shared ${formatDate(plan.savedAt)}`} />
 {/key}

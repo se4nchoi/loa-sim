@@ -35,7 +35,7 @@
 			style:background-color={selected ? (o.color ?? 'var(--color-accent-700)') : undefined}
 			onclick={() => onselect(o.value)}
 		>
-			{o.label}{#if o.badge}<span class="ml-1.5 rounded-xs bg-amber-500/15 px-1 align-middle text-[10px] font-semibold text-amber-300">{o.badge}</span>{/if}
+			{o.label}{#if o.badge}<span class="ml-1.5 rounded-xs bg-amber-500/15 max-sm:ml-1 px-1 align-middle text-[10px] font-semibold text-amber-300">{o.badge}</span>{/if}
 		</button>
 	{/each}
 </div>

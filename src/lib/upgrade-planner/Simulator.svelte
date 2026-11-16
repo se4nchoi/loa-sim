@@ -50,7 +50,6 @@
 
 	let {
 		dpsMode = false,
-		onmode,
 		loadout,
 		planStats = $bindable(null),
 		initialState,
@@ -64,8 +63,6 @@
 		edited = $bindable(false)
 	}: {
 		dpsMode?: boolean;
-		/** Switches CP / DPS (the switch shows when given). */
-		onmode?: (mode: 'cp' | 'dps') => void;
 		loadout: Loadout;
 		planStats?: PlanContext | null;
 		initialState?: SimState;

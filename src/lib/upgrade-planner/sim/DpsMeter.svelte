@@ -9,6 +9,7 @@
 	import { formatDamage } from '../dps-comparison';
 	import type { Meter } from '../dps-meter';
 	import { formatPct } from '../format';
+	import ReportDialog from '$lib/ReportDialog.svelte';
 
 	let { meter, skillName, skillIcon, color = 'var(--color-accent-500)', limit = 8 }: {
 		meter: Meter;
@@ -38,6 +39,8 @@
 	const rows = $derived(all ? meter.skills : meter.skills.slice(0, limit));
 	const top = $derived(Math.max(1, ...meter.skills.map((s) => Math.max(s.before, s.after))));
 	const share = (s: { before: number }) => (s.before / meter.before) * 100;
+	/** DPS is in beta: a report link stays in the meter's corner, where odd numbers are seen. */
+	let reporting = $state(false);
 </script>
 
 <div class="flex flex-col gap-3">
@@ -55,6 +58,7 @@
 		<p class="pb-1.5 text-lg font-semibold tabular-nums {!changed ? 'text-surface-400' : pct > 0 ? 'text-green-400' : 'text-red-400'}">
 			{#if changed}{after >= before ? '+' : ''}{formatDamage(after - before)} <span class="text-sm font-normal">({formatPct(pct)}%)</span>{:else}±0{/if}
 		</p>
+		<button type="button" class="ml-auto self-start text-xs text-surface-400 underline underline-offset-2 hover:text-surface-100" onclick={() => (reporting = true)}>Report numbers</button>
 	</div>
 
 	<ul class="flex flex-col gap-1" aria-label="Skills">
@@ -86,3 +90,4 @@
 	{/if}
 
 </div>
+{#if reporting}<ReportDialog kind="data" onclose={() => (reporting = false)} />{/if}

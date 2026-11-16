@@ -1,7 +1,7 @@
 <!-- Report a bug or ask for a feature without a GitHub account: the site files it as a GitHub issue (/api/report).
-     Opened from the Updates card. -->
+     Opened from the Updates card, Reports, and the DPS sim (beta note, meter, Limits). -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { sheetDialog, sheetDrag } from '$lib/upgrade-planner/sim/sheet-drag';
 	import { btn, btnAccent } from '$lib/upgrade-planner/sim/ui';
@@ -9,7 +9,8 @@
 	import { REPORT_KINDS, REPORT_LIMITS, REPORT_MIN, type ReportKind } from '$lib/report';
 	import { NEW_ISSUE_URL } from '$lib/site-news';
 
-	let { onclose }: { onclose: () => void } = $props();
+	/** `kind`, `title`: what to start with (the DPS sim opens it on Wrong numbers); `bodyHint`: the Details placeholder. */
+	let { onclose, kind: startKind = 'bug', title: startTitle = '', bodyHint }: { onclose: () => void; kind?: ReportKind; title?: string; bodyHint?: string } = $props();
 
 	let dialog: HTMLDialogElement;
 	let card = $state<HTMLDivElement>();
@@ -18,8 +19,8 @@
 		dialog.focus();
 	});
 
-	let kind = $state<ReportKind>('bug');
-	let title = $state('');
+	let kind = $state<ReportKind>(untrack(() => startKind));
+	let title = $state(untrack(() => startTitle));
 	let body = $state('');
 	let character = $state('');
 	let contact = $state('');
@@ -75,11 +76,11 @@
 		if (e.target === dialog) dialog.close();
 	}}
 	aria-label="Report a bug or request a feature"
-	class="fixed top-[60px] m-0 max-h-none max-w-none bg-transparent p-0 text-surface-100 outline-none backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
+	class="fixed top-[12dvh] m-0 max-h-none max-w-none bg-transparent p-0 text-surface-100 outline-none backdrop:bg-black/60 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:w-full sm:left-1/2 sm:-translate-x-1/2"
 >
 	<div
 		bind:this={card}
-		class="flex max-h-[85dvh] w-[520px] max-w-[calc(100vw-1.5rem)] flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:max-w-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)] max-sm:rounded-t-xl max-sm:rounded-b-none"
+		class="flex max-h-[80dvh] w-[520px] max-w-[calc(100vw-1.5rem)] flex-col rounded-xs bg-surface-900 shadow-sm shadow-neutral-800 max-sm:w-full max-sm:max-w-none max-sm:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)] max-sm:rounded-t-xl max-sm:rounded-b-none"
 	>
 		<div
 			class="flex shrink-0 flex-wrap items-start gap-3 border-b border-neutral-950 px-4 py-3 max-sm:gap-y-1"
@@ -111,7 +112,7 @@
 				</label>
 				<label class={label}>
 					Details
-					<textarea bind:value={body} maxlength={REPORT_LIMITS.body} rows="5" placeholder={PLACEHOLDER[kind].body} class="{field} resize-y" required></textarea>
+					<textarea bind:value={body} maxlength={REPORT_LIMITS.body} rows="5" placeholder={bodyHint ?? PLACEHOLDER[kind].body} class="{field} resize-y" required></textarea>
 				</label>
 				<div class="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
 					<label class={label}>
