@@ -9,6 +9,7 @@ import { isCpStatsModel } from '$lib/stats-versions';
 import { cleanSampling, samplingFields } from '$lib/stats-sampling';
 import { EXPLORATION_EVENTS, UPGRADE_CATEGORIES, type CountEvent, type StatsDay, type StatsReport } from '$lib/stats-model';
 import { className, resolveClass } from '$lib/upgrade-planner/class-names';
+import { COMPACT_FROM, compactFields, expandCounts } from '$lib/stats-compact';
 import { EFFICIENCY_BUCKETS, POWER_BUCKETS, VISIT_CHARACTER_BUCKETS, VISIT_UPGRADE_BUCKETS, isKey } from '$lib/fun-stats';
 import type { D1Database } from './d1';
 export type { CountEvent, StatsDay, StatsReport } from '$lib/stats-model';
@@ -134,7 +135,8 @@ export function observation(e: CountEvent, at: number) {
 	if(e.sampling)fields.push(...samplingFields(e.sampling));
 	const hash = (s: string) => createHash('sha256').update(s).digest('hex');
 	const character = e.event === 'lookup' && e.region && e.name ? hash(`${e.region}/${e.name}`.toLowerCase()).slice(0, 16) : '';
-	return {id: hash(e.id ?? randomUUID()), at: new Date(at).toISOString(), day: dayOf(at), fields,
+	const day = dayOf(at);
+	return {id: hash(e.id ?? randomUUID()), at: new Date(at).toISOString(), day, fields: day >= COMPACT_FROM ? compactFields(fields) : fields,
 		character, exploration: EXPLORATION_EVENTS.some(([event])=>event===e.event),
 		sample: e.insight ?? e.plan ?? null, sampling: e.sampling ?? null, version: e.v ?? 1};
 }
@@ -152,8 +154,11 @@ export async function recordBatch(events: CountEvent[], db: D1Database | undefin
 	if (!events.length || events.length > 16) throw new Error('Invalid stats batch.');
 	const unique = [...new Map(events.map(e => observation(e, at)).map(o => [o.id, o])).values()];
 	const placeholders = unique.map(() => '?').join(',');
-	const known = new Set((await db.prepare(`SELECT id FROM loa_stats_events WHERE id IN (${placeholders})`)
-		.bind(...unique.map(o => o.id)).all<{id: string}>()).results.map(r => r.id));
+	const [receipts, cleanup] = await db.batch<{id?: string; value?: string}>([
+		db.prepare(`SELECT id FROM loa_stats_events WHERE id IN (${placeholders})`).bind(...unique.map(o => o.id)),
+		db.prepare(`SELECT value FROM loa_stats_meta WHERE key = 'cleanup-day'`),
+	]);
+	const known = new Set(receipts.results.map(r => r.id));
 	const pending = unique.filter(o => !known.has(o.id));
 	// Duplicate retries consume no allowance.
 	if (!pending.length) return 'accepted';
@@ -170,9 +175,13 @@ export async function recordBatch(events: CountEvent[], db: D1Database | undefin
 		ON CONFLICT (id) DO NOTHING`).bind(o.id, o.at, o.day, o.character, JSON.stringify(o.fields),
 		o.sample ? JSON.stringify(o.sample) : null, o.sampling ? JSON.stringify(o.sampling) : null,
 		o.version, o.exploration ? 1 : 0, rate, bucket));
-	// Keep summaries, but bound detailed observations to 90 days and limiter buckets to two minutes.
-	statements.push(db.prepare('DELETE FROM loa_stats_events WHERE occurred_at < ?').bind(new Date(at - RETAIN_EVENTS_MS).toISOString()));
-	statements.push(db.prepare('DELETE FROM loa_stats_rates WHERE bucket < ?').bind(new Date(at - 120_000).toISOString()));
+	// Keep summaries, but bound detailed observations to 90 days. Once per UTC day (the first batch after midnight),
+	// because each deleted row and index entry counts as a D1 row written. Limiter buckets go at the same time.
+	const today = dayOf(at);
+	if ((cleanup?.results[0]?.value ?? '') < today) statements.push(
+		db.prepare(`INSERT INTO loa_stats_meta (key, value) VALUES ('cleanup-day', ?1) ON CONFLICT (key) DO UPDATE SET value = excluded.value`).bind(today),
+		db.prepare('DELETE FROM loa_stats_events WHERE occurred_at < ?').bind(new Date(at - RETAIN_EVENTS_MS).toISOString()),
+		db.prepare('DELETE FROM loa_stats_rates WHERE bucket < ?').bind(new Date(at - 120_000).toISOString()));
 	const results = await db.batch<{hits: number}>(statements);
 	return rate && Number(results[0]?.results[0]?.hits) > RATE_LIMIT ? 'limited' : 'accepted';
 }
@@ -235,7 +244,10 @@ export async function readStats(days: number, db: D1Database | undefined, now = 
 		const day = byDate.get(row.day), n = Number(row.value);
 		if (!day || !Number.isSafeInteger(n) || n < 0) throw new Error('Invalid stats counter.');
 		day.counts[row.field] = n;
-		totals[row.field] = (totals[row.field] ?? 0) + n;
+	}
+	for (const day of out) {
+		if (day.date >= COMPACT_FROM) expandCounts(day.counts);
+		for (const [field, n] of Object.entries(day.counts)) totals[field] = (totals[field] ?? 0) + n;
 	}
 	for (const row of data.characters) {
 		const day = byDate.get(row.day);

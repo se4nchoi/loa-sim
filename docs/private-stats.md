@@ -21,7 +21,9 @@ Usage collection and `/api/stats` use the Cloudflare D1 database bound as `STATS
 
 Apply schema changes with `npx wrangler d1 migrations apply STATS_DB --remote` (files in `migrations/d1`). Each browser batch costs one read for retry receipts, then one D1 transaction for the address limiter, the inserts and maintenance. Counters are kept by a trigger that fires only on rows actually inserted, so retries and racing duplicates are never counted twice. Only bounded counter dimensions, validated bucketed samples, hashed character identifiers and event IDs are retained; raw character names and addresses are not stored.
 
-Detailed observations and their retry receipts expire after 90 days; limiter buckets after two minutes. Both are pruned on every batch through their time indexes. Daily counters and character hashes remain for reporting.
+Detailed observations and their retry receipts expire after 90 days; limiter buckets after two minutes. Both are pruned by the first batch of each UTC day. Daily counters and character hashes remain for reporting.
+
+D1's free plan allows 100k rows written per day, and every index entry and deleted row counts. To stay well under it (live traffic was about 15 rows per event on 2026-11-16): events and limiter buckets are `WITHOUT ROWID` tables with no time index (`migrations/d1/0002_lean_writes.sql`), cleanup runs once a day, and from 2026-11-17 the server stores only detailed counters where summaries can be rebuilt from them (`src/lib/stats-compact.ts`). `/api/stats` rebuilds those summaries per day on read, so reports and the Collected counters list are unchanged.
 
 ### Neon to D1 copy (2026-11-16)
 

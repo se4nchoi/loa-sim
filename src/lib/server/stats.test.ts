@@ -245,4 +245,30 @@ describe('D1 batch atomicity and retention', () => {
   expect(report.returningCharacters).toBe(1);
   expect(report.mostDaysOneCharacter).toBe(2);
  });
+ it('stores fewer counters from the compaction day yet reports exactly the same totals', async () => {
+  const {decisionSample,opportunitySample}=await import('$lib/stats-insights');
+  const upgrade={key:'gem',category:'gem',gainPct:2,title:'x',detail:'',count:1,approximate:false} as const;
+  const other={...upgrade,key:'acc',category:'accessory',gainPct:3} as const;
+  const cohort=insightCohort('souleater','NA/A',1780,false)!;
+  const events=()=>[
+   {event:'upgrade_applied',category:'gem',v:3,id:crypto.randomUUID(),efficiency:'10to25k',
+    insight:decisionSample(cohort,upgrade,'gold',[upgrade,other],{gem:100000,acc:900000},{},{})!,sampling:samplingAttempt('decision')},
+   {event:'upgrade_applied',category:'gem',v:3,id:crypto.randomUUID(),insight:decisionSample(cohort,upgrade,'cp',[upgrade],{},{},{})!,sampling:samplingAttempt('decision')},
+   {event:'opportunity_sampled',v:3,id:crypto.randomUUID(),insight:opportunitySample(cohort,[upgrade,other],{gem:100000,acc:900000},{},{})!,sampling:samplingAttempt('opportunity')},
+   {event:'upgrade_applied',category:'gem',v:3,id:crypto.randomUUID(),sampling:samplingAttempt('decision','baseline-mismatch')},
+   {event:'lookup',region:'NA',name:'A',class:'bard',level:'1760to1789',power:'5to6k',role:'support'},
+  ].map(e=>cleanEvent(e)!);
+  const full=Date.parse('2026-11-16T12:00:00Z'), lean=Date.parse('2026-11-17T12:00:00Z');
+  for(const e of events()) expect(e).not.toBeNull();
+  for(const e of events()) await record(e,d1,full);
+  for(const e of events()) await record(e,d1,lean);
+  const stored=(day:string)=>(d1.sqlite.prepare('SELECT count(*) AS n FROM loa_stats_counters WHERE day=?').get(day) as {n:number}).n;
+  const fieldsOf=(day:string)=>(d1.sqlite.prepare('SELECT sum(json_array_length(fields)) AS n FROM loa_stats_events WHERE day=?').get(day) as {n:number}).n;
+  expect(fieldsOf('2026-11-17')).toBeLessThan(fieldsOf('2026-11-16')*0.65);
+  expect(stored('2026-11-17')).toBeLessThan(stored('2026-11-16'));
+  const report=await readStats(2,d1,lean);
+  const [day17,day16]=report.days;
+  expect(day17.counts).toEqual(day16.counts);
+  expect(report.totals['decision:rank:gold:best']).toBe(2);
+ });
 });
