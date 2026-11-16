@@ -9,19 +9,20 @@ import { isCpStatsModel } from '$lib/stats-versions';
 import { cleanSampling, samplingFields } from '$lib/stats-sampling';
 import { EXPLORATION_EVENTS, UPGRADE_CATEGORIES, type CountEvent, type StatsDay, type StatsReport } from '$lib/stats-model';
 import { className, resolveClass } from '$lib/upgrade-planner/class-names';
+import { EFFICIENCY_BUCKETS, POWER_BUCKETS, VISIT_CHARACTER_BUCKETS, VISIT_UPGRADE_BUCKETS, isKey } from '$lib/fun-stats';
 import type { D1Database } from './d1';
 export type { CountEvent, StatsDay, StatsReport } from '$lib/stats-model';
 
 export const STATS_START = '2026-10-20';
 export const MAX_STATS_DAYS = 3660;
-const CLIENT_EVENTS = ['lookup', 'lookup_fail', 'sim_open', 'build_saved', ...EXPLORATION_EVENTS.map(([event])=>event)];
+const CLIENT_EVENTS = ['lookup', 'lookup_fail', 'sim_open', 'build_saved', 'visit_end', ...EXPLORATION_EVENTS.map(([event])=>event)];
 const dayOf = (at: number) => new Date(at).toISOString().slice(0, 10);
 /** DEPLOY_ENV is set per Cloudflare Pages environment (production / preview); unset counts. */
 export const statsEnabled = () => !env.DEPLOY_ENV || env.DEPLOY_ENV === 'production';
 
 export function cleanEvent(body: unknown): CountEvent | null {
 	if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
-	const { event, region, name, class: cls, id, source, category, plan, insight, sampling, v } = body as Record<string, unknown>;
+	const { event, region, name, class: cls, id, source, category, plan, insight, sampling, v, level, power, role, efficiency, upgrades, characters } = body as Record<string, unknown>;
 	if (typeof event !== 'string' || !CLIENT_EVENTS.includes(event)) return null;
 	const out: CountEvent = { event: event as CountEvent['event'] };
 	if (v!==undefined) { if(v!==2 && v!==3) return null; out.v=v; }
@@ -45,6 +46,17 @@ export function cleanEvent(body: unknown): CountEvent | null {
 		if (!(UPGRADE_CATEGORIES as readonly unknown[]).includes(category)) return null;
 		out.category = category as CountEvent['category'];
 	}
+	// Fun-facts ranges: only on the event they describe, only as known range keys.
+	if (level !== undefined) { if (event !== 'lookup' || !LEVEL_BUCKETS.some(([k]) => k === level)) return null; out.level = level as CountEvent['level']; }
+	if (power !== undefined || role !== undefined) {
+		if (event !== 'lookup' || !isKey(POWER_BUCKETS, power) || (role !== 'dealer' && role !== 'support')) return null;
+		out.power = power; out.role = role;
+	}
+	if (efficiency !== undefined) { if (event !== 'upgrade_applied' || !isKey(EFFICIENCY_BUCKETS, efficiency)) return null; out.efficiency = efficiency; }
+	if (event === 'visit_end') {
+		if (!isKey(VISIT_UPGRADE_BUCKETS, upgrades) || !isKey(VISIT_CHARACTER_BUCKETS, characters)) return null;
+		out.upgrades = upgrades; out.characters = characters;
+	} else if (upgrades !== undefined || characters !== undefined) return null;
 	if (plan !== undefined) {
 		if (event !== 'build_saved' || !plan || typeof plan !== 'object' || Array.isArray(plan)) return null;
 		const p = plan as Record<string, unknown>;
@@ -102,7 +114,12 @@ export function observation(e: CountEvent, at: number) {
 		fields.push(`class:${cls ? className(cls) : 'Unknown'}`);
 		if (!cls) fields.push(`unknown:${e.class ? 'unrecognized' : 'missing'}`);
 		if (e.source) fields.push(`source:${e.source}`);
+		fields.push(`hour:${new Date(at).getUTCHours().toString().padStart(2, '0')}`);
+		if (e.level) fields.push(`level:${e.level}`, `level:class:${cls ? className(cls) : 'Unknown'}:${e.level}`);
+		if (e.power && e.role) fields.push(`power:${e.role}:${e.power}`);
 	}
+	if (e.efficiency) fields.push(`efficiency:${e.efficiency}`, `efficiency:${e.category}:${e.efficiency}`);
+	if (e.event === 'visit_end') fields.push(`visit:upgrades:${e.upgrades}`, `visit:characters:${e.characters}`);
 	if (e.category) fields.push(`upgrade:${e.category}`);
 	if (e.plan) fields.push('plan:count', `plan:cp:${e.plan.cp}`, `plan:level:${e.plan.target}`, `plan:role:${e.plan.role}`);
 	if(e.plan?.model)fields.push(`plan:model:${e.plan.model}`);
@@ -200,9 +217,13 @@ export async function readStats(days: number, db: D1Database | undefined, now = 
 				(SELECT min(day) AS first, max(day) AS last FROM loa_stats_legacy_days WHERE day BETWEEN ?1 AND ?2) l
 				WHERE r.first_day = l.first AND r.last_day = l.last), 0) AS distinct_count,
 			EXISTS (SELECT 1 FROM loa_stats_legacy_days WHERE day BETWEEN ?1 AND ?2) AS legacy,
-			(SELECT value FROM loa_stats_meta WHERE key = 'exploration-since') AS since`).bind(dates.at(-1), dates[0]),
+			(SELECT value FROM loa_stats_meta WHERE key = 'exploration-since') AS since,
+			(SELECT count(*) FROM (SELECT 1 FROM loa_stats_characters WHERE day BETWEEN ?1 AND ?2
+				GROUP BY character_hash HAVING count(*) > 1)) AS returning_count,
+			(SELECT coalesce(max(n), 0) FROM (SELECT count(*) AS n FROM loa_stats_characters WHERE day BETWEEN ?1 AND ?2
+				GROUP BY character_hash)) AS most_days`).bind(dates.at(-1), dates[0]),
 	]);
-	const head = summary?.results[0] as {distinct_count: number; legacy: number; since: string | null} | undefined;
+	const head = summary?.results[0] as {distinct_count: number; legacy: number; since: string | null; returning_count: number; most_days: number} | undefined;
 	if (!counts || !characters || !head) throw new Error('Invalid stats report.');
 	const data = {counts: counts.results as {day: string; field: string; value: number}[],
 		characters: characters.results as {day: string; value: number}[],
@@ -222,5 +243,6 @@ export async function readStats(days: number, db: D1Database | undefined, now = 
 	}
 	return {from: dates.at(-1)!, to: dates[0], distinctCharacters: Number(data.distinct), totals, days: out,
 		updatedAt: new Date(now).toISOString(), explorationSince: data.since,
+		returningCharacters: Number(head.returning_count), mostDaysOneCharacter: Number(head.most_days),
 		...(data.legacy ? {legacyDistinct: true} : {})};
 }

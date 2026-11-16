@@ -4,13 +4,14 @@
 	import StatsTimeline from '$lib/StatsTimeline.svelte';
 	import StatsCollection from '$lib/StatsCollection.svelte';
 	import StatsSampling from '$lib/StatsSampling.svelte';
+	import StatsFun from '$lib/StatsFun.svelte';
 	import { CP_BUCKETS, LEVEL_BUCKETS } from '$lib/plan-stats';
 	let days = $state('30');
 	let key = $state('');
 	let report = $state<StatsReport | null>(null);
 	let error = $state('');
 	let busy = $state(false);
-	let section = $state<'activity' | 'exploration' | 'plans'>('activity');
+	let section = $state<'activity' | 'exploration' | 'plans' | 'fun'>('activity');
 	let metric = $state('sim_open');
 	let classSearch = $state('');
 	let classSort = $state('loads');
@@ -74,9 +75,9 @@
 	{#if error}<p role="alert" class="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300">{error}</p>{/if}
 	{#if busy && !report}<p role="status" class="text-surface-400">Loading stats…</p>{/if}
 	{#if report}
-		<div class="flex gap-6 border-b border-neutral-800" aria-label="Stats views">
-			{#each [['activity', 'Activity'], ['exploration', 'Exploration'], ['plans', 'Saved plans']] as [value, label]}
-				<button type="button" aria-pressed={section === value} onclick={() => section = value as typeof section} class="border-b-2 pb-3 font-semibold transition {section === value ? 'border-accent-400 text-accent-300' : 'border-transparent text-surface-400 hover:text-surface-100'}">{label}</button>
+		<div class="flex gap-4 overflow-x-auto border-b border-neutral-800 sm:gap-6" aria-label="Stats views">
+			{#each [['activity', 'Activity'], ['exploration', 'Exploration'], ['plans', 'Saved plans'], ['fun', 'Fun facts']] as [value, label]}
+				<button type="button" aria-pressed={section === value} onclick={() => section = value as typeof section} class="shrink-0 whitespace-nowrap border-b-2 pb-3 font-semibold transition {section === value ? 'border-accent-400 text-accent-300' : 'border-transparent text-surface-400 hover:text-surface-100'}">{label}</button>
 			{/each}
 		</div>
 		{#if section === 'activity'}
@@ -105,6 +106,8 @@
 					<section class="panel divide-y divide-neutral-800 px-5">{#each [...ACTIVITY_EVENTS.slice(3), ['lookup_fail', 'Failed loads']] as [event, label]}<div class="flex items-center justify-between py-4"><span class="text-surface-300">{label}</span><strong class="tabular-nums">{fmt(report.totals[event] ?? 0)}</strong></div>{/each}</section>
 				</div>
 			</div>
+		{:else if section === 'fun'}
+			<StatsFun {report} />
 		{:else if section === 'exploration'}
 			<p class="text-xs text-surface-400">{report.explorationSince ? `Collecting since ${report.explorationSince} · UTC` : 'Awaiting first exploration event'}</p>
 			<div class="grid gap-3 sm:grid-cols-3">{#each EXPLORATION_EVENTS as [event, label]}<div class="stat-card"><span class="stat-label">{label}</span><strong class="stat-value text-accent-300">{report.explorationSince ? fmt(report.totals[event] ?? 0) : '—'}</strong></div>{/each}</div>
@@ -135,6 +138,7 @@
 			<li>Unknown class includes historical “Other” loads. Their original classes were not retained.</li>
 			<li>Share requests count server loads with known preview bots filtered; they do not confirm human views.</li>
 			<li>Updated tracking includes pasted loads and visible simulator visits. Earlier simulator opens used tab-level deduplication.</li>
+			<li>Fun facts: item level, CP (with build role), gold per +1% CP and per-visit counts are ranges only, collected from November 16, 2026. Hours are UTC from the server clock. A visit ends the first time its tab is hidden.</li>
 			<li>Exploration counts apply to simulations, not in-game purchases. No historical backfill.</li>
 			<li>Budget costs are estimates from entered prices and bound inventory. Partial budgets are excluded from complete-cost distributions. Single-step offers are not multi-upgrade optimizations.</li>
 			<li>Repeated views and choices can belong to the same character. Cohort tables pool observations while retaining model and cost-assumption labels.</li>

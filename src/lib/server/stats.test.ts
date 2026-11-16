@@ -45,7 +45,7 @@ describe('usage stats', () => {
 		expect(report.from).toBe('2026-10-20');
 		expect(report.to).toBe('2026-10-22');
 		expect(report.distinctCharacters).toBe(2);
-		expect(report.totals).toEqual({'class:Bard': 1, 'class:Unknown': 1, 'unknown:unrecognized': 1, 'class:Souleater': 1, lookup: 3, 'lookup:CE': 1, 'lookup:NA': 2, share_created: 1});
+		expect(report.totals).toEqual({'class:Bard': 1, 'class:Unknown': 1, 'unknown:unrecognized': 1, 'class:Souleater': 1, lookup: 3, 'lookup:CE': 1, 'lookup:NA': 2, 'hour:12': 3, share_created: 1});
 		expect(report.days.map((d) => [d.date, d.distinctCharacters])).toEqual([['2026-10-22', 1], ['2026-10-21', 1], ['2026-10-20', 0]]);
 	});
 
@@ -220,5 +220,29 @@ describe('D1 batch atomicity and retention', () => {
   expect(report.explorationSince).toBeNull();
   await record({event:'sim_open',id:'00000000-0000-4000-8000-000000000000'},d1,day1);
   expect((await readStats(7,d1,day1)).totals).toEqual({sim_open:1});
+ });
+ it('records fun-facts ranges, the UTC hour and visit depth without exact values', async () => {
+  const lookup={event:'lookup',region:'NA',name:'Fun',class:'bard',level:'1760to1789',power:'5to6k',role:'support'} as const;
+  expect(cleanEvent(lookup)).toEqual({...lookup,region:'NA'});
+  expect(cleanEvent({...lookup,level:1765})).toBeNull();
+  expect(cleanEvent({...lookup,power:'5to6k',role:undefined})).toBeNull();
+  expect(cleanEvent({event:'sim_open',level:'1760to1789'})).toBeNull();
+  expect(cleanEvent({event:'upgrade_applied',category:'gem',efficiency:'10to25k'})).toMatchObject({efficiency:'10to25k'});
+  expect(cleanEvent({event:'upgrade_applied',category:'gem',efficiency:12345})).toBeNull();
+  expect(cleanEvent({event:'visit_end',upgrades:'2to4',characters:'1'})).toEqual({event:'visit_end',upgrades:'2to4',characters:'1'});
+  expect(cleanEvent({event:'visit_end',upgrades:'3',characters:'1'})).toBeNull();
+  expect(cleanEvent({event:'sim_open',upgrades:'1',characters:'1'})).toBeNull();
+  await record(cleanEvent(lookup)!,d1,day1);
+  await record(cleanEvent({event:'upgrade_applied',category:'gem',efficiency:'10to25k'})!,d1,day1);
+  await record({event:'visit_end',upgrades:'2to4',characters:'1'},d1,day1);
+  expect((await readStats(7,d1,day1)).totals).toMatchObject({'hour:12':1,'level:1760to1789':1,'level:class:Bard:1760to1789':1,
+   'power:support:5to6k':1,'efficiency:10to25k':1,'efficiency:gem:10to25k':1,'visit:upgrades:2to4':1,'visit:characters:1':1,'lookup:NA':1});
+ });
+ it('reports returning characters and the most days one character was loaded', async () => {
+  for (const at of [day1, day2]) await record({event:'lookup',region:'NA',name:'Regular'},d1,at);
+  await record({event:'lookup',region:'CE',name:'Once'},d1,day2);
+  const report=await readStats(7,d1,day2);
+  expect(report.returningCharacters).toBe(1);
+  expect(report.mostDaysOneCharacter).toBe(2);
  });
 });
