@@ -156,6 +156,9 @@ export interface RunSummary extends EncounterRow {
 	/** Order cores whose stacks the run's casts show (stack-replay): per core ("blaster:Demon Fire"), per bonus skill,
 	 *  damage by the stacks each cast went out with. Unknown on old imports. */
 	stackDamage?: Record<string, Record<number, Record<string, number>>>;
+	/** Timed bracelet effects (buff family, see dps-stats braceletFamily): damage dealt while each was up, and for
+	 *  "Weapon Power every 30s" its damage-weighted stacks. Unknown on old imports. */
+	braceletUptime?: Record<number, { damage: number; stacks?: number }>;
 	/** The boss's HP at the end (0 on a clear), and its max; unknown on old imports. */
 	bossHp?: { left: number; max: number };
 	/** Players dead at the end, of how many. */

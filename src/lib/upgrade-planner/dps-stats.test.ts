@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import soulshan from './fixtures/na-soulshan.json';
-import { braceletPart, dpsGainPct, statDeltas, statDeltasAtLeast } from './dps-stats';
+import { braceletPart, dpsGainPct, statDeltas, statDeltasAtLeast, braceletEffectsUptime, rampStacks, TYPICAL_BRACELET_SHARE } from './dps-stats';
 import { initSimState, simulate, type DpsLine } from './simulate';
 import type { StatValues } from '$lib/logs/protocol';
 import type { Loadout } from './types';
@@ -36,7 +36,32 @@ describe('DPS from the meter stat values', () => {
 		expect(demon.unvalued).toEqual([]);
 		const stagger = braceletPart('4:605100031')!;
 		expect(stagger.outgoing).toBe(3);
-		expect(stagger.unvalued).toEqual(['Outgoing Damage +5% to Staggered foes']);
+		expect(stagger.unvalued).toEqual(["Outgoing Damage +5% to Staggered foes (stagger isn't logged)"]);
+	});
+	it('values timed bracelet lines at their uptime and lists what the logs cannot show', () => {
+		const uptime = { share: (f: number) => ({ 7: 0.8, 9: 0.5, 10: 0.9, 11: 0.75, 12: 0.6 })[f] ?? 0, stacks: () => 4 };
+		expect(braceletPart('3:11111', uptime)!.stats.weaponPower).toBeCloseTo(2400 * 0.75, 9);
+		expect(braceletPart('3:11121', uptime)!.stats.weaponPower).toBeCloseTo(150 * 4 * 0.6, 9);
+		expect(braceletPart('4:605100101', uptime)!.stats.weaponPower).toBeCloseTo(1480 * 6 * 0.9, 9);
+		expect(braceletPart('3:11071', uptime)!.stats.critRate).toBeCloseTo(2.5 * 0.8, 9);
+		expect(braceletPart('3:11091', uptime)!.stats.critDamage).toBeCloseTo(4.8 * 0.5, 9);
+		expect(braceletPart('3:11061', uptime)!.unvalued).toEqual(['Boss Defense -2.5% (boss Defense unknown)']);
+		const cooldown = braceletPart('3:11051')!;
+		expect(cooldown.outgoing).toBe(5.5);
+		expect(cooldown.unvalued).toEqual([]);
+	});
+	it('pools the runs’ bracelet uptime, typical for effects they did not have', () => {
+		const runs = [
+			{ damage: 100, duration: 300_000, braceletUptime: { 11: { damage: 90 }, 12: { damage: 50, stacks: 4 } } },
+			{ damage: 300, duration: 300_000, braceletUptime: { 11: { damage: 250 }, 12: { damage: 100, stacks: 7 } } }
+		];
+		const u = braceletEffectsUptime(runs);
+		expect(u.typical).toBe(false);
+		expect(u.share(11)).toBeCloseTo(340 / 400, 9);
+		expect(u.share(7)).toBe(TYPICAL_BRACELET_SHARE);
+		expect(u.stacks(12)).toBeCloseTo((4 * 50 + 7 * 100) / 150, 9);
+		expect(braceletEffectsUptime([{ damage: 1, duration: 60_000 }]).stacks(12)).toBeCloseTo(rampStacks(60_000), 9);
+		expect(rampStacks(90_000)).toBeCloseTo(2, 9);
 	});
 	it('weapon honing is Weapon Power only', () => {
 		const base = initSimState(loadout);

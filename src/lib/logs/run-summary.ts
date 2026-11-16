@@ -13,8 +13,9 @@ export interface LoggedRunSkill {
 	hits?: number; crits?: number; casts?: number; timeAvailable?: number;
 	gemDamage?: number; gemCooldown?: number;
 	isHyperAwakening?: boolean;
-	/** Damage dealt under each buff, by buff id. */
+	/** Damage dealt under each buff / boss debuff, by buff id. */
 	buffedBy?: Record<string, number>;
+	debuffedBy?: Record<string, number>;
 	frontAttackDamage?: number; backAttackDamage?: number;
 	skillCastLog?: {timestamp?: number; hits?: (StatWindowHit & {timestamp?: number})[]}[];
 }
@@ -104,6 +105,42 @@ function buffsOf(s: LoggedRunSkill, kept: Map<number, string> | undefined): { bu
 	return { buffs: out };
 }
 
+/** Bracelet buffs and debuffs are LOA Logs ids 605100000–605100999; the family is the effect, the last digit its grade. */
+const braceletBuffFamily = (id: number) => (id > 605100000 && id < 605101000 ? Math.floor((id - 605100000) / 10) : null);
+/** "Weapon Power every 30s" (dps-stats rampStacks). */
+const RAMP_FAMILY = 12;
+
+/**
+ * Damage dealt under each timed bracelet effect, from the skills' per-buff totals; for the 30s ramp, its stacks per
+ * hit (one more every 30s from its first hit, max 30), damage-weighted. undefined when no skill lists its buffs.
+ */
+export function braceletUptimeOf(skills: LoggedRunSkill[]): RunSummary['braceletUptime'] {
+	if (!skills.some((s) => s.buffedBy || s.debuffedBy)) return undefined;
+	const out: NonNullable<RunSummary['braceletUptime']> = {};
+	for (const s of skills) {
+		// A buff and a debuff of the same family on one hit is one effect: count the larger.
+		const fam: Record<number, number> = {};
+		for (const map of [s.buffedBy, s.debuffedBy]) for (const [id, damage] of Object.entries(map ?? {})) {
+			const f = braceletBuffFamily(Number(id));
+			if (f !== null && num(damage)) fam[f] = Math.max(fam[f] ?? 0, damage);
+		}
+		for (const [f, damage] of Object.entries(fam)) (out[Number(f)] ??= { damage: 0 }).damage += damage;
+	}
+	const hits = skills.flatMap((s) => (s.skillCastLog ?? []).flatMap((c) => c.hits ?? []))
+		.filter((h) => typeof h.timestamp === 'number' && (h.buffedBy ?? []).some((id) => braceletBuffFamily(id) === RAMP_FAMILY));
+	if (out[RAMP_FAMILY] && hits.length) {
+		const start = Math.min(...hits.map((h) => h.timestamp!));
+		let weighted = 0, damage = 0;
+		for (const h of hits) {
+			const d = num(h.damage) ?? 0;
+			weighted += d * Math.min(30, 1 + Math.floor((h.timestamp! - start) / 30_000));
+			damage += d;
+		}
+		if (damage > 0) out[RAMP_FAMILY].stacks = weighted / damage;
+	}
+	return out;
+}
+
 /** null when the player dealt no skill damage in the run. */
 export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknown, names: Record<number, [string, string]>): RunSummary | null {
 	const skills: RunSkill[] = [];
@@ -127,6 +164,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 	}
 	if (!skills.length) return null;
 	const stackDamage = entity.keptBuffs ? stackReplay(Object.entries(entity.skills).map(([key, s]) => ({ id: Number(s.id ?? key), name: s.name ?? '', casts: s.skillCastLog ?? [] })), entity.keptBuffs) : undefined;
+	const braceletUptime = braceletUptimeOf(Object.values(entity.skills));
 	let engravings: unknown = entity.engravings;
 	try { if (typeof engravings === 'string') engravings = JSON.parse(engravings); } catch { engravings = null; }
 	let passiveData: unknown = entity.arkPassiveData;
@@ -164,6 +202,7 @@ export function runSummary(row: EncounterRow, entity: LoggedEntity, misc: unknow
 		...(typeof entity.loadoutHash === 'string' && entity.loadoutHash ? { loadoutHash: entity.loadoutHash } : {}),
 		...(entity.keptBuffs ? { buffNames: Object.fromEntries(entity.keptBuffs) } : {}),
 		...(stackDamage ? { stackDamage } : {}),
+		...(braceletUptime ? { braceletUptime } : {}),
 		...(entity.bossHp && entity.bossHp.max > 0 ? { bossHp: entity.bossHp } : {}),
 		...(entity.partyDamage && entity.partyDamage > 0 ? { partyDamage: entity.partyDamage } : {}),
 		...(entity.dead ? { dead: entity.dead } : {}),

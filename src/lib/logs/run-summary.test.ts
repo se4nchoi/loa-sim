@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runSummary, supportKindOf, supportRunOf } from './run-summary';
+import { runSummary, supportKindOf, supportRunOf, braceletUptimeOf } from './run-summary';
 
 const row = { id: 7, start: 1, boss: 'Kazeros', difficulty: 'Hard', cleared: true, player: 'Shanzkii', duration: 60_000 };
 const pair = (a: number, b: number) => ({ damageDoneByStat: a, damageDoneByStatPlusValue: b });
@@ -91,5 +91,19 @@ describe('support contribution', () => {
 	it('has nothing without contribution splits', () => {
 		expect(supportRunOf({}, 'Sup', () => undefined)).toBeNull();
 		expect(supportKindOf('physical_defense_break_/$@[16,605100063]')).toBe('other');
+	});
+});
+
+describe('bracelet uptime', () => {
+	it('sums damage under each bracelet effect and ramps the 30s Weapon Power stacks', () => {
+		const u = braceletUptimeOf([
+			{ buffedBy: { 605100111: 80, 605100121: 90, 1: 100 }, debuffedBy: { 605100073: 70 },
+				skillCastLog: [{ hits: [{ timestamp: 0, damage: 10, buffedBy: [605100121] }, { timestamp: 65_000, damage: 30, buffedBy: [605100121] }] }] },
+			{ buffedBy: { 605100111: 20 } }
+		])!;
+		expect(u[11].damage).toBe(100);
+		expect(u[7].damage).toBe(70);
+		expect(u[12]).toEqual({ damage: 90, stacks: (10 * 1 + 30 * 3) / 40 });
+		expect(braceletUptimeOf([{ totalDamage: 5 }])).toBeUndefined();
 	});
 });

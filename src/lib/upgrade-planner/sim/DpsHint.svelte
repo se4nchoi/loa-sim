@@ -36,7 +36,7 @@
 		] },
 		{ key: 'stacks', label: 'Stacked buffs', kind: 'Assumed', look: adrenaline, tldr: 'Replayed per cast where the logs show stacks; otherwise full stacks or uptime.', points: [
 			'Replayed per cast: Slaughter Spectacle, Demon Fire, Hidden Fang, Lawless Land, TA-64 Reaper Bolt, Thunder, SMG Agent, Titan Suit, Utter Carnage, Manifest, Earth Collapse, Ravening Nightmare (older imports: re-import).',
-			'Full: Adrenaline 6 stacks, Ether Predator 30, stacking bracelet Weapon Power.',
+			'Full: Adrenaline 6 stacks, Ether Predator 30.',
 			'Full: Power Drive, Eternal Blood, Supreme Connection, Dimensional Annihilation, Pulse Nova, Quasar Cannon Suit, Art Master, Overheated Shell, Infinity Deck, Yeon-Style Slash.',
 			'Gear Additional Damage: Master at 5 stacks and the pet’s +1%, as LOA Logs.'
 		] },
@@ -47,10 +47,12 @@
 			'Each extra cast deals the skill’s average in this run and pushes nothing out of the rotation.',
 			'Without cooldown data: base attack only.'
 		] },
-		{ key: 'bracelet', label: 'Bracelet effects', kind: 'Not valued', look: bracelet, tldr: 'Plain stat and damage lines count; most conditional lines don’t.', points: [
+		{ key: 'bracelet', label: 'Bracelet effects', kind: 'Assumed', look: bracelet, tldr: 'Timed lines count at the run’s logged uptime.', points: [
 			'Demon/Archdemon: off on known non-Demon gates; not counted elsewhere (no card-book total or damage by target).',
 			'Boss race from the gate’s listed bosses; adds ignored.',
-			'Not counted: stagger bonuses, HP-gated Weapon Power, speed and cooldown lines (not timed in the logs).',
+			'Stacking Weapon Power: full stacks while up. Weapon Power every 30s: one more stack per 30s.',
+			'Older imports: 90% uptime until re-imported.',
+			'Not counted: stagger bonuses and boss Defense (not in the logs), speed lines.',
 			'Not counted: combat stats (Specialization, Swiftness, …).'
 		] },
 		coverage

@@ -41,6 +41,14 @@ or touch `main` unless the user asks.
   recorder is commented out. Do not use elapsed fight-time share as damage share. Newer `npcWindows` contribution
   pairs aggregate the effect's damage contribution, not a reusable per-skill damage-during-stagger split.
 - Tests: `boss-species.test.ts`, `dps-meter.test.ts`, `dps-stats.test.ts`. See the validation addendum for source links.
+- **Timed lines at logged uptime (11-16).** Hits list bracelet buffs/debuffs (ids 6051000NN, family NN/10), so the
+  import keeps damage under each (`braceletUptimeOf` → `RunSummary.braceletUptime`). Measured on 300 encounters:
+  86–98%. Counted at that share: HP-gated Weapon Power (11), Weapon Power every 30s (12; stacks ramp one per 30s from
+  its first hit, damage-weighted), stacking Weapon Power (10, full stacks while up), boss Crit Resistance as Crit Rate
+  (7), boss Crit Damage as Crit Damage (9). Older imports use 90%. Boss Defense stays listed (boss Defense unknown;
+  LOA Logs' `contributionSplits` values are weights, not damage). Skill cooldown +2% dropped from the list: logged
+  casts already show it; the line's Outgoing Damage counts in full. Stagger confirmed absent again: `stagger_log` is
+  empty in all 6,022 local encounters and hits carry no staggered marker.
 
 ### 2. Full-uptime assumptions for run-dependent lines (implemented 10-27)
 

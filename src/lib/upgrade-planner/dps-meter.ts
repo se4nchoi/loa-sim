@@ -7,8 +7,9 @@
 //     available); skills without that record are listed, not counted;
 //   - order Ark Grid cores (with the model loaded, see ark-grid-dps.ts): their skill group and Destiny damage;
 //   - engravings and Outgoing Damage lines: every skill, by the damage the CP sim scores them at;
-//   - bracelet effects: their stats with the stat edits; Outgoing, Crit Hit, back / frontal and non-directional damage
-//     on the skills (and parts of skills) they apply to;
+//   - bracelet effects: their stats with the stat edits (timed ones at the clears' logged uptime); Outgoing, Crit Hit,
+//     back / frontal and non-directional damage on the skills (and parts of skills) they apply to. The boss's Defense
+//     and stagger state aren't logged, so those lines are listed;
 //   - chaos cores, astrogem options, Enlightenment Karma and the Paradise orb's proc (dealer-grid-stats.ts);
 //   - Leap Karma: Hyper Awakening damage, the one thing that moves it (it's otherwise kept as recorded);
 //   - anything else (Evolution Karma, swaps the run can't show) is listed, not counted.
@@ -17,7 +18,7 @@ import { critRates } from './dps-comparison';
 import { baseAttackOf, gemMembers, planModel, skillEffect } from './dps-explain';
 import { modelGain } from './dps-model';
 import { gateSample } from './dps-gates';
-import { braceletDamage, statDeltasAtLeast } from './dps-stats';
+import { braceletDamage, braceletEffectsUptime, statDeltasAtLeast } from './dps-stats';
 import { NON_DIRECTIONAL_SKILLS } from './skill-groups';
 import type { orderCoreEffect } from './ark-grid-dps';
 import { initSimState, simulate, type SimGem, type SimState } from './simulate';
@@ -148,7 +149,10 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	notInMeter.push(...unvaluedParts(loadout, base, state, !!arkGrid));
 	for (const key of Object.keys(state) as (keyof SimState)[])
 		if (!STAT_KEYS.has(key) && !same(state[key], base[key])) (statState as unknown as Record<string, unknown>)[key] = structuredClone(base[key]);
-	const change = statDeltasAtLeast(loadout, base, statState, base, OWN_LINES);
+	// Timed bracelet effects at these clears' own uptime.
+	const uptime = braceletEffectsUptime(runs);
+	if (uptime.typical && [base, state].some((s) => uptime.timed(s))) notes.push('Bracelet uptime: typical 90%; re-import the logs for these clears’ own.');
+	const change = statDeltasAtLeast(loadout, base, statState, base, OWN_LINES, uptime);
 	if (!change && !same(statState, base)) notes.push(`${DROPPED_EDITS} remove a damage line the model can't value, so they're left out.`);
 	if (change?.unvalued.length) notes.push(`${change.unvalued.join(', ')} isn't valued yet: the real gain is a little higher.`);
 
@@ -218,7 +222,7 @@ export function dpsMeter(loadout: Loadout, base: SimState, state: SimState, buil
 	const gridOf = (skill: { damage: number; critDamage: number }) => gridDamage * (1 + (skill.damage > 0 ? skill.critDamage / skill.damage : 0) * gridCrit);
 	// Bracelet effects: Outgoing Damage on every skill, Crit Hit damage on each skill's crits, back / frontal attack damage on
 	// what the logs recorded as such, non-directional damage on those skills; conditional parts listed, not counted.
-	const [braA, braB] = [braceletDamage(base), braceletDamage(state)];
+	const [braA, braB] = [braceletDamage(base, uptime), braceletDamage(state, uptime)];
 	const pct = (k: 'outgoing' | 'critHit' | 'back' | 'front' | 'nonDirectional') => (1 + braB[k] / 100) / (1 + braA[k] / 100);
 	const bracelet = { outgoing: pct('outgoing'), critHit: pct('critHit') - 1, back: pct('back') - 1, front: pct('front') - 1, nonDirectional: pct('nonDirectional') };
 	// The same line at another value is one entry ("Specialization +97"); a line only the run had is marked removed.

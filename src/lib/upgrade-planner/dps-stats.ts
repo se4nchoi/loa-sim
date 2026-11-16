@@ -62,9 +62,9 @@ function lineTotals(state: SimState): Partial<Record<keyof StatDeltas, number>> 
 }
 
 /** Equipment's absolute damage-stat lines, before passives, engravings and the Ark Grid. */
-export function equipmentDamageStats(state: SimState): Partial<Record<keyof StatDeltas, number>> {
+export function equipmentDamageStats(state: SimState, uptime?: BraceletUptime): Partial<Record<keyof StatDeltas, number>> {
 	const out = lineTotals(state);
-	for (const [key, value] of Object.entries(braceletTotals(state, true).stats) as [keyof StatDeltas, number][])
+	for (const [key, value] of Object.entries(braceletTotals(state, true, uptime).stats) as [keyof StatDeltas, number][])
 		out[key] = (out[key] ?? 0) + value;
 	if (state.quality.weapon !== undefined) out.additionalDamage = (out.additionalDamage ?? 0) + qualityStat('weapon', state.quality.weapon) / 100;
 	out.baseAttackFlat = bracerStats(state.bracer).attackFlat;
@@ -90,19 +90,75 @@ export interface BraceletPart {
 	unvalued: string[];
 }
 const EFFECT_TEXT = new Map(BRACELET_EFFECTS.filter((e) => e.t4).map((e) => [e.key, e.text]));
-/** Sentences with nothing for a dealer's own damage: permanent Weapon Power (simulate() reads it), support lines, notes. */
-const IGNORED_SENTENCE = /^(?:Weapon Power \+[\d,]+\.$|\(Max\. \d+ stacks\)|This effect is limited|Ally .*Enhancement|Awakening Skills do not apply)/;
+/** Sentences with nothing for a dealer's own damage: permanent Weapon Power (simulate() reads it), support lines, notes,
+ *  and Skill cooldown (the logged casts already show it). */
+const IGNORED_SENTENCE = /^(?:Weapon Power \+[\d,]+\.$|\(Max\. \d+ stacks\)|This effect is limited|Ally .*Enhancement|Awakening Skills do not apply|Skill cooldown \+[\d.]+%\.$)/;
+
 /**
- * A current (T4) bracelet effect sentence by sentence: Crit Rate / Crit Damage / Additional Damage as stats, stacking
- * "On hit, Weapon Power" at full stacks, Outgoing / Crit Hit / back / frontal / non-directional damage as damage terms;
- * Demon / Archdemon damage as a separate term; other conditions listed. null for older effects.
+ * How much of the damage a timed bracelet effect was up for (0–1), by its buff family (LOA Logs buff id 6051000NN,
+ * family NN / 10: 7 Weak Point, 9 Detachment, 10 stacking Weapon Power, 11 HP-gated Weapon Power, 12 Weapon Power
+ * every 30s), and the average stacks of the last one. The meter passes its runs' own (braceletUptimeOf).
  */
-export function braceletPart(key: string): BraceletPart | null {
+export interface BraceletUptime { share(family: number): number; stacks(family: number): number }
+/** [measured] Damage share under the timed effects on LOA Logs clears: 86–98% (300 encounters, 2026-11). */
+export const TYPICAL_BRACELET_SHARE = 0.9;
+/** [assumed] Average stacks of "Weapon Power every 30s": one more every 30s from the first hit (each refreshes them),
+ *  up to `max`, averaged over a fight of `fightMs`. */
+export function rampStacks(fightMs: number, max = 30): number {
+	const steps = Math.max(1, fightMs / 30_000), whole = Math.floor(steps);
+	let sum = 0;
+	for (let i = 1; i <= whole; i++) sum += Math.min(max, i);
+	return (sum + (steps - whole) * Math.min(max, whole + 1)) / steps;
+}
+/** [assumed] Fight length for the ramp when no run gives one. */
+const TYPICAL_FIGHT_MS = 7 * 60_000;
+export const TYPICAL_BRACELET_UPTIME: BraceletUptime = { share: () => TYPICAL_BRACELET_SHARE, stacks: () => rampStacks(TYPICAL_FIGHT_MS) };
+/** Families the meter weights by uptime. */
+const TIMED_FAMILIES = new Set([7, 9, 10, 11, 12]);
+/**
+ * The runs' pooled uptime (damage under each effect over all their damage), falling back to the typical one for
+ * effects none of them had (`typical`: no run recorded any). `timed`: whether a state's bracelet has such an effect.
+ */
+export function braceletEffectsUptime(runs: { damage: number; duration: number; braceletUptime?: Record<number, { damage: number; stacks?: number }> }[]): BraceletUptime & { typical: boolean; timed(s: SimState): boolean } {
+	const recorded = runs.filter((r) => r.braceletUptime && r.damage > 0);
+	const total = recorded.reduce((sum, r) => sum + r.damage, 0);
+	const fightMs = runs.length ? runs.reduce((sum, r) => sum + r.duration, 0) / runs.length : TYPICAL_FIGHT_MS;
+	const share = (family: number) => {
+		const under = recorded.reduce((sum, r) => sum + (r.braceletUptime![family]?.damage ?? 0), 0);
+		return under > 0 ? Math.min(1, under / total) : TYPICAL_BRACELET_SHARE;
+	};
+	const stacks = (family: number) => {
+		let weighted = 0, damage = 0;
+		for (const r of recorded) {
+			const u = r.braceletUptime![family];
+			if (u?.stacks !== undefined) { weighted += u.stacks * u.damage; damage += u.damage; }
+		}
+		return damage > 0 ? weighted / damage : rampStacks(fightMs);
+	};
+	return { share, stacks, typical: !recorded.length, timed: (s) => braceletEffects(s.bracelet).some((key) => TIMED_FAMILIES.has(braceletFamily(key) ?? -1)) };
+}
+/** An effect's buff family: "3:11061" (ability) and "4:605100061" (combat effect) are both 6. */
+export function braceletFamily(key: string): number | null {
+	const [kind, id] = key.split(':').map(Number);
+	const buff = kind === 3 && id > 11000 && id < 12000 ? 605100000 + id - 11000 : kind === 4 ? id : NaN;
+	return buff > 605100000 && buff < 605101000 ? Math.floor((buff - 605100000) / 10) : null;
+}
+
+/**
+ * A current (T4) bracelet effect sentence by sentence: Crit Rate / Crit Damage / Additional Damage as stats; timed
+ * Weapon Power and the boss's Crit Resistance / Crit Damage debuffs as stats times their uptime (`uptime`); Outgoing /
+ * Crit Hit / back / frontal / non-directional damage as damage terms; Demon / Archdemon damage as a separate term;
+ * the rest listed (the boss's Defense and stagger state aren't in the logs). null for older effects.
+ */
+export function braceletPart(key: string, uptime: BraceletUptime = TYPICAL_BRACELET_UPTIME): BraceletPart | null {
 	const text = EFFECT_TEXT.get(key);
 	if (!text) return null;
 	const out: BraceletPart = { stats: {}, outgoing: 0, critHit: 0, back: 0, front: 0, nonDirectional: 0, demon: 0, unvalued: [] };
 	const stacks = Number(text.match(/\(Max\. (\d+) stacks\)/)?.[1] ?? 1);
 	const num = (v: string) => Number(v.replace(/,/g, ''));
+	const family = braceletFamily(key) ?? -1;
+	const share = uptime.share(family);
+	const add = (k: keyof StatDeltas, v: number) => { out.stats[k] = (out.stats[k] ?? 0) + v; };
 	// Sentences end at a period, but not "Bonus vs. Demon" or "Ally Atk. Power".
 	for (const sentence of text.split(/(?<=\.)(?<!vs\.|Atk\.)\s+(?=[A-Z(])/)) {
 		let m;
@@ -117,18 +173,27 @@ export function braceletPart(key: string): BraceletPart | null {
 		else if ((m = sentence.match(/^Non-directional Skill Damage \+([\d.]+)%\.$/))) out.nonDirectional += num(m[1]);
 		else if ((m = sentence.match(/^Bonus vs\. Demon\/Archdemon \+([\d.]+)%\.$/))) out.demon += num(m[1]);
 		else if ((m = sentence.match(/^On hit, Weapon Power \+([\d,]+), (.+?) for \d+s\.$/))) {
-			out.stats.weaponPower = (out.stats.weaponPower ?? 0) + num(m[1]) * stacks;
+			// Full stacks while it's up: hits keep it refreshed.
+			add('weaponPower', num(m[1]) * stacks * share);
 			out.unvalued.push(m[2]);
-		} else out.unvalued.push(sentence.replace(/\.$/, ''));
+		} else if ((m = sentence.match(/^When your HP is 50% or higher, upon hit, Weapon Power \+([\d,]+) for \d+s\.$/))) add('weaponPower', num(m[1]) * share);
+		else if ((m = sentence.match(/^Upon hit, Weapon Power \+([\d,]+) for \d+s every 30s\.$/))) add('weaponPower', num(m[1]) * Math.min(stacks, uptime.stacks(family)) * share);
+		// Debuffs on the boss, on this player's damage (not the party's): Crit Resistance as Crit Rate, its Crit Damage
+		// as Crit Damage.
+		else if ((m = sentence.match(/^On hit, target's Crit Resistance -([\d.]+)% for \d+s\.$/))) add('critRate', num(m[1]) * share);
+		else if ((m = sentence.match(/^On hit, target's Crit Damage -([\d.]+)% for \d+s\.$/))) add('critDamage', num(m[1]) * share);
+		else if ((m = sentence.match(/^On hit, target's Defense -([\d.]+)% for \d+s\.$/))) out.unvalued.push(`Boss Defense -${m[1]}% (boss Defense unknown)`);
+		else if ((m = sentence.match(/^Outgoing Damage \+([\d.]+)% to Staggered foes\.$/))) out.unvalued.push(`Outgoing Damage +${m[1]}% to Staggered foes (stagger isn't logged)`);
+		else out.unvalued.push(sentence.replace(/\.$/, ''));
 	}
 	return out;
 }
 
 /** The bracelet's effects for the meter: their damage terms summed, and the texts it can't value. */
-export function braceletDamage(s: SimState): Omit<BraceletPart, 'stats'> {
+export function braceletDamage(s: SimState, uptime?: BraceletUptime): Omit<BraceletPart, 'stats'> {
 	const out = { outgoing: 0, critHit: 0, back: 0, front: 0, nonDirectional: 0, demon: 0, unvalued: [] as string[] };
 	for (const key of braceletEffects(s.bracelet)) {
-		const p = braceletPart(key);
+		const p = braceletPart(key, uptime);
 		if (!p) continue;
 		out.outgoing += p.outgoing; out.critHit += p.critHit; out.back += p.back; out.front += p.front; out.nonDirectional += p.nonDirectional;
 		out.demon += p.demon;
@@ -146,11 +211,11 @@ const CRIT_STAT = 15;
 const COMBAT_STATS: Record<number, string> = { 16: 'Specialization', 17: 'Domination', 18: 'Swiftness', 19: 'Endurance', 20: 'Expertise' };
 
 /** `meter`: the DPS meter values every current effect itself (braceletPart); otherwise only the three stat families. */
-function braceletTotals(s: SimState, meter = false) {
+function braceletTotals(s: SimState, meter = false, uptime?: BraceletUptime) {
 	const stats: Partial<Record<keyof StatDeltas, number>> = {};
 	const signature: string[] = [];
 	for (const key of braceletEffects(s.bracelet)) {
-		const part = meter ? braceletPart(key) : null;
+		const part = meter ? braceletPart(key, uptime) : null;
 		if (part) {
 			for (const [k, v] of Object.entries(part.stats) as [keyof StatDeltas, number][]) stats[k] = (stats[k] ?? 0) + v;
 			continue;
@@ -191,8 +256,8 @@ function unvaluedLines(s: SimState, own: readonly string[] = []): Record<string,
 }
 
 /** The stat change, assuming only covered fields moved and the bracelet's effects match (checked by the callers). */
-function rawDeltas(l: Loadout, from: SimState, to: SimState, base: SimState, meter = false): StatDeltas {
-	const ba = braceletTotals(from, meter), bb = braceletTotals(to, meter);
+function rawDeltas(l: Loadout, from: SimState, to: SimState, base: SimState, meter = false, uptime?: BraceletUptime): StatDeltas {
+	const ba = braceletTotals(from, meter, uptime), bb = braceletTotals(to, meter, uptime);
 	const a = simulate(l, from, base), b = simulate(l, to, base);
 	const la = lineTotals(from), lb = lineTotals(to);
 	const line = (k: keyof StatDeltas) => (lb[k] ?? 0) - (la[k] ?? 0) + (bb.stats[k] ?? 0) - (ba.stats[k] ?? 0);
@@ -211,12 +276,12 @@ function rawDeltas(l: Loadout, from: SimState, to: SimState, base: SimState, met
 }
 
 /** Whether every changed field and bracelet effect is one the stat values describe (accessory lines aside). */
-function coveredChange(from: SimState, to: SimState, meter = false) {
+function coveredChange(from: SimState, to: SimState, meter = false, uptime?: BraceletUptime) {
 	for (const key of Object.keys(to) as (keyof SimState)[]) {
 		if (IGNORED.has(key) || !changed(from[key], to[key])) continue;
 		if (!COVERED.has(key)) return false;
 	}
-	const ba = braceletTotals(from, meter), bb = braceletTotals(to, meter);
+	const ba = braceletTotals(from, meter, uptime), bb = braceletTotals(to, meter, uptime);
 	return !changed(ba.signature, bb.signature) && !changed(ba.unknownStats, bb.unknownStats);
 }
 
@@ -224,14 +289,14 @@ function coveredChange(from: SimState, to: SimState, meter = false) {
  * Raw stat change from `from` to `to`, or null when something changed that the stat values don't describe (an
  * engraving, a gem, an Outgoing Damage line, …).
  */
-export function statDeltas(l: Loadout, from: SimState, to: SimState, base: SimState, own: readonly string[] = []): StatDeltas | null {
+export function statDeltas(l: Loadout, from: SimState, to: SimState, base: SimState, own: readonly string[] = [], uptime?: BraceletUptime): StatDeltas | null {
 	const meter = own.includes('bracelet');
-	if (!coveredChange(from, to, meter)) return null;
+	if (!coveredChange(from, to, meter, uptime)) return null;
 	// Outgoing Damage and other lines aren't in the stat values (unless the caller values them: `own`).
 	const uncoveredLines = (s: SimState) =>
 		ACCESSORY_SLOTS.map((slot) => (s.accessories[slot] ?? []).filter((ln) => isOtherLine(ln) || !LINE_STAT[ln.key] && !ln.key.startsWith('weapon_') && !own.includes(ln.key)));
 	if (changed(uncoveredLines(from), uncoveredLines(to))) return null;
-	return rawDeltas(l, from, to, base, meter);
+	return rawDeltas(l, from, to, base, meter, uptime);
 }
 
 /**
@@ -240,15 +305,15 @@ export function statDeltas(l: Loadout, from: SimState, to: SimState, base: SimSt
  * gives. Losing such a line makes the covered part an overestimate, so that stays null. Lines with no damage value
  * ("other" lines) don't matter here.
  */
-export function statDeltasAtLeast(l: Loadout, from: SimState, to: SimState, base: SimState, own: readonly string[] = []): { delta: StatDeltas; unvalued: string[] } | null {
-	const exact = statDeltas(l, from, to, base, own);
+export function statDeltasAtLeast(l: Loadout, from: SimState, to: SimState, base: SimState, own: readonly string[] = [], uptime?: BraceletUptime): { delta: StatDeltas; unvalued: string[] } | null {
+	const exact = statDeltas(l, from, to, base, own, uptime);
 	if (exact) return { delta: exact, unvalued: [] };
 	const meter = own.includes('bracelet');
-	if (!coveredChange(from, to, meter)) return null;
+	if (!coveredChange(from, to, meter, uptime)) return null;
 	const before = unvaluedLines(from, own), after = unvaluedLines(to, own);
 	const names = [...new Set([...Object.keys(before), ...Object.keys(after)])];
 	if (names.some((n) => (after[n] ?? 0) < (before[n] ?? 0))) return null;
-	return { delta: rawDeltas(l, from, to, base, meter), unvalued: names.filter((n) => (after[n] ?? 0) > (before[n] ?? 0)) };
+	return { delta: rawDeltas(l, from, to, base, meter, uptime), unvalued: names.filter((n) => (after[n] ?? 0) > (before[n] ?? 0)) };
 }
 
 /** DPS change in percent: each stat delta times its value (per point, or per 1,000 for flat stats). */
