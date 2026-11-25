@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {affordableOffers,budgetCurves,choicePairs,recommendations,samplingDiagnostics} from './stats-report';
+import {affordableOffers,budgetCurves,choicePairs,choiceRank,recommendations,samplingDiagnostics} from './stats-report';
 import {CP_STATS_MODEL} from './stats-versions';
 import {insightCohort,insightFields,opportunitySample,decisionSample} from './stats-insights';
 
@@ -38,5 +38,15 @@ describe('private collection reports',()=>{
 		expect(budgetCurves({})).toEqual([]);
 		expect(affordableOffers({'opportunity:offer:bad':4})).toEqual([]);
 		expect(choicePairs({'decision:pair:gold:quality:gem:standard':NaN,'decision:pair:gold:gem:gem:standard':-1,'decision:pair:gold:unknown:gem:standard':5})).toEqual([]);
+	});
+});
+
+describe('choiceRank',()=>{
+	const row=(chosen:string,rank:string)=>['3',CP_STATS_MODEL,'gold','partial','standard','honing',chosen,rank,'3to5','unpriced'];
+	it('splits gold-mode picks that the planner never prices out of unpriced',()=>{
+		expect(choiceRank(row('astrogem','unpriced'))).toBe('no-gold-cost');
+		expect(choiceRank(row('core','unpriced'))).toBe('no-gold-cost');
+		expect(choiceRank(row('honing','unpriced'))).toBe('unpriced');
+		expect(choiceRank(row('astrogem','other'))).toBe('other');
 	});
 });

@@ -9,6 +9,7 @@
 	import GoldCost from './GoldCost.svelte';
 	import MaterialPrices from './MaterialPrices.svelte';
 	import { autoHoningCosts, inventoryMaterials, materialsFor } from './honing-cost';
+	import { autoLoadMarketPrices } from './market-auto';
 	import { bookCost, bookPricesFor, materialPricesFor, costsForCharacter, byGold, formatGold, gold, goldPerPct, loadGold, manualGoldCost, missingPriceCount, setRankMode, supportsGoldCost } from './gold-costs.svelte';
 	import Segmented from './sim/Segmented.svelte';
 	import { getContext, onMount } from 'svelte';
@@ -111,6 +112,10 @@
 	});
 
 	onMount(loadGold);
+	// Gold mode without material prices ranks honing as nearly free; fetch market prices once it needs them.
+	$effect(() => {
+		if (gold.loaded && gold.mode === 'gold') void autoLoadMarketPrices(characterKey);
+	});
 	/** Most CP first, or (with gold costs entered) least gold per 1% CP first. */
 	// In gold mode, unpriced rows (biggest gain first) fill the card so costs can be added right here.
 	const priced = $derived(gold.mode === 'gold' ? topDistinct(byGold(upgrades, costs), limit) : []);

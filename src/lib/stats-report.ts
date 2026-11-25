@@ -45,6 +45,10 @@ export function choicePairs(counts:Record<string,number>,model?:string,priced='a
 		(p[9]==='none'||categories.has(p[9]))&&categories.has(p[10])&&['best','other','unpriced'].includes(p[11])&&gains.has(p[12])&&
 		(p[13]==='unpriced'||(GOLD_BUCKETS as readonly string[]).includes(p[13])),p=>[p[0],p[1],...p.slice(6)]);
 }
+/** Astrogem and Ark Grid core upgrades have no gold cost in the planner, so missing prices can't be added for them. */
+const NO_GOLD_COST = new Set(['astrogem','core']);
+/** A choicePairs() row's rank, with gold-mode picks that can never be priced split out of 'unpriced'. */
+export const choiceRank=(dimensions:string[])=>dimensions[7]==='unpriced'&&NO_GOLD_COST.has(dimensions[6])?'no-gold-cost':dimensions[7];
 export function recommendations(counts:Record<string,number>,model?:string,priced='all'):SampleRow[] {
 	return summarize(counts,'opportunity:outcome:',p=>p.length===9&&schema(p[0])&&cohort(p,1)&&(!model||p[1]===model)&&
 		['complete','partial'].includes(p[6])&&(priced==='all'||p[6]===priced)&&assumptions.has(p[7])&&categories.has(p[8]),p=>[p[0],p[1],p[6],p[7],p[8]]);

@@ -218,6 +218,31 @@ export function applyMarketPrices(snapshot: MarketSnapshot, characterKey: string
 	return undo;
 }
 
+/**
+ * Automatic import for gold mode: fills materials and books with no price, and refreshes prices that still equal the
+ * last market quote. Anything the player typed (including 0 for bound) is kept. Returns how many prices changed.
+ */
+export function fillMarketPrices(snapshot: MarketSnapshot, characterKey: string): number {
+	const region = marketForCharacter(characterKey);
+	if (snapshot.region !== region) return 0;
+	const prices = materialPricesFor(characterKey);
+	const books = bookPricesFor(characterKey);
+	const previous = gold.marketSources[region]?.quotes ?? {};
+	let changed = 0;
+	for (const [id, quote] of Object.entries(snapshot.quotes)) {
+		const [target, key] = id.startsWith('book:') ? [books, id.slice(5)] : [prices, id];
+		const current = target[key];
+		if (current !== undefined && current !== previous[id]?.price) continue;
+		if (current !== quote.price) changed++;
+		target[key] = quote.price;
+	}
+	// Keep older quotes the new feed no longer returns, so prices taken from them still show their source.
+	gold.marketSources[region] = { ...snapshot, quotes: { ...previous, ...snapshot.quotes } };
+	saveMaterials();
+	saveBookPrices();
+	return changed;
+}
+
 /** Keep manual edits made after the import, including explicit free prices. */
 export function undoMarketPrices(undo: MarketImportUndo) {
 	const prices = materialPricesFor(undo.characterKey);

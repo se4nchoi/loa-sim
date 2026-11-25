@@ -3,7 +3,7 @@
 	import {statsBreakdown} from './stats-model';
 	import {CP_BUCKETS} from './plan-stats';
 	import {CATEGORY_LABELS,type UpgradeCategory} from './upgrade-planner/upgrades';
-	import {GOLD_LABELS,ASSUMPTION_LABELS,MODEL_LABELS,affordableOffers,budgetCurves,choicePairs,recommendations,type SampleRow} from './stats-report';
+	import {GOLD_LABELS,ASSUMPTION_LABELS,MODEL_LABELS,affordableOffers,budgetCurves,choicePairs,choiceRank,recommendations,type SampleRow} from './stats-report';
 	import {CP_STATS_MODEL,CP_STATS_MODELS} from './stats-versions';
 	let {totals,view}:{totals:Record<string,number>;view:'exploration'|'plans'}=$props();
 	const sections:Record<string,string>={gear:'Equipment',accessories:'Accessories',bracelet:'Bracelet',skins:'Skins',gems:'Gems',engravings:'Engravings',arkGrid:'Ark Grid',karma:'Karma',paradise:'Paradise',none:'No positive gain',tie:'Tied systems'};
@@ -18,12 +18,12 @@
 	const offers=$derived(affordableOffers(totals,model,coverage));
 	const pairs=$derived(choicePairs(totals,model,coverage));
 	const leaders=$derived(recommendations(totals,model,coverage));
-	function distribution(samples:SampleRow[],at:number,label:(key:string)=>string):[string,number][] {
+	function distribution(samples:SampleRow[],at:number|((dimensions:string[])=>string),label:(key:string)=>string):[string,number][] {
 		const grouped=new Map<string,number>();
-		for(const row of samples)grouped.set(row.dimensions[at],(grouped.get(row.dimensions[at])??0)+row.count);
+		for(const row of samples){const key=typeof at==='number'?row.dimensions[at]:at(row.dimensions);grouped.set(key,(grouped.get(key)??0)+row.count);}
 		return [...grouped].sort((a,b)=>b[1]-a[1]).map(([key,n])=>[label(key),n]);
 	}
-	const rank=(key:string)=>({best:'Best observed',other:'Another upgrade',unpriced:'Unpriced choice'}[key]??key);
+	const rank=(key:string)=>({best:'Best observed',other:'Another upgrade',unpriced:'Unpriced choice','no-gold-cost':'No gold cost (Astrogem / Core)'}[key]??key);
 </script>
 
 {#if view==='exploration'}
@@ -45,14 +45,14 @@
 	{#if model!==CP_STATS_MODEL}<p class="rounded-md border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-xs text-amber-200">Historical tag spans the Vambraces CP correction. Old pooled recommendations lack per-offer context and are not included in these comparison tables.</p>{/if}
 	<div class="grid items-start gap-5 sm:grid-cols-2 lg:grid-cols-3">
 		<StatsBars title="Recommended categories" rows={distribution(leaders,4,category)} note="Best CP per gold among priced candidates"/>
-		<StatsBars title="Choices in Per gold mode" rows={distribution(pairs.filter(r=>r.dimensions[2]==='gold'),7,rank)}/>
+		<StatsBars title="Choices in Per gold mode" rows={distribution(pairs.filter(r=>r.dimensions[2]==='gold'),choiceRank,rank)} note="Unpriced: a price was missing · No gold cost: never priced in the planner"/>
 		<StatsBars title="Choices in Most CP mode" rows={distribution(pairs.filter(r=>r.dimensions[2]==='cp'),7,rank)}/>
 	</div>
 	{#each [
 		{title:'Best-value recommendations',heads:['Schema','Coverage','Upgrade','Assumptions','Samples'],data:leaders.map(r=>({cells:[r.dimensions[0],coverageLabel(r.dimensions[2]),category(r.dimensions[4]),ASSUMPTION_LABELS[r.dimensions[3]]],count:r.count}))},
 		{title:'Single-step offers by gold ceiling',heads:['Schema','Coverage','Up to','Upgrade','CP gain','Assumptions','Samples'],data:offers.map(r=>({cells:[r.dimensions[0],coverageLabel(r.dimensions[2]),r.dimensions[3],category(r.dimensions[4]),gain(r.dimensions[5]),ASSUMPTION_LABELS[r.dimensions[6]]],count:r.count}))},
 		{title:'Complete budget views by cost and CP gain',heads:['Gold','CP gain','Material use','Assumptions','Views'],data:curves.map(r=>({cells:[GOLD_LABELS[r.dimensions[1]],gain(r.dimensions[2]),bound[r.dimensions[3]],ASSUMPTION_LABELS[r.dimensions[4]]],count:r.count}))},
-		{title:'Recommendation versus applied choice',heads:['Schema','Mode','Coverage','Recommended','Chosen','Rank','CP gain','Gold','Assumptions','Choices'],data:pairs.map(r=>({cells:[r.dimensions[0],r.dimensions[2]==='gold'?'Per gold':'Most CP',coverageLabel(r.dimensions[3]),r.dimensions[5]==='none'?'—':category(r.dimensions[5]),category(r.dimensions[6]),rank(r.dimensions[7]),gain(r.dimensions[8]),GOLD_LABELS[r.dimensions[9]]??'Unpriced',ASSUMPTION_LABELS[r.dimensions[4]]],count:r.count}))}
+		{title:'Recommendation versus applied choice',heads:['Schema','Mode','Coverage','Recommended','Chosen','Rank','CP gain','Gold','Assumptions','Choices'],data:pairs.map(r=>({cells:[r.dimensions[0],r.dimensions[2]==='gold'?'Per gold':'Most CP',coverageLabel(r.dimensions[3]),r.dimensions[5]==='none'?'—':category(r.dimensions[5]),category(r.dimensions[6]),rank(choiceRank(r.dimensions)),gain(r.dimensions[8]),GOLD_LABELS[r.dimensions[9]]??'Unpriced',ASSUMPTION_LABELS[r.dimensions[4]]],count:r.count}))}
 	] as table}
 		<section class="min-w-0 rounded-xl border border-neutral-800 bg-neutral-900/40"><h2 class="px-5 pt-5 pb-3 font-semibold">{table.title}</h2>
 			{#if table.data.length}<div class="max-h-80 overflow-auto"><table class="w-full min-w-[680px] text-left text-xs"><thead class="sticky top-0 bg-neutral-900 text-surface-400"><tr>{#each table.heads as head}<th class="px-5 py-3 font-medium last:text-right">{head}</th>{/each}</tr></thead><tbody>{#each table.data.slice(0,100) as row}<tr class="border-t border-neutral-800/60">{#each row.cells as cell}<td class="px-5 py-3 text-surface-200">{cell}</td>{/each}<td class="px-5 py-3 text-right font-semibold text-accent-300 tabular-nums">{row.count.toLocaleString()}</td></tr>{/each}</tbody></table></div>{#if table.data.length>100}<p class="px-5 py-3 text-xs text-surface-400">Most common 100 combinations · all counters available below</p>{/if}
