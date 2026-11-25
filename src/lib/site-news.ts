@@ -15,6 +15,15 @@ export interface SiteUpdate {
 
 export const UPDATES: SiteUpdate[] = [
 	{
+		date: '2026-11-25',
+		kind: 'improved',
+		title: 'Per gold prices',
+		points: [
+			'Per gold mode loads your region’s market prices on its own, so honing no longer shows as nearly free',
+			'Prices you typed yourself are kept, and market prices refresh once they are a day old'
+		]
+	},
+	{
 		date: '2026-11-06',
 		kind: 'fix',
 		title: 'CP calculation',
